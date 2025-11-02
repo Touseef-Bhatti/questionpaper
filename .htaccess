@@ -1,0 +1,18 @@
+# Force PHP 8.1 for this subdomain
+AddHandler application/x-httpd-ea-php81 .php
+
+# Default index file
+DirectoryIndex index.php
+
+# Disable directory browsing
+Options -Indexes
+
+# Protect .env files (any variant) in this directory
+<FilesMatch "^\.env(\..*)?$">
+    Require all denied
+</FilesMatch>
+
+# Block access to common backup/archive files
+<FilesMatch "\.(bak|sql|tar|gz|zip)$">
+    Require all denied
+</FilesMatch>

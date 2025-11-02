@@ -1,0 +1,197 @@
+/* === Modern Professional Profile Page === */
+
+/* CSS Variables for easier theme management */
+:root {
+    --primary-color: #4f6ef7;
+    --primary-dark-color: #3f5bd4;
+    --accent-color: #e63946;
+    --accent-dark-color: #d62828;
+    --background-color: #f4f7fb;
+    --card-background-color: #fff;
+    --text-color: #333;
+    --heading-color: #2d3e50;
+    --label-color: #555;
+    --border-color: #eee;
+    --light-bg-color: #f9faff;
+    --shadow-light: rgba(0, 0, 0, 0.05);
+    --shadow-medium: rgba(0, 0, 0, 0.1);
+    --shadow-heavy: rgba(0, 0, 0, 0.15);
+    --border-radius-sm: 8px;
+    --border-radius-md: 16px;
+    --transition-speed: 0.25s;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--background-color);
+    margin: 0;
+    padding: 0;
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+/* Quick actions */
+.actions-row {
+    display: flex;
+    gap: 15px; /* Increased gap for better spacing */
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 20px 0 10px; /* Adjusted margin */
+    justify-content: center; /* Center align buttons */
+}
+
+.quiz-dashboard-btn, .logout-btn {
+    display: inline-flex; /* Use flex for better alignment of text/icons if added */
+    align-items: center;
+    justify-content: center;
+    padding: 12px 25px; /* Slightly larger padding */
+    border-radius: var(--border-radius-sm);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background var(--transition-speed) ease, transform 0.15s ease, box-shadow var(--transition-speed) ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* More pronounced shadow */
+    border: none; /* Ensure no default button border */
+    cursor: pointer;
+}
+
+.quiz-dashboard-btn {
+    background: var(--primary-color);
+    color: #fff !important;
+    box-shadow: 0 2px 10px rgba(79,110,247,0.25);
+}
+.quiz-dashboard-btn:hover {
+    background: var(--primary-dark-color);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79,110,247,0.35);
+}
+
+/* Profile container */
+.profile-content {
+    background: var(--card-background-color);
+    max-width: 900px;
+    margin: 50px auto;
+    padding: 40px 35px;
+    border-radius: var(--border-radius-md);
+    box-shadow: 0px 8px 25px var(--shadow-medium);
+    transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+}
+
+.profile-content:hover {
+    transform: translateY(-5px); /* More noticeable lift */
+    box-shadow: 0px 15px 40px var(--shadow-heavy); /* Stronger shadow on hover */
+}
+
+/* Profile Header */
+.profile-content h2 {
+    color: var(--heading-color);
+    margin-bottom: 25px;
+    font-size: 32px; /* Larger heading */
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 15px; /* Increased padding */
+}
+
+/* Profile Info */
+.profile-info {
+    display: flex;
+    justify-content: center; /* Center align info blocks */
+    margin-bottom: 30px; /* Increased margin */
+    flex-wrap: wrap;
+    gap: 20px; /* Increased gap */
+}
+
+.profile-info .info {
+    flex: 1;
+    min-width: 250px; /* Increased min-width for better readability */
+    max-width: 30%; /* Limit width for larger screens */
+    font-size: 17px; /* Slightly larger font size */
+    background: var(--light-bg-color);
+    padding: 20px; /* Increased padding */
+    border-radius: var(--border-radius-sm);
+    box-shadow: 0px 2px 8px var(--shadow-light); /* Refined shadow */
+    text-align: center; /* Center text within info blocks */
+}
+
+.profile-info .label {
+    font-weight: 700; /* Bolder label */
+    color: var(--label-color);
+    margin-bottom: 8px; /* Added margin below label */
+    display: block; /* Ensure label takes full width */
+}
+
+.profile-info .value {
+    color: var(--text-color);
+    display: block;
+    margin-top: 4px;
+    font-size: 16px; /* Adjusted font size */
+    word-break: break-word; /* Handle long emails */
+}
+
+/* Buttons */
+a, button {
+    font-family: inherit;
+    font-size: 16px; /* Slightly larger font size for buttons */
+    cursor: pointer;
+}
+
+.back-home {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color var(--transition-speed) ease, text-decoration var(--transition-speed) ease;
+    padding: 10px 15px; /* Added padding for better click area */
+    border-radius: var(--border-radius-sm);
+}
+
+.back-home:hover {
+    color: var(--primary-dark-color);
+    text-decoration: underline;
+    background-color: rgba(79,110,247,0.05); /* Subtle background on hover */
+}
+
+.logout-btn {
+    background: var(--accent-color);
+    color: #fff !important;
+}
+
+.logout-btn:hover {
+    background: var(--accent-dark-color);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(230,57,70,0.35);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .profile-content {
+        margin: 30px 20px;
+        padding: 30px 20px;
+    }
+
+    .profile-content h2 {
+        font-size: 26px;
+    }
+
+    .profile-info {
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .profile-info .info {
+        min-width: unset;
+        max-width: 100%;
+        width: 100%; /* Full width on small screens */
+    }
+
+    .actions-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .quiz-dashboard-btn, .logout-btn, .back-home {
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box; /* Include padding in width */
+    }
+}

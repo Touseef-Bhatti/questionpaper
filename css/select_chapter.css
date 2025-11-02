@@ -1,0 +1,121 @@
+		body {
+			font-family: Arial, sans-serif;
+			background-color: #f4f4f4;
+			text-align: center;
+		}
+		.container {
+			width: 60%;
+			margin: auto;
+			padding: 20px;
+			background: white;
+			border-radius: 8px;
+			box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+		}
+		.chapter-box {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 16px 18px;
+			margin: 12px 0;
+			background: linear-gradient(180deg, #0a7bff 0%, #086bdc 100%);
+			color: white;
+			border-radius: 10px;
+			cursor: pointer;
+			font-size: 16px;
+			transition: transform 0.2s ease, box-shadow 0.2s ease;
+		}
+		.chapter-box:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+			background-color: #0056b3;
+		}
+		input[type="checkbox"] {
+			display: none;
+		}
+		input[type="checkbox"]:checked + .chapter-box {
+			background: linear-gradient(180deg, #2ab74b 0%, #239a3f 100%);
+		}
+		button {
+			padding: 12px 20px;
+			font-size: 16px;
+			margin-top: 15px;
+			border: none;
+			background: #28a745;
+			color: white;
+			border-radius: 8px;
+			cursor: pointer;
+			transition: background 0.3s, transform 0.1s;
+		}
+		/* button:hover { background: #218838; }
+		button:active { transform: translateY(1px); } */
+		.add-chapter-form { margin-top: 30px; padding: 20px; background-color: #f8f9fa; border: 1px solid #ccc; border-radius: 8px; }
+		.add-chapter-form input[type="text"] { padding: 10px; width: 80%; margin-bottom: 10px; border-radius: 5px; border: 1px solid #ccc; }
+		input{ padding: 12px; width: 110px; margin-right: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.4); }
+		.chapter-box input { background: rgba(255,255,255,0.15); color:#fff; }
+		.chapter-box input::placeholder { color: rgba(255,255,255,0.9); }
+		.chapter-box input:focus { outline: none; background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.6); }
+		.pattern-toggle { background: #fff7e6; border: 1px solid #ffd9a8; border-radius: 10px; padding: 14px 16px; text-align: left; margin-bottom: 16px; }
+		.pattern-toggle label { margin-right: 16px; font-weight: 600; }
+		.pattern-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
+		.pattern-controls .qcount { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #ffd9a8; border-radius: 6px; padding: 6px 10px; }
+		.pattern-controls select { padding: 6px; }
+		.placement-row { display: flex; align-items: center; gap: 8px; }
+		.placement-row input[type="number"] { width: 80px; }
+		.placement-row select { min-width: 85px; }
+		/* Status bar */
+		.status-bar { display:flex; gap:10px; flex-wrap:wrap; margin: 12px 0 18px 0; }
+		.status-bar .stat { flex: 1 1 180px; background:#f6f8ff; border:1px solid #d9e2ff; border-radius:8px; padding:10px 12px; text-align:left; }
+		.status-bar .stat strong { font-size: 16px; }
+		.status-bar .ok { border-color:#bfe7c6; background:#f2fbf4; }
+		.status-bar .warn { border-color:#ffd4cc; background:#fff5f2; }
+		.status-bar .over { border-color:#ff4d4f; background:#fff1f0; color:#a8071a; }
+		input.over-field { border-color:#ff4d4f !important; background:#fff1f0 !important; color:#a8071a !important; }
+		@media (max-width: 768px) {
+			.container { width: 90%; }
+			.chapter-box { flex-direction: column; align-items: flex-start; }
+			.chapter-box input[type="number"] { width: 100%; margin-top: 10px; }
+			button { width: 100%; }
+		}
+
+        /* Style only for radio inputs */
+input[type="radio"] {
+  appearance: none; /* remove default look */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #007bff;
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+  margin-right: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Hover effect */
+input[type="radio"]:hover {
+  border-color: #0056b3;
+  box-shadow: 0 0 6px rgba(0, 123, 255, 0.6);
+}
+
+/* Checked state */
+input[type="radio"]:checked {
+  border-color: #007bff;
+  background-color: #007bff;
+}
+
+input[type="radio"]:checked::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  margin-left: auto;
+  margin-right: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+}

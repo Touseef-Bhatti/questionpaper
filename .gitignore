@@ -1,0 +1,20 @@
+# Project .gitignore — keep sensitive files out of VCS
+
+# Ignore environment files (keep templates in repo)
+.env
+.env.local
+config/.env*
+!config/.env.template
+!config/.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+*.swp
+
+# Node / PHP deps (if present)
+node_modules/
+vendor/

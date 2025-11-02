@@ -1,0 +1,33 @@
+/* admin-footer.css - Ensures footer stays at bottom of screen for admin pages */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-container {
+    flex: 1 0 auto;
+    padding-bottom: 2rem; /* Add some space before footer */
+}
+
+.wrap {
+    flex: 1 0 auto;
+    padding-bottom: 2rem; /* Add some space before footer */
+}
+
+.footer {
+    flex-shrink: 0;
+    background: #2d3e50;
+    color: #fff;
+    text-align: center;
+    padding: 2rem 0 1rem 0;
+    margin-top: auto;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+}

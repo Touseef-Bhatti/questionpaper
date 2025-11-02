@@ -1,0 +1,92 @@
+config/.env
+config/.env.local
+config/.env.production
+PHPMailer-master/
+vendor/
+node_modules/
+*.log
+*.sql
+*.sqlite
+/.idea/
+/.vscode/
+/.DS_Store
+test_*.php
+debug_*.php
+diagnose_server.php
+test_env.php
+db_connect_fixed.php
+*.bak
+*.tmp
+# Environment Configuration Files
+.env
+.env.*
+!.env.example
+
+# Database Configuration (if contains credentials)
+config/database.php
+
+# Log Files
+logs/*.log
+*.log
+
+# Cache Files
+cache/*
+!cache/.gitkeep
+
+# Uploaded Files
+uploads/*
+!uploads/.gitkeep
+
+# Vendor Dependencies
+vendor/
+node_modules/
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.sublime-*
+.DS_Store
+Thumbs.db
+
+# Temporary Files
+tmp/*
+temp/*
+*.tmp
+*.temp
+
+# Backup Files
+*.bak
+*.backup
+*~
+
+# System Files
+.htaccess.bak
+robots.txt.bak
+
+# PHPMailer Configuration (if contains credentials)
+phpmailer_config.php
+
+# Payment Gateway Test Files
+test_payments.php
+test_safepay.php
+
+# Session Files
+sessions/*
+
+# Error Logs
+error.log
+access.log
+
+# Deployment Scripts with Credentials
+deploy_production.sh
+deploy_staging.sh
+
+# Configuration Backups
+config/*.backup
+config/*.old
+
+# Database Dumps with Sensitive Data
+*.sql
+!database/subscription_schema.sql
+!database/enhanced_payment_schema.sql
+!migrations/*.sql

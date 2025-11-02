@@ -1,0 +1,34 @@
+User-agent: *
+Allow: /
+
+# Allow access to CSS and JS files
+Allow: /css/
+Allow: /js/
+Allow: /images/
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /config/
+Disallow: /includes/
+Disallow: /middleware/
+
+# Disallow search results and private pages
+Disallow: /search.php
+Disallow: /profile.php
+Disallow: /logout.php
+
+# Disallow newsletter and API endpoints
+Disallow: /newsletter-signup.php
+Disallow: /check_email.php
+Disallow: /resend_verification_ajax.php
+
+# Block access to sensitive files
+Disallow: /*.sql
+Disallow: /*.txt
+Disallow: /db_connect.php
+
+# Sitemap location
+Sitemap: https://yourdomain.com/questionpaper/generate_sitemap.php
+
+# Crawl delay (be respectful)
+Crawl-delay: 1

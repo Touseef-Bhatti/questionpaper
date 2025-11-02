@@ -1,0 +1,68 @@
+<?php
+require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/security.php';
+requireAdminAuth();
+
+function countTable(mysqli $conn, string $table): int {
+    $res = $conn->query("SELECT COUNT(*) AS c FROM `$table`");
+    if ($res && ($row = $res->fetch_assoc())) return (int)$row['c'];
+    return 0;
+}
+
+$stats = [
+    'classes' => countTable($conn, 'class'),
+    'books' => countTable($conn, 'book'),
+    'chapters' => countTable($conn, 'chapter'),
+    'questions' => countTable($conn, 'questions'),
+];
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="../css/admin.css">
+    <link rel="stylesheet" href="../css/footer.css">
+    <link rel="stylesheet" href="../css/main.css">
+
+</head>
+<body>
+    <?php include __DIR__ . '/header.php'; ?>
+    <div class="admin-container">
+        <div class="top">
+            <h1>Admin Dashboard</h1>
+            <div>
+                <strong><?= htmlspecialchars($_SESSION['name'] ?? 'Admin') ?></strong>
+                <a class="logout" href="logout.php">Logout</a>
+            </div>
+        </div>
+
+        <div class="nav">
+            <a href="manage_classes.php">Manage Classes</a>
+            <a href="manage_books.php">Manage Books</a>
+            <a href="manage_chapters.php">Manage Chapters</a>
+            <a href="manage_questions.php">Manage Questions</a>
+            <a href="users.php">Manage Admins</a>
+            <a href="settings.php">Settings</a>
+        </div>
+
+        <div class="grid">
+            <div class="card"><h3>Classes</h3><p>Total: <?= $stats['classes'] ?></p></div>
+            <div class="card"><h3>Books</h3><p>Total: <?= $stats['books'] ?></p></div>
+            <div class="card"><h3>Chapters</h3><p>Total: <?= $stats['chapters'] ?></p></div>
+            <div class="card"><h3>Questions</h3><p>Total: <?= $stats['questions'] ?></p></div>
+        </div>
+        
+        <!-- System Overview Button -->
+        <div class="overview-section">
+            <h2>System Overview</h2>
+            <p>View comprehensive information about users, payments, and system analytics.</p>
+            <a href="system_overview.php" class="btn btn-primary">📊 View System Overview</a>
+        </div>
+    </div>
+    <?php include __DIR__ . '/../footer.php'; ?>
+</body>
+</html>
+
+
