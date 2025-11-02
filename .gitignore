@@ -1,20 +1,48 @@
-# Project .gitignore — keep sensitive files out of VCS
+# ------------------------------
+# 🔒 Project .gitignore — Keep sensitive & system files out of Git
+# ------------------------------
 
-# Ignore environment files (keep templates in repo)
+# 🧩 Environment files (never commit real creds)
 .env
-.env.local
-config/.env*
+.env.*
 !config/.env.template
 !config/.env.example
 
-# OS files
+# 🗄️ Databases / Dumps
+*.sql
+*.sqlite
+*.db
+dump/
+backup/
+
+# 📦 Dependencies
+node_modules/
+vendor/
+
+# 🧠 Build / Dist outputs
+dist/
+build/
+.cache/
+.tmp/
+coverage/
+
+# 🖥️ IDE & Editor settings
+.vscode/
+.idea/
+*.swp
+
+# 🧱 OS-specific junk
 .DS_Store
 Thumbs.db
 
-# Editor / IDE
-.vscode/
-*.swp
+# 🔍 Logs & temp files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
 
-# Node / PHP deps (if present)
-node_modules/
-vendor/
+# 🧰 Miscellaneous
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
