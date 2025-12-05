@@ -9,7 +9,7 @@ require_once 'db_connect.php';
 echo "<!DOCTYPE html>
 <html>
 <head>
-    <title>Debug Verification - QPaperGen</title>
+    <title>Debug Verification - Ahmad Learning Hub</title>
     <style>
         body { font-family: Arial; margin: 40px; background: #f5f5f5; }
         .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }

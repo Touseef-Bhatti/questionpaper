@@ -12,7 +12,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
-echo "<h1>QPaperGen Books Management Diagnostic Test</h1>";
+echo "<h1>Ahmad Learning Hub Books Management Diagnostic Test</h1>";
 echo "<hr>";
 
 // Test 1: PHP Version and Extensions

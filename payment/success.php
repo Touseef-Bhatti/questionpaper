@@ -71,7 +71,7 @@ if ($orderId) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $success ? 'Payment Successful' : 'Payment Issue' ?> - QPaperGen</title>
+    <title><?= $success ? 'Payment Successful' : 'Payment Issue' ?> - Ahmad Learning Hub</title>
     <style>
         * {
             margin: 0;

@@ -10,7 +10,7 @@ Create `/config/.env` file with your actual server details:
 ```env
 # Application Settings
 APP_ENV=production
-APP_NAME=QPaperGen
+APP_NAME=Ahmad Learning Hub
 APP_URL=https://your-actual-domain.com
 
 # Database Configuration (Get these from cPanel/hosting provider)

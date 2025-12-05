@@ -4,7 +4,7 @@
  * This script applies all the critical improvements immediately
  */
 
-echo "🚀 QPaperGen Payment Gateway Improvement Setup\n";
+echo "🚀 Ahmad Learning Hub Payment Gateway Improvement Setup\n";
 echo "============================================\n\n";
 
 // Check if running from correct directory

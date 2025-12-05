@@ -79,6 +79,6 @@ function notifyAdmins($level, $subject, $details) {
     error_log("ADMIN_NOTIFICATION: $subject - " . implode(', ', $details));
     
     // Implement actual email/notification sending here
-    // mail($adminEmail, "[$level] QPaperGen Payment Alert: $subject", $message);
+    // mail($adminEmail, "[$level] Ahmad Learning Hub Payment Alert: $subject", $message);
 }
 ?>

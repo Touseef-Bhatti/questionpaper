@@ -13,7 +13,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Host Online Quiz - QPaperGen</title>
+    <title>Host Online Quiz - Ahmad Learning Hub</title>
     <link rel="stylesheet" href="../css/main.css">
   
     <style>

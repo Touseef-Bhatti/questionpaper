@@ -7,9 +7,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Learn about QPaperGen, your platform for 9th and 10th class past papers, online tests, guess papers, and solved notes for Punjab Board exams. Discover our mission to empower teachers and students in Pakistan with quality exam preparation material.">
-    <meta name="keywords" content="QPaperGen, exam preparation, past papers, online tests, guess papers, notes">
-    <title>About QPaperGen - 9th & 10th Class Exam Preparation Platform</title>
+    <meta name="description" content="Learn about Ahmad Learning Hub, your platform for 9th and 10th class past papers, online tests, guess papers, and solved notes for Punjab Board exams. Discover our mission to empower teachers and students in Pakistan with quality exam preparation material.">
+    <meta name="keywords" content="Ahmad Learning Hub, exam preparation, past papers, online tests, guess papers, notes">
+    <title>About Ahmad Learning Hub - 9th & 10th Class Exam Preparation Platform</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/about.css">
 </head>
@@ -21,7 +21,7 @@
     <!-- Hero Section -->
     <section class="hero-section">
         <div class="hero-content">
-            <h1>📚 About QPaperGen</h1>
+            <h1>📚 About Ahmad Learning Hub</h1>
             <p class="hero-subtitle">Your Smart Question Paper Generation Platform</p>
             <div class="hero-stats">
                 <div class="stat-item">
@@ -45,7 +45,7 @@
         <div class="container">
             <h2>🎯 Our Mission</h2>
             <p class="mission-text">
-                QPaperGen is dedicated to revolutionizing the way educational institutions create and manage examination papers. 
+                Ahmad Learning Hub is dedicated to revolutionizing the way educational institutions create and manage examination papers. 
                 We believe in empowering teachers with intelligent tools that save time, ensure quality, and maintain educational standards.
             </p>
         </div>

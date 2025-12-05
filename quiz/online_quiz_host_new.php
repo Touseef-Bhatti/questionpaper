@@ -14,7 +14,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <title>Create Quiz Room - QPaperGen</title>
+    <title>Create Quiz Room - Ahmad Learning Hub</title>
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/online_quiz_host_new.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">

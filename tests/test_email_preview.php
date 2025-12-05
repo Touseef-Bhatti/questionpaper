@@ -5,7 +5,7 @@
  */
 require_once __DIR__ . '/config/env.php';
 
-$fromName = 'QPaperGen';
+$fromName = 'Ahmad Learning Hub';
 $testToken = 'sample_token_for_preview_12345';
 $baseUrl = 'paper.bhattichemicalsindustry.com.pk';
 $verifyUrl = 'https://' . $baseUrl . '/verify_email.php?token=' . urlencode($testToken);
@@ -14,7 +14,7 @@ echo '<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Email Preview - QPaperGen</title>
+    <title>Email Preview - Ahmad Learning Hub</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f0f0f0; }
         .preview-container { background: white; padding: 20px; border-radius: 10px; max-width: 800px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }

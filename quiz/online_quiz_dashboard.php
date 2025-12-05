@@ -23,7 +23,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live Quiz Dashboard - QPaperGen</title>
+  <title>Live Quiz Dashboard - Ahmad Learning Hub</title>
   <link rel="stylesheet" href="../css/main.css">
   <style>
     .container-narrow { max-width: 1100px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); padding: 20px; }
@@ -66,7 +66,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
           </select>
           <button class="btn secondary" type="submit">Filter</button>
         </form>
-        <a class="btn primary" href="online_quiz_host.php">Create Room</a>
+        <a class="btn primary" href="online_quiz_host_new.php">Create Room</a>
       </div>
     </div>
     <?php

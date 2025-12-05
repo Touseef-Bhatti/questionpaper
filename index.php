@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="QPaperGen helps 9th and 10th class students prepare for Punjab Board exams with free online tests, chapter-wise MCQs, past papers, notes, and guess papers. Teachers can generate question papers and host online quizzes easily.">
-    <meta name="keywords" content="online exam preparation, 9th class, 10th class, Punjab Board, online test, MCQs, past papers, solved notes, guess papers, chapter-wise test, paper generator, QPaperGen, quiz for students, Pakistan exams, test preparation, online learning, board exams">
-    <title>QPaperGen - Online Exam Preparation, Past Papers & Notes for 9th & 10th Class Punjab Board</title>
+    <meta name="description" content="Ahmad Learning Hub helps 9th and 10th class students prepare for Punjab Board exams with free online tests, chapter-wise MCQs, past papers, notes, and guess papers. Teachers can generate question papers and host online quizzes easily.">
+    <meta name="keywords" content="online exam preparation, 9th class, 10th class, Punjab Board, online test, MCQs, past papers, solved notes, guess papers, chapter-wise test, paper generator, Ahmad Learning Hub, quiz for students, Pakistan exams, test preparation, online learning, board exams">
+    <title>Ahmad Learning Hub - Online Exam Preparation, Past Papers & Notes for 9th & 10th Class Punjab Board</title>
     
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/index.css">
@@ -13,20 +13,20 @@
 <body>
     <?php include 'header.php'; ?>
 
-    <div class="main-content">
+    <div class="main-content" style="margin-top: -10%;">
 
         <!-- HERO: Futuristic & Clean -->
-        <section class="hero-section">
+        <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover;">
             <div class="container hero-grid">
                 <div class="hero-content" data-animate-on-scroll="fade-in-up">
                     <div class="eyebrow">Intelligent Exam Preparation</div>
-                    <h1 class="hero-title">QPaperGen — Smarter, Faster, Future-Ready</h1>
+                    <h1 class="hero-title">Ahmad Learning Hub — Smarter, Faster, Future-Ready</h1>
                     <p class="subtitle">Prepare for 9th & 10th Punjab Board exams with adaptive tests, chapter-wise practice, instant analytics and printable papers — all in one modern platform.</p>
 
                     <div class="hero-actions" data-animate-on-scroll="fade-in-up">
                         <a href="select_class.php" class="button primary">Generate Paper</a>
                         <a href="quiz/quiz_setup.php" class="button secondary">Take a Test</a>
-                        <a href="notes.php" class="button ghost">Notes & Guides</a>
+                        <a href="notes.php" class="button ghost" style="color: white;">Notes & Guides</a>
                     </div>
 
                     <div class="hero-stats" data-animate-on-scroll="fade-in-up">
@@ -36,18 +36,14 @@
                     </div>
                 </div>
 
-                <div class="hero-viz" aria-hidden="true">
-                    <div class="viz-card card-1"></div>
-                    <div class="viz-card card-2"></div>
-                    <div class="viz-card card-3"></div>
-                </div>
+                <!-- Hero visual cards removed for a cleaner, more professional hero -->
             </div>
         </section>
 
         <!-- WHY CHOOSE / FEATURES -->
         <section class="features-section">
             <div class="container">
-                <h2 class="section-title" data-animate-on-scroll="fade-in-up">Why educators and students trust QPaperGen</h2>
+                <h2 class="section-title" data-animate-on-scroll="fade-in-up">Why educators and students trust Ahmad Learning Hub</h2>
                 <div class="features-grid" data-animate-on-scroll="fade-in-up">
                     <article class="feature-card">
                         <div class="feature-icon">🧠</div>
@@ -99,7 +95,7 @@
                 </div>
             </div>
         </section>
-
+    <br><br>
         <!-- TEACHERS & TOOLS -->
         <section class="teachers-section">
             <div class="container">
@@ -126,14 +122,14 @@
                 </div>
             </div>
         </section>
-
+<br><br>
         <!-- CTA -->
         <section class="cta-section">
             <div class="container">
                 <div class="cta-card" data-animate-on-scroll="fade-in-up">
                     <h2>Ready to elevate your <span class="highlight">exam preparation</span>?</h2>
-                    <p>Join thousands of students and educators who trust QPaperGen for smarter, faster, and future-ready <span class="keyword">online quizzes</span>, <span class="keyword">practice tests</span>, and <span class="keyword">question paper generation</span>. Unlock adaptive tests, generate custom <span class="keyword">study materials</span>, and host engaging quizzes with ease.</p>
-                    <p>Whether you're a student aiming for top grades or a teacher looking to streamline assessment, QPaperGen provides the tools you need to succeed. Get started today and transform your learning and teaching experience with our comprehensive <span class="keyword">exam preparation platform</span>!</p>
+                    <p>Join thousands of students and educators who trust Ahmad Learning Hub for smarter, faster, and future-ready <span class="keyword">online quizzes</span>, <span class="keyword">practice tests</span>, and <span class="keyword">question paper generation</span>. Unlock adaptive tests, generate custom <span class="keyword">study materials</span>, and host engaging quizzes with ease.</p>
+                    <p>Whether you're a student aiming for top grades or a teacher looking to streamline assessment, Ahmad Learning Hub provides the tools you need to succeed. Get started today and transform your learning and teaching experience with our comprehensive <span class="keyword">exam preparation platform</span>!</p>
                     <div class="cta-actions">
                         <a href="select_class.php" class="button primary">Generate Paper</a>
                         <a href="quiz/quiz_setup.php" class="button ghost">Start Test</a>

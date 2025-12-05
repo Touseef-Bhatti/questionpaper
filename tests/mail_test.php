@@ -12,7 +12,7 @@ require __DIR__ . '/PHPMailer-master/src/Exception.php';
 require __DIR__ . '/PHPMailer-master/src/PHPMailer.php';
 require __DIR__ . '/PHPMailer-master/src/SMTP.php';
 
-echo "🚀 QPaperGen Mail Test<br><br>";
+echo "🚀 Ahmad Learning Hub Mail Test<br><br>";
 
 $mail = new PHPMailer(true);
 
@@ -27,13 +27,13 @@ try {
     $mail->Port       = 465;
 
     // Recipients
-    $mail->setFrom('paper@bhattichemicalsindustry.com.pk', 'QPaperGen Test');
+    $mail->setFrom('paper@bhattichemicalsindustry.com.pk', 'Ahmad Learning Hub Test');
     $mail->addAddress('231370223@gift.edu.pk'); // change to your own test email
 
     // Content
     $mail->isHTML(true);
-    $mail->Subject = 'QPaperGen Test Email';
-    $mail->Body    = '<h2>✅ SMTP Test Successful!</h2><p>This is a test email from QPaperGen.</p>';
+    $mail->Subject = 'Ahmad Learning Hub Test Email';
+    $mail->Body    = '<h2>✅ SMTP Test Successful!</h2><p>This is a test email from Ahmad Learning Hub.</p>';
 
     $mail->send();
     echo "✔ Test email sent successfully!";

@@ -7,7 +7,7 @@ require_once 'auth/auth_check.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notes - QPaperGen</title>
+    <title>Notes - Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/notes.css">
 </head>

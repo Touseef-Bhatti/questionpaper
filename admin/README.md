@@ -1,4 +1,4 @@
-Admin Panel (QPaperGen)
+Admin Panel (Ahmad Learning Hub)
 
 - Login: `admin/login.php`
 - Dashboard: `admin/dashboard.php`

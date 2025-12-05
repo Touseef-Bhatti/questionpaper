@@ -1,8 +1,8 @@
 <?php
-// 🚀 QPaperGen Environment Test
+// 🚀 Ahmad Learning Hub Environment Test
 
 // 1. Show PHP version
-echo "<h2>🚀 QPaperGen Environment Test</h2>";
+echo "<h2>🚀 Ahmad Learning Hub Environment Test</h2>";
 echo "<p><strong>PHP Version:</strong> " . phpversion() . "</p>";
 
 // 2. Database connection test

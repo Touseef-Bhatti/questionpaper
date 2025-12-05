@@ -7,9 +7,9 @@ require_once 'auth/auth_check.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Contact QPaperGen for support, feedback, or inquiries about 9th and 10th class past papers, online tests, guess papers, and notes for Punjab Board exams. We are here to assist teachers and students in Pakistan.">
-    <meta name="keywords" content="QPaperGen, contact, support, feedback, inquiry, 9th class, 10th class, past papers, online tests, guess papers, notes, Punjab Board, exam preparation, Pakistan">
-    <title>Contact QPaperGen - Support for 9th & 10th Class Exam Prep</title>
+    <meta name="description" content="Contact Ahmad Learning Hub for support, feedback, or inquiries about 9th and 10th class past papers, online tests, guess papers, and notes for Punjab Board exams. We are here to assist teachers and students in Pakistan.">
+    <meta name="keywords" content="Ahmad Learning Hub, contact, support, feedback, inquiry, 9th class, 10th class, past papers, online tests, guess papers, notes, Punjab Board, exam preparation, Pakistan">
+    <title>Contact Ahmad Learning Hub - Support for 9th & 10th Class Exam Prep</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/contact.css">
 </head>
@@ -22,7 +22,7 @@ require_once 'auth/auth_check.php';
     <section class="contact-hero">
         <div class="hero-content">
             <h1>📧 Get in Touch</h1>
-            <p class="hero-subtitle">We're here to help with any questions or feedback about QPaperGen</p>
+            <p class="hero-subtitle">We're here to help with any questions or feedback about Ahmad Learning Hub</p>
         </div>
     </section>
 
@@ -62,7 +62,7 @@ require_once 'auth/auth_check.php';
                     <div class="help-topics">
                         <h3>📝 What can we help you with?</h3>
                         <ul>
-                            <li>❓ Questions about using QPaperGen</li>
+                            <li>❓ Questions about using Ahmad Learning Hub</li>
                             <li>📚 Subject-specific question requests</li>
                             <li>🐛 Bug reports and technical issues</li>
                             <li>💡 Feature suggestions and feedback</li>

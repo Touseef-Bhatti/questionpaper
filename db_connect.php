@@ -3,10 +3,11 @@
 require_once __DIR__ . '/config/env.php';
 
 // Database configuration from environment variables
-$host = EnvLoader::get('DB_HOST', 'localhost');
-$user = EnvLoader::get('DB_USER', 'your_db_user');
-$password = EnvLoader::get('DB_PASSWORD', 'your_db_password');
-$database = EnvLoader::get('DB_NAME', 'your_database_name');
+// Support both DB_USERNAME/DB_DATABASE and legacy DB_USER/DB_NAME keys
+$host = EnvLoader::get('DB_HOST', EnvLoader::get('MYSQL_HOST', 'localhost'));
+$user = EnvLoader::get('DB_USERNAME', EnvLoader::get('DB_USER', 'your_db_user'));
+$password = EnvLoader::get('DB_PASSWORD', EnvLoader::get('MYSQL_PASSWORD', 'your_db_password'));
+$database = EnvLoader::get('DB_DATABASE', EnvLoader::get('DB_NAME', 'your_database_name'));
 
 // Create connection with error handling
 try {

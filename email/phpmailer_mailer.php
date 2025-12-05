@@ -28,7 +28,7 @@ function sendVerificationEmail($to, $token) {
 function sendHtmlEmail($to, $token) {
     try {
         $fromEmail = EnvLoader::get('SMTP_USERNAME', 'paper@bhattichemicalsindustry.com.pk');
-        $fromName = EnvLoader::get('APP_NAME', 'QPaperGen');
+        $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
         
         // Fix URL formatting issue - properly handle the base URL
         $baseUrl = EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk');
@@ -152,7 +152,7 @@ $verifyUrl = rtrim($baseUrl, '/') . '/email/verify_email.php?token=' . urlencode
 function sendFallbackEmail($to, $token) {
     try {
         $fromEmail = EnvLoader::get('SMTP_USERNAME', 'paper@bhattichemicalsindustry.com.pk');
-        $fromName = EnvLoader::get('APP_NAME', 'QPaperGen');
+        $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
         // Fix URL formatting for fallback too
         $baseUrl = EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk');
         if (!preg_match('/^https?:\/\//', $baseUrl)) {

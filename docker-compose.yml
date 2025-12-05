@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: paper_app:latest
+    container_name: paper_app
+    ports:
+      - "8000:80" # maps host:8000 to container:80
+    env_file:
+      - .env
+    volumes:
+      - ./:/var/www/html:cached
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: paper_mysql
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      LOG_BIN_TRUST_FUNCTION_CREATORS: 1   # <-- add this line
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: paper_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379" # optional: remove or change if port conflict
+    volumes:
+      - redis_data:/data
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: paper_phpmyadmin
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: ${DB_USERNAME}
+      PMA_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  redis_data:

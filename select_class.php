@@ -12,8 +12,8 @@ $classResult = $conn->query($classQuery);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Select your class to generate question papers, take online tests, and download notes for 9th and 10th class Punjab Board exams. Access past papers, MCQs, and guess papers for smarter exam preparation.">
-    <meta name="keywords" content="QPaperGen, select class, 9th class, 10th class, Punjab Board, online test, MCQs, past papers, solved notes, guess papers, question paper generator, exam preparation Pakistan, chapter-wise tests">
-    <title>Select Class | QPaperGen - 9th & 10th Class Online Tests, Notes & Question Papers</title>
+    <meta name="keywords" content="Ahmad Learning Hub, select class, 9th class, 10th class, Punjab Board, online test, MCQs, past papers, solved notes, guess papers, question paper generator, exam preparation Pakistan, chapter-wise tests">
+    <title>Select Class | Ahmad Learning Hub - 9th & 10th Class Online Tests, Notes & Question Papers</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_class.css">
     <link rel="stylesheet" href="css/buttons.css">
@@ -29,44 +29,15 @@ $classResult = $conn->query($classQuery);
     
     <div class="description-section">
         <div class="info-banner">
-            <h2>📘 Welcome to QPaperGen – Smart Paper Generator</h2>
+            <h2>📘 Welcome to Ahmad Learning Hub – Smart Paper Generator</h2>
             <p>
-                QPaperGen is your all-in-one platform for <strong>online exam preparation</strong> for 
+                Ahmad Learning Hub is your all-in-one platform for <strong>online exam preparation</strong> for 
                 <strong>9th and 10th class Punjab Board students</strong>. Whether you’re a teacher creating 
                 <strong>custom question papers</strong> or a student attempting <strong>online MCQ tests</strong>, 
                 everything starts here by selecting your class.
             </p>
 
-            <div class="steps-grid">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>Select Class</h3>
-                        <p>Choose your class (9th or 10th) to begin your learning or paper generation journey.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>Pick Subject</h3>
-                        <p>Select your book or subject to access <strong>chapter-wise MCQs and past papers</strong>.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>Choose Chapters</h3>
-                        <p>Customize your paper by choosing chapters and selecting question types.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h3>Generate Paper or Quiz</h3>
-                        <p>Get a printable paper or take an <strong>interactive online quiz</strong> instantly.</p>
-                    </div>
-                </div>
-            </div>
+          
         </div>
         
         <div class="features-highlight">

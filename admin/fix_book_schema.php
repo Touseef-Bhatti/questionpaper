@@ -10,7 +10,7 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-echo "<h1>QPaperGen Book Table Schema Fix</h1>";
+echo "<h1>Ahmad Learning Hub Book Table Schema Fix</h1>";
 echo "<hr>";
 
 try {

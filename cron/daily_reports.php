@@ -179,7 +179,7 @@ function createAlert($type, $title, $message, $severity, $data = null) {
 function generateEmailReport($reportData) {
     // Generate and send daily email report to admin
     $adminEmail = EnvLoader::get('ADMIN_EMAIL', 'admin@questionpaper.com');
-    $subject = "QPaperGen Daily Payment Report - " . $reportData['date'];
+    $subject = "Ahmad Learning Hub Daily Payment Report - " . $reportData['date'];
     
     $message = "
     <html>
@@ -215,7 +215,7 @@ function generateEmailReport($reportData) {
     $message .= "
     </table>
     
-    <p><em>This is an automated report from QPaperGen Payment System</em></p>
+    <p><em>This is an automated report from Ahmad Learning Hub Payment System</em></p>
     </body>
     </html>";
     

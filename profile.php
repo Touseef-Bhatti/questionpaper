@@ -22,7 +22,7 @@ $user = $result ? $result->fetch_assoc() : null;
           <?php include 'header.php'; ?>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>User Profile - QPaperGen</title>
+  <title>User Profile - Ahmad Learning Hub</title>
   <link rel="stylesheet" href="css/profile.css">
 </head>
 <body>

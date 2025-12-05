@@ -149,7 +149,7 @@ include 'header.php';
                                     </form>
                                 <?php endif; ?>
                                 
-                                <a href="mailto:<?= htmlspecialchars($message['email']) ?>?subject=Re: Your message to QPaperGen" 
+                                <a href="mailto:<?= htmlspecialchars($message['email']) ?>?subject=Re: Your message to Ahmad Learning Hub" 
                                    class="btn btn-sm btn-primary" title="Reply via Email">
                                     📧 Reply
                                 </a>

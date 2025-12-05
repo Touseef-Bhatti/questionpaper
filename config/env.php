@@ -4,19 +4,24 @@
  * Loads environment variables from .env file
  */
 
-class EnvLoader 
+class EnvLoader
 {
     private static $loaded = false;
     
+    // Define default values if not present in .env
+    private static $defaults = [
+        'BASE_URL' => 'https://paper.bhattichemicalsindustry.com.pk/',
+    ];
+
     /**
      * Reset the loader to allow reloading
      */
-    public static function reset() 
+    public static function reset()
     {
         self::$loaded = false;
     }
     
-    public static function load($envFile = null) 
+    public static function load($envFile = null)
     {
         if (self::$loaded) return;
         
@@ -32,6 +37,14 @@ class EnvLoader
         
         if (!file_exists($envFile)) {
             // Try to use environment variables directly if .env doesn't exist
+            // And set defaults for missing env vars
+            foreach (self::$defaults as $key => $value) {
+                if (!getenv($key) && !isset($_ENV[$key])) {
+                    putenv("$key=$value");
+                    $_ENV[$key] = $value;
+                    $_SERVER[$key] = $value;
+                }
+            }
             self::$loaded = true;
             return;
         }
@@ -64,6 +77,15 @@ class EnvLoader
                 $_SERVER[$name] = $value;
             }
         }
+
+        // Set defaults for any variables not explicitly set in the .env file
+        foreach (self::$defaults as $key => $value) {
+            if (!isset($_ENV[$key]) && getenv($key) === false) {
+                putenv("$key=$value");
+                $_ENV[$key] = $value;
+                $_SERVER[$key] = $value;
+            }
+        }
         
         self::$loaded = true;
     }
@@ -71,7 +93,7 @@ class EnvLoader
     /**
      * Get environment variable with fallback
      */
-    public static function get($key, $default = null) 
+    public static function get($key, $default = null)
     {
         self::load();
         
@@ -85,6 +107,11 @@ class EnvLoader
         if ($envValue !== false) {
             return $envValue;
         }
+
+        // Check defaults
+        if (array_key_exists($key, self::$defaults)) {
+            return self::$defaults[$key];
+        }
         
         // Return default if not found
         return $default;
@@ -93,7 +120,7 @@ class EnvLoader
     /**
      * Get boolean environment variable
      */
-    public static function getBool($key, $default = false) 
+    public static function getBool($key, $default = false)
     {
         $value = self::get($key, $default);
         
@@ -108,7 +135,7 @@ class EnvLoader
     /**
      * Get integer environment variable
      */
-    public static function getInt($key, $default = 0) 
+    public static function getInt($key, $default = 0)
     {
         return (int)self::get($key, $default);
     }
@@ -116,7 +143,7 @@ class EnvLoader
     /**
      * Check if we're in production
      */
-    public static function isProduction() 
+    public static function isProduction()
     {
         return strtolower(self::get('APP_ENV', 'development')) === 'production';
     }
@@ -124,7 +151,7 @@ class EnvLoader
     /**
      * Check if we're in development
      */
-    public static function isDevelopment() 
+    public static function isDevelopment()
     {
         return !self::isProduction();
     }

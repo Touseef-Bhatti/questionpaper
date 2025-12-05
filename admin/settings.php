@@ -9,14 +9,14 @@ if (empty($_SESSION['role']) || !in_array($_SESSION['role'], ['admin','superadmi
 $message = '';
 // Example: save a site setting in a simple table `settings(key, value)`
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $siteName = trim($_POST['site_name'] ?? 'QPaperGen');
+    $siteName = trim($_POST['site_name'] ?? 'Ahmad Learning Hub');
     $siteNameEsc = $conn->real_escape_string($siteName);
     $conn->query("CREATE TABLE IF NOT EXISTS settings (skey VARCHAR(191) PRIMARY KEY, svalue TEXT)");
     $conn->query("INSERT INTO settings (skey, svalue) VALUES ('site_name', '$siteNameEsc') ON DUPLICATE KEY UPDATE svalue=VALUES(svalue)");
     $message = 'Settings saved.';
 }
 
-$siteName = 'QPaperGen';
+$siteName = 'Ahmad Learning Hub';
 $res = $conn->query("SELECT svalue FROM settings WHERE skey='site_name' LIMIT 1");
 if ($res && $res->num_rows === 1) { $siteName = $res->fetch_assoc()['svalue']; }
 ?>

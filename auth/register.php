@@ -147,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - QPaperGen</title>
+    <title>Register - Ahmad Learning Hub</title>
 <?php
 // Compute a web-root relative base path so CSS links work when this file is included
 // Use the directory of the actual requested script (single dirname) which maps to the app base when served
@@ -166,7 +166,7 @@ echo "<!-- CSS prefix: " . htmlspecialchars($prefix) . " -->\n";
     <div class="auth-page">
         <div class="auth-card">
             <h1 class="auth-title">Create your account</h1>
-            <p class="auth-subtitle">Sign up to access QPaperGen</p>
+            <p class="auth-subtitle">Sign up to access Ahmad Learning Hub</p>
 
             <form method="POST" autocomplete="off" style="margin-bottom:0;">
                 <div class="input-group">

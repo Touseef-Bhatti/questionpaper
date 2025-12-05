@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join Quiz Room - QPaperGen</title>
+  <title>Join Quiz Room - Ahmad Learning Hub</title>
   <link rel="stylesheet" href="../css/main.css">
   <style>
     .join-card { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); padding: 24px; }

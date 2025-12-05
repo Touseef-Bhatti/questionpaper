@@ -21,7 +21,7 @@ if (session_status() === PHP_SESSION_NONE) session_start();
                     <span class="logo-text">Admin Panel</span>
                 </a>
                 <div class="admin-nav-divider"></div>
-                <a href="dashboard.php" class="admin-nav-brand">QPaperGen</a>
+                <a href="dashboard.php" class="admin-nav-brand">Ahmad Learning Hub</a>
             </div>
             
             <div class="admin-nav-toggle" id="adminNavToggle" aria-label="Open admin navigation" tabindex="0">

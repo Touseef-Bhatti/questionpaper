@@ -1,4 +1,4 @@
-This folder can contain exports, seed SQL, and utility scripts related to QPaperGen.
+This folder can contain exports, seed SQL, and utility scripts related to Ahmad Learning Hub.
 
 Suggested files:
 - sql/schema.sql — full schema for all tables

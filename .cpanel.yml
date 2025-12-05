@@ -1,0 +1,5 @@
+deployment:
+  environment: production
+  user: bhattich
+  script:
+    - bash /path/to/deploy_script.sh

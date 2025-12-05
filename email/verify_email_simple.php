@@ -7,7 +7,7 @@ require_once __DIR__ . '/../db_connect.php';
 echo "<!DOCTYPE html>
 <html>
 <head>
-    <title>Email Verification - QPaperGen</title>
+    <title>Email Verification - Ahmad Learning Hub</title>
     <style>
         body { font-family: Arial; margin: 0; padding: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
         .container { background: white; padding: 40px; border-radius: 15px; max-width: 500px; margin: 0 auto; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
@@ -22,7 +22,7 @@ echo "<!DOCTYPE html>
 </head>
 <body>
     <div class='container'>
-        <h1>QPaperGen Email Verification</h1>";
+        <h1>Ahmad Learning Hub Email Verification</h1>";
 
 if (isset($_GET['token'])) {
     $token = trim($_GET['token']);
@@ -119,7 +119,7 @@ if (isset($_GET['token'])) {
                         echo "<div class='success'>
                                 <div class='icon'>✅</div>
                                 <strong>Email Verified Successfully!</strong><br>
-                                Welcome to QPaperGen, " . htmlspecialchars($row['name']) . "!<br>
+                                Welcome to Ahmad Learning Hub, " . htmlspecialchars($row['name']) . "!<br>
                                 Your account is now active.<br>
 <a href='../auth/login.php' class='btn'>Login Now</a>
                               </div>";

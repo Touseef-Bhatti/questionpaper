@@ -24,6 +24,9 @@
     --radius-lg: 1rem;
 }
 
+/* Import display font for hero (logo-like) */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&display=swap');
+
 /* Base Styles */
 body {
     background-color: var(--background);
@@ -42,8 +45,8 @@ body {
 /* Hero Section */
 .hero-section {
     position: relative;
-    padding: 6rem 0;
-    background: var(--surface);
+    padding: 6rem 0 5rem 0;
+    background: linear-gradient(180deg, rgba(8,15,38,0.95) 0%, rgba(8,15,38,0.92) 100%);
     overflow: hidden;
 }
 
@@ -59,43 +62,144 @@ body {
 }
 
 .hero-grid {
-    display: grid;
-    grid-template-columns: 1.2fr 0.8fr;
-    gap: 4rem;
-    align-items: center;
+    display: block;
+    text-align: center;
     position: relative;
     z-index: 1;
 }
 
 .hero-content {
-    max-width: 640px;
+    max-width: 920px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 1rem 0;
 }
 
 .eyebrow {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--primary);
-    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary-light);
+    margin-bottom: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.18em;
+    display: inline-block;
+    background: rgba(255,255,255,0.03);
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
 }
 
 .hero-content h1 {
-    font-size: 3.5rem;
-    font-weight: 800;
-    line-height: 1.2;
-    margin-bottom: 1.5rem;
-    background: var(--gradient-primary);
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 900;
+    font-size: 4rem;
+    line-height: 1.05;
+    margin: 0 0 1rem 0;
+    letter-spacing: -0.02em;
+    background: linear-gradient(90deg, #ffffff 0%, #cfe4ff 40%, #b5d1ff 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    text-shadow: 0 6px 18px rgba(12,18,45,0.45);
+    display: inline-block;
+    padding-bottom: 0.25rem;
+}
+
+/* CTA prominence tweak */
+.hero-actions { justify-content: center; }
+.button.primary { padding: 1rem 1.75rem; font-size: 1.05rem; border-radius: 12px; box-shadow: 0 12px 40px rgba(12,18,45,0.32); }
+.button.primary:hover { transform: translateY(-3px); box-shadow: 0 18px 60px rgba(12,18,45,0.38); }
+.button.secondary { padding: 0.9rem 1.4rem; border-radius: 10px; }
+
+/* Soft backdrop for hero to ensure legibility */
+.hero-section { background-attachment: fixed; }
+.hero-section::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(2,6,23,0.45), rgba(2,6,23,0.35));
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Slight letter spacing for hero title and smaller size on narrow screens */
+.hero-content h1 { letter-spacing: -0.01em; }
+@media (max-width: 768px) {
+    .hero-content h1 { font-size: 2.2rem; }
+}
+
+/* Hero animations */
+@keyframes logo-reveal {
+    0% { opacity: 0; transform: translateY(18px) scale(0.995); filter: blur(6px); }
+    60% { opacity: 1; transform: translateY(-6px) scale(1.01); filter: blur(0); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes slide-fade-up {
+    0% { opacity: 0; transform: translateY(18px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float-slow {
+    0% { transform: translateY(0px) rotate(-2deg); }
+    50% { transform: translateY(-10px) rotate(2deg); }
+    100% { transform: translateY(0px) rotate(-2deg); }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .hero-content h1,
+    .hero-content .eyebrow,
+    .hero-content .subtitle,
+    .hero-actions .button,
+    .hero-viz .viz-card {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* Apply animations with subtle staggering */
+.hero-content h1 {
+    animation: logo-reveal 900ms cubic-bezier(.22,.9,.29,1) both 0.15s;
+    background-size: 200% 100%;
+    animation-delay: 0.15s;
+}
+
+.eyebrow { animation: slide-fade-up 550ms cubic-bezier(.25,.8,.25,1) both 0s; }
+.subtitle { animation: slide-fade-up 650ms cubic-bezier(.25,.8,.25,1) both 0.08s; }
+.hero-actions .button { animation: slide-fade-up 720ms cubic-bezier(.25,.8,.25,1) both 0.18s; }
+.hero-stats { animation: slide-fade-up 720ms cubic-bezier(.25,.8,.25,1) both 0.26s; }
+
+.hero-content h1 {
+    /* moving gradient effect */
+    background-image: linear-gradient(90deg, #ffffff 0%, #cfe4ff 40%, #b5d1ff 100%);
+    background-size: 200% 100%;
+    animation: logo-reveal 900ms cubic-bezier(.22,.9,.29,1) both 0.12s, gradient-shift 6s linear infinite;
+}
+
+.hero-section::before { animation: gradient-shift 14s linear infinite; background-size: 300% 300%; }
+
+.hero-content h1::after {
+    content: '';
+    display: block;
+    height: 4px;
+    width: 72px;
+    margin-top: 0.75rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(79,70,229,0.95), rgba(14,165,233,0.95));
 }
 
 .subtitle {
-    font-size: 1.25rem;
-    color: var(--text-secondary);
-    margin-bottom: 2rem;
+    font-size: 1.125rem;
+    color: rgba(255,255,255,0.88);
+    margin: 1rem 0 1.75rem 0;
     line-height: 1.6;
+    max-width: 60ch;
 }
 
 .hero-actions {
@@ -116,9 +220,9 @@ body {
 }
 
 .button.primary {
-    background: var(--gradient-primary);
+    background: linear-gradient(90deg, #4F46E5 0%, #0EA5E9 100%);
     color: white;
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 10px 30px rgba(14,23,70,0.35);
 }
 
 .button.primary:hover {
@@ -127,9 +231,9 @@ body {
 }
 
 .button.secondary {
-    background: white;
-    color: var(--primary);
-    border: 2px solid var(--primary);
+    background: rgba(255,255,255,0.06);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.08);
 }
 
 .button.secondary:hover {
@@ -676,7 +780,7 @@ body {
 .fade-in-up {
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.8s ease-out, transform 0.8s ease-out; /* Explicit transition */
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out; /* Explicit transition */
 }
 
 .slide-in-left {

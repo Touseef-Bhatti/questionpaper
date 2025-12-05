@@ -5,7 +5,7 @@
  * Usage: php migrate_database.php
  */
 
-require_once 'db_connect.php';
+require_once '../db_connect.php';
 
 echo "🗄️ Starting database migration...\n";
 

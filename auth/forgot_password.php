@@ -17,11 +17,11 @@ function get_site_url() {
 }
 
 function send_reset_email($to, $reset_link) {
-    $subject = 'Reset your QPaperGen password';
-    $message = "Hello,\n\nWe received a request to reset your password. Click the link below to set a new password:\n\n$reset_link\n\nIf you didn't request this, please ignore this email.\n\nThanks,\nQPaperGen";
+    $subject = 'Reset your Ahmad Learning Hub password';
+    $message = "Hello,\n\nWe received a request to reset your password. Click the link below to set a new password:\n\n$reset_link\n\nIf you didn't request this, please ignore this email.\n\nThanks,\nAhmad Learning Hub";
     // From header using configured domain
-    $fromDomain = parse_url(get_site_url(), PHP_URL_HOST) ?: 'qpapergen.local';
-    $headers = 'From: QPaperGen <no-reply@' . $fromDomain . ">\r\n" . 'Reply-To: no-reply@' . $fromDomain . "\r\n" . 'X-Mailer: PHP/' . phpversion();
+    $fromDomain = parse_url(get_site_url(), PHP_URL_HOST) ?: 'Ahmad Learning Hub.local';
+    $headers = 'From: Ahmad Learning Hub <no-reply@' . $fromDomain . ">\r\n" . 'Reply-To: no-reply@' . $fromDomain . "\r\n" . 'X-Mailer: PHP/' . phpversion();
     // Attempt to send via mail(); production servers typically configure this
     @mail($to, $subject, $message, $headers);
     // Also log to file for troubleshooting
@@ -83,7 +83,7 @@ $reset_link = get_site_url() . '/auth/reset_password.php?token=' . urlencode($to
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Forgot Password - QPaperGen</title>
+  <title>Forgot Password - Ahmad Learning Hub</title>
   <link rel="stylesheet" href="../css/main.css">
   <style>
     .card { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); padding: 24px; }

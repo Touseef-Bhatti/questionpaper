@@ -266,7 +266,7 @@ $joinUrl = 'online_quiz_join.php?room=' . urlencode($room_code);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Room Created - QPaperGen</title>
+    <title>Room Created - Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
     <style>
         .card { max-width: 700px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); padding: 24px; text-align: center; }
@@ -289,8 +289,8 @@ $joinUrl = 'online_quiz_join.php?room=' . urlencode($room_code);
     <div class="muted">Or share the link:</div>
     <input class="link" readonly value="<?php echo htmlspecialchars($joinUrl); ?>" onclick="this.select();" />
     <div class="actions">
-      <a href="<?php echo htmlspecialchars($joinUrl); ?>" class="btn primary">Open Join Page</a>
-      <a href="online_quiz_dashboard.php?room=<?php echo htmlspecialchars($room_code); ?>" class="btn secondary">Open Dashboard</a>
+      <!-- <a href="<?php echo htmlspecialchars($joinUrl); ?>" class="btn primary">Open Join Page</a> -->
+      <a href="online_quiz_dashboard.php?room=<?php echo htmlspecialchars($room_code); ?>" class="btn primary">Open Dashboard</a>
       <a href="online_quiz_host.php" class="btn secondary">Create Another Room</a>
       <a href="index.php" class="btn secondary">Back to Home</a>
     </div>

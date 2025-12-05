@@ -33,7 +33,7 @@ Create `/config/.env` file with these settings:
 ```env
 # Basic Configuration
 APP_ENV=production
-APP_NAME=QPaperGen
+APP_NAME=Ahmad Learning Hub
 APP_URL=https://your-actual-domain.com
 
 # Database (get these from your hosting provider)

@@ -7,7 +7,7 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-echo "<h1>QPaperGen Complete Schema Fix</h1>";
+echo "<h1>Ahmad Learning Hub Complete Schema Fix</h1>";
 echo "<hr>";
 
 try {

@@ -23,7 +23,7 @@ if ($orderId) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Cancelled - QPaperGen</title>
+    <title>Payment Cancelled - Ahmad Learning Hub</title>
     <style>
         * {
             margin: 0;

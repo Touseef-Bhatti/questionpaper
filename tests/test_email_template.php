@@ -3,7 +3,7 @@
 require_once __DIR__ . '/config/env.php';
 
 $token = 'test-token-123';
-$fromName = EnvLoader::get('APP_NAME', 'QPaperGen');
+$fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
 $baseUrl = EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk');
 
 // Clean and build the verification URL

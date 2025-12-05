@@ -1,0 +1,14 @@
+.git
+node_modules
+vendor
+logs
+*.log
+Dockerfile
+docker-compose.yml
+.dockerignore
+.env
+.env.*
+/.vscode
+/.idea
+/.gitlab-ci.yml
+/.github

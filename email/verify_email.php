@@ -167,7 +167,7 @@ a:focus-visible {
 <body>
     <div class="verification-container">
         <div class="brand">
-            <h1>QPaperGen</h1>
+            <h1>Ahmad Learning Hub</h1>
         </div>
         
         <?php

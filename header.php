@@ -35,13 +35,14 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
     $assetBase  = $isRoot ?  '' : '../';
 }
 ?>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 <link rel="stylesheet" href="../css/index.css">
 <link rel="stylesheet" href="../css/main.css">
 
     
 <nav class="navbar">
   <div class="navbar-container">
-    <a href="<?= $assetBase ?>index.php" class="nav-logo">QPaperGen</a>
+    <a href="<?= $assetBase ?>index.php" class="nav-logo">AhmadLearningHub</a>
     <div class="nav-toggle" id="navToggle">
       <span></span>
       <span></span>
@@ -52,7 +53,7 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
       <li class="dropdown">
         <a href="<?= $assetBase ?>select_class.php" class="dropbtn">Generate Paper <i class="fas fa-caret-down"></i></a>
         <div class="dropdown-content">
-          <a href="<?= $assetBase ?>select_class.php"><i class="fas fa-file-alt"></i> Generate Paper</a>
+          <a href="<?= $assetBase ?>quiz/online_quiz_host_new.php"><i class="fas fa-file-alt"></i> Create Online Quiz</a>
           <a href="<?= $assetBase ?>quiz/quiz_setup.php"><i class="fas fa-question-circle"></i> Online Quiz</a>
           <a href="<?= $assetBase ?>quiz/online_quiz_join.php"><i class="fas fa-gamepad"></i> Join Quiz</a>
         </div>
@@ -184,12 +185,6 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
         }
     });
 
-    // Add Font Awesome for icons
-    const head = document.getElementsByTagName('head')[0];
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css';
-    head.appendChild(link);
     </script>
    <style>
     /* Header / Navbar styles appended below */
@@ -225,7 +220,7 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
 }
 
 .nav-logo {
-    font-size: 1.7rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: var(--primary);
     text-decoration: none;
@@ -351,7 +346,7 @@ body.menu-open {
     }
     
     .nav-logo {
-        font-size: 1.6rem;
+        font-size: 1.0rem;
         z-index: 1100;
     }
     

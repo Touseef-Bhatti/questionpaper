@@ -124,24 +124,46 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1.5rem;
-            margin-top: 1.5rem;
-            
+            margin: 1.5rem auto 0;
+            max-width: 1000px;
+            align-items: start; /* keep cards aligned at top */
+            padding: 0 2rem;
+            grid-auto-rows: minmax(120px, auto);
+            width: 100%;
         }
-        
+
+        /* Ensure 4-column layout on larger screens */
+        @media (min-width: 1024px) {
+            .steps-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1.25rem;
+                padding: 0 1rem;
+            }
+        }
+
         .step {
-            background: rgba(255,255,255,0.1);
-            padding: 1.5rem;
-            border-radius: 8px;
+            background: rgba(255,255,255,0.04);
+            padding: 1.25rem;
+            border-radius: 10px;
             text-align: center;
             width: 100%;
             margin: 0 auto;
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 6px 18px rgba(4,11,30,0.18);
+            transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+        }
+
+        .step:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 30px rgba(4,11,30,0.22);
+            background: rgba(255,255,255,0.06);
         }
         
         .step-number {
             background: white;
             color: #4f6ef7;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -149,12 +171,14 @@
             font-weight: bold;
             font-size: 1.2rem;
             margin: 0 auto 1rem auto;
+            box-shadow: 0 4px 12px rgba(79,110,247,0.18);
         }
         
         .step h3 {
             color: white;
             margin-bottom: 0.5rem;
-            font-size: 1.1rem;
+            font-size: 1.15rem;
+            font-weight: 700;
         }
         
         .step p {
