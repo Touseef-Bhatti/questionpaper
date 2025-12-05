@@ -30,15 +30,17 @@ class EnvLoader
             // Default to the main .env file
             $envFile = __DIR__ . '/.env';
             
+
+            // for local host
             // Optionally, you can still have environment-specific files if needed
             // For example:
-            // $serverName = $_SERVER['SERVER_NAME'] ?? 'production';
-            // $isLocal = in_array($serverName, ['localhost', '127.0.0.1', '::1']);
-            // if ($isLocal && file_exists(__DIR__ . '/.env.local')) {
-            //     $envFile = __DIR__ . '/.env.local';
-            // } elseif (file_exists(__DIR__ . '/.env.production')) {
-            //     $envFile = __DIR__ . '/.env.production';
-            // }
+            $serverName = $_SERVER['SERVER_NAME'] ?? 'production';
+            $isLocal = in_array($serverName, ['localhost', '127.0.0.1', '::1']);
+            if ($isLocal && file_exists(__DIR__ . '/.env.local')) {
+                $envFile = __DIR__ . '/.env.local';
+            } elseif (file_exists(__DIR__ . '/.env.production')) {
+                $envFile = __DIR__ . '/.env.production';
+            }
         }
         
         if (!file_exists($envFile)) {

@@ -16,12 +16,10 @@ require_once 'auth/auth_check.php';
 <body>
     <?php include 'header.php'; ?>
 
-    <div class="main-content">
-        <div class="contact-content">
     <!-- Hero Section -->
     <section class="contact-hero">
         <div class="hero-content">
-            <h1>📧 Get in Touch</h1>
+            <h1 >📧 Get in Touch</h1>
             <p class="hero-subtitle">We're here to help with any questions or feedback about Ahmad Learning Hub</p>
         </div>
     </section>

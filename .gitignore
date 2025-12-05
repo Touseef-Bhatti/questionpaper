@@ -8,6 +8,8 @@
 !config/.env.template
 !config/.env.example
 
+env.php
+
 # 🗄️ Databases / Dumps
 *.sql
 *.sqlite

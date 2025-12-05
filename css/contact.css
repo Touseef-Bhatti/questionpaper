@@ -7,13 +7,14 @@
 }
 
 .contact-content {
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    background: none;
-    box-shadow: none;
-    border-radius: 0;
-    padding: 0;
+    width: 90%; /* Responsive width */
+    max-width: 1200px; /* Limit overall width */
+    margin: 40px auto; /* Center content with margin */
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    padding: 2rem; /* Consistent padding */
+    box-sizing: border-box;
 }
 
 /* Hero Section */
@@ -80,13 +81,14 @@
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 1rem; /* Adjust container padding for better responsiveness */
+    box-sizing: border-box;
 }
 
 .contact-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Use auto-fit for flexible columns */
+    gap: 2rem; /* Reduce gap for better spacing */
     align-items: start;
 }
 
@@ -180,6 +182,7 @@
     border-radius: 12px;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
     border-top: 4px solid #4f6ef7;
+    margin-top: 2rem; /* Add margin to separate from contact info */
 }
 
 .contact-form-section h2 {
@@ -308,8 +311,13 @@
     }
     
     .contact-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* Single column on small screens */
         gap: 2rem;
+    }
+    .contact-content {
+        margin: 20px auto; /* Adjust margin for smaller screens */
+        width: 95%; /* Take up more width on small screens */
+        padding: 1.5rem;
     }
     
     .contact-form-section {
@@ -351,6 +359,10 @@
     .info-item {
         flex-direction: column;
         text-align: center;
+        padding: 1rem;
+    }
+    .info-content h3 {
+        margin-top: 0.5rem; /* Add space between icon and title */
     }
     
     .help-topics {

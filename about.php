@@ -16,8 +16,7 @@
 <body>
     <?php include 'header.php'; ?>
 
-    <div class="main-content">
-        <div class="about-content">
+    
     <!-- Hero Section -->
     <section class="hero-section">
         <div class="hero-content">
@@ -45,7 +44,7 @@
         <div class="container">
             <h2>🎯 Our Mission</h2>
             <p class="mission-text">
-                Ahmad Learning Hub is dedicated to revolutionizing the way educational institutions create and manage examination papers. 
+                Ahmad Learning Hub is dedicated to revolutionizing the way educational institutions create and manage examination papers.
                 We believe in empowering teachers with intelligent tools that save time, ensure quality, and maintain educational standards.
             </p>
         </div>
@@ -136,7 +135,7 @@
         </div>
     </section>
 
-    <!-- How It Works Section -->
+    <!-- How It Works Section
     <section class="how-it-works">
         <div class="container">
             <h2>🔧 How It Works</h2>
@@ -171,7 +170,7 @@
                 </div>
             </div>
         </div>
-    </section>
+    </section> -->
 
     <!-- Updates Section -->
     <section class="updates-section">
@@ -210,8 +209,8 @@
             </div>
         </div>
     </section>
-</div>
-</div> <!-- main-content -->
+
+
 
 <?php include 'footer.php'; ?>
 
