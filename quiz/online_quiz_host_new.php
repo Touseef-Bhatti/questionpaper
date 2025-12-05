@@ -158,7 +158,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
 
                 <!-- Action Bar -->
                 <div class="action-bar">
-                    <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                    <button  type="button" class="btn " onclick="resetForm()">
                         🔄 Reset Form
                     </button>
                     <button type="submit" class="btn btn-primary">
