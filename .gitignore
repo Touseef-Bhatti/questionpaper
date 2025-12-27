@@ -27,6 +27,10 @@ build/
 .cache/
 .tmp/
 coverage/
+/cache/*
+!/cache/.gitkeep
+
+
 
 # 🖥️ IDE & Editor settings
 .vscode/
