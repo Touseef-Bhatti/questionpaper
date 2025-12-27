@@ -13,6 +13,41 @@ if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !isset($_GET['book_
 $classId = intval($_GET['class_id']);
 $book_name = trim($conn->real_escape_string($_GET['book_name']));
 
+// Function to get pattern defaults based on class and book name
+function getPatternDefaults($classId, $book_name) {
+    $book_name_lower = strtolower($book_name);
+    
+    // Check if class is 9 or 10
+    if ($classId == 9 || $classId == 10) {
+        // For physics, chemistry, biology
+        if (in_array($book_name_lower, ['physics', 'chemistry', 'biology'])) {
+            return [
+                'mcqs' => 12,
+                'sq' => 24,
+                'long' => 3
+            ];
+        }
+        // For computer
+        if ($book_name_lower == 'computer') {
+            return [
+                'mcqs' => 10,
+                'sq' => 18,
+                'long' => 3
+            ];
+        }
+    }
+    
+    // Default values if conditions don't match
+    return [
+        'mcqs' => 0,
+        'sq' => 0,
+        'long' => 0
+    ];
+}
+
+// Get pattern defaults
+$patternDefaults = getPatternDefaults($classId, $book_name);
+
 // Fetch chapters
 $chapterQuery = "SELECT chapter_id, chapter_name FROM chapter WHERE class_id = $classId AND book_name = '$book_name' ORDER BY chapter_id ASC";
 $result = $conn->query($chapterQuery);
@@ -40,6 +75,16 @@ if (!$result) {
   
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Pattern defaults from PHP
+    const patternDefaults = {
+        mcqs: <?= $patternDefaults['mcqs'] ?>,
+        sq: <?= $patternDefaults['sq'] ?>,
+        long: <?= $patternDefaults['long'] ?>
+    };
+    const classId = <?= $classId ?>;
+    const bookName = '<?= strtolower($book_name) ?>';
+    const isComputer = bookName === 'computer';
+    
     const numberInputs = document.querySelectorAll('input[type="number"]');
     const form = document.querySelector('form[action="select_question.php"]');
     const patternYes = document.getElementById('pattern_yes');
@@ -53,12 +98,41 @@ document.addEventListener('DOMContentLoaded', function() {
     function isWithPattern() {
         return patternYes && patternYes.checked;
     }
+    
+    // Function to auto-fill pattern defaults
+    function applyPatternDefaults() {
+        if (isWithPattern() && (classId === 9 || classId === 10)) {
+            const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
+            
+            if (isScience || isComputer) {
+                if (patternDefaults.mcqs > 0 && totalMcqsInput) {
+                    totalMcqsInput.value = patternDefaults.mcqs;
+                }
+                if (patternDefaults.long > 0 && totalLongsInput) {
+                    totalLongsInput.value = patternDefaults.long;
+                }
+                if (patternDefaults.sq > 0) {
+                    // Short questions are handled in updateShortsVisibility
+                }
+                recalcStatus();
+            }
+        }
+    }
 
     function recalcStatus() {
         const withPattern = isWithPattern();
-        const targetMcq = parseInt(totalMcqsInput?.value) || 0;
+        // Use pattern defaults if applicable
+        let defaultMcq = 12;
+        if (withPattern && (classId === 9 || classId === 10)) {
+            const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
+            if (isScience || isComputer) {
+                defaultMcq = patternDefaults.mcqs;
+            }
+        }
+        const targetMcq = parseInt(totalMcqsInput?.value) || defaultMcq;
         const desiredLongs = parseInt(totalLongsInput?.value) || 0;
-        const targetLong = withPattern ? desiredLongs * 2 : desiredLongs;
+        // For computer, don't multiply by 2 (no parts), for other subjects with pattern, multiply by 2
+        const targetLong = withPattern && !isComputer ? desiredLongs * 2 : desiredLongs;
 
         let sumMcq = 0, sumLong = 0, sumShort = 0;
         document.querySelectorAll('input[name^="mcqs["]').forEach(inp => { sumMcq += (parseInt(inp.value) || 0); });
@@ -85,15 +159,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('input[name^="long_questions["]').forEach(inp => inp.classList.toggle('over-field', longRem < 0));
 
         // SHORT tile
-        const isScience = ['biology', 'chemistry', 'physics'].includes('<?= strtolower($book_name) ?>');
+        const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
         statShort.querySelector('.val').textContent = sumShort;
         const hint = statShort.querySelector('.hint');
-        if (isScience && withPattern) {
-            const delta = 24 - sumShort;
+        if ((isScience || isComputer) && withPattern && (classId === 9 || classId === 10)) {
+            const targetShort = patternDefaults.sq;
+            const delta = targetShort - sumShort;
             statShort.classList.toggle('ok', delta === 0);
             statShort.classList.toggle('warn', delta > 0);
             statShort.classList.toggle('over', delta < 0);
-            hint.textContent = ` (${delta === 0 ? 'done' : (delta > 0 ? delta + ' remaining to reach 24' : Math.abs(delta) + ' over 24')})`;
+            hint.textContent = ` (${delta === 0 ? 'done' : (delta > 0 ? delta + ' remaining to reach ' + targetShort : Math.abs(delta) + ' over ' + targetShort)})`;
             document.querySelectorAll('input[name^="short_questions["]').forEach(inp => inp.classList.toggle('over-field', delta < 0));
         } else {
             statShort.classList.remove('ok', 'warn', 'over');
@@ -127,21 +202,32 @@ document.addEventListener('DOMContentLoaded', function() {
         title.style.margin = '6px 0';
         title.style.fontSize = '14px';
         wrap.appendChild(title);
-
+        
         for (let i = 0; i < n; i++) {
             const row = document.createElement('div');
             row.className = 'placement-row';
-            row.innerHTML = `
-                <label>#${i + 1} Question</label>
-                <select name="long_qnum[${chapterId}][]" style="padding:5px; min-width:90px;">
-                    ${Array.from({ length: getQCount() }, (_, k) => `<option value="${k + 1}">Q${k + 1}</option>`).join('')}
-                </select>
-                <label>Part</label>
-                <select name="long_part[${chapterId}][]" style="padding:5px;">
-                    <option value="a">a</option>
-                    <option value="b">b</option>
-                </select>
-            `;
+            if (isComputer) {
+                // For computer, no parts - just question number
+                row.innerHTML = `
+                    <label>#${i + 1} Question</label>
+                    <select name="long_qnum[${chapterId}][]" style="padding:5px; min-width:90px;">
+                        ${Array.from({ length: getQCount() }, (_, k) => `<option value="${k + 1}">Q${k + 1}</option>`).join('')}
+                    </select>
+                `;
+            } else {
+                // For other subjects, include parts (a) and (b)
+                row.innerHTML = `
+                    <label>#${i + 1} Question</label>
+                    <select name="long_qnum[${chapterId}][]" style="padding:5px; min-width:90px;">
+                        ${Array.from({ length: getQCount() }, (_, k) => `<option value="${k + 1}">Q${k + 1}</option>`).join('')}
+                    </select>
+                    <label>Part</label>
+                    <select name="long_part[${chapterId}][]" style="padding:5px;">
+                        <option value="a">a</option>
+                        <option value="b">b</option>
+                    </select>
+                `;
+            }
             wrap.appendChild(row);
         }
     }
@@ -178,20 +264,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalShortsLabel = document.getElementById('total_shorts_label');
     function updateShortsVisibility() {
         const withPattern = isWithPattern();
-        const isScience = ['biology', 'chemistry', 'physics'].includes('<?= strtolower($book_name) ?>');
+        const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
+        
         if (!withPattern) {
             totalShortsLabel.style.display = 'inline-block';
-        } else if (isScience && withPattern) {
+        } else if ((isScience || isComputer) && withPattern && (classId === 9 || classId === 10)) {
             totalShortsLabel.style.display = 'none';
-            // For science with pattern, require 24 shorts; show 24 in the input (but keep hidden)
-            if (totalShortsInput) totalShortsInput.value = 24;
+            // Use pattern defaults for shorts
+            if (totalShortsInput && patternDefaults.sq > 0) {
+                totalShortsInput.value = patternDefaults.sq;
+            }
         } else {
             totalShortsLabel.style.display = 'none';
             if (totalShortsInput) totalShortsInput.value = '';
         }
     }
-    [patternYes, patternNo].forEach(el => el?.addEventListener('change', updateShortsVisibility));
+    [patternYes, patternNo].forEach(el => {
+        el?.addEventListener('change', function() {
+            updateShortsVisibility();
+            applyPatternDefaults();
+        });
+    });
     updateShortsVisibility();
+    // Apply defaults on initial load if pattern is selected
+    if (patternYes && patternYes.checked) {
+        applyPatternDefaults();
+    }
     
     // Add event listeners to remove highlighting when selections change
     function addChangeListenersToSelects() {
@@ -246,21 +344,29 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const targetLongs = withPattern ? desiredLongs * 2 : desiredLongs;
+        const targetLongs = withPattern && !isComputer ? desiredLongs * 2 : desiredLongs;
         if (sumLongs !== targetLongs) {
             e.preventDefault();
-            const message = withPattern 
-                ? `Total long questions across chapters (${sumLongs}) must equal 2 × requested long questions (${targetLongs}). Each long prints as parts (a) and (b).`
-                : `Total long questions across chapters (${sumLongs}) must equal the requested long questions (${targetLongs}).`;
+            let message;
+            if (withPattern && !isComputer) {
+                message = `Total long questions across chapters (${sumLongs}) must equal 2 × requested long questions (${targetLongs}). Each long prints as parts (a) and (b).`;
+            } else if (withPattern && isComputer) {
+                message = `Total long questions across chapters (${sumLongs}) must equal the requested long questions (${targetLongs}).`;
+            } else {
+                message = `Total long questions across chapters (${sumLongs}) must equal the requested long questions (${targetLongs}).`;
+            }
             alert(message);
             return;
         }
 
-        const isScience = ['biology', 'chemistry', 'physics'].includes('<?= strtolower($book_name) ?>');
-        if (isScience && withPattern && sumShort !== 24) {
-            e.preventDefault();
-            alert('For <?= $book_name ?> with pattern, you must enter exactly 24 short questions.');
-            return;
+        const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
+        if ((isScience || isComputer) && withPattern && (classId === 9 || classId === 10)) {
+            const targetShort = patternDefaults.sq;
+            if (sumShort !== targetShort) {
+                e.preventDefault();
+                alert('For ' + bookName + ' with pattern (Class ' + classId + '), you must enter exactly ' + targetShort + ' short questions.');
+                return;
+            }
         }
 
         // If without pattern, require Total Short Questions input and validate it matches distributed shorts
@@ -279,89 +385,137 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (withPattern) {
-            const partsByQ = {};
-            const allParts = [];
-            const allSelects = {qnum: [], part: []};
-            
-            // Clear any previous highlighting
-            document.querySelectorAll('select[name^="long_qnum["], select[name^="long_part["]').forEach(select => {
-                select.style.border = '';
-                select.style.backgroundColor = '';
-            });
-            
-            // Collect all question-part combinations
-            document.querySelectorAll('[id^="long-placement-"]').forEach(wrap => {
-                wrap.querySelectorAll('.placement-row').forEach(row => {
-                    const qSelect = row.querySelector('select[name^="long_qnum["]');
-                    const pSelect = row.querySelector('select[name^="long_part["]');
-                    const q = qSelect?.value;
-                    const p = pSelect?.value;
-                    
-                    if (q && p) {
-                        // Store each question-part combination for duplicate checking
-                        allParts.push({q, p, qSelect, pSelect});
-                        
-                        // Track parts by question for the missing parts check
-                        if (!partsByQ[q]) partsByQ[q] = new Set();
-                        partsByQ[q].add(p);
-                        
-                        // Store selects for highlighting
-                        allSelects.qnum.push(qSelect);
-                        allSelects.part.push(pSelect);
-                    }
+            if (isComputer) {
+                // For computer: only check for duplicate question numbers (no parts)
+                const questionNumbers = [];
+                const duplicateSelects = new Set();
+                
+                // Clear any previous highlighting
+                document.querySelectorAll('select[name^="long_qnum["]').forEach(select => {
+                    select.style.border = '';
+                    select.style.backgroundColor = '';
                 });
-            });
-            
-            // Check for duplicates
-            const duplicates = [];
-            const duplicateSelects = new Set();
-            
-            for (let i = 0; i < allParts.length; i++) {
-                for (let j = i + 1; j < allParts.length; j++) {
-                    if (allParts[i].q === allParts[j].q && allParts[i].p === allParts[j].p) {
-                        const dupKey = `Q${allParts[i].q}${allParts[i].p}`;
-                        duplicates.push(dupKey);
-                        
-                        // Highlight duplicate selects
-                        duplicateSelects.add(allParts[i].qSelect);
-                        duplicateSelects.add(allParts[i].pSelect);
-                        duplicateSelects.add(allParts[j].qSelect);
-                        duplicateSelects.add(allParts[j].pSelect);
+                
+                // Collect all question numbers
+                document.querySelectorAll('[id^="long-placement-"]').forEach(wrap => {
+                    wrap.querySelectorAll('.placement-row').forEach(row => {
+                        const qSelect = row.querySelector('select[name^="long_qnum["]');
+                        const q = qSelect?.value;
+                        if (q) {
+                            questionNumbers.push({q, qSelect});
+                        }
+                    });
+                });
+                
+                // Check for duplicate question numbers
+                const duplicates = [];
+                for (let i = 0; i < questionNumbers.length; i++) {
+                    for (let j = i + 1; j < questionNumbers.length; j++) {
+                        if (questionNumbers[i].q === questionNumbers[j].q) {
+                            duplicates.push(`Q${questionNumbers[i].q}`);
+                            duplicateSelects.add(questionNumbers[i].qSelect);
+                            duplicateSelects.add(questionNumbers[j].qSelect);
+                        }
                     }
                 }
-            }
-            
-            // Apply highlighting to duplicates
-            duplicateSelects.forEach(select => {
-                select.style.border = '2px solid #ff4d4f';
-                select.style.backgroundColor = '#fff1f0';
-            });
-            
-            if (duplicates.length > 0) {
-                e.preventDefault();
-                alert('Duplicate question parts detected: ' + [...new Set(duplicates)].join(', ') + '. Each question part must be used only once.');
-                return;
-            }
-
-            const requiredQ = getQCount();
-            const missing = [];
-            for (let q = 1; q <= requiredQ; q++) {
-                const set = partsByQ[q] || new Set();
-                // Only check for missing parts if this question number is actually used
-                if (set.size > 0) {
-                    if (!set.has('a')) missing.push(`Q${q}a`);
-                    if (!set.has('b')) missing.push(`Q${q}b`);
+                
+                // Apply highlighting to duplicates
+                duplicateSelects.forEach(select => {
+                    select.style.border = '2px solid #ff4d4f';
+                    select.style.backgroundColor = '#fff1f0';
+                });
+                
+                if (duplicates.length > 0) {
+                    e.preventDefault();
+                    alert('Duplicate question numbers detected: ' + [...new Set(duplicates)].join(', ') + '. Each question number must be used only once.');
+                    return;
                 }
-            }
-            if (missing.length > 0) {
-                e.preventDefault();
-                alert('Each long question must have both parts a and b. Missing: ' + missing.join(', '));
+            } else {
+                // For other subjects: check for parts (a) and (b)
+                const partsByQ = {};
+                const allParts = [];
+                const allSelects = {qnum: [], part: []};
+                
+                // Clear any previous highlighting
+                document.querySelectorAll('select[name^="long_qnum["], select[name^="long_part["]').forEach(select => {
+                    select.style.border = '';
+                    select.style.backgroundColor = '';
+                });
+                
+                // Collect all question-part combinations
+                document.querySelectorAll('[id^="long-placement-"]').forEach(wrap => {
+                    wrap.querySelectorAll('.placement-row').forEach(row => {
+                        const qSelect = row.querySelector('select[name^="long_qnum["]');
+                        const pSelect = row.querySelector('select[name^="long_part["]');
+                        const q = qSelect?.value;
+                        const p = pSelect?.value;
+                        
+                        if (q && p) {
+                            // Store each question-part combination for duplicate checking
+                            allParts.push({q, p, qSelect, pSelect});
+                            
+                            // Track parts by question for the missing parts check
+                            if (!partsByQ[q]) partsByQ[q] = new Set();
+                            partsByQ[q].add(p);
+                            
+                            // Store selects for highlighting
+                            allSelects.qnum.push(qSelect);
+                            allSelects.part.push(pSelect);
+                        }
+                    });
+                });
+                
+                // Check for duplicates
+                const duplicates = [];
+                const duplicateSelects = new Set();
+                
+                for (let i = 0; i < allParts.length; i++) {
+                    for (let j = i + 1; j < allParts.length; j++) {
+                        if (allParts[i].q === allParts[j].q && allParts[i].p === allParts[j].p) {
+                            const dupKey = `Q${allParts[i].q}${allParts[i].p}`;
+                            duplicates.push(dupKey);
+                            
+                            // Highlight duplicate selects
+                            duplicateSelects.add(allParts[i].qSelect);
+                            duplicateSelects.add(allParts[i].pSelect);
+                            duplicateSelects.add(allParts[j].qSelect);
+                            duplicateSelects.add(allParts[j].pSelect);
+                        }
+                    }
+                }
+                
+                // Apply highlighting to duplicates
+                duplicateSelects.forEach(select => {
+                    select.style.border = '2px solid #ff4d4f';
+                    select.style.backgroundColor = '#fff1f0';
+                });
+                
+                if (duplicates.length > 0) {
+                    e.preventDefault();
+                    alert('Duplicate question parts detected: ' + [...new Set(duplicates)].join(', ') + '. Each question part must be used only once.');
+                    return;
+                }
+
+                const requiredQ = getQCount();
+                const missing = [];
+                for (let q = 1; q <= requiredQ; q++) {
+                    const set = partsByQ[q] || new Set();
+                    // Only check for missing parts if this question number is actually used
+                    if (set.size > 0) {
+                        if (!set.has('a')) missing.push(`Q${q}a`);
+                        if (!set.has('b')) missing.push(`Q${q}b`);
+                    }
+                }
+                if (missing.length > 0) {
+                    e.preventDefault();
+                    alert('Each long question must have both parts a and b. Missing: ' + missing.join(', '));
+                }
             }
         }
     });
 
   // Auto-fill distribution logic (shared handler)
-  function autoFillHandler() {
+  function autoFillHandler(suppressAlert = false) {
     const withPattern = isWithPattern();
     const chapters = Array.from(document.querySelectorAll('label > input[type="checkbox"][name="chapters[]"]')).map(cb => ({
       checkbox: cb,
@@ -396,8 +550,9 @@ document.addEventListener('DOMContentLoaded', function() {
       if (inp) { inp.value = mcqDist[idx]; }
     });
 
-    // Longs - note: if withPattern, totalLongs is number of printed long questions (max 5), but internal sum should be 2x
-    const longTargetPerDisplay = withPattern ? totalLongs * 2 : totalLongs;
+    // Longs - note: if withPattern and not computer, totalLongs is number of printed long questions (max 5), but internal sum should be 2x
+    // For computer, no parts, so don't multiply by 2
+    const longTargetPerDisplay = withPattern && !isComputer ? totalLongs * 2 : totalLongs;
     const longDist = distribute(longTargetPerDisplay, activeChapters.length);
     activeChapters.forEach((c, idx) => {
       const inp = c.wrap.querySelector('input[name^="long_questions["]');
@@ -412,10 +567,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (inp) inp.value = shortDist[idx];
       });
     } else {
-      // withPattern: for science subjects, target shorts is 24; otherwise leave as-is
-      const isScience = ['biology', 'chemistry', 'physics'].includes('<?= strtolower($book_name) ?>');
-      if (isScience) {
-        const shortDist = distribute(24, activeChapters.length);
+      // withPattern: use pattern defaults for science and computer subjects (class 9 or 10)
+      const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
+      if ((isScience || isComputer) && (classId === 9 || classId === 10) && patternDefaults.sq > 0) {
+        const shortDist = distribute(patternDefaults.sq, activeChapters.length);
         activeChapters.forEach((c, idx) => {
           const inp = c.wrap.querySelector('input[name^="short_questions["]');
           if (inp) inp.value = shortDist[idx];
@@ -439,58 +594,118 @@ document.addEventListener('DOMContentLoaded', function() {
         rows.forEach(r => allPlacementRows.push(r));
       });
 
-      // Build pool of unique (q,part) pairs up to required count
-      const requiredQ = getQCount();
-      const totalSlots = allPlacementRows.length; // this should equal totalLongs*2 ideally
-      const pool = [];
-      for (let q = 1; q <= requiredQ; q++) {
-        pool.push({q: q, p: 'a'});
-        pool.push({q: q, p: 'b'});
-      }
+      if (isComputer) {
+        // For computer: only assign question numbers (no parts)
+        const requiredQ = getQCount();
+        const totalSlots = allPlacementRows.length;
+        const pool = [];
+        for (let q = 1; q <= requiredQ; q++) {
+          pool.push(q);
+        }
 
-      // If pool smaller than slots (unlikely), extend by adding higher q numbers
-      let nextQ = requiredQ + 1;
-      while (pool.length < totalSlots) {
-        pool.push({q: nextQ, p: 'a'});
-        pool.push({q: nextQ, p: 'b'});
-        nextQ++;
-      }
+        // If pool smaller than slots, extend by adding higher q numbers
+        let nextQ = requiredQ + 1;
+        while (pool.length < totalSlots) {
+          pool.push(nextQ);
+          nextQ++;
+        }
 
-      // Shuffle pool
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-      }
+        // Shuffle pool
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
 
-      // Assign unique pairs sequentially to placement rows
-      for (let i = 0; i < allPlacementRows.length; i++) {
-        const row = allPlacementRows[i];
-        const pair = pool[i];
-        const qSelect = row.querySelector('select[name^="long_qnum["]');
-        const pSelect = row.querySelector('select[name^="long_part["]');
-        if (qSelect && pSelect) {
-          // If qSelect doesn't have the option (e.g., q > getQCount()), add it
-          const qVal = String(pair.q);
-          if (!Array.from(qSelect.options).some(o => o.value === qVal)) {
-            const opt = document.createElement('option');
-            opt.value = qVal;
-            opt.textContent = 'Q' + qVal;
-            qSelect.appendChild(opt);
+        // Assign unique question numbers sequentially to placement rows
+        for (let i = 0; i < allPlacementRows.length; i++) {
+          const row = allPlacementRows[i];
+          const qNum = pool[i];
+          const qSelect = row.querySelector('select[name^="long_qnum["]');
+          if (qSelect) {
+            // If qSelect doesn't have the option (e.g., q > getQCount()), add it
+            const qVal = String(qNum);
+            if (!Array.from(qSelect.options).some(o => o.value === qVal)) {
+              const opt = document.createElement('option');
+              opt.value = qVal;
+              opt.textContent = 'Q' + qVal;
+              qSelect.appendChild(opt);
+            }
+            qSelect.value = qVal;
           }
-          qSelect.value = qVal;
-          pSelect.value = pair.p;
+        }
+      } else {
+        // For other subjects: assign (q,part) pairs
+        const requiredQ = getQCount();
+        const totalSlots = allPlacementRows.length; // this should equal totalLongs*2 ideally
+        const pool = [];
+        for (let q = 1; q <= requiredQ; q++) {
+          pool.push({q: q, p: 'a'});
+          pool.push({q: q, p: 'b'});
+        }
+
+        // If pool smaller than slots (unlikely), extend by adding higher q numbers
+        let nextQ = requiredQ + 1;
+        while (pool.length < totalSlots) {
+          pool.push({q: nextQ, p: 'a'});
+          pool.push({q: nextQ, p: 'b'});
+          nextQ++;
+        }
+
+        // Shuffle pool
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+
+        // Assign unique pairs sequentially to placement rows
+        for (let i = 0; i < allPlacementRows.length; i++) {
+          const row = allPlacementRows[i];
+          const pair = pool[i];
+          const qSelect = row.querySelector('select[name^="long_qnum["]');
+          const pSelect = row.querySelector('select[name^="long_part["]');
+          if (qSelect && pSelect) {
+            // If qSelect doesn't have the option (e.g., q > getQCount()), add it
+            const qVal = String(pair.q);
+            if (!Array.from(qSelect.options).some(o => o.value === qVal)) {
+              const opt = document.createElement('option');
+              opt.value = qVal;
+              opt.textContent = 'Q' + qVal;
+              qSelect.appendChild(opt);
+            }
+            qSelect.value = qVal;
+            pSelect.value = pair.p;
+          }
         }
       }
     }
 
     recalcStatus();
-    alert('Auto-fill applied. Review counts and then proceed.');
+    if (!suppressAlert) {
+      alert('Auto-fill applied. Review counts and then proceed.');
+    }
   }
 
   // Attach handler to all auto-fill buttons
   document.querySelectorAll('.auto-fill-btn').forEach(btn => btn.addEventListener('click', autoFillHandler));
 
     recalcStatus();
+    
+    // Auto-trigger auto-fill if pattern defaults are applicable
+    const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
+    if ((isScience || isComputer) && (classId === 9 || classId === 10) && patternDefaults.mcqs > 0) {
+      // Apply pattern defaults to inputs first
+      applyPatternDefaults();
+      updateShortsVisibility();
+      
+      // Wait a bit for DOM to be fully ready, then auto-trigger auto-fill
+      setTimeout(function() {
+        // Check if there are chapters available
+        const chapters = Array.from(document.querySelectorAll('label > input[type="checkbox"][name="chapters[]"]'));
+        if (chapters.length > 0) {
+          autoFillHandler(true); // Suppress alert for auto-trigger
+        }
+      }, 100);
+    }
 });
 </script>
 </head>
@@ -503,18 +718,21 @@ document.addEventListener('DOMContentLoaded', function() {
 			<input type="hidden" name="book_name" value="<?= htmlspecialchars($book_name) ?>">
 
 			<!-- MERGED: Totals + Pattern setup -->
+
+
+      
 			<div class="pattern-toggle">
 				<div style="margin-bottom:8px; font-weight:700;">Paper setup</div>
                 <div class="pattern-controls">
-                    <label>Total MCQs (max 20): <input type="number" id="total_mcqs" name="total_mcqs" min="0" max="20" required></label>
+                    <label>Total MCQs (max 20): <input type="number" id="total_mcqs" name="total_mcqs" min="0" max="20"  required></label>
                     <label>Total Long Questions (max 5): <input type="number" id="total_longs" name="total_longs" min="0" max="5" required></label>
                     <label id="total_shorts_label" style="display:none;">Total Short Questions: <input type="number" id="total_shorts" name="total_shorts" min="0" max="200" ></label>
 					<div style="flex-basis:100%; height:0;"></div>
 					<label><input type="radio" id="pattern_no" name="pattern_mode" value="without"> Without pattern</label>
-					<label><input type="radio" id="pattern_yes" name="pattern_mode" value="with" checked> With pattern (assign Q-number and part for long questions)</label>
+					<label><input type="radio" id="pattern_yes" name="pattern_mode" value="with" checked> With pattern (assign Q-number and part for long questions; Computer has no parts)</label>
 					<!-- Number of long questions is derived from Total Long Questions above -->
 				</div>
-				<div style="margin-top:6px; font-size:12px; color:#555;">Note: With pattern - 1 long question will be printed with parts (a) and (b). Without pattern - 1 long = 1 question.</div>
+				<div style="margin-top:6px; font-size:12px; color:#555;">Note: With pattern - For most subjects, 1 long question will be printed with parts (a) and (b). For Computer, long questions have no parts. Without pattern - 1 long = 1 question.</div>
                 <div class="status-bar" id="status_bar">
 					<div class="stat" id="stat_mcq"><strong>MCQs:</strong> <span class="val">0</span> / <span class="target">0</span> <span class="rem"></span></div>
 					<div class="stat" id="stat_long"><strong>Long:</strong> <span class="val">0</span> / <span class="target">0</span> <span class="rem"></span></div>
@@ -528,9 +746,9 @@ document.addEventListener('DOMContentLoaded', function() {
 				<div style="font-size:14px; color:#333; text-align:left;">
 					<ul style="margin:8px 0 0 18px;">
 						<li>Enter <strong>Total MCQs</strong> (maximum 20). Then distribute MCQs across selected chapters so the sum matches.</li>
-						<li><strong>With pattern:</strong> Each long prints as parts <strong>(a)</strong> and <strong>(b)</strong>. Distribute exactly <strong>2 × Total Longs</strong> across chapters.</li>
+						<li><strong>With pattern:</strong> For most subjects, each long prints as parts <strong>(a)</strong> and <strong>(b)</strong>. Distribute exactly <strong>2 × Total Longs</strong> across chapters. For <strong>Computer</strong>, long questions have no parts - distribute exactly <strong>Total Longs</strong> across chapters.</li>
 						<li><strong>Without pattern:</strong> Each long prints as a single question. Distribute exactly <strong>Total Longs</strong> across chapters.</li>
-						<li><strong>With pattern only:</strong> For <strong>Biology, Chemistry, Physics</strong> - enter <strong>exactly 24 short questions</strong> across chapters.</li>
+						<li><strong>With pattern only:</strong> For <strong>Biology, Chemistry, Physics</strong> - enter <strong>exactly 24 short questions</strong> across chapters. For <strong>Computer</strong> - enter <strong>exactly 18 short questions</strong> across chapters.</li>
 						<li><strong>Without pattern:</strong> Enter any number of short questions as desired.</li>
 					</ul>
 				</div>
@@ -604,8 +822,8 @@ document.addEventListener('DOMContentLoaded', function() {
 			?>
 
 			<br>
-			<div class="button-container" style=" justify-content: center; display: flex;align-items: center; padding: 10px; border-radius: 5px; color: white; font-weight: bold; margin-bottom: 15px;">
-<button style="height: 45px;" class="go-back-btn" onclick="window.history.back()">⬅ Go Back </button>
+			<div class="button-container"style=" justify-content: center; display: flex;align-items: center; padding: 10px; border-radius: 5px; color: white; font-weight: bold; margin-bottom: 15px;">
+<button style="height: 55px; margin-top:6% ; align-items:center ;justify-content:center " class="go-back-btn" onclick="window.history.back()">⬅ Go Back </button>
   <!-- Stylish Animated Button -->
 <div style="margin-top: 8%;" class="btn-wrapper">
   <button type="button" class="btn auto-fill-btn">
@@ -671,7 +889,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </svg>
   </span>
 </button>
-
+</div>
 
 		</form>
 

@@ -25,7 +25,7 @@
 }
 
 /* Import display font for hero (logo-like) */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&display=swap');
+/* @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&display=swap'); */
 
 /* Base Styles */
 body {
@@ -111,7 +111,7 @@ body {
 .button.secondary { padding: 0.9rem 1.4rem; border-radius: 10px; }
 
 /* Soft backdrop for hero to ensure legibility */
-.hero-section { background-attachment: fixed; }
+.hero-section { background-attachment: scroll; }
 .hero-section::after {
     content: '';
     position: absolute;
@@ -179,10 +179,10 @@ body {
     /* moving gradient effect */
     background-image: linear-gradient(90deg, #ffffff 0%, #cfe4ff 40%, #b5d1ff 100%);
     background-size: 200% 100%;
-    animation: logo-reveal 900ms cubic-bezier(.22,.9,.29,1) both 0.12s, gradient-shift 6s linear infinite;
+    animation: logo-reveal 900ms cubic-bezier(.22,.9,.29,1) both 0.12s;
 }
 
-.hero-section::before { animation: gradient-shift 14s linear infinite; background-size: 300% 300%; }
+.hero-section::before { background-size: 300% 300%; }
 
 .hero-content h1::after {
     content: '';
@@ -568,10 +568,7 @@ body {
     100% { transform: translateY(0px); }
 }
 
-.feature-card { animation: float 4s ease-in-out infinite; }
-.feature-card:nth-child(2) { animation-delay: 0.5s; }
-.feature-card:nth-child(3) { animation-delay: 1s; }
-.feature-card:nth-child(4) { animation-delay: 1.5s; }
+.feature-card { animation: none; }
 
 
 
@@ -793,4 +790,49 @@ body {
     opacity: 1;
     transform: translateX(0);
     transition: opacity 0.8s ease-out, transform 0.8s ease-out; /* Explicit transition */
+}
+
+/* Add to Home Screen prompt styles */
+.a2hs-prompt {
+    position: fixed;
+    left: 0; right: 0; bottom: 20px;
+    display: flex;
+    justify-content: center;
+    z-index: 2000;
+    pointer-events: none;
+}
+
+.a2hs-prompt .a2hs-card {
+    pointer-events: auto;
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    max-width: 640px;
+    width: calc(100% - 2rem);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.a2hs-icon { font-size: 1.5rem; }
+.a2hs-text { flex: 1; }
+.a2hs-actions { display: flex; gap: 0.5rem; }
+.a2hs-actions .a2hs-primary,
+.a2hs-actions .a2hs-secondary {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    font-weight: 600;
+    background: white;
+}
+.a2hs-actions .a2hs-primary { background: var(--primary); color: white; border-color: transparent; }
+
+.a2hs-open { opacity: 1; transform: translateY(0); }
+.a2hs-prompt { opacity: 0; transform: translateY(20px); transition: opacity 240ms ease, transform 240ms ease; }
+
+@media (prefers-reduced-motion: reduce) {
+    .a2hs-prompt, .a2hs-card { transition: none !important; animation: none !important; }
 }

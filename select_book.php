@@ -30,13 +30,13 @@ if (!$result) {
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_book.css">
     <link rel="stylesheet" href="css/buttons.css">
-    <?php include 'header.php'; ?>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Select Book</title>
   
 </head>
 <body>
+    <?php include 'header.php'; ?>
     <h1>Select Book for Class <?= htmlspecialchars($classId) ?></h1>
 
     <div class="main-container">
@@ -54,7 +54,8 @@ if (!$result) {
                 <div 
                     class="class-box <?= $isComingSoon ? 'coming-soon' : '' ?>" 
                     data-book-id="<?= htmlspecialchars($row['book_id']) ?>" 
-                    onclick="<?= $isComingSoon ? 'showComingSoon()' : 'selectBook(\'' . urlencode($row['book_name']) . '\')' ?>"
+                    data-book-name="<?= htmlspecialchars($row['book_name']) ?>"
+                    onclick="<?= $isComingSoon ? 'showComingSoon()' : 'navigateToChapters(this)' ?>"
                 >
                     <?= htmlspecialchars($row['book_name']) ?>
                 </div>
@@ -68,12 +69,19 @@ if (!$result) {
 
     </div>
 <?php include 'footer.php'; ?>
+
     <script>
-        function selectBook(bookName) {
-            const classId = '<?= urlencode($classId) ?>';
+        const classId = '<?= urlencode($classId) ?>';
+        
+        function navigateToChapters(el) {
+            const bookName = el.getAttribute('data-book-name');
+            if (!bookName) {
+                alert('Please select a valid book.');
+                return;
+            }
             window.location.href = `select_chapters.php?class_id=${classId}&book_name=${encodeURIComponent(bookName)}`;
         }
-
+        
         function showComingSoon() {
             alert('coming soon!');
         }

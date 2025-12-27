@@ -40,7 +40,25 @@ $classResult = $conn->query($classQuery);
           
         </div>
         
-        <div class="features-highlight">
+       
+    
+    <div class="classes-container">
+        <h2>📋 Select Your Class to Continue</h2>
+        <p>
+            Choose your class below to start generating <strong>question papers</strong>, taking 
+            <strong>online tests</strong>, and accessing <strong>study notes</strong> for your <strong>Punjab Board exams</strong>.
+        </p>
+        <div class="classes-grid">
+            <?php while ($row = $classResult->fetch_assoc()) { 
+                $isComingSoon = ($row['class_id'] == 11 || $row['class_id'] == 12);
+            ?>
+                <div class="class-box <?= $isComingSoon ? 'coming-soon' : '' ?>" onclick="selectClass(<?= htmlspecialchars($row['class_id']); ?>)">
+                    <?= htmlspecialchars($row['class_name']); ?>
+                </div>
+            <?php } ?>
+        </div>
+    </div>
+     <div class="features-highlight">
             <h3>✨ Key Features for Students & Teachers</h3>
             <div class="features-list">
                 <div class="feature-item">
@@ -77,21 +95,6 @@ $classResult = $conn->query($classQuery);
         </div>
     </div>
     
-    <div class="classes-container">
-        <h2>📋 Select Your Class to Continue</h2>
-        <p>
-            Choose your class below to start generating <strong>question papers</strong>, taking 
-            <strong>online tests</strong>, and accessing <strong>study notes</strong> for your <strong>Punjab Board exams</strong>.
-        </p>
-        <div class="classes-grid">
-            <?php while ($row = $classResult->fetch_assoc()) { ?>
-                <div class="class-box" onclick="selectClass(<?= htmlspecialchars($row['class_id']); ?>)">
-                    <?= htmlspecialchars($row['class_name']); ?>
-                </div>
-            <?php } ?>
-        </div>
-    </div>
-    
     <button class="go-back-btn" onclick="window.history.back()">⬅ Go Back</button>
 </div>
 </div> <!-- main-content -->
@@ -100,6 +103,11 @@ $classResult = $conn->query($classQuery);
 
 <script>
     function selectClass(classId) {
+        // Show coming soon message for class_id 11 and 12
+        if (classId == 11 || classId == 12) {
+            alert('Coming soon!');
+            return;
+        }
         window.location.href = 'select_book.php?class_id=' + encodeURIComponent(classId);
     }
 </script>

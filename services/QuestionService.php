@@ -187,6 +187,107 @@ class QuestionService
         
         return $mcqs;
     }
+
+    /**
+     * Get random MCQs filtered by topics across class/book
+     */
+    public function getRandomMCQsByTopics($classId, $bookId, $topics, $limit)
+    {
+        if (empty($topics) || $limit <= 0) return [];
+        // Total available
+        $placeholders = str_repeat('?,', count($topics) - 1) . '?';
+        $countSql = "SELECT COUNT(*) AS total, MIN(mcq_id) AS min_id, MAX(mcq_id) AS max_id FROM mcqs WHERE class_id = ? AND book_id = ? AND topic IN ($placeholders)";
+        $stmt = $this->conn->prepare($countSql);
+        $types = 'ii' . str_repeat('s', count($topics));
+        $params = array_merge([$classId, $bookId], $topics);
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $total = intval($row['total']);
+        $minId = intval($row['min_id']);
+        $maxId = intval($row['max_id']);
+        if ($total === 0) return [];
+        if ($limit >= $total) {
+            $sql = "SELECT mcq_id, chapter_id, question, option_a, option_b, option_c, option_d, correct_option FROM mcqs WHERE class_id = ? AND book_id = ? AND topic IN ($placeholders) ORDER BY mcq_id";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $out = [];
+            while ($r = $res->fetch_assoc()) { $out[] = $r; }
+            return $out;
+        }
+        $out = [];
+        $attempts = 0;
+        $maxAttempts = $limit * 3;
+        while (count($out) < $limit && $attempts < $maxAttempts) {
+            $randomId = rand($minId, $maxId);
+            $sql = "SELECT mcq_id, chapter_id, question, option_a, option_b, option_c, option_d, correct_option FROM mcqs WHERE class_id = ? AND book_id = ? AND mcq_id >= ? AND topic IN ($placeholders) LIMIT 1";
+            $stmt = $this->conn->prepare($sql);
+            $types2 = 'iii' . str_repeat('s', count($topics));
+            $params2 = array_merge([$classId, $bookId, $randomId], $topics);
+            $stmt->bind_param($types2, ...$params2);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($row = $res->fetch_assoc()) {
+                $exists = false;
+                foreach ($out as $m) { if ($m['mcq_id'] == $row['mcq_id']) { $exists = true; break; } }
+                if (!$exists) { $out[] = $row; }
+            }
+            $attempts++;
+        }
+        return $out;
+    }
+
+    /**
+     * Get random questions filtered by topics across class/book
+     */
+    public function getRandomQuestionsByTopics($classId, $bookId, $questionType, $topics, $limit)
+    {
+        if (empty($topics) || $limit <= 0) return [];
+        $placeholders = str_repeat('?,', count($topics) - 1) . '?';
+        $countSql = "SELECT COUNT(*) AS total, MIN(id) AS min_id, MAX(id) AS max_id FROM questions WHERE class_id = ? AND book_id = ? AND question_type = ? AND topic IN ($placeholders)";
+        $stmt = $this->conn->prepare($countSql);
+        $types = 'iis' . str_repeat('s', count($topics));
+        $params = array_merge([$classId, $bookId, $questionType], $topics);
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $total = intval($row['total']);
+        $minId = intval($row['min_id']);
+        $maxId = intval($row['max_id']);
+        if ($total === 0) return [];
+        if ($limit >= $total) {
+            $sql = "SELECT id, question_text, marks, topic FROM questions WHERE class_id = ? AND book_id = ? AND question_type = ? AND topic IN ($placeholders) ORDER BY id";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $out = [];
+            while ($r = $res->fetch_assoc()) { $out[] = $r; }
+            return $out;
+        }
+        $out = [];
+        $attempts = 0;
+        $maxAttempts = $limit * 3;
+        while (count($out) < $limit && $attempts < $maxAttempts) {
+            $randomId = rand($minId, $maxId);
+            $sql = "SELECT id, question_text, marks, topic FROM questions WHERE class_id = ? AND book_id = ? AND question_type = ? AND id >= ? AND topic IN ($placeholders) LIMIT 1";
+            $stmt = $this->conn->prepare($sql);
+            $types2 = 'iisi' . str_repeat('s', count($topics));
+            $params2 = array_merge([$classId, $bookId, $questionType, $randomId], $topics);
+            $stmt->bind_param($types2, ...$params2);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($row = $res->fetch_assoc()) {
+                $exists = false;
+                foreach ($out as $q) { if ($q['id'] == $row['id']) { $exists = true; break; } }
+                if (!$exists) { $out[] = $row; }
+            }
+            $attempts++;
+        }
+        return $out;
+    }
     
     /**
      * Get all questions for a chapter and type (when limit >= total)

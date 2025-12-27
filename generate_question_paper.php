@@ -9,6 +9,37 @@ session_start();
 // Initialize cache and question service
 $cache = new CacheManager();
 $questionService = new QuestionService($conn, $cache);
+// Configuration function for book-specific settings
+function getBookConfig($bookName) {
+    $bookNameLower = strtolower($bookName);
+    
+    // Books without parts (a, b) for long questions
+    $booksWithoutParts = ['computer'];
+    
+    // Books with custom short question sections (questions per section)
+    $shortQuestionsPerSection = [
+        'computer' => 6
+    ];
+    
+    // Number of questions to answer per section (for display text)
+    $questionsToAnswerPerSection = [
+        'computer' => 4,
+        'chemistry' => 5,
+        'biology' => 5,
+        'physics' => 5
+    ];
+    
+    return [
+        'hasParts' => !in_array($bookNameLower, $booksWithoutParts),
+        'shortQuestionsPerSection' => isset($shortQuestionsPerSection[$bookNameLower]) 
+            ? $shortQuestionsPerSection[$bookNameLower] 
+            : 8, // default is 8
+        'questionsToAnswerPerSection' => isset($questionsToAnswerPerSection[$bookNameLower]) 
+            ? $questionsToAnswerPerSection[$bookNameLower] 
+            : 5 // default is 5
+    ];
+}
+
 function toRoman($num) {
     $map = [
         'm' => 1000, 'cm' => 900, 'd' => 500, 'cd' => 400,
@@ -47,14 +78,22 @@ function displayShortSection($questions, &$idx) {
         echo '<p>No short questions found for the selected chapters.</p>';
     }
 }
-// Validate POST data
-if (!isset($_POST['class_id'], $_POST['book_name'], $_POST['chapters'])) {
+// Validate POST data (allow chapters OR topics flows)
+if (!isset($_POST['class_id'], $_POST['book_name'])) {
     echo("<h2 style='color:red;'>Required data is missing. Please go back and try again.</h2>");
     header('Location: select_class.php');
 }
+$hasChapters = isset($_POST['chapters']);
+$hasTopics = isset($_POST['topics']) && is_array($_POST['topics']) && count($_POST['topics']) > 0;
 $classId = intval($_POST['class_id']);
 $bookName = htmlspecialchars($_POST['book_name']);
+$bookConfig = getBookConfig($bookName);
 $totalMarks = 0;
+// If neither chapters nor topics are posted, stop
+if (!$hasChapters && !$hasTopics) {
+    echo("<h3 style='color:red;'>Please select chapters or topics first.</h3>");
+    exit;
+}
 // Derive selected chapter numbers/names for header display 
 $chapterHeaderLabel = '';
 $chapterIdsPosted = isset($_POST['chapter_ids']) && is_array($_POST['chapter_ids']) ? array_map('intval', $_POST['chapter_ids']) : [];
@@ -128,9 +167,10 @@ foreach ($shortQuestions as $chapterId => $questions) {
     }
 }
 shuffle($allShortQs);
-$section1 = array_slice($allShortQs, 0, 8);
-$section2 = array_slice($allShortQs, 8, 8);
-$section3 = array_slice($allShortQs, 16, 8);
+$questionsPerSection = $bookConfig['shortQuestionsPerSection'];
+$section1 = array_slice($allShortQs, 0, $questionsPerSection);
+$section2 = array_slice($allShortQs, $questionsPerSection, $questionsPerSection);
+$section3 = array_slice($allShortQs, $questionsPerSection * 2, $questionsPerSection);
 $longQuestions = [];
 if (!empty($_POST['long_questions'])) {
     foreach ($_POST['long_questions'] as $chapterId => $count) {
@@ -155,6 +195,32 @@ foreach ($longQuestions as $chapterId => $questions) {
 }
 shuffle($allLongQs);
 $allLongQs = array_slice($allLongQs, 0, 20);
+
+// Topic-based selection (optional)
+$topics = isset($_POST['topics']) && is_array($_POST['topics']) ? array_values(array_filter(array_map('trim', $_POST['topics']))) : [];
+$topicsMcq = isset($_POST['topics_mcq_count']) ? intval($_POST['topics_mcq_count']) : 0;
+$topicsShort = isset($_POST['topics_short_count']) ? intval($_POST['topics_short_count']) : 0;
+$topicsLong = isset($_POST['topics_long_count']) ? intval($_POST['topics_long_count']) : 0;
+$bookIdPosted = isset($_POST['book_id']) ? intval($_POST['book_id']) : 0;
+
+if (!empty($topics) && ($topicsMcq > 0 || $topicsShort > 0 || $topicsLong > 0) && $bookIdPosted > 0) {
+    // Fetch by topics and merge
+    if ($topicsMcq > 0) {
+        $mcqTopic = $questionService->getRandomMCQsByTopics($classId, $bookIdPosted, $topics, $topicsMcq);
+        if (!empty($mcqTopic)) {
+            // Flatten to allMcqs collection later
+            $mcqByChapter[-1] = $mcqTopic;
+        }
+    }
+    if ($topicsShort > 0) {
+        $shortTopic = $questionService->getRandomQuestionsByTopics($classId, $bookIdPosted, 'short', $topics, $topicsShort);
+        foreach ($shortTopic as $q) { $allShortQs[] = $q; $totalMarks += $q['marks']; }
+    }
+    if ($topicsLong > 0) {
+        $longTopic = $questionService->getRandomQuestionsByTopics($classId, $bookIdPosted, 'long', $topics, $topicsLong);
+        foreach ($longTopic as $q) { $allLongQs[] = $q; $totalMarks += $q['marks']; }
+    }
+}
 $patternMode = isset($_POST['pattern_mode']) && $_POST['pattern_mode'] === 'without' ? 'without' : 'with';
 // For without pattern mode, use the total_longs value directly
 // Determine how many distinct pattern question numbers (Q1..Qn) are available.
@@ -208,26 +274,55 @@ $maxNewQNumGenerated = 0; // Track the highest new Q number generated for $patte
 $placements = [];
 if ($patternMode === 'with') {
     $desiredSlots = [];
-    if (!empty($_POST['long_qnum']) && is_array($_POST['long_qnum']) && !empty($_POST['long_part']) && is_array($_POST['long_part'])) {
+    $hasParts = $bookConfig['hasParts'];
+    
+    if (!empty($_POST['long_qnum']) && is_array($_POST['long_qnum'])) {
         foreach ($_POST['long_qnum'] as $chapId => $qnums) {
             $chapId = intval($chapId);
-            $parts = isset($_POST['long_part'][$chapId]) ? $_POST['long_part'][$chapId] : (isset($_POST['long_part'][strval($chapId)]) ? $_POST['long_part'][strval($chapId)] : []);
-            for ($i = 0; $i < count($qnums); $i++) {
-                $originalQNum = intval($qnums[$i]);
-                $part = strtolower($parts[$i] ?? 'a');
+            
+            if ($hasParts) {
+                // For books with parts (a, b)
+                if (!empty($_POST['long_part']) && is_array($_POST['long_part'])) {
+                    $parts = isset($_POST['long_part'][$chapId]) ? $_POST['long_part'][$chapId] : (isset($_POST['long_part'][strval($chapId)]) ? $_POST['long_part'][strval($chapId)] : []);
+                    for ($i = 0; $i < count($qnums); $i++) {
+                        $originalQNum = intval($qnums[$i]);
+                        $part = strtolower($parts[$i] ?? 'a');
 
-                // Apply the offset to get the new display question number
-                $newQNum = $originalQNum + $offset;
+                        // Apply the offset to get the new display question number
+                        $newQNum = $originalQNum + $offset;
 
-                // Use the newQNum for the slot key and update maxNewQNumGenerated
-                // Ensure the new Q number is within a reasonable range (e.g., up to 10)
-                if ($newQNum >= 5 && $newQNum <= 10 && ($part === 'a' || $part === 'b')) {
-                    $desiredSlots[] = [
-                        'slot' => $newQNum . $part,
-                        'chapter' => $chapId
-                    ];
-                    if ($newQNum > $maxNewQNumGenerated) {
-                        $maxNewQNumGenerated = $newQNum;
+                        // Use the newQNum for the slot key and update maxNewQNumGenerated
+                        // Ensure the new Q number is within a reasonable range (e.g., up to 10)
+                        if ($newQNum >= 5 && $newQNum <= 10 && ($part === 'a' || $part === 'b')) {
+                            $desiredSlots[] = [
+                                'slot' => $newQNum . $part,
+                                'chapter' => $chapId
+                            ];
+                            if ($newQNum > $maxNewQNumGenerated) {
+                                $maxNewQNumGenerated = $newQNum;
+                            }
+                        }
+                    }
+                }
+            } else {
+                // For books without parts (like computer) - just use question numbers
+                if (is_array($qnums)) {
+                    foreach ($qnums as $qnum) {
+                        $originalQNum = intval($qnum);
+                        
+                        // Apply the offset to get the new display question number
+                        $newQNum = $originalQNum + $offset;
+                        
+                        // Ensure the new Q number is within a reasonable range (e.g., up to 10)
+                        if ($newQNum >= 5 && $newQNum <= 10) {
+                            $desiredSlots[] = [
+                                'slot' => (string)$newQNum, // Just the question number as string, no part
+                                'chapter' => $chapId
+                            ];
+                            if ($newQNum > $maxNewQNumGenerated) {
+                                $maxNewQNumGenerated = $newQNum;
+                            }
+                        }
                     }
                 }
             }
@@ -454,59 +549,119 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
                 <?php $qNum++; } ?>
                 </ol>
             </div>
-        <?php } else { ?>
+        <?php } else { 
+            $questionsToAnswer = $bookConfig['questionsToAnswerPerSection'];
+            // Convert number to word
+            $numberWords = [
+                1 => 'One', 2 => 'Two', 3 => 'Three', 4 => 'Four', 
+                5 => 'Five', 6 => 'Six', 7 => 'Seven', 8 => 'Eight',
+                9 => 'Nine', 10 => 'Ten'
+            ];
+            $word = isset($numberWords[$questionsToAnswer]) ? $numberWords[$questionsToAnswer] : (string)$questionsToAnswer;
+            $answerText = $word . ' (' . $questionsToAnswer . ')';
+        ?>
             <div class="section"> 
-                <h4>2. Write Short answers to any Five(5) questions:</h4>
+                <h4>2. Write Short answers to any <?= $answerText ?> questions:</h4>
  
                 <?php $idx = 1; displayShortSection($section1, $idx); ?> 
             </div> 
-
+ 
             <div class="section"> 
-               <h4>3. Write Short answers to any Five(5) questions:</h4>
+               <h4>3. Write Short answers to any <?= $answerText ?> questions:</h4>
                 <?php $idx = 1; displayShortSection($section2, $idx); ?> 
             </div> 
-
+ 
             <div class="section"> 
-               <h4>4. Write Short answers to any Five(5) questions:</h4>
+               <h4>4. Write Short answers to any <?= $answerText ?> questions:</h4>
                 <?php $idx = 1; displayShortSection($section3, $idx); ?> 
-            </div> 
+            </div>
 
             <!-- Long Questions --> 
           
             <div class="section"> 
-                <h4>Note: Attempt Any TWO(2) questions:</h4>
+                <h4>Long Questions: </h4>
                 <ol> 
                     <?php 
-                    for ($q = 5; $q <= $patternQCount; $q++) {
-                        $aKey = $q . 'a'; 
-                        $bKey = $q . 'b'; 
-                        $hasA = isset($placements[$aKey]); 
-                        $hasB = isset($placements[$bKey]); 
+                    $hasParts = $bookConfig['hasParts'];
+                    
+                    if ($hasParts) {
+                        // For books with parts (a, b)
+                        for ($q = 5; $q <= $patternQCount; $q++) {
+                            $aKey = $q . 'a'; 
+                            $bKey = $q . 'b'; 
+                            $hasA = isset($placements[$aKey]); 
+                            $hasB = isset($placements[$bKey]); 
+                            
+                            if (!$hasA && !$hasB) continue; 
+                            
+                            echo '<li>'; 
+                            echo '<strong>Q' . $q . '.</strong>'; 
+                            
+                            if ($hasA) { 
+                                $qa = $placements[$aKey]; 
+                                echo '<div class="question-row">'; 
+                                echo '<div class="question-content">a. <span class="q-text">' . htmlspecialchars($qa['question_text']) . '</span></div>'; 
+                                echo '<div class="marks-container"><input type="number" value="' . $qa['marks'] . '" class="marks-input" /></div>'; 
+                                echo '</div>'; 
+                            } 
+                            
+                            if ($hasB) { 
+                                $qb = $placements[$bKey]; 
+                                echo '<div class="question-row">'; 
+                                echo '<div class="question-content">b. <span class="q-text">' . htmlspecialchars($qb['question_text']) . '</span></div>'; 
+                                echo '<div class="marks-container"><input type="number" value="' . $qb['marks'] . '" class="marks-input" /></div>'; 
+                                echo '</div>'; 
+                            } 
+                            
+                            echo '<div class="action-buttons"><button class="btn edit" onclick="makeEditable(this)">Edit</button></div>'; 
+                            echo '</li>'; 
+                        }
+                    } else {
+                        // For books without parts (like computer) - just display questions by number
+                        // Sort placements by question number
+                        $sortedPlacements = [];
+                        foreach ($placements as $slot => $question) {
+                            // Handle both string and numeric slot keys (e.g., "5" or 5)
+                            $qNum = 0;
+                            if (is_numeric($slot)) {
+                                $qNum = intval($slot);
+                            } elseif (is_string($slot) && is_numeric(trim($slot))) {
+                                $qNum = intval(trim($slot));
+                            }
+                            
+                            if ($qNum >= 5 && $qNum <= 10 && isset($question['question_text'])) {
+                                $sortedPlacements[$qNum] = $question;
+                            }
+                        }
+                        ksort($sortedPlacements);
                         
-                        if (!$hasA && !$hasB) continue; 
+                        // If no placements found (fallback), use all long questions
+                        if (empty($sortedPlacements) && !empty($allLongQs)) {
+                            $qNum = 5;
+                            foreach ($allLongQs as $q) {
+                                if (isset($q['question_text'])) {
+                                    $sortedPlacements[$qNum] = $q;
+                                    $qNum++;
+                                    if ($qNum > 10) break; // Limit to Q5-Q10
+                                }
+                            }
+                        }
                         
-                        echo '<li>'; 
-                        echo '<strong>Q' . $q . '.</strong>'; 
-                        
-                        if ($hasA) { 
-                            $qa = $placements[$aKey]; 
-                            echo '<div class="question-row">'; 
-                            echo '<div class="question-content">a. <span class="q-text">' . htmlspecialchars($qa['question_text']) . '</span></div>'; 
-                            echo '<div class="marks-container"><input type="number" value="' . $qa['marks'] . '" class="marks-input" /></div>'; 
-                            echo '</div>'; 
-                        } 
-                        
-                        if ($hasB) { 
-                            $qb = $placements[$bKey]; 
-                            echo '<div class="question-row">'; 
-                            echo '<div class="question-content">b. <span class="q-text">' . htmlspecialchars($qb['question_text']) . '</span></div>'; 
-                            echo '<div class="marks-container"><input type="number" value="' . $qb['marks'] . '" class="marks-input" /></div>'; 
-                            echo '</div>'; 
-                        } 
-                        
-                        echo '<div class="action-buttons"><button class="btn edit" onclick="makeEditable(this)">Edit</button></div>'; 
-                        echo '</li>'; 
-                    } 
+                        if (!empty($sortedPlacements)) {
+                            foreach ($sortedPlacements as $qNum => $q) {
+                                echo '<li>'; 
+                                echo '<strong>Q' . $qNum . '.</strong>'; 
+                                echo '<div class="question-row">'; 
+                                echo '<div class="question-content"><span class="q-text">' . htmlspecialchars($q['question_text']) . '</span></div>'; 
+                                echo '<div class="marks-container"><input type="number" value="' . (isset($q['marks']) ? $q['marks'] : 0) . '" class="marks-input" /></div>'; 
+                                echo '</div>'; 
+                                echo '<div class="action-buttons"><button class="btn edit" onclick="makeEditable(this)">Edit</button></div>'; 
+                                echo '</li>'; 
+                            }
+                        } else {
+                            echo '<li><p>No long questions available.</p></li>';
+                        }
+                    }
                     ?> 
                 </ol> 
             </div> 

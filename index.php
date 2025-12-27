@@ -6,6 +6,11 @@
     <meta name="description" content="Ahmad Learning Hub helps 9th and 10th class students prepare for Punjab Board exams with free online tests, chapter-wise MCQs, past papers, notes, and guess papers. Teachers can generate question papers and host online quizzes easily.">
     <meta name="keywords" content="online exam preparation, 9th class, 10th class, Punjab Board, online test, MCQs, past papers, solved notes, guess papers, chapter-wise test, paper generator, Ahmad Learning Hub, quiz for students, Pakistan exams, test preparation, online learning, board exams">
     <title>Ahmad Learning Hub - Online Exam Preparation, Past Papers & Notes for 9th & 10th Class Punjab Board</title>
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="8617761.jpg">
+    <link rel="manifest" href="pwa/manifest.webmanifest">
     
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/index.css">
@@ -142,5 +147,6 @@
 
     <?php include 'footer.php'; ?>
     <script src="js/animations.js"></script>
+    <script src="pwa/a2hs.js" defer></script>
     </body>
     </html>
