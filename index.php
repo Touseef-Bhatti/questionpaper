@@ -21,20 +21,20 @@
     <div class="main-content" style="margin-top: -10%;">
 
         <!-- HERO: Futuristic & Clean -->
-        <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover;">
+        <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover; min-height: 100vh;">
             <div class="container hero-grid">
-                <div class="hero-content" data-animate-on-scroll="fade-in-up">
+                <div class="hero-content" >
                     <div class="eyebrow">Intelligent Exam Preparation</div>
                     <h1 class="hero-title">Ahmad Learning Hub — Smarter, Faster, Future-Ready</h1>
                     <p class="subtitle">Prepare for 9th & 10th Punjab Board exams with adaptive tests, chapter-wise practice, instant analytics and printable papers — all in one modern platform.</p>
 
-                    <div class="hero-actions" data-animate-on-scroll="fade-in-up">
+                    <div class="hero-actions" >
                         <a href="select_class.php" class="button primary">Generate Paper</a>
                         <a href="quiz/quiz_setup.php" class="button secondary">Take a Test</a>
                         <a href="notes.php" class="button ghost" style="color: white;">Notes & Guides</a>
                     </div>
 
-                    <div class="hero-stats" data-animate-on-scroll="fade-in-up">
+                    <div class="hero-stats">
                         <div class="stat-item"><strong>10k+</strong><span>Questions</span></div>
                         <div class="stat-item"><strong>100+</strong><span>Schools</span></div>
                         <div class="stat-item"><strong>99.9%</strong><span>Uptime</span></div>
@@ -42,38 +42,6 @@
                 </div>
 
                 <!-- Hero visual cards removed for a cleaner, more professional hero -->
-            </div>
-        </section>
-
-        <!-- WHY CHOOSE / FEATURES -->
-        <section class="features-section">
-            <div class="container">
-                <h2 class="section-title" data-animate-on-scroll="fade-in-up">Why educators and students trust Ahmad Learning Hub</h2>
-                <div class="features-grid" data-animate-on-scroll="fade-in-up">
-                    <article class="feature-card">
-                        <div class="feature-icon">🧠</div>
-                        <h3>Adaptive Tests</h3>
-                        <p>Intelligent question selection that adapts to student performance for targeted practice.</p>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon">�️</div>
-                        <h3>Print-Ready Papers</h3>
-                        <p>Generate well-formatted, printable question papers with aligned marks and headers.</p>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon">🔍</div>
-                        <h3>Analytics & Progress</h3>
-                        <p>Instant performance reports with topic-level strengths and weaknesses.</p>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon">�</div>
-                        <h3>Secure & Reliable</h3>
-                        <p>Robust privacy and scalable hosting — built for schools and classrooms.</p>
-                    </article>
-                </div>
             </div>
         </section>
 
@@ -144,6 +112,39 @@
         </section>
 
     </div>
+    
+        <!-- WHY CHOOSE / FEATURES -->
+        <section class="features-section">
+            <div class="container">
+                <h2 class="section-title" data-animate-on-scroll="fade-in-up">Why educators and students trust Ahmad Learning Hub</h2>
+                <div class="features-grid" data-animate-on-scroll="fade-in-up">
+                    <article class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3>Adaptive Tests</h3>
+                        <p>Intelligent question selection that adapts to student performance for targeted practice.</p>
+                    </article>
+
+                    <article class="feature-card">
+                        <div class="feature-icon">�️</div>
+                        <h3>Print-Ready Papers</h3>
+                        <p>Generate well-formatted, printable question papers with aligned marks and headers.</p>
+                    </article>
+
+                    <article class="feature-card">
+                        <div class="feature-icon">🔍</div>
+                        <h3>Analytics & Progress</h3>
+                        <p>Instant performance reports with topic-level strengths and weaknesses.</p>
+                    </article>
+
+                    <article class="feature-card">
+                        <div class="feature-icon">�</div>
+                        <h3>Secure & Reliable</h3>
+                        <p>Robust privacy and scalable hosting — built for schools and classrooms.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
 
     <?php include 'footer.php'; ?>
     <script src="js/animations.js"></script>

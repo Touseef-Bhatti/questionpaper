@@ -29,8 +29,8 @@
         </div>
         <div class="footer-section footer-contact">
             <h3>Contact Us</h3>
-            <p><i class="fas fa-map-marker-alt"></i> 123 Education Lane, Learning City, LC 45678</p>
-            <p><i class="fas fa-phone"></i> +1 (555) 123-4567</p>
+            <p><i class="fas fa-map-marker-alt"></i> Gujranwala</p>
+            <p><i class="fas fa-phone"></i> +92 3206472460</p>
             <p><i class="fas fa-envelope"></i> support@Ahmad Learning Hub.com</p>
             <div class="footer-social">
                 <a href="https://facebook.com/" target="_blank" aria-label="Follow us on Facebook"><i class="fab fa-facebook-f"></i></a>
