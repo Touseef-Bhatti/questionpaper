@@ -43,6 +43,7 @@ $stats = [
             <a href="manage_books.php">Manage Books</a>
             <a href="manage_chapters.php">Manage Chapters</a>
             <a href="manage_questions.php">Manage Questions</a>
+            <a href="manage_notes.php">📚 Manage Notes</a>
             <a href="users.php">Manage Admins</a>
             <a href="settings.php">Settings</a>
         </div>

@@ -12,7 +12,7 @@
                 <li><a href="<?= $assetBase ?? '' ?>index.php"><i class="fas fa-home"></i> Home</a></li>
                 <li><a href="<?= $assetBase ?? '' ?>select_class.php"><i class="fas fa-file-alt"></i> Generate Paper</a></li>
                 <li><a href="<?= $assetBase ?? '' ?>quiz/quiz_setup.php"><i class="fas fa-question-circle"></i> Online Quiz</a></li>
-                <li><a href="<?= $assetBase ?? '' ?>notes.php"><i class="fas fa-book"></i> Notes</a></li>
+                <li><a href="<?= $assetBase ?? '' ?>notes/notes.php"><i class="fas fa-book"></i> Notes</a></li>
             </ul>
         </div>
         <div class="footer-section footer-links-group">

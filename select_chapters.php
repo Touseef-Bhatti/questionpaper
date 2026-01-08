@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
         title.style.margin = '6px 0';
         title.style.fontSize = '14px';
         wrap.appendChild(title);
-        
+
         for (let i = 0; i < n; i++) {
             const row = document.createElement('div');
             row.className = 'placement-row';
@@ -216,17 +216,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             } else {
                 // For other subjects, include parts (a) and (b)
-                row.innerHTML = `
-                    <label>#${i + 1} Question</label>
-                    <select name="long_qnum[${chapterId}][]" style="padding:5px; min-width:90px;">
-                        ${Array.from({ length: getQCount() }, (_, k) => `<option value="${k + 1}">Q${k + 1}</option>`).join('')}
-                    </select>
-                    <label>Part</label>
-                    <select name="long_part[${chapterId}][]" style="padding:5px;">
-                        <option value="a">a</option>
-                        <option value="b">b</option>
-                    </select>
-                `;
+            row.innerHTML = `
+                <label>#${i + 1} Question</label>
+                <select name="long_qnum[${chapterId}][]" style="padding:5px; min-width:90px;">
+                    ${Array.from({ length: getQCount() }, (_, k) => `<option value="${k + 1}">Q${k + 1}</option>`).join('')}
+                </select>
+                <label>Part</label>
+                <select name="long_part[${chapterId}][]" style="padding:5px;">
+                    <option value="a">a</option>
+                    <option value="b">b</option>
+                </select>
+            `;
             }
             wrap.appendChild(row);
         }
@@ -363,9 +363,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if ((isScience || isComputer) && withPattern && (classId === 9 || classId === 10)) {
             const targetShort = patternDefaults.sq;
             if (sumShort !== targetShort) {
-                e.preventDefault();
+            e.preventDefault();
                 alert('For ' + bookName + ' with pattern (Class ' + classId + '), you must enter exactly ' + targetShort + ' short questions.');
-                return;
+            return;
             }
         }
 
@@ -432,83 +432,83 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 // For other subjects: check for parts (a) and (b)
-                const partsByQ = {};
-                const allParts = [];
-                const allSelects = {qnum: [], part: []};
-                
-                // Clear any previous highlighting
-                document.querySelectorAll('select[name^="long_qnum["], select[name^="long_part["]').forEach(select => {
-                    select.style.border = '';
-                    select.style.backgroundColor = '';
-                });
-                
-                // Collect all question-part combinations
-                document.querySelectorAll('[id^="long-placement-"]').forEach(wrap => {
-                    wrap.querySelectorAll('.placement-row').forEach(row => {
-                        const qSelect = row.querySelector('select[name^="long_qnum["]');
-                        const pSelect = row.querySelector('select[name^="long_part["]');
-                        const q = qSelect?.value;
-                        const p = pSelect?.value;
+            const partsByQ = {};
+            const allParts = [];
+            const allSelects = {qnum: [], part: []};
+            
+            // Clear any previous highlighting
+            document.querySelectorAll('select[name^="long_qnum["], select[name^="long_part["]').forEach(select => {
+                select.style.border = '';
+                select.style.backgroundColor = '';
+            });
+            
+            // Collect all question-part combinations
+            document.querySelectorAll('[id^="long-placement-"]').forEach(wrap => {
+                wrap.querySelectorAll('.placement-row').forEach(row => {
+                    const qSelect = row.querySelector('select[name^="long_qnum["]');
+                    const pSelect = row.querySelector('select[name^="long_part["]');
+                    const q = qSelect?.value;
+                    const p = pSelect?.value;
+                    
+                    if (q && p) {
+                        // Store each question-part combination for duplicate checking
+                        allParts.push({q, p, qSelect, pSelect});
                         
-                        if (q && p) {
-                            // Store each question-part combination for duplicate checking
-                            allParts.push({q, p, qSelect, pSelect});
-                            
-                            // Track parts by question for the missing parts check
-                            if (!partsByQ[q]) partsByQ[q] = new Set();
-                            partsByQ[q].add(p);
-                            
-                            // Store selects for highlighting
-                            allSelects.qnum.push(qSelect);
-                            allSelects.part.push(pSelect);
-                        }
-                    });
+                        // Track parts by question for the missing parts check
+                        if (!partsByQ[q]) partsByQ[q] = new Set();
+                        partsByQ[q].add(p);
+                        
+                        // Store selects for highlighting
+                        allSelects.qnum.push(qSelect);
+                        allSelects.part.push(pSelect);
+                    }
                 });
-                
-                // Check for duplicates
-                const duplicates = [];
-                const duplicateSelects = new Set();
-                
-                for (let i = 0; i < allParts.length; i++) {
-                    for (let j = i + 1; j < allParts.length; j++) {
-                        if (allParts[i].q === allParts[j].q && allParts[i].p === allParts[j].p) {
-                            const dupKey = `Q${allParts[i].q}${allParts[i].p}`;
-                            duplicates.push(dupKey);
-                            
-                            // Highlight duplicate selects
-                            duplicateSelects.add(allParts[i].qSelect);
-                            duplicateSelects.add(allParts[i].pSelect);
-                            duplicateSelects.add(allParts[j].qSelect);
-                            duplicateSelects.add(allParts[j].pSelect);
-                        }
+            });
+            
+            // Check for duplicates
+            const duplicates = [];
+            const duplicateSelects = new Set();
+            
+            for (let i = 0; i < allParts.length; i++) {
+                for (let j = i + 1; j < allParts.length; j++) {
+                    if (allParts[i].q === allParts[j].q && allParts[i].p === allParts[j].p) {
+                        const dupKey = `Q${allParts[i].q}${allParts[i].p}`;
+                        duplicates.push(dupKey);
+                        
+                        // Highlight duplicate selects
+                        duplicateSelects.add(allParts[i].qSelect);
+                        duplicateSelects.add(allParts[i].pSelect);
+                        duplicateSelects.add(allParts[j].qSelect);
+                        duplicateSelects.add(allParts[j].pSelect);
                     }
                 }
-                
-                // Apply highlighting to duplicates
-                duplicateSelects.forEach(select => {
-                    select.style.border = '2px solid #ff4d4f';
-                    select.style.backgroundColor = '#fff1f0';
-                });
-                
-                if (duplicates.length > 0) {
-                    e.preventDefault();
-                    alert('Duplicate question parts detected: ' + [...new Set(duplicates)].join(', ') + '. Each question part must be used only once.');
-                    return;
-                }
+            }
+            
+            // Apply highlighting to duplicates
+            duplicateSelects.forEach(select => {
+                select.style.border = '2px solid #ff4d4f';
+                select.style.backgroundColor = '#fff1f0';
+            });
+            
+            if (duplicates.length > 0) {
+                e.preventDefault();
+                alert('Duplicate question parts detected: ' + [...new Set(duplicates)].join(', ') + '. Each question part must be used only once.');
+                return;
+            }
 
-                const requiredQ = getQCount();
-                const missing = [];
-                for (let q = 1; q <= requiredQ; q++) {
-                    const set = partsByQ[q] || new Set();
-                    // Only check for missing parts if this question number is actually used
-                    if (set.size > 0) {
-                        if (!set.has('a')) missing.push(`Q${q}a`);
-                        if (!set.has('b')) missing.push(`Q${q}b`);
-                    }
+            const requiredQ = getQCount();
+            const missing = [];
+            for (let q = 1; q <= requiredQ; q++) {
+                const set = partsByQ[q] || new Set();
+                // Only check for missing parts if this question number is actually used
+                if (set.size > 0) {
+                    if (!set.has('a')) missing.push(`Q${q}a`);
+                    if (!set.has('b')) missing.push(`Q${q}b`);
                 }
-                if (missing.length > 0) {
-                    e.preventDefault();
-                    alert('Each long question must have both parts a and b. Missing: ' + missing.join(', '));
+            }
+            if (missing.length > 0) {
+                e.preventDefault();
+                alert('Each long question must have both parts a and b. Missing: ' + missing.join(', '));
                 }
             }
         }
@@ -635,45 +635,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       } else {
         // For other subjects: assign (q,part) pairs
-        const requiredQ = getQCount();
-        const totalSlots = allPlacementRows.length; // this should equal totalLongs*2 ideally
-        const pool = [];
-        for (let q = 1; q <= requiredQ; q++) {
-          pool.push({q: q, p: 'a'});
-          pool.push({q: q, p: 'b'});
-        }
+      const requiredQ = getQCount();
+      const totalSlots = allPlacementRows.length; // this should equal totalLongs*2 ideally
+      const pool = [];
+      for (let q = 1; q <= requiredQ; q++) {
+        pool.push({q: q, p: 'a'});
+        pool.push({q: q, p: 'b'});
+      }
 
-        // If pool smaller than slots (unlikely), extend by adding higher q numbers
-        let nextQ = requiredQ + 1;
-        while (pool.length < totalSlots) {
-          pool.push({q: nextQ, p: 'a'});
-          pool.push({q: nextQ, p: 'b'});
-          nextQ++;
-        }
+      // If pool smaller than slots (unlikely), extend by adding higher q numbers
+      let nextQ = requiredQ + 1;
+      while (pool.length < totalSlots) {
+        pool.push({q: nextQ, p: 'a'});
+        pool.push({q: nextQ, p: 'b'});
+        nextQ++;
+      }
 
-        // Shuffle pool
-        for (let i = pool.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
+      // Shuffle pool
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
 
-        // Assign unique pairs sequentially to placement rows
-        for (let i = 0; i < allPlacementRows.length; i++) {
-          const row = allPlacementRows[i];
-          const pair = pool[i];
-          const qSelect = row.querySelector('select[name^="long_qnum["]');
-          const pSelect = row.querySelector('select[name^="long_part["]');
-          if (qSelect && pSelect) {
-            // If qSelect doesn't have the option (e.g., q > getQCount()), add it
-            const qVal = String(pair.q);
-            if (!Array.from(qSelect.options).some(o => o.value === qVal)) {
-              const opt = document.createElement('option');
-              opt.value = qVal;
-              opt.textContent = 'Q' + qVal;
-              qSelect.appendChild(opt);
-            }
-            qSelect.value = qVal;
-            pSelect.value = pair.p;
+      // Assign unique pairs sequentially to placement rows
+      for (let i = 0; i < allPlacementRows.length; i++) {
+        const row = allPlacementRows[i];
+        const pair = pool[i];
+        const qSelect = row.querySelector('select[name^="long_qnum["]');
+        const pSelect = row.querySelector('select[name^="long_part["]');
+        if (qSelect && pSelect) {
+          // If qSelect doesn't have the option (e.g., q > getQCount()), add it
+          const qVal = String(pair.q);
+          if (!Array.from(qSelect.options).some(o => o.value === qVal)) {
+            const opt = document.createElement('option');
+            opt.value = qVal;
+            opt.textContent = 'Q' + qVal;
+            qSelect.appendChild(opt);
+          }
+          qSelect.value = qVal;
+          pSelect.value = pair.p;
           }
         }
       }
@@ -681,7 +681,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     recalcStatus();
     if (!suppressAlert) {
-      alert('Auto-fill applied. Review counts and then proceed.');
+    alert('Auto-fill applied. Review counts and then proceed.');
     }
   }
 

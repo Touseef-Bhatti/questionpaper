@@ -174,6 +174,35 @@ function clearChapters() {
 classSel.addEventListener('change', loadBooks);
 bookSel.addEventListener('change', loadChapters);
 
+// Pre-fill form from URL parameters
+(async function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlClassId = urlParams.get('class_id');
+  const urlBookId = urlParams.get('book_id');
+  const urlChapterId = urlParams.get('chapter_id');
+
+  if (urlClassId) {
+    classSel.value = urlClassId;
+    await loadBooks();
+    
+    if (urlBookId) {
+      bookSel.value = urlBookId;
+      await loadChapters();
+      
+      // If a specific chapter is provided, select it
+      if (urlChapterId) {
+        setTimeout(() => {
+          const chapterCheckbox = document.getElementById(`ch_${urlChapterId}`);
+          if (chapterCheckbox) {
+            chapterCheckbox.checked = true;
+            handleChapterChange(parseInt(urlChapterId));
+          }
+        }, 500);
+      }
+    }
+  }
+})();
+
 // Reset button
 resetBtn.addEventListener('click', () => {
   const form = document.getElementById('quizForm');

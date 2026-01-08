@@ -29,9 +29,10 @@
                     <p class="subtitle">Prepare for 9th & 10th Punjab Board exams with adaptive tests, chapter-wise practice, instant analytics and printable papers — all in one modern platform.</p>
 
                     <div class="hero-actions" >
-                        <a href="select_class.php" class="button primary">Generate Paper</a>
-                        <a href="quiz/quiz_setup.php" class="button secondary">Take a Test</a>
-                        <a href="notes.php" class="button ghost" style="color: white;">Notes & Guides</a>
+                        <a href="select_class.php" class="button primary">Generate Question Paper</a>
+                        <a href="quiz/quiz_setup.php" class="button secondary">
+                            MCQs Test</a>
+                        <a href="notes/notes.php" class="button ghost" style="color: white;">Notes & Guides</a>
                     </div>
 
                     <div class="hero-stats">
@@ -80,7 +81,7 @@
                             <a class="btn btn-primary" href="select_class.php">Generate Question Paper</a>
                             <a class="btn btn-outline" href="quiz/online_quiz_host_new.php">Host a Quiz</a>
                             
-                            <a class="btn btn-ghost" href="notes.php">View Notes</a>
+                            <a class="btn btn-ghost" href="notes/notes.php">View Notes</a>
                         </div>
                     </div>
                     <div data-animate-on-scroll="fade-in-up">
@@ -88,8 +89,8 @@
                             <h3>For students</h3>
                             <p>Join quizzes, take tests, and access study materials.</p>
                             <a class="btn btn-primary" href="quiz/online_quiz_join.php">Join Quiz</a>
-                            <a class="btn btn-outline" href="quiz/quiz_setup.php">Take Online Test</a>
-                            <a class="btn btn-ghost" href="notes.php">View Notes</a>
+                            <a class="btn btn-outline" href="quiz/quiz_setup.php">Online MCQs Test</a>
+                            <a class="btn btn-ghost" href="notes/notes.php">View Notes</a>
                         </div>
                     </div>
                 </div>

@@ -51,14 +51,16 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
     <ul class="nav-menu" id="navMenu">
       <li><a href="<?= $assetBase ?>index.php"><i class="fas fa-home"></i> Home</a></li>
       <li class="dropdown">
-        <a href="<?= $assetBase ?>select_class.php" class="dropbtn">Generate Paper <i class="fas fa-caret-down"></i></a>
+        <a  class="dropbtn">Generate Paper <i class="fas fa-caret-down"></i></a>
         <div class="dropdown-content">
-          <a href="<?= $assetBase ?>quiz/online_quiz_host_new.php"><i class="fas fa-file-alt"></i> Create Online Quiz</a>
-          <a href="<?= $assetBase ?>quiz/quiz_setup.php"><i class="fas fa-question-circle"></i> Online Quiz</a>
+             <a href="<?= $assetBase ?>select_class.php"><i class="fas fa-file-alt"></i  > Create Question Paper</a>
+          <a href="<?= $assetBase ?>quiz/online_quiz_host_new.php"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
+          <a href="<?= $assetBase ?>quiz/quiz_setup.php"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
           <a href="<?= $assetBase ?>quiz/online_quiz_join.php"><i class="fas fa-gamepad"></i> Join Quiz</a>
         </div>
       </li>
-      <li><a href="<?= $assetBase ?>notes.php"><i class="fas fa-book"></i> Notes</a></li>
+      <li><a href="<?= $assetBase ?>notes/notes.php"><i class="fas fa-book"></i> Notes</a></li>
+      <li><a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="btn-join"><i class="fas fa-gamepad" ></i> Join</a></li>
       <li><a href="<?= $assetBase ?>about.php"><i class="fas fa-info-circle"></i> About</a></li>
       <li><a href="<?= $assetBase ?>contact.php"><i class="fas fa-envelope"></i> Contact</a></li>
 
@@ -83,6 +85,7 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
                     </li>
                 <?php else: ?>
                     <!-- <li><a href="<?= $assetBase ?>subscription.php">Plans</a></li> -->
+                    
                     <li><a href="<?= $assetBase ?>auth/login.php"><i class="fas fa-sign-in-alt"></i> Login</a></li>
                 <?php endif; ?>
             </ul>
@@ -191,26 +194,26 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
 /* header.css - Responsive, professional navbar (uses design system variables) */
 
 .navbar {
-    background: rgba(255,255,255,0.6);
+    background: rgba(255, 255, 255, 0.75);
     color: var(--text-primary);
-    padding: 0.8rem 0;
-    box-shadow: var(--shadow-sm);
+    padding: 0.7rem 0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     position: sticky;
     top: 0;
     z-index: 1000;
     transition: all 0.3s ease;
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
     width: 100%;
     margin: 0;
-    min-height: 72px;
+    min-height: 70px;
     display: flex;
     align-items: center;
 }
 
 .navbar-container {
-    max-width: 1280px;
-    width: 92%;
+    min-width: 100%;
     margin: 0 auto;
     display: flex;
     align-items: center;
@@ -237,9 +240,11 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
 .nav-menu {
     list-style: none;
     display: flex;
-    gap: 2.2rem; /* Slightly increased gap */
+    gap: 1.9rem; /* Slightly increased gap */
     margin: 0;
     padding: 0;
+    margin-top: 14px;
+
     transition: transform 0.4s cubic-bezier(.68,-0.55,.27,1.55), opacity 0.3s;
 }
 
@@ -278,6 +283,34 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
     background: rgba(15, 23, 42, 0.04);
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
     transform: translateY(-2px);
+}
+
+.nav-menu li a.btn-join {
+    background: var(--gradient-primary, linear-gradient(135deg, #4F46E5 0%, #0EA5E9 100%));
+    color: #fff !important;
+    border: none;
+    padding: 0.6rem 1.5rem; /* Polished padding */
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.95rem; /* Match visual weight of other links */
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-bottom: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    top: -4px;
+}
+
+.nav-menu li a.btn-join i {
+    font-size: 0.9em; /* Icon slightly smaller */
+}
+
+.nav-menu li a.btn-join:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+    opacity: 0.95;
+    background-size: 110%; /* Subtle texture shift if possible */
 }
 
 /* Hamburger Icon */
@@ -359,7 +392,7 @@ body.menu-open {
         background: rgba(255, 255, 255, 0.9); /* Semi-transparent white for mobile menu */
         color: #000; /* Black text for mobile menu */
         flex-direction: column;
-        gap: 1.8rem; /* Consistent gap */
+        gap: 1.3rem; /* Consistent gap */
         align-items: flex-start;
         padding: 5.5rem 2.5rem 2rem 2.5rem; /* Increased padding */
         box-shadow: 8px 0 20px rgba(0,0,0,0.3); /* Stronger shadow, on the right side */
@@ -424,6 +457,19 @@ body.menu-open {
         display: flex;
         z-index: 1100;
     }
+    
+    /* Mobile Join Button Adjustment */
+    .nav-menu li a.btn-join {
+        background: var(--primary); /* Simpler background on mobile */
+        color: white !important;
+        text-align: center;
+        width: 100%;
+        justify-content: center;
+        margin-top: 0.5rem;
+        box-shadow: none;
+        border-radius: 12px;
+        padding: 0.9rem;
+    }
 }
 
 
@@ -469,7 +515,7 @@ body.menu-open {
     opacity: 0;
     transform: translateY(10px);
     transition: opacity 0.3s ease, transform 0.3s ease;
-    top: calc(100% + 10px); /* Position below the parent link */
+    top: calc(100% + -10px); /* Position below the parent link */
     left: 0;
     border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle black border */
 }
