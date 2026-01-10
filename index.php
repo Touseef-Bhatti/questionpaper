@@ -6,11 +6,6 @@
     <meta name="description" content="Ahmad Learning Hub helps 9th and 10th class students prepare for Punjab Board exams with free online tests, chapter-wise MCQs, past papers, notes, and guess papers. Teachers can generate question papers and host online quizzes easily.">
     <meta name="keywords" content="online exam preparation, 9th class, 10th class, Punjab Board, online test, MCQs, past papers, solved notes, guess papers, chapter-wise test, paper generator, Ahmad Learning Hub, quiz for students, Pakistan exams, test preparation, online learning, board exams">
     <title>Ahmad Learning Hub - Online Exam Preparation, Past Papers & Notes for 9th & 10th Class Punjab Board</title>
-    <meta name="theme-color" content="#4F46E5">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="apple-touch-icon" href="8617761.jpg">
-    <link rel="manifest" href="pwa/manifest.webmanifest">
     
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/index.css">
@@ -21,21 +16,20 @@
     <div class="main-content" style="margin-top: -10%;">
 
         <!-- HERO: Futuristic & Clean -->
-        <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover; min-height: 100vh;">
+        <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover;">
             <div class="container hero-grid">
-                <div class="hero-content" >
+                <div class="hero-content" data-animate-on-scroll="fade-in-up">
                     <div class="eyebrow">Intelligent Exam Preparation</div>
                     <h1 class="hero-title">Ahmad Learning Hub — Smarter, Faster, Future-Ready</h1>
                     <p class="subtitle">Prepare for 9th & 10th Punjab Board exams with adaptive tests, chapter-wise practice, instant analytics and printable papers — all in one modern platform.</p>
 
-                    <div class="hero-actions" >
-                        <a href="select_class.php" class="button primary">Generate Question Paper</a>
-                        <a href="quiz/quiz_setup.php" class="button secondary">
-                            MCQs Test</a>
-                        <a href="notes/notes.php" class="button ghost" style="color: white;">Notes & Guides</a>
+                    <div class="hero-actions" data-animate-on-scroll="fade-in-up">
+                        <a href="select_class.php" class="button primary">Generate Paper</a>
+                        <a href="quiz/quiz_setup.php" class="button secondary">Take a Test</a>
+                        <a href="notes.php" class="button ghost" style="color: white;">Notes & Guides</a>
                     </div>
 
-                    <div class="hero-stats">
+                    <div class="hero-stats" data-animate-on-scroll="fade-in-up">
                         <div class="stat-item"><strong>10k+</strong><span>Questions</span></div>
                         <div class="stat-item"><strong>100+</strong><span>Schools</span></div>
                         <div class="stat-item"><strong>99.9%</strong><span>Uptime</span></div>
@@ -43,6 +37,38 @@
                 </div>
 
                 <!-- Hero visual cards removed for a cleaner, more professional hero -->
+            </div>
+        </section>
+
+        <!-- WHY CHOOSE / FEATURES -->
+        <section class="features-section">
+            <div class="container">
+                <h2 class="section-title" data-animate-on-scroll="fade-in-up">Why educators and students trust Ahmad Learning Hub</h2>
+                <div class="features-grid" data-animate-on-scroll="fade-in-up">
+                    <article class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3>Adaptive Tests</h3>
+                        <p>Intelligent question selection that adapts to student performance for targeted practice.</p>
+                    </article>
+
+                    <article class="feature-card">
+                        <div class="feature-icon">�️</div>
+                        <h3>Print-Ready Papers</h3>
+                        <p>Generate well-formatted, printable question papers with aligned marks and headers.</p>
+                    </article>
+
+                    <article class="feature-card">
+                        <div class="feature-icon">🔍</div>
+                        <h3>Analytics & Progress</h3>
+                        <p>Instant performance reports with topic-level strengths and weaknesses.</p>
+                    </article>
+
+                    <article class="feature-card">
+                        <div class="feature-icon">�</div>
+                        <h3>Secure & Reliable</h3>
+                        <p>Robust privacy and scalable hosting — built for schools and classrooms.</p>
+                    </article>
+                </div>
             </div>
         </section>
 
@@ -81,7 +107,7 @@
                             <a class="btn btn-primary" href="select_class.php">Generate Question Paper</a>
                             <a class="btn btn-outline" href="quiz/online_quiz_host_new.php">Host a Quiz</a>
                             
-                            <a class="btn btn-ghost" href="notes/notes.php">View Notes</a>
+                            <a class="btn btn-ghost" href="notes.php">View Notes</a>
                         </div>
                     </div>
                     <div data-animate-on-scroll="fade-in-up">
@@ -89,8 +115,8 @@
                             <h3>For students</h3>
                             <p>Join quizzes, take tests, and access study materials.</p>
                             <a class="btn btn-primary" href="quiz/online_quiz_join.php">Join Quiz</a>
-                            <a class="btn btn-outline" href="quiz/quiz_setup.php">Online MCQs Test</a>
-                            <a class="btn btn-ghost" href="notes/notes.php">View Notes</a>
+                            <a class="btn btn-outline" href="quiz/quiz_setup.php">Take Online Test</a>
+                            <a class="btn btn-ghost" href="notes.php">View Notes</a>
                         </div>
                     </div>
                 </div>
@@ -113,42 +139,8 @@
         </section>
 
     </div>
-    
-        <!-- WHY CHOOSE / FEATURES -->
-        <section class="features-section">
-            <div class="container">
-                <h2 class="section-title" data-animate-on-scroll="fade-in-up">Why educators and students trust Ahmad Learning Hub</h2>
-                <div class="features-grid" data-animate-on-scroll="fade-in-up">
-                    <article class="feature-card">
-                        <div class="feature-icon">🧠</div>
-                        <h3>Adaptive Tests</h3>
-                        <p>Intelligent question selection that adapts to student performance for targeted practice.</p>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon">�️</div>
-                        <h3>Print-Ready Papers</h3>
-                        <p>Generate well-formatted, printable question papers with aligned marks and headers.</p>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon">🔍</div>
-                        <h3>Analytics & Progress</h3>
-                        <p>Instant performance reports with topic-level strengths and weaknesses.</p>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon">�</div>
-                        <h3>Secure & Reliable</h3>
-                        <p>Robust privacy and scalable hosting — built for schools and classrooms.</p>
-                    </article>
-                </div>
-            </div>
-        </section>
-
 
     <?php include 'footer.php'; ?>
     <script src="js/animations.js"></script>
-    <script src="pwa/a2hs.js" defer></script>
     </body>
     </html>

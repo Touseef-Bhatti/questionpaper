@@ -1,27 +1,56 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start(); // Must be the very first thing
 include '../db_connect.php';
+require_once 'mcq_generator.php';
 
 
-// Validate POST data
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+// Validate POST or GET data (GET for topic-based redirects)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $class_id = intval($_POST['class_id'] ?? 0);
+    $book_id = intval($_POST['book_id'] ?? 0);
+    $mcq_count = intval($_POST['mcq_count'] ?? 10);
+    $chapter_ids = $_POST['chapter_ids'] ?? '';
+    $topic = $_POST['topic'] ?? '';
+    $topics = $_POST['topics'] ?? '';
+} else if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    // Allow GET for topic-based redirects
+    $class_id = intval($_GET['class_id'] ?? 0);
+    $book_id = intval($_GET['book_id'] ?? 0);
+    $mcq_count = intval($_GET['mcq_count'] ?? 10);
+    $chapter_ids = $_GET['chapter_ids'] ?? '';
+    $topic = $_GET['topic'] ?? '';
+    $topics = $_GET['topics'] ?? '';
+} else {
     header('Location: quiz_setup.php');
     exit;
 }
 
-$class_id = intval($_POST['class_id'] ?? 0);
-$book_id = intval($_POST['book_id'] ?? 0);
-$mcq_count = intval($_POST['mcq_count'] ?? 10);
-$chapter_ids = $_POST['chapter_ids'] ?? '';
+// Validate parameters: Either class+book OR topics must be provided
+// Allow topics-only requests (class_id and book_id can be 0 when topics are provided)
+$hasTopics = !empty($topics) || !empty($topic);
+$hasClassBook = ($class_id > 0 && $book_id > 0);
 
-if (!$class_id || !$book_id || $mcq_count < 1) {
-    die('<h2 style="color:red;">Invalid quiz parameters. Please go back and try again.</h2>');
+if (!$hasTopics && !$hasClassBook) {
+    die('<h2 style="color:red;">Invalid quiz parameters. Please select a filter criteria.</h2>');
 }
 
 // Build WHERE clause based on filters
-$whereConditions = ['class_id = ?', 'book_id = ?', 'correct_option IS NOT NULL', 'correct_option != ""'];
-$params = [$class_id, $book_id];
-$types = 'ii';
+$whereConditions = ['correct_option IS NOT NULL', 'correct_option != ""'];
+$params = [];
+$types = '';
+
+// Add class/book filters only if provided
+if ($class_id > 0) {
+    $whereConditions[] = 'class_id = ?';
+    $params[] = $class_id;
+    $types .= 'i';
+}
+
+if ($book_id > 0) {
+    $whereConditions[] = 'book_id = ?';
+    $params[] = $book_id;
+    $types .= 'i';
+}
 
 if (!empty($chapter_ids)) {
     $chapterIdsArray = array_filter(array_map('intval', explode(',', $chapter_ids)));
@@ -31,6 +60,31 @@ if (!empty($chapter_ids)) {
         $params = array_merge($params, $chapterIdsArray);
         $types .= str_repeat('i', count($chapterIdsArray));
     }
+}
+
+// Add topic filter if provided (support both single topic and multiple topics)
+$topicsArray = [];
+if (!empty($topics)) {
+    // Decode JSON array of topics
+    $decodedTopics = json_decode(urldecode($topics), true);
+    if (is_array($decodedTopics) && !empty($decodedTopics)) {
+        $topicsArray = $decodedTopics;
+    }
+} else if (!empty($topic)) {
+    // Single topic (backward compatibility)
+    $topicsArray = [$topic];
+}
+
+if (!empty($topicsArray)) {
+    // Use IN clause for multiple topics
+    $placeholders = str_repeat('?,', count($topicsArray) - 1) . '?';
+    $whereConditions[] = "topic IN ($placeholders)";
+    $params = array_merge($params, $topicsArray);
+    $types .= str_repeat('s', count($topicsArray));
+}
+
+if (empty($whereConditions)) {
+     die('<h2 style="color:red;">Invalid quiz filters.</h2>');
 }
 
 $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
@@ -58,9 +112,93 @@ try {
     die('<h2 style="color:red;">Database error: Unable to fetch quiz questions.</h2>');
 }
 
-if (empty($questions)) {
-    die('<h2 style="color:red;">No MCQs found with the selected criteria. Please try different options.</h2>');
+// If we don't have enough questions, check AIGeneratedMCQs table
+if (count($questions) < $mcq_count && !empty($topicsArray)) {
+    $needed = $mcq_count - count($questions);
+    
+    // Prepare topic placeholders for AIGeneratedMCQs query
+    $placeholders = str_repeat('?,', count($topicsArray) - 1) . '?';
+    $types = str_repeat('s', count($topicsArray));
+    $params = $topicsArray;
+    
+    // Add limit param
+    $params[] = $needed;
+    $types .= 'i';
+    
+    $aiSql = "SELECT id, question, option_a, option_b, option_c, option_d, correct_option 
+              FROM AIGeneratedMCQs 
+              WHERE topic IN ($placeholders) 
+              ORDER BY RAND() 
+              LIMIT ?";
+              
+    try {
+        $stmt = $conn->prepare($aiSql);
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        while ($row = $result->fetch_assoc()) {
+            $questions[] = [
+                'mcq_id' => 'ai_' . $row['id'],
+                'question' => $row['question'],
+                'option_a' => $row['option_a'],
+                'option_b' => $row['option_b'],
+                'option_c' => $row['option_c'],
+                'option_d' => $row['option_d'],
+                'correct_option' => $row['correct_option']
+            ];
+        }
+        $stmt->close();
+    } catch (Exception $e) {
+        error_log("Error fetching from AIGeneratedMCQs: " . $e->getMessage());
+    }
 }
+
+// If still don't have enough questions, auto-generate the missing ones using API
+if (count($questions) < $mcq_count && !empty($topicsArray)) {
+    $neededCount = $mcq_count - count($questions);
+    $generatedCount = 0;
+    
+    // Shuffle topics to randomize generation if multiple topics
+    shuffle($topicsArray);
+    
+    foreach ($topicsArray as $topic) {
+        if ($generatedCount >= $neededCount) break;
+        
+        // Calculate how many to generate for this topic
+        // Try to distribute evenly, but ensure we get enough
+        $remainingNeeded = $neededCount - $generatedCount;
+        $toGenerate = ($remainingNeeded > 2) ? ceil($remainingNeeded / 2) : $remainingNeeded;
+        
+        $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate);
+        
+        if (!empty($generatedMCQs)) {
+            foreach ($generatedMCQs as $genMCQ) {
+                if ($generatedCount >= $neededCount) break;
+                
+                $questions[] = [
+                    'mcq_id' => 'ai_' . ($genMCQ['id'] ?? uniqid()),
+                    'question' => $genMCQ['question'],
+                    'option_a' => $genMCQ['option_a'],
+                    'option_b' => $genMCQ['option_b'],
+                    'option_c' => $genMCQ['option_c'],
+                    'option_d' => $genMCQ['option_d'],
+                    'correct_option' => $genMCQ['correct_option']
+                ];
+                $generatedCount++;
+            }
+        }
+    }
+}
+
+// If still empty after generation attempt, show error
+if (empty($questions)) {
+    die('<h2 style="color:red;">Unable to generate quiz. Please try again or contact support.</h2>');
+}
+
+// Limit to requested count and shuffle
+shuffle($questions);
+$questions = array_slice($questions, 0, $mcq_count);
 
 // Get class and book names for display
 $class_name = 'Unknown Class';

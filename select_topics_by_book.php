@@ -74,11 +74,6 @@ if (!$viewHasChapterCol) {
 <div class="main-content">
     <div class="container" style="max-width:980px;margin:20px auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.08);padding:20px;">
         <h3>Select Topics for <?= htmlspecialchars($bookName) ?> (Class <?= htmlspecialchars((string)$classId) ?>)</h3>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:10px 0;">
-            <label>MCQs: <input type="number" name="topics_mcq_count" min="0" max="100" value="10" style="padding:6px;border:1px solid #e5e7eb;border-radius:6px;width:90px;"></label>
-            <label>Short: <input type="number" name="topics_short_count" min="0" max="200" value="10" style="padding:6px;border:1px solid #e5e7eb;border-radius:6px;width:90px;"></label>
-            <label>Long: <input type="number" name="topics_long_count" min="0" max="20" value="3" style="padding:6px;border:1px solid #e5e7eb;border-radius:6px;width:90px;"></label>
-        </div>
         <div style="display:flex;gap:8px;align-items:center;margin:10px 0;">
             <input type="text" id="topicSearch" placeholder="Search topics..." style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:8px;">
             <button type="button" class="btn auto-fill-btn" id="autoSelectBtn">Auto Select</button>
@@ -95,7 +90,6 @@ if (!$viewHasChapterCol) {
             <input type="hidden" name="class_id" value="<?= htmlspecialchars((string)$classId) ?>">
             <input type="hidden" name="book_id" value="<?= htmlspecialchars((string)$bookId) ?>">
             <input type="hidden" name="book_name" value="<?= htmlspecialchars($bookName) ?>">
-            <input type="hidden" name="pattern_mode" value="without">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">
                 <?php foreach ($byChapter as $chapterName => $rows): ?>
                     <div class="chapter-topics" style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;">
@@ -111,6 +105,9 @@ if (!$viewHasChapterCol) {
                 <?php endforeach; ?>
             </div>
             <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                <label>MCQs: <input type="number" name="topics_mcq_count" min="0" max="100" value="10" style="padding:6px;border:1px solid #e5e7eb;border-radius:6px;width:90px;"></label>
+                <label>Short: <input type="number" name="topics_short_count" min="0" max="200" value="10" style="padding:6px;border:1px solid #e5e7eb;border-radius:6px;width:90px;"></label>
+                <label>Long: <input type="number" name="topics_long_count" min="0" max="20" value="3" style="padding:6px;border:1px solid #e5e7eb;border-radius:6px;width:90px;"></label>
                 <button type="button" class="btn" onclick="history.back()">Back</button>
                 <button type="submit" class="btn btn-primary">Generate Paper</button>
             </div>

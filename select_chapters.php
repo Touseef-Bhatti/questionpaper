@@ -71,7 +71,9 @@ if (!$result) {
 	<?php include 'header.php'; ?>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Select Chapters</title>
+    <meta name="description" content="Select chapters for 9th or 10th Class books to generate custom question papers and online tests. Tailored for Punjab Board new syllabus and up-to-date papers.">
+    <meta name="keywords" content="9th class, 10th class, question paper generator, online mcqs, quiz, test paper, new syllabus punjab board, pakistan board up to date papers, online tests, notes">
+	<title>9th & 10th Class Question Papers Generator, Online Tests & Notes | Ahmad Learning Hub</title>
   
 <script>
 document.addEventListener('DOMContentLoaded', function() {

@@ -138,7 +138,7 @@ if ($viewMcqs) {
     
     <?php
     // Dynamic SEO content based on filters
-    $pageTitle = "MCQs Practice - 9th & 10th Class | Ahmad Learning Hub";
+    $pageTitle = "9th & 10th Class All MCQs | Ahmad Learning Hub";
     $pageDescription = "Practice MCQs for 9th and 10th class Punjab Board exams. Access thousands of multiple choice questions for Physics, Chemistry, Biology, Mathematics, and Computer Science with instant answers.";
     $pageKeywords = "MCQs, multiple choice questions, 9th class MCQs, 10th class MCQs, Punjab Board MCQs, physics MCQs, chemistry MCQs, biology MCQs, online practice, exam preparation";
     

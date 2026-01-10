@@ -4,6 +4,13 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 require_once '../auth/auth_check.php';
 include '../db_connect.php';
 
+// Handle clearing of selected topics
+if (isset($_GET['clear_topics'])) {
+    unset($_SESSION['host_quiz_topics']);
+    header("Location: online_quiz_host_new.php");
+    exit;
+}
+
 // Get user info for personalized experience
 $user_name = $_SESSION['name'] ?? 'Instructor';
 ?>
@@ -29,6 +36,13 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
             <p class="subtitle">Welcome back, <?= htmlspecialchars($user_name) ?>! Let's create an amazing quiz experience.</p>
         </div>
         
+        <?php
+        $selectedTopics = $_SESSION['host_quiz_topics'] ?? [];
+        $hasTopics = !empty($selectedTopics);
+        $urlMcqCount = $_GET['mcq_count'] ?? 10;
+        $urlDuration = $_GET['duration'] ?? 10;
+        ?>
+
         <div class="creator-body">
             <form id="quizForm" method="POST" action="online_quiz_create_room.php">
                 <!-- Quiz Configuration -->
@@ -42,6 +56,37 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                     </div>
                     
                     <div class="form-grid">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                             <button type="button" class="btn btn-secondary" style="width: 100%; border: 2px dashed #6366f1; color: #6366f1; background: #f5f3ff; font-weight: 600;" onclick="goToTopicSearch()">
+                                🔍 Search Questions by Topic
+                            </button>
+                            <div class="form-hint" style="text-align: center; margin-top: 8px;">Instead of selecting class/book, search for specific topics</div>
+                            
+                            <?php if ($hasTopics): ?>
+                            <div id="selectedTopicsContainer" style="margin-top: 15px; padding: 15px; background: #f0fdf4; border: 1px solid #16a34a; border-radius: 8px;">
+                                <h4 style="margin: 0 0 10px; color: #15803d; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>✅ Selected Topics (<?= count($selectedTopics) ?>)</span>
+                                    <button type="button" onclick="clearSelectedTopics()" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.9em; text-decoration: underline;">Clear</button>
+                                </h4>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <?php foreach ($selectedTopics as $topic): ?>
+                                        <span style="background: white; padding: 4px 10px; border-radius: 15px; border: 1px solid #bbf7d0; font-size: 0.9em; color: #166534;">
+                                            <?= htmlspecialchars($topic) ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
+                                <input type="hidden" name="topics" value="<?= htmlspecialchars(json_encode($selectedTopics)) ?>">
+                                
+                                <div style="margin-top: 15px; border-top: 1px dashed #bbf7d0; padding-top: 10px;">
+                                    <button type="button" class="btn btn-sm" onclick="previewQuestions()" style="width: 100%; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;">
+                                        👁️ View Available Questions
+                                    </button>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php if (!$hasTopics): ?>
                         <div class="form-group">
                             <label class="form-label">📚 Class</label>
                             <select class="form-select" id="class_id" name="class_id" required>
@@ -63,16 +108,17 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                                 <option value="">Select class first</option>
                             </select>
                         </div>
+                        <?php endif; ?>
                         
                         <div class="form-group">
                             <label class="form-label">🎯 Number of Questions</label>
-                            <input type="number" class="form-input" id="mcq_count" name="mcq_count" min="1" max="50" value="10" required>
+                            <input type="number" class="form-input" id="mcq_count" name="mcq_count" min="1" max="50" value="<?= htmlspecialchars($urlMcqCount) ?>" required>
                             <div class="form-hint">Recommended: 10-20 questions for optimal experience</div>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">⏱️ Quiz Duration</label>
-                            <input type="number" class="form-input" id="quiz_duration" name="quiz_duration_minutes" min="1" max="120" value="10" required>
+                            <input type="number" class="form-input" id="quiz_duration" name="quiz_duration_minutes" min="1" max="120" value="<?= htmlspecialchars($urlDuration) ?>" required>
                             <div class="form-hint">Duration in minutes</div>
                             
                             <div class="time-grid">
@@ -87,6 +133,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                 </div>
 
                 <!-- Question Selection -->
+                <?php if (!$hasTopics): ?>
                 <div class="form-section">
                     <div class="section-header">
                         <div class="section-icon">❓</div>
@@ -105,6 +152,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                         <div class="form-hint">Leave empty to include all chapters from selected book</div>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Custom Questions -->
                 <div class="toggle-section">
@@ -120,10 +168,10 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                     
                     <div class="mcq-builder" id="customQuestions">
                         <div style="margin-bottom: 20px;">
-                            <button type="button" class="btn btn-secondary" onclick="addCustomQuestion()">
+                            <button type="button" class="btn btn-secondary" style="color: black;border: 1px solid black;" onclick="addCustomQuestion()">
                                 ➕ Add Question
                             </button>
-                            <button type="button" class="btn btn-secondary" onclick="clearCustomQuestions()">
+                            <button type="button" class="btn btn-secondary" style="color: black;border: 1px solid black;" onclick="clearCustomQuestions()">
                                 🗑️ Clear All
                             </button>
                         </div>
@@ -135,7 +183,14 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
 
                 <!-- Quiz Preview -->
                 <div class="preview-section">
-                    <h3 style="margin: 0 0 20px; color: #0369a1;">📊 Quiz Preview</h3>
+                    <h3 style="margin: 0 0 20px; color: #0369a1; display: flex; justify-content: space-between; align-items: center;">
+                        <span>📊 Quiz Preview</span>
+                        <?php if (!$hasTopics): ?>
+                        <button type="button" class="btn btn-sm" onclick="previewQuestions()" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;">
+                            👁️ View Available Questions
+                        </button>
+                        <?php endif; ?>
+                    </h3>
                     <div class="preview-stats">
                         <div class="stat-card">
                             <div class="stat-number" id="totalQuestions">10</div>
@@ -169,7 +224,244 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
         </div>
     </div>
 
+    <!-- Question Preview Modal -->
+    <div id="previewModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="background-color: #fefefe; margin: 5% auto; padding: 0; border: 1px solid #888; width: 80%; max-width: 800px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+            <div class="modal-header" style="padding: 15px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border-radius: 12px 12px 0 0;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <h3 style="margin: 0; color: #111827;">Available Questions Preview</h3>
+                    <button id="regenerateBtn" type="button" class="btn btn-sm" onclick="regenerateQuestions()" style="display: none; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-size: 0.85em; padding: 6px 12px; align-items: center; gap: 5px;">
+                        🔄 Generate More 
+                    </button>
+                </div>
+                <span class="close" onclick="closePreviewModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
+                    <span>ℹ️</span>
+                    <span><strong>Note:</strong> Correct answers are highlighted in <strong style="color: #16a34a;">green</strong>. Use the dropdown menu to change the correct answer key if needed.</span>
+                </div>
+                <div id="previewLoading" style="text-align: center; padding: 20px;">
+                    <div class="spinner" style="width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid #6366f1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+                    <p id="previewLoadingText">Loading questions...</p>
+                </div>
+                <div id="previewContent"></div>
+            </div>
+            <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid #e5e7eb; text-align: right; background: #f9fafb; border-radius: 0 0 12px 12px;">
+                <span id="previewCount" style="float: left; color: #6b7280; font-size: 0.9em; padding-top: 8px;"></span>
+                <button type="button" class="btn btn-secondary" onclick="closePreviewModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        function closePreviewModal() {
+            document.getElementById('previewModal').style.display = 'none';
+        }
+
+        function previewQuestions() {
+            const modal = document.getElementById('previewModal');
+            const content = document.getElementById('previewContent');
+            const loading = document.getElementById('previewLoading');
+            const loadingText = document.getElementById('previewLoadingText');
+            const countSpan = document.getElementById('previewCount');
+            const regenerateBtn = document.getElementById('regenerateBtn');
+            
+            modal.style.display = 'block';
+            content.innerHTML = '';
+            loading.style.display = 'block';
+            loadingText.textContent = 'Loading questions...';
+            countSpan.textContent = '';
+            
+            // Collect form data
+            const formData = new FormData();
+            
+            // Check for topics
+            const topicsInput = document.querySelector('input[name="topics"]');
+            if (topicsInput) {
+                formData.append('topics', topicsInput.value);
+                if (regenerateBtn) regenerateBtn.style.display = 'flex';
+            } else {
+                if (regenerateBtn) regenerateBtn.style.display = 'none';
+                // Check for class/book
+                const classId = document.getElementById('class_id').value;
+                const bookId = document.getElementById('class_id').value ? document.getElementById('book_id').value : '';
+                const chapterIds = document.getElementById('chapter_ids').value;
+                
+                formData.append('class_id', classId);
+                formData.append('book_id', bookId);
+                formData.append('chapter_ids', chapterIds);
+                
+                if (!classId || (!topicsInput && !bookId)) {
+                    loading.style.display = 'none';
+                    content.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">Please select Class and Book (or Topics) first to view questions.</div>';
+                    return;
+                }
+            }
+            
+            // Fetch questions
+            fetch('ajax_preview_questions.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.success) {
+                    if (data.questions.length === 0) {
+                        content.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">No questions found matching your criteria.</div>';
+                        countSpan.textContent = '0 questions found';
+                    } else {
+                        let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
+                        data.questions.forEach((q, index) => {
+                            const badgeColor = q.source === 'ai' ? '#dbeafe' : '#f3f4f6';
+                            const badgeText = q.source === 'ai' ? '#1e40af' : '#374151';
+                            const badgeLabel = q.source === 'ai' ? 'AI Generated' : 'Standard';
+                            
+                            html += `
+                                <div style="border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; background: white;">
+                                    <div style="margin-bottom: 8px; font-weight: 600; color: #111827; display: flex; justify-content: space-between;">
+                                        <span>Q${index + 1}. ${escapeHtml(q.question)}</span>
+                                        <div style="display: flex; gap: 5px; align-items: center;">
+                                            <span style="font-size: 0.7em; background: ${badgeColor}; color: ${badgeText}; padding: 2px 6px; border-radius: 4px; height: fit-content;">${badgeLabel}</span>
+                                            <select onchange="updateCorrectOption('${q.mcq_id}', '${q.source}', this.value)" style="font-size: 0.8em; padding: 2px; border: 1px solid #d1d5db; border-radius: 4px; background-color: #f0fdf4; border-color: #16a34a; color: #15803d; font-weight: 500;">
+                                                <option value="A" ${q.correct_option.toUpperCase() === 'A' ? 'selected' : ''}>Key: A</option>
+                                                <option value="B" ${q.correct_option.toUpperCase() === 'B' ? 'selected' : ''}>Key: B</option>
+                                                <option value="C" ${q.correct_option.toUpperCase() === 'C' ? 'selected' : ''}>Key: C</option>
+                                                <option value="D" ${q.correct_option.toUpperCase() === 'D' ? 'selected' : ''}>Key: D</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9em; color: #4b5563;">
+                                        <div class="${q.correct_option === 'A' || q.correct_option === 'a' ? 'text-green-600 font-bold' : ''}">A) ${escapeHtml(q.option_a)}</div>
+                                        <div class="${q.correct_option === 'B' || q.correct_option === 'b' ? 'text-green-600 font-bold' : ''}">B) ${escapeHtml(q.option_b)}</div>
+                                        <div class="${q.correct_option === 'C' || q.correct_option === 'c' ? 'text-green-600 font-bold' : ''}">C) ${escapeHtml(q.option_c)}</div>
+                                        <div class="${q.correct_option === 'D' || q.correct_option === 'd' ? 'text-green-600 font-bold' : ''}">D) ${escapeHtml(q.option_d)}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        content.innerHTML = html;
+                        countSpan.textContent = `Showing ${data.questions.length} available questions`;
+                    }
+                } else {
+                    content.innerHTML = `<div style="color: red; text-align: center;">Error: ${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                console.error('Error:', error);
+                content.innerHTML = '<div style="color: red; text-align: center;">An error occurred while fetching questions.</div>';
+            });
+        }
+        
+        function regenerateQuestions() {
+            if (!confirm('This will generate more questions using AI for your selected topics. This may take a few seconds. Continue?')) {
+                return;
+            }
+            
+            const content = document.getElementById('previewContent');
+            const loading = document.getElementById('previewLoading');
+            const loadingText = document.getElementById('previewLoadingText');
+            
+            content.innerHTML = '';
+            loading.style.display = 'block';
+            loadingText.textContent = '🤖 AI is generating new questions... Please wait...';
+            
+            const formData = new FormData();
+            const topicsInput = document.querySelector('input[name="topics"]');
+            
+            if (topicsInput) {
+                formData.append('topics', topicsInput.value);
+                formData.append('count', 3); // Generate 3 per topic
+            } else {
+                alert('No topics selected');
+                loading.style.display = 'none';
+                return;
+            }
+            
+            fetch('ajax_regenerate_questions.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Refresh the list to show new questions
+                    previewQuestions();
+                    // Optionally show a toast or alert
+                    // alert(data.message);
+                } else {
+                    loading.style.display = 'none';
+                    content.innerHTML = `<div style="color: red; text-align: center;">Error generating questions: ${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                console.error('Error:', error);
+                content.innerHTML = '<div style="color: red; text-align: center;">An error occurred while generating questions.</div>';
+            });
+        }
+        
+        function updateCorrectOption(mcqId, source, newOption) {
+            fetch('ajax_update_correct_option.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `mcq_id=${mcqId}&source=${source}&correct_option=${newOption}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the visual indication of the correct answer
+                    // We need to re-fetch or manually update the DOM classes
+                    // For simplicity, let's just show a toast/alert or refresh the preview if needed
+                    // But to make it smooth, let's just log it for now as the dropdown shows current state
+                    console.log('Updated successfully');
+                    
+                    // Optional: refresh the view to update the green bold styling
+                    previewQuestions();
+                } else {
+                    alert('Failed to update: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating.');
+            });
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('previewModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        function clearSelectedTopics() {
+            if (confirm('Are you sure you want to clear the selected topics?')) {
+                window.location.href = 'online_quiz_host_new.php?clear_topics=1';
+            }
+        }
+
+        function goToTopicSearch() {
+            const mcqCount = document.getElementById('mcq_count').value;
+            const duration = document.getElementById('quiz_duration').value;
+            
+            // Redirect to topic search with host context
+            window.location.href = `mcqs_topic.php?source=host&mcq_count=${mcqCount}&quiz_duration=${duration}`;
+        }
+
         let customQuestions = [];
         let selectedChapterIds = [];
         

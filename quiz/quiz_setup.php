@@ -39,9 +39,12 @@ if (session_status() === PHP_SESSION_NONE) session_start();
                 </div>
                 <div>
                     <label for="book_id">Book</label>
-                    <select id="book_id" name="book_id" required disabled>
-                        <option value="">Select a book</option>
-                    </select>
+                    <div class="input-with-action">
+                        <select id="book_id" name="book_id" required disabled>
+                            <option value="">Select a book</option>
+                        </select>
+                        <button type="button" class="btn topic-btn" onclick="window.location.href='mcqs_topic.php'">Topic</button>
+                    </div>
                     <div class="hint">Books are filtered by class.</div>
                 </div>
             </div>
@@ -133,8 +136,8 @@ async function loadChapters() {
     // Create checkbox list for chapters
     const chapterHTML = data.map(chapter => `
       <div class="chapter-item" onclick="toggleChapter(${chapter.chapter_id}, this)">
-        <input type="checkbox" id="ch_${chapter.chapter_id}" value="${chapter.chapter_id}" onchange="handleChapterChange(${chapter.chapter_id})">
-        <label for="ch_${chapter.chapter_id}">${chapter.chapter_name}</label>
+        <input type="checkbox" id="ch_${chapter.chapter_id}" value="${chapter.chapter_id}" onchange="handleChapterChange(${chapter.chapter_id})" onclick="event.stopPropagation()">
+        <label for="ch_${chapter.chapter_id}" onclick="event.stopPropagation()">${chapter.chapter_name}</label>
       </div>
     `).join('');
     

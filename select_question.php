@@ -25,7 +25,9 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select Questions</title>
+    <meta name="description" content="Configure question paper details for 9th and 10th Class. Choose MCQs, Short, and Long questions. Support for New Syllabus Punjab Board.">
+    <meta name="keywords" content="9th class, 10th class, question paper generator, online mcqs, quiz, test paper, new syllabus punjab board, pakistan board up to date papers, online tests, notes">
+    <title>9th & 10th Class Question Papers Generator, Online Tests & Notes | Ahmad Learning Hub</title>
     <?php include 'header.php'; ?>
 </head>
 <body>

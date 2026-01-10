@@ -11,9 +11,9 @@ $classResult = $conn->query($classQuery);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Select your class to generate question papers, take online tests, and download notes for 9th and 10th class Punjab Board exams. Access past papers, MCQs, and guess papers for smarter exam preparation.">
-    <meta name="keywords" content="Ahmad Learning Hub, select class, 9th class, 10th class, Punjab Board, online test, MCQs, past papers, solved notes, guess papers, question paper generator, exam preparation Pakistan, chapter-wise tests">
-    <title>Select Class | Ahmad Learning Hub - 9th & 10th Class Online Tests, Notes & Question Papers</title>
+    <meta name="description" content="Select your class 9th or 10th to generate question papers, take online MCQs quizzes, and access up-to-date notes. Supported for New Syllabus Punjab Board and Pakistan Board.">
+    <meta name="keywords" content="9th class, 10th class, question paper generator, online mcqs, quiz, test paper, new syllabus punjab board, pakistan board up to date papers, online tests, notes">
+    <title>9th & 10th Class Question Papers Generator, Online Tests & Notes | Ahmad Learning Hub </title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_class.css">
     <link rel="stylesheet" href="css/buttons.css">

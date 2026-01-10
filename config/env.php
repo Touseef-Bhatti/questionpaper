@@ -11,6 +11,11 @@ class EnvLoader
     // Define default values if not present in .env
     private static $defaults = [
         'BASE_URL' => 'https://paper.bhattichemicalsindustry.com.pk/',
+        'OPENAI_API_KEY' => '',
+        'OPENAI_API_KEYS' => '',
+        'OPENAI_MODEL' => 'nvidia/nemotron-3-nano-30b-a3b:free',
+        'GEMINI_API_KEY' => '',
+        'GEMINI_MODEL' => 'gemini-2.0-flash-exp:free',
     ];
 
     /**
@@ -29,7 +34,6 @@ class EnvLoader
         if ($envFile === null) {
             // Default to the main .env file
             $envFile = __DIR__ . '/.env';
-            
 
             // for local host
             // Optionally, you can still have environment-specific files if needed

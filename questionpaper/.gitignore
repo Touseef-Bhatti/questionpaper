@@ -29,9 +29,6 @@ config/database.php
 logs/*.log
 *.log
 
-# Cache Files
-cache/*
-!cache/.gitkeep
 
 # Uploaded Files
 uploads/*

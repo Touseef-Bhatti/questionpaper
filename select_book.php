@@ -32,7 +32,9 @@ if (!$result) {
     <link rel="stylesheet" href="css/buttons.css">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Select Book</title>
+    <meta name="description" content="Select a book for 9th or 10th Class to generate question papers, take online MCQs, and access notes. Ahmad Learning Hub offers up-to-date Punjab Board syllabus resources.">
+    <meta name="keywords" content="9th class, 10th class, question paper generator, online mcqs, quiz, test paper, new syllabus punjab board, pakistan board up to date papers, online tests, notes">
+    <title>9th & 10th Class Question Papers Generator, Online Tests & Notes | Ahmad Learning Hub</title>
   
 </head>
 <body>

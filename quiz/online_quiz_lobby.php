@@ -247,7 +247,11 @@ function h($str) {
         <div class="lobby-header">
             <h1>Quiz Lobby</h1>
             <div class="lobby-info">Room: <?= h($room['room_code']) ?></div>
-            <div class="lobby-info"><?= h($room['class_name'] ?? 'Class ' . $room['class_id']) ?> • <?= h($room['book_name'] ?? 'Book ' . $room['book_id']) ?></div>
+            <?php if (!empty($room['class_name']) || !empty($room['book_name'])): ?>
+                <div class="lobby-info"><?= h($room['class_name'] ?? 'Class ' . $room['class_id']) ?> • <?= h($room['book_name'] ?? 'Book ' . $room['book_id']) ?></div>
+            <?php else: ?>
+                <div class="lobby-info">Topic-based Quiz</div>
+            <?php endif; ?>
         </div>
         
         <div class="lobby-body">

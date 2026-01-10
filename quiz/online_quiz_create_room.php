@@ -5,6 +5,7 @@ require_once '../auth/auth_check.php';
 include '../db_connect.php';
 require_once '../services/CacheManager.php';
 require_once '../services/QuestionService.php';
+require_once 'mcq_generator.php';
 
 // Initialize optimized services
 $cache = new CacheManager();
@@ -63,6 +64,9 @@ $mcq_count = intval($_POST['mcq_count'] ?? 0);
 $chapter_ids = trim($_POST['chapter_ids'] ?? '');
 $quiz_duration_minutes = max(1, min(120, intval($_POST['quiz_duration_minutes'] ?? 30)));
 $custom_mcqs_json = $_POST['custom_mcqs'] ?? '[]';
+$topics_json = $_POST['topics'] ?? '[]';
+$topics = json_decode($topics_json, true);
+if (!is_array($topics)) { $topics = []; }
 
 // Parse custom MCQs JSON early for validation flexibility
 $custom_mcqs = json_decode($custom_mcqs_json, true);
@@ -83,10 +87,10 @@ foreach ($custom_mcqs as $mcq) {
 }
 
 // Validation rules
-if ($mcq_count <= 0 && !$hasAnyCustom) {
+if ($mcq_count <= 0 && !$hasAnyCustom && empty($topics)) {
     respond_error('Please select at least 1 Random MCQ or add at least 1 Custom MCQ.');
 }
-if ($mcq_count > 0 && (!$class_id || !$book_id)) {
+if ($mcq_count > 0 && (!$class_id || !$book_id) && empty($topics)) {
     respond_error('Class and Book are required when selecting Random MCQs.');
 }
 
@@ -155,7 +159,117 @@ $stmt->close();
 
 // Use optimized question service instead of ORDER BY RAND()
 $selectedQuestions = [];
-if ($mcq_count > 0) {
+
+if (!empty($topics)) {
+    // Topic-based selection logic
+    $placeholders = str_repeat('?,', count($topics) - 1) . '?';
+    $types = str_repeat('s', count($topics));
+    $params = $topics;
+    
+    // Fetch random MCQs matching topics
+    $sql = "SELECT mcq_id, question, option_a, option_b, option_c, option_d, correct_option 
+            FROM mcqs 
+            WHERE topic IN ($placeholders) 
+            ORDER BY RAND() 
+            LIMIT ?";
+    $params[] = $mcq_count;
+    $types .= 'i';
+
+    try {
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        while ($row = $result->fetch_assoc()) {
+            $selectedQuestions[] = $row;
+        }
+        $stmt->close();
+    } catch (Exception $e) {
+        // Fallback or ignore
+    }
+
+    // Check AIGeneratedMCQs if needed
+    if (count($selectedQuestions) < $mcq_count) {
+        $needed = $mcq_count - count($selectedQuestions);
+        
+        // Re-prepare params for AI table (same topics)
+        $aiParams = $topics;
+        $aiTypes = str_repeat('s', count($topics));
+        $aiParams[] = $needed;
+        $aiTypes .= 'i';
+        
+        $aiSql = "SELECT id, question, option_a, option_b, option_c, option_d, correct_option 
+                  FROM AIGeneratedMCQs 
+                  WHERE topic IN ($placeholders) 
+                  ORDER BY RAND() 
+                  LIMIT ?";
+                  
+        try {
+            $stmt = $conn->prepare($aiSql);
+            $stmt->bind_param($aiTypes, ...$aiParams);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            while ($row = $result->fetch_assoc()) {
+                $selectedQuestions[] = [
+                    'mcq_id' => null, // AI questions don't have standard mcq_id
+                    'question' => $row['question'],
+                    'option_a' => $row['option_a'],
+                    'option_b' => $row['option_b'],
+                    'option_c' => $row['option_c'],
+                    'option_d' => $row['option_d'],
+                    'correct_option' => $row['correct_option']
+                ];
+            }
+            $stmt->close();
+        } catch (Exception $e) {
+            // Ignore
+        }
+    }
+
+    // Generate if still needed
+    if (count($selectedQuestions) < $mcq_count) {
+        $neededCount = $mcq_count - count($selectedQuestions);
+        $generatedCount = 0;
+        $shuffledTopics = $topics;
+        shuffle($shuffledTopics);
+        
+        foreach ($shuffledTopics as $topic) {
+            if ($generatedCount >= $neededCount) break;
+            
+            $remainingNeeded = $neededCount - $generatedCount;
+            $toGenerate = ($remainingNeeded > 2) ? ceil($remainingNeeded / 2) : $remainingNeeded;
+            
+            // Assuming generateMCQsWithGemini is available (we added require)
+            if (function_exists('generateMCQsWithGemini')) {
+                $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate);
+                
+                if (!empty($generatedMCQs)) {
+                    foreach ($generatedMCQs as $genMCQ) {
+                        if ($generatedCount >= $neededCount) break;
+                        
+                        $selectedQuestions[] = [
+                            'mcq_id' => null,
+                            'question' => $genMCQ['question'],
+                            'option_a' => $genMCQ['option_a'],
+                            'option_b' => $genMCQ['option_b'],
+                            'option_c' => $genMCQ['option_c'],
+                            'option_d' => $genMCQ['option_d'],
+                            'correct_option' => $genMCQ['correct_option']
+                        ];
+                        $generatedCount++;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Shuffle final selection
+    shuffle($selectedQuestions);
+    $selectedQuestions = array_slice($selectedQuestions, 0, $mcq_count);
+
+} else if ($mcq_count > 0) {
     if (!empty($chapterIdsArray)) {
         // Get MCQs from specific chapters
         $questionsPerChapter = max(1, ceil($mcq_count / count($chapterIdsArray)));
