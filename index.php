@@ -1,3 +1,8 @@
+<?php
+session_start();
+include 'db_connect.php';
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,18 +23,18 @@
         <!-- HERO: Futuristic & Clean -->
         <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover;">
             <div class="container hero-grid">
-                <div class="hero-content" data-animate-on-scroll="fade-in-up">
+                <div class="hero-content">
                     <div class="eyebrow">Intelligent Exam Preparation</div>
                     <h1 class="hero-title">Ahmad Learning Hub — Smarter, Faster, Future-Ready</h1>
                     <p class="subtitle">Prepare for 9th & 10th Punjab Board exams with adaptive tests, chapter-wise practice, instant analytics and printable papers — all in one modern platform.</p>
 
-                    <div class="hero-actions" data-animate-on-scroll="fade-in-up">
-                        <a href="select_class.php" class="button primary">Generate Paper</a>
+                    <div class="hero-actions">
+                        <a href="#" onclick="showTypeSelection(event)" class="button primary">Generate Paper</a>
                         <a href="quiz/quiz_setup.php" class="button secondary">Take a Test</a>
-                        <a href="notes.php" class="button ghost" style="color: white;">Notes & Guides</a>
+                        <a href="notes/notes.php" class="button ghost" style="color: white;">Notes & Guides</a>
                     </div>
 
-                    <div class="hero-stats" data-animate-on-scroll="fade-in-up">
+                    <div class="hero-stats">
                         <div class="stat-item"><strong>10k+</strong><span>Questions</span></div>
                         <div class="stat-item"><strong>100+</strong><span>Schools</span></div>
                         <div class="stat-item"><strong>99.9%</strong><span>Uptime</span></div>
@@ -40,43 +45,13 @@
             </div>
         </section>
 
-        <!-- WHY CHOOSE / FEATURES -->
-        <section class="features-section">
-            <div class="container">
-                <h2 class="section-title" data-animate-on-scroll="fade-in-up">Why educators and students trust Ahmad Learning Hub</h2>
-                <div class="features-grid" data-animate-on-scroll="fade-in-up">
-                    <article class="feature-card">
-                        <div class="feature-icon">🧠</div>
-                        <h3>Adaptive Tests</h3>
-                        <p>Intelligent question selection that adapts to student performance for targeted practice.</p>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon">�️</div>
-                        <h3>Print-Ready Papers</h3>
-                        <p>Generate well-formatted, printable question papers with aligned marks and headers.</p>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon">🔍</div>
-                        <h3>Analytics & Progress</h3>
-                        <p>Instant performance reports with topic-level strengths and weaknesses.</p>
-                    </article>
-
-                    <article class="feature-card">
-                        <div class="feature-icon">�</div>
-                        <h3>Secure & Reliable</h3>
-                        <p>Robust privacy and scalable hosting — built for schools and classrooms.</p>
-                    </article>
-                </div>
-            </div>
-        </section>
+       
 
         <!-- HOW IT WORKS -->
         <section class="how-section">
             <div class="container">
-                <h2 class="section-title" data-animate-on-scroll="fade-in-up">How it works</h2>
-                <div class="how-grid" data-animate-on-scroll="fade-in-up">
+                <h2 class="section-title">How it works</h2>
+                <div class="how-grid">
                     <div class="how-card">
                         <div class="step">1</div>
                         <h4>Select class & chapters</h4>
@@ -100,23 +75,23 @@
         <section class="teachers-section">
             <div class="container">
                 <div class="split-grid">
-                    <div data-animate-on-scroll="fade-in-up">
+                    <div>
                         <div class="card">
                             <h3>Teacher tools</h3>
                             <p>Create quizzes, generate papers, and manage questions.</p>
-                            <a class="btn btn-primary" href="select_class.php">Generate Question Paper</a>
+                            <a class="btn btn-primary" href="#" onclick="showTypeSelection(event)">Generate Question Paper</a>
                             <a class="btn btn-outline" href="quiz/online_quiz_host_new.php">Host a Quiz</a>
                             
-                            <a class="btn btn-ghost" href="notes.php">View Notes</a>
+                            <a class="btn btn-ghost" href="notes/notes.php">View Notes</a>
                         </div>
                     </div>
-                    <div data-animate-on-scroll="fade-in-up">
+                    <div>
                         <div class="card">
                             <h3>For students</h3>
                             <p>Join quizzes, take tests, and access study materials.</p>
                             <a class="btn btn-primary" href="quiz/online_quiz_join.php">Join Quiz</a>
                             <a class="btn btn-outline" href="quiz/quiz_setup.php">Take Online Test</a>
-                            <a class="btn btn-ghost" href="notes.php">View Notes</a>
+                            <a class="btn btn-ghost" href="notes/notes.php">View Notes</a>
                         </div>
                     </div>
                 </div>
@@ -126,12 +101,12 @@
         <!-- CTA -->
         <section class="cta-section">
             <div class="container">
-                <div class="cta-card" data-animate-on-scroll="fade-in-up">
+                <div class="cta-card">
                     <h2>Ready to elevate your <span class="highlight">exam preparation</span>?</h2>
                     <p>Join thousands of students and educators who trust Ahmad Learning Hub for smarter, faster, and future-ready <span class="keyword">online quizzes</span>, <span class="keyword">practice tests</span>, and <span class="keyword">question paper generation</span>. Unlock adaptive tests, generate custom <span class="keyword">study materials</span>, and host engaging quizzes with ease.</p>
                     <p>Whether you're a student aiming for top grades or a teacher looking to streamline assessment, Ahmad Learning Hub provides the tools you need to succeed. Get started today and transform your learning and teaching experience with our comprehensive <span class="keyword">exam preparation platform</span>!</p>
                     <div class="cta-actions">
-                        <a href="select_class.php" class="button primary">Generate Paper</a>
+                        <a href="#" onclick="showTypeSelection(event)" class="button primary">Generate Paper</a>
                         <a href="quiz/quiz_setup.php" class="button ghost">Start Test</a>
                     </div>
                 </div>
@@ -140,7 +115,99 @@
 
     </div>
 
+    <!-- TYPE SELECTION MODAL -->
+    <div id="typeSelectionModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: #333;">Select Mode</h3>
+            <p>Please select your organization type:</p>
+            <div class="modal-actions" style="display: flex; gap: 15px; margin-top: 20px; justify-content: center;">
+                <a href="select_class.php" class="modal-btn school-btn">
+                    <span class="text">School</span>
+                </a>
+                <a href="questionPaperFromTopic/index.php" class="modal-btn other-btn">
+                    <span class="text">Other</span>
+                </a>
+            </div>
+            <button onclick="closeTypeSelection()" class="close-modal-btn">&times;</button>
+        </div>
+    </div>
+
+    <style>
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            position: relative;
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+        }
+        .modal-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #333;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            width: 120px;
+        }
+        .modal-btn:hover {
+            background: #eef2ff;
+            border-color: #4f46e5;
+        }
+        .modal-btn .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        .modal-btn .text {
+            font-weight: 600;
+        }
+        .close-modal-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .close-modal-btn:hover {
+            color: #333;
+        }
+    </style>
+
+    <script>
+    function showTypeSelection(e) {
+        if (e) e.preventDefault();
+        document.getElementById('typeSelectionModal').style.display = 'flex';
+    }
+    function closeTypeSelection() {
+        document.getElementById('typeSelectionModal').style.display = 'none';
+    }
+    // Close on click outside
+    document.getElementById('typeSelectionModal').addEventListener('click', function(e) {
+        if (e.target === this) closeTypeSelection();
+    });
+    </script>
+
     <?php include 'footer.php'; ?>
-    <script src="js/animations.js"></script>
     </body>
     </html>

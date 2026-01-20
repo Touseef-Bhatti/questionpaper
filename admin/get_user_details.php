@@ -24,7 +24,7 @@ $sql = "SELECT u.*,
                s.id as active_subscription_id,
                s.status as subscription_status,
                s.plan_id as active_plan_id,
-               s.starts_at as subscription_start,
+               s.started_at as subscription_start,
                s.expires_at as subscription_expires,
                sp.display_name as active_plan_name,
                sp.price as active_plan_price
@@ -167,7 +167,7 @@ ob_start();
             </tr>
             <tr>
                 <td class="fw-bold">Total Spent:</td>
-                <td><strong>PKR <?= number_format($userStats['total_spent'], 2) ?></strong></td>
+                <td><strong>PKR <?= number_format($userStats['total_spent'] ?? 0, 2) ?></strong></td>
             </tr>
             <?php if ($userStats['last_payment_date']): ?>
             <tr>
@@ -258,8 +258,8 @@ ob_start();
                             </span>
                         </td>
                         <td>
-                            <?= date('M d, Y', strtotime($subscription['starts_at'])) ?> - 
-                            <?= date('M d, Y', strtotime($subscription['expires_at'])) ?>
+                            <?= date('M d, Y', strtotime($subscription['started_at'] ?? '')) ?> - 
+                            <?= date('M d, Y', strtotime($subscription['expires_at'] ?? '')) ?>
                         </td>
                         <td><?= date('M d, Y', strtotime($subscription['created_at'])) ?></td>
                     </tr>

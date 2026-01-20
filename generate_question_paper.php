@@ -48,65 +48,93 @@ function displayShortSection($questions, &$idx) {
     }
 }
 // Validate POST data
-if (!isset($_POST['class_id'], $_POST['book_name'], $_POST['chapters'])) {
+$isTopicSource = (isset($_POST['source']) && $_POST['source'] === 'topics');
+
+if (!$isTopicSource && !isset($_POST['class_id'], $_POST['book_name'], $_POST['chapters'])) {
     echo("<h2 style='color:red;'>Required data is missing. Please go back and try again.</h2>");
-    header('Location: select_class.php');
+    echo("<script>setTimeout(function(){ window.location = 'select_class.php'; }, 2000);</script>");
+    exit;
 }
-$classId = intval($_POST['class_id']);
-$bookName = htmlspecialchars($_POST['book_name']);
+
+$classId = isset($_POST['class_id']) ? intval($_POST['class_id']) : 0;
+$bookName = isset($_POST['book_name']) ? htmlspecialchars($_POST['book_name']) : 'Custom Paper';
 $totalMarks = 0;
-// Derive selected chapter numbers/names for header display 
-$chapterHeaderLabel = '';
-$chapterIdsPosted = isset($_POST['chapter_ids']) && is_array($_POST['chapter_ids']) ? array_map('intval', $_POST['chapter_ids']) : [];
-$chaptersRawJson = isset($_POST['chapters']) ? html_entity_decode($_POST['chapters']) : '[]';
-$chaptersArr = json_decode($chaptersRawJson, true);
-$chapterIds = [];
-if (!empty($chapterIdsPosted)) {
-    $chapterIds = $chapterIdsPosted;
-} elseif (is_array($chaptersArr)) {
-    foreach ($chaptersArr as $item) {
-        $parts = explode('|', $item, 2);
-        $cid = isset($parts[0]) ? intval($parts[0]) : 0;
-        if ($cid > 0) {
-            $chapterIds[] = $cid;
-        }
-    }
-}
-if (!empty($chapterIds)) {
-    $in = implode(',', array_map('intval', $chapterIds));
-    $nums = [];
-    $res = $conn->query("SELECT chapter_id, COALESCE(chapter_no, chapter_id) AS num FROM chapter WHERE chapter_id IN ($in) ORDER BY num ASC");
-    if ($res) {
-        while ($row = $res->fetch_assoc()) {
-            $nums[] = (string)intval($row['num']);
-        }
-    }
-    if (!empty($nums)) {
-        $nums = array_values(array_unique($nums));
-        $chapterHeaderLabel = 'Chapters: ' . implode(', ', $nums);
-    }
-}
 $classNameHeader = '';
-$clsRes = $conn->query("SELECT class_name FROM class WHERE class_id = $classId LIMIT 1");
-if ($clsRes && ($clsRow = $clsRes->fetch_assoc())) {
-    $classNameHeader = htmlspecialchars($clsRow['class_name']);
-}
 $mcqByChapter = [];
-if (!empty($_POST['mcqs'])) {
-    foreach ($_POST['mcqs'] as $chapterId => $count) {
-        $count = intval($count);
-        $chapterId = intval($chapterId);
-        if ($count > 0) {
-            // Use optimized question service instead of ORDER BY RAND()
-            $mcqs = $questionService->getRandomMCQs($chapterId, $count);
-            if (!empty($mcqs)) {
-                $mcqByChapter[$chapterId] = $mcqs;
+
+if ($isTopicSource) {
+    // ---- TOPIC BASED GENERATION LOGIC ----
+    $topics = $_POST['topics'] ?? [];
+    $totalMcqs = isset($_POST['total_mcqs']) ? intval($_POST['total_mcqs']) : 20;
+    $classNameHeader = 'Topic Selection';
+    
+    // Fetch MCQs via Service
+    $mcqs = $questionService->getRandomMCQsByTopics($topics, $totalMcqs);
+    if (!empty($mcqs)) {
+        // Use a dummy chapter ID '0' to hold these
+        $mcqByChapter[0] = $mcqs;
+    }
+    
+    // No short/long questions support for basic topic generation yet, or can be added similarly
+    $chapterHeaderLabel = 'Topics: ' . implode(', ', array_slice($topics, 0, 3)) . (count($topics)>3 ? '...' : '');
+
+} else {
+    // ---- STANDARD CHAPTER BASED GENERATION LOGIC ----
+    
+    // Derive selected chapter numbers/names for header display 
+    $chapterHeaderLabel = '';
+    $chapterIdsPosted = isset($_POST['chapter_ids']) && is_array($_POST['chapter_ids']) ? array_map('intval', $_POST['chapter_ids']) : [];
+    $chaptersRawJson = isset($_POST['chapters']) ? html_entity_decode($_POST['chapters']) : '[]';
+    $chaptersArr = json_decode($chaptersRawJson, true);
+    $chapterIds = [];
+    if (!empty($chapterIdsPosted)) {
+        $chapterIds = $chapterIdsPosted;
+    } elseif (is_array($chaptersArr)) {
+        foreach ($chaptersArr as $item) {
+            $parts = explode('|', $item, 2);
+            $cid = isset($parts[0]) ? intval($parts[0]) : 0;
+            if ($cid > 0) {
+                $chapterIds[] = $cid;
+            }
+        }
+    }
+    if (!empty($chapterIds)) {
+        $in = implode(',', array_map('intval', $chapterIds));
+        $nums = [];
+        $res = $conn->query("SELECT chapter_id, COALESCE(chapter_no, chapter_id) AS num FROM chapter WHERE chapter_id IN ($in) ORDER BY num ASC");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $nums[] = (string)intval($row['num']);
+            }
+        }
+        if (!empty($nums)) {
+            $nums = array_values(array_unique($nums));
+            $chapterHeaderLabel = 'Chapters: ' . implode(', ', $nums);
+        }
+    }
+    
+    $clsRes = $conn->query("SELECT class_name FROM class WHERE class_id = $classId LIMIT 1");
+    if ($clsRes && ($clsRow = $clsRes->fetch_assoc())) {
+        $classNameHeader = htmlspecialchars($clsRow['class_name']);
+    }
+    
+    if (!empty($_POST['mcqs'])) {
+        foreach ($_POST['mcqs'] as $chapterId => $count) {
+            $count = intval($count);
+            $chapterId = intval($chapterId);
+            if ($count > 0) {
+                // Use optimized question service instead of ORDER BY RAND()
+                $mcqs = $questionService->getRandomMCQs($chapterId, $count);
+                if (!empty($mcqs)) {
+                    $mcqByChapter[$chapterId] = $mcqs;
+                }
             }
         }
     }
 }
+
 $shortQuestions = [];
-if (!empty($_POST['short_questions'])) {
+if (!$isTopicSource && !empty($_POST['short_questions'])) {
     foreach ($_POST['short_questions'] as $chapterId => $count) {
         $count = intval($count);
         if ($count > 0) {
@@ -132,7 +160,7 @@ $section1 = array_slice($allShortQs, 0, 8);
 $section2 = array_slice($allShortQs, 8, 8);
 $section3 = array_slice($allShortQs, 16, 8);
 $longQuestions = [];
-if (!empty($_POST['long_questions'])) {
+if (!$isTopicSource && !empty($_POST['long_questions'])) {
     foreach ($_POST['long_questions'] as $chapterId => $count) {
         $count = intval($count);
         if ($count > 0) {

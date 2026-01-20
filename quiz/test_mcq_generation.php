@@ -252,14 +252,14 @@ if (session_status() === PHP_SESSION_NONE) session_start();
                         echo '<div class="mcq-option">C) ' . htmlspecialchars($mcq['option_c'] ?? '') . '</div>';
                         echo '<div class="mcq-option">D) ' . htmlspecialchars($mcq['option_d'] ?? '') . '</div>';
                         echo '<div class="mcq-option mcq-correct">✓ Correct Answer: ' . htmlspecialchars($mcq['correct_option'] ?? '') . '</div>';
-                        echo '<div style="margin-top: 10px; font-size: 12px; color: #666;">ID: ' . ($mcq['id'] ?? 'N/A') . '</div>';
+                        echo '<div style="margin-top: 10px; font-size: 12px; color: #666;">ID: ' . ($mcq['mcq_id'] ?? 'N/A') . '</div>';
                         echo '</div>';
                     }
                     
                     // Check if stored in AIGeneratedMCQs table
-                    if (isset($generatedMCQs[0]['id'])) {
-                        $checkStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM AIGeneratedMCQs WHERE id = ?");
-                        $checkStmt->bind_param('i', $generatedMCQs[0]['id']);
+                    if (isset($generatedMCQs[0]['mcq_id'])) {
+                        $checkStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM AIGeneratedMCQs WHERE mcq_id = ?");
+                        $checkStmt->bind_param('i', $generatedMCQs[0]['mcq_id']);
                         $checkStmt->execute();
                         $checkResult = $checkStmt->get_result();
                         if ($checkRow = $checkResult->fetch_assoc()) {

@@ -78,167 +78,213 @@ function h($str) {
     <title>Quiz Lobby - <?= h($room['room_code']) ?> | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
     <style>
+        body {
+            background: #f3f4f6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
         .lobby-container {
             max-width: 800px;
-            margin: 20px auto;
+            margin: 40px auto;
             background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             overflow: hidden;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .lobby-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(120deg, #4f6ef7, #ec4899);
             color: white;
-            padding: 30px;
+            padding: 40px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lobby-header::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
         }
         
         .lobby-header h1 {
-            margin: 0 0 8px;
-            font-size: 28px;
+            margin: 0 0 12px;
+            font-size: 36px;
+            font-weight: 800;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .lobby-info {
-            font-size: 16px;
-            opacity: 0.9;
-            margin: 5px 0;
+            font-size: 18px;
+            opacity: 0.95;
+            margin: 8px 0;
+            font-weight: 500;
         }
         
         .lobby-body {
-            padding: 40px 30px;
+            padding: 40px;
             text-align: center;
         }
         
         .waiting-animation {
-            display: inline-block;
-            margin: 20px 0;
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
         }
         
         .dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: #667eea;
+            width: 12px;
+            height: 12px;
+            background: #4f6ef7;
             border-radius: 50%;
-            margin: 0 3px;
-            animation: pulse 1.4s ease-in-out infinite;
+            animation: bounce 1.4s infinite ease-in-out both;
         }
         
         .dot:nth-child(1) { animation-delay: -0.32s; }
         .dot:nth-child(2) { animation-delay: -0.16s; }
-        .dot:nth-child(3) { animation-delay: 0; }
         
-        @keyframes pulse {
-            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-            40% { transform: scale(1); opacity: 1; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
         }
         
         .participant-info {
-            background: #f8fafc;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 20px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 24px;
             margin: 20px 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s;
+        }
+        
+        .participant-info:hover {
+            transform: translateY(-2px);
+            border-color: #4f6ef7;
         }
         
         .participants-list {
-            background: #f0f4f8;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 24px;
+            margin: 30px 0;
             text-align: left;
+            max-height: 400px;
+            overflow-y: auto;
         }
         
         .participant-item {
             display: flex;
             align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 12px;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.2s;
         }
         
-        .participant-item:last-child {
-            border-bottom: none;
+        .participant-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
         
         .participant-avatar {
-            width: 32px;
-            height: 32px;
-            background: #667eea;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #4f6ef7, #6366f1);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
-            margin-right: 12px;
+            font-size: 18px;
+            margin-right: 16px;
+            box-shadow: 0 2px 4px rgba(79, 110, 247, 0.3);
         }
         
         .status-indicator {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 20px;
             font-size: 12px;
-            font-weight: 600;
-            background: #10b981;
-            color: white;
+            font-weight: 700;
+            background: #dcfce7;
+            color: #166534;
             margin-left: auto;
+        }
+        
+        .status-indicator::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #16a34a;
+            border-radius: 50%;
+            margin-right: 6px;
         }
         
         .quiz-details {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-            text-align: center;
+            gap: 20px;
+            margin: 30px 0;
         }
         
         .detail-item {
             background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         
         .detail-label {
             font-size: 12px;
             color: #6b7280;
             text-transform: uppercase;
-            font-weight: 600;
-            margin-bottom: 5px;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            margin-bottom: 8px;
         }
         
         .detail-value {
-            font-size: 18px;
-            font-weight: bold;
-            color: #1f2937;
-        }
-        
-        .refresh-notice {
-            font-size: 14px;
-            color: #6b7280;
-            margin-top: 20px;
+            font-size: 24px;
+            font-weight: 800;
+            color: #111827;
         }
         
         .leave-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
+            background: #fff;
+            color: #ef4444;
+            border: 2px solid #ef4444;
+            padding: 12px 24px;
+            border-radius: 12px;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 700;
             margin-top: 20px;
+            transition: all 0.2s;
         }
         
         .leave-btn:hover {
-            background: #dc2626;
+            background: #ef4444;
+            color: white;
         }
         
         @media (max-width: 600px) {
-            .lobby-container { margin: 10px; }
-            .lobby-header, .lobby-body { padding: 20px; }
-            .quiz-details { grid-template-columns: 1fr 1fr; }
+            .lobby-container { margin: 0; border-radius: 0; min-height: 100vh; }
+            .lobby-header { padding: 30px 20px; }
+            .lobby-body { padding: 24px; }
+            .quiz-details { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -353,12 +399,12 @@ function h($str) {
             
             container.innerHTML = participants.map(p => `
                 <div class="participant-item">
-                    <div class="participant-avatar">${p.name.charAt(0).toUpperCase()}</div>
-                    <div>
-                        <div style="font-weight: 600;">${escapeHtml(p.name)}</div>
-                        <div style="font-size: 12px; color: #6b7280;">Roll: ${escapeHtml(p.roll_number)}</div>
+                    <div class="p-avatar">${p.name.charAt(0).toUpperCase()}</div>
+                    <div class="p-info">
+                        <div class="p-name">${escapeHtml(p.name)}</div>
+                        <div class="p-roll">#${escapeHtml(p.roll_number)}</div>
                     </div>
-                    <span class="status-indicator">Ready</span>
+                    <div class="p-status"></div>
                 </div>
             `).join('');
         }

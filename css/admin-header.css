@@ -14,7 +14,7 @@
 }
 
 .admin-navbar-container {
-    max-width: 1400px;
+    max-width: 100%;
     margin: 0 auto;
     display: flex;
     align-items: center;
@@ -83,6 +83,7 @@
     list-style: none;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0;
     margin: 0;
     padding: 0;
@@ -102,7 +103,6 @@
     display: block;
     transition: all 0.3s ease;
     border-bottom: 3px solid transparent;
-    white-space: nowrap;
 }
 
 .admin-nav-menu a:hover,

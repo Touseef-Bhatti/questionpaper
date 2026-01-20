@@ -4,30 +4,7 @@ require_once __DIR__ . '/security.php';
 requireAdminAuth();
 
 // Create table if not exists
-$createTableSQL = "CREATE TABLE IF NOT EXISTS `uploaded_notes` (
-    `note_id` INT AUTO_INCREMENT PRIMARY KEY,
-    `title` VARCHAR(255) NOT NULL,
-    `description` TEXT,
-    `file_name` VARCHAR(255) NOT NULL,
-    `original_file_name` VARCHAR(255) NOT NULL,
-    `file_path` VARCHAR(500) NOT NULL,
-    `file_type` VARCHAR(50) NOT NULL,
-    `file_size` BIGINT NOT NULL,
-    `mime_type` VARCHAR(100) NOT NULL,
-    `class_id` INT DEFAULT NULL,
-    `book_id` INT DEFAULT NULL,
-    `chapter_id` INT DEFAULT NULL,
-    `uploaded_by` INT NOT NULL,
-    `is_deleted` TINYINT(1) DEFAULT 0,
-    `deleted_at` DATETIME DEFAULT NULL,
-    `deleted_by` INT DEFAULT NULL,
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX `idx_class_book_chapter` (`class_id`, `book_id`, `chapter_id`),
-    INDEX `idx_is_deleted` (`is_deleted`),
-    INDEX `idx_uploaded_by` (`uploaded_by`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-$conn->query($createTableSQL);
+// Schema creation moved to install.php
 
 // File upload configuration
 $uploadDir = __DIR__ . '/../uploads/notes/';

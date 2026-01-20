@@ -8,7 +8,7 @@ services:
     image: paper_app:latest
     container_name: paper_app
     ports:
-      - "8000:80" # maps host:8000 to container:80
+      - "8000:80"
     env_file:
       - .env
     volumes:
@@ -28,7 +28,7 @@ services:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
-      LOG_BIN_TRUST_FUNCTION_CREATORS: 1   # <-- add this line
+      LOG_BIN_TRUST_FUNCTION_CREATORS: 1
     volumes:
       - db_data:/var/lib/mysql
     restart: unless-stopped
@@ -43,7 +43,7 @@ services:
     container_name: paper_redis
     restart: unless-stopped
     ports:
-      - "6379:6379" # optional: remove or change if port conflict
+      - "6379:6379"
     volumes:
       - redis_data:/data
 

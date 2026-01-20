@@ -194,16 +194,13 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
 /* header.css - Responsive, professional navbar (uses design system variables) */
 
 .navbar {
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.95);
     color: var(--text-primary);
     padding: 0.7rem 0;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     position: sticky;
     top: 0;
     z-index: 1000;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(12px) saturate(160%);
-    -webkit-backdrop-filter: blur(12px) saturate(160%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.3);
     width: 100%;
     margin: 0;
@@ -229,12 +226,6 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
     text-decoration: none;
     letter-spacing: 0.6px;
     transition: color 0.25s;
-    animation: logoFadeIn 0.9s cubic-bezier(.68,-0.55,.27,1.55);
-}
-
-@keyframes logoFadeIn {
-    0% { opacity: 0; transform: translateY(-12px); }
-    100% { opacity: 1; transform: translateY(0); }
 }
 
 .nav-menu {
@@ -249,20 +240,7 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
 }
 
 .nav-menu li {
-    opacity: 0;
-    transform: translateY(-10px);
-    animation: menuFadeIn 0.5s forwards;
-}
-
-.nav-menu li:nth-child(1) { animation-delay: 0.1s; }
-.nav-menu li:nth-child(2) { animation-delay: 0.2s; }
-.nav-menu li:nth-child(3) { animation-delay: 0.3s; }
-.nav-menu li:nth-child(4) { animation-delay: 0.4s; }
-.nav-menu li:nth-child(5) { animation-delay: 0.5s; }
-.nav-menu li:nth-child(6) { animation-delay: 0.6s; }
-
-@keyframes menuFadeIn {
-    to { opacity: 1; transform: translateY(0); }
+    /* No animation */
 }
 
 .nav-menu li a {

@@ -17,6 +17,7 @@ RUN apt-get update \
         icu-devtools \
         libicu-dev \
         default-mysql-client \
+        libssl-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j"$(nproc)" gd pdo pdo_mysql mysqli mbstring intl xml zip opcache bcmath \
     && pecl install redis \

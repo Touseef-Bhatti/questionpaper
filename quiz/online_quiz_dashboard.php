@@ -28,12 +28,14 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
   <style>
     .container-narrow { max-width: 1100px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); padding: 20px; }
     .flex { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    .btn { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; text-decoration: none; display: inline-block; text-align: center; transition: transform 0.1s; }
+    .btn:active { transform: scale(0.98); }
     .btn.primary { background: #4f6ef7; color: #fff; }
     .btn.secondary { background: #e9eef8; color: #2d3e50; }
     .btn.danger { background: #ef4444; color: #fff; }
     .muted { color: #6b7280; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .table-responsive { overflow-x: auto; width: 100%; margin-top: 12px; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; } /* Ensure table doesn't squash too much */
     th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; }
     th { background: #f9fafb; font-weight: 700; color: #374151; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 700; }
@@ -41,12 +43,36 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
     .badge.closed { background: #fee2e2; color: #991b1b; }
     .right { float: right; }
     .field { margin: 6px 0; }
-    input.inline { padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 6px; width: 100%; }
+    input.inline { padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 6px; width: 100%; box-sizing: border-box; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
     .status-waiting { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
     .status-active { background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
     .status-completed { background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+        .container-narrow { margin: 10px; padding: 15px; border-radius: 8px; }
+        .grid-2 { grid-template-columns: 1fr; }
+        
+        /* Stack headers */
+        .header-stack { flex-direction: column; align-items: stretch !important; gap: 15px; }
+        .header-stack > div { width: 100%; }
+        .header-stack .flex { width: 100%; justify-content: space-between; }
+        .header-stack h1 { font-size: 1.5rem; margin-bottom: 5px; }
+        
+        /* Mobile Actions */
+        .mobile-actions { flex-direction: column; gap: 8px; }
+        .mobile-actions .btn, .mobile-actions form, .mobile-actions form button { width: 100%; display: block; }
+        .mobile-actions form { margin: 0; }
+        
+        /* Larger touch targets */
+        .btn { padding: 12px; font-size: 1rem; }
+        input.inline, select { height: 44px !important; font-size: 1rem; }
+        
+        /* Stack table actions */
+        td.flex { flex-direction: column; gap: 5px; }
+        td.flex .btn, td.flex form, td.flex form button { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -54,9 +80,9 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
 <div class="main-content">
   <div class="container-narrow">
   <?php if ($room_code === ''): ?>
-    <div class="flex" style="justify-content: space-between;">
+    <div class="flex header-stack" style="justify-content: space-between;">
       <h1 style="margin: 0;">Live Quiz Dashboard</h1>
-      <div class="flex">
+      <div class="flex mobile-actions">
         <form method="GET" action="online_quiz_dashboard.php" class="flex">
           <label class="muted">Status</label>
           <select name="status" class="input inline" style="height: 36px;">
@@ -86,6 +112,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
               ORDER BY r.id DESC LIMIT 200";
       $res = $conn->query($sql);
     ?>
+    <div class="table-responsive">
     <table>
       <thead>
         <tr>
@@ -128,7 +155,8 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
                   <button class="btn primary" type="submit">Open</button>
                 </form>
               <?php endif; ?>
-              <a class="btn secondary" href="online_quiz_export.php?room=<?= h($row['room_code']) ?>">Export Excel File</a>
+              <a class="btn secondary" href="online_quiz_rehost.php?room=<?= h($row['room_code']) ?>" onclick="return confirm('Create a new room with the same questions?');">Rehost</a>
+              <a class="btn secondary" href="online_quiz_export.php?room=<?= h($row['room_code']) ?>">Download Results </a>
               <form method="POST" action="online_quiz_delete_room.php" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete room <?= h($row['room_code']) ?>? This action cannot be undone.');">
                 <input type="hidden" name="room_code" value="<?= h($row['room_code']) ?>" />
                 <button class="btn danger" type="submit">Delete</button>
@@ -140,6 +168,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
         <?php endif; ?>
       </tbody>
     </table>
+    </div>
   <?php else: ?>
     <?php
       // Room detail view - restrict to current user
@@ -167,7 +196,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
         $participants = $pstmt->get_result();
         $pstmt->close();
     ?>
-    <div class="flex" style="justify-content: space-between; align-items: flex-start;">
+    <div class="flex header-stack" style="justify-content: space-between; align-items: flex-start;">
       <div>
         <h1 style="margin:0;">Room <?= h($room['room_code']) ?> <span class="badge <?= $room['status']==='active'?'active':'closed' ?>"><?= h(ucfirst($room['status'])) ?></span></h1>
         <div class="muted">Class: <?= h($room['class_name'] ?? 'Class ' . (int)$room['class_id']) ?> • Book: <?= h($room['book_name'] ?? ('Book ' . (int)$room['book_id'])) ?></div>
@@ -177,7 +206,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
           <input class="inline" readonly value="<?= h(join_url($room['room_code'])) ?>" onclick="this.select();" />
         </div>
       </div>
-      <div class="flex">
+      <div class="flex mobile-actions">
         <a class="btn secondary" href="online_quiz_dashboard.php">Back</a>
         <?php if ($room['status']==='active'): ?>
           <form method="POST" action="online_quiz_room_status.php" style="display:inline;">
@@ -192,6 +221,8 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
             <button class="btn primary" type="submit">Open Room</button>
           </form>
         <?php endif; ?>
+        <a class="btn secondary" href="online_quiz_rehost.php?room=<?= h($room['room_code']) ?>" onclick="return confirm('Create a new room with the same questions?');">Rehost</a>
+        <a class="btn secondary" href="online_quiz_room_questions.php?room=<?= h($room['room_code']) ?>">View/Edit Questions</a>
         <a class="btn secondary" href="online_quiz_export.php?room=<?= h($room['room_code']) ?>">Export CSV</a>
       </div>
     </div>
@@ -199,7 +230,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
     <!-- Lobby Management Section -->
     <?php if (!$room['quiz_started']): ?>
     <div style="background: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 12px; padding: 20px; margin: 20px 0;">
-      <div class="flex" style="justify-content: space-between; align-items: center;">
+      <div class="flex header-stack" style="justify-content: space-between; align-items: center;">
         <div>
           <h3 style="margin: 0 0 8px; color: #0c4a6e;">🏠 Quiz Lobby</h3>
           <p style="margin: 0; color: #075985;">Participants are waiting in the lobby. Start the quiz when ready!</p>
@@ -223,10 +254,13 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
     </div>
     <?php elseif ($room['quiz_started']): ?>
     <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 20px; margin: 20px 0;">
-      <div class="flex" style="justify-content: space-between; align-items: center;">
+      <div class="flex header-stack" style="justify-content: space-between; align-items: center;">
         <div>
           <h3 style="margin: 0 0 8px; color: #15803d;">✅ Quiz In Progress</h3>
-          <p style="margin: 0; color: #166534;">Started: <?= $room['start_time'] ? h($room['start_time']) : 'Just now' ?></p>
+          <p style="margin: 0; color: #166534;">
+            Started: <?= $room['start_time'] ? h($room['start_time']) : 'Just now' ?>
+            <span id="hostTimer" style="margin-left: 15px; font-weight: bold; background: rgba(255,255,255,0.5); padding: 2px 8px; border-radius: 6px;"></span>
+          </p>
         </div>
         <div class="flex">
           <div style="text-align: center; margin-right: 20px;">
@@ -242,6 +276,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
     <?php endif; ?>
 
     <h2 style="margin-top:20px;">Participants</h2>
+    <div class="table-responsive">
     <table>
       <thead>
         <tr>
@@ -254,7 +289,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="participantsBody">
         <?php if ($participants && $participants->num_rows > 0): while ($p = $participants->fetch_assoc()):
               $finished = !empty($p['finished_at']);
               $score = is_null($p['score']) ? '-' : (int)$p['score'];
@@ -291,6 +326,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
         <?php endif; ?>
       </tbody>
     </table>
+    </div>
     <?php } // end room else ?>
   <?php endif; ?>
   </div>
@@ -300,7 +336,126 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
 <script>
 // Dashboard live functionality
 let updateInterval;
+let timerInterval;
 let currentRoomCode = '<?= isset($room['room_code']) ? h($room['room_code']) : '' ?>';
+let currentRoomStatus = '<?= isset($room['status']) ? h($room['status']) : '' ?>';
+
+// Timer logic for Host
+function startHostTimer(startTimeStr, durationMin) {
+    if (!startTimeStr) return;
+    
+    const startTime = new Date(startTimeStr).getTime();
+    const durationMs = durationMin * 60 * 1000;
+    const endTime = startTime + durationMs;
+    
+    function update() {
+        const now = new Date().getTime();
+        const diff = endTime - now;
+        
+        if (diff <= 0) {
+            document.getElementById('hostTimer').textContent = "Time Over";
+            clearInterval(timerInterval);
+
+            // Auto close the room if it's currently active
+            if (currentRoomStatus === 'active') {
+                fetch('online_quiz_close_room.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'room_code=' + encodeURIComponent(currentRoomCode)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' || data.status === 'info') {
+                        // Reload to show closed status
+                        window.location.reload();
+                    }
+                })
+                .catch(err => console.error('Error auto-closing room:', err));
+            }
+            return;
+        }
+        
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        
+        const timerEl = document.getElementById('hostTimer');
+        if (timerEl) {
+            timerEl.textContent = `Time Remaining: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            if (diff < 300000) { // 5 mins
+                timerEl.style.color = '#b91c1c'; // red
+                timerEl.classList.add('pulse'); 
+            }
+        }
+    }
+    
+    update(); // initial call
+    timerInterval = setInterval(update, 1000);
+}
+
+<?php if (isset($room['quiz_started']) && $room['quiz_started'] && isset($room['start_time'])): ?>
+ startHostTimer('<?= $room['start_time'] ?>', <?= (int)$room['quiz_duration_minutes'] ?>);
+ 
+ // Poll for live stats
+ setInterval(() => {
+     fetch(`online_quiz_live_stats.php?room_code=${currentRoomCode}`)
+         .then(res => res.json())
+         .then(data => {
+             if (data.participants) {
+                 const tbody = document.getElementById('participantsBody');
+                 tbody.innerHTML = '';
+                 let active = 0;
+                 
+                 const h = (s) => s ? String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : '';
+                 const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+
+                 data.participants.forEach(p => {
+                     if (p.status === 'active') active++;
+                     
+                     const finished = !!p.finished_at;
+                     const score = p.score !== null ? parseInt(p.score) : '-';
+                     const total = p.total_questions !== null ? parseInt(p.total_questions) : '-';
+                     let percent = '-';
+                     if (score !== '-' && total !== '-' && total > 0) {
+                        percent = Math.round((score / total) * 100) + '%';
+                     }
+                     
+                     let finishedDisplay = h(p.finished_at || '');
+                     if (!finished && p.status === 'active' && p.current_question) {
+                        finishedDisplay += `<div class="muted" style="font-size: 11px;">Q${p.current_question}</div>`;
+                     }
+
+                     let actions = '';
+                     if (finished) {
+                        actions = `<a class="btn secondary" href="online_quiz_participant.php?pid=${p.id}">View</a>`;
+                     } else if (p.status === 'waiting') {
+                        actions = '<span class="muted">Waiting in lobby</span>';
+                     } else {
+                        actions = '<span class="muted">In progress</span>';
+                     }
+
+                     const row = document.createElement('tr');
+                     row.innerHTML = `
+                         <td>
+                            ${h(p.name)}
+                            <div><span class="status-${h(p.status)}">${capitalize(h(p.status))}</span></div>
+                         </td>
+                         <td>${h(p.roll_number)}</td>
+                         <td>${h(p.started_at || '')}</td>
+                         <td>${finishedDisplay}</td>
+                         <td>${score} / ${total}</td>
+                         <td>${percent}</td>
+                         <td>${actions}</td>
+                     `;
+                     tbody.appendChild(row);
+                 });
+                 const ac = document.getElementById('activeCount');
+                 if (ac) ac.textContent = active;
+             }
+         })
+         .catch(console.error);
+ }, 3000);
+ 
+ <?php endif; ?>
 
 function startQuiz(roomCode) {
     const btn = document.getElementById('startQuizBtn');

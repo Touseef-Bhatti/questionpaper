@@ -24,8 +24,11 @@ vendor/
 # 🧠 Build / Dist outputs
 dist/
 build/
+.cache/
 .tmp/
 coverage/
+/cache/*
+!/cache/.gitkeep
 
 
 

@@ -377,5 +377,58 @@ class QuestionService
             $this->getRandomMCQs($chapterId, 20);
         }
     }
+    /**
+     * Get random MCQs by Topics (for mixed topic selection)
+     */
+    public function getRandomMCQsByTopics($topics, $limit)
+    {
+        if (empty($topics)) return [];
+        $limit = intval($limit);
+        
+        // Clean topics array
+        $topics = array_values(array_unique(array_filter(array_map('trim', $topics))));
+        if (empty($topics)) return [];
+
+        // Dynamic query building
+        $conditions = [];
+        $params = [];
+        $types = "";
+        
+        foreach ($topics as $t) {
+            $conditions[] = "topic LIKE ?";
+            $params[] = "%{$t}%";
+            $types .= "s";
+        }
+        
+        $whereClause = implode(" OR ", $conditions);
+        
+        // Use a subquery approach for better performance than simple ORDER BY RAND() on large datasets, 
+        // but given the filtration by topic, the subset might be small enough.
+        // For simplicity and correctness with LIKE, we'll stick to basic RAND() but limit the scan if possible.
+        // A better approach if dataset is huge: Fetch IDs first, shuffle in PHP, then fetch details.
+        
+        $query = "SELECT mcq_id, question, option_a, option_b, option_c, option_d, correct_option 
+                 FROM mcqs 
+                 WHERE ({$whereClause}) 
+                 ORDER BY RAND() 
+                 LIMIT ?";
+        
+        $stmt = $this->conn->prepare($query);
+        
+        // Add limit to params
+        $params[] = $limit;
+        $types .= "i";
+        
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $mcqs = [];
+        while ($row = $result->fetch_assoc()) {
+            $mcqs[] = $row;
+        }
+        
+        return $mcqs;
+    }
 }
 ?>

@@ -4,6 +4,26 @@ include '../db_connect.php';
 require_once 'mcq_generator.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
 
+// Handle AJAX load more topics
+if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
+    // Clear any previous output
+    if (ob_get_length()) ob_clean();
+    header('Content-Type: application/json');
+    $searchQuery = $_POST['search_query'] ?? '';
+    
+    if (!empty($searchQuery)) {
+        try {
+            $relatedTopics = searchTopicsWithGemini($searchQuery);
+            echo json_encode(['success' => true, 'topics' => $relatedTopics]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    } else {
+        echo json_encode(['success' => false, 'error' => 'No search query provided']);
+    }
+    exit;
+}
+
 // Function to calculate similarity percentage between two strings
 function calculateSimilarity($str1, $str2) {
     $str1 = strtolower(trim($str1));
@@ -28,132 +48,96 @@ function calculateSimilarity($str1, $str2) {
 $searchQuery = '';
 $searchResults = [];
 $showResults = false;
+$studyLevel = $_POST['study_level'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !empty(trim($_POST['topic_search']))) {
     $searchQuery = trim($_POST['topic_search']);
+    $studyLevel = $_POST['study_level'] ?? '';
     
     if (!empty($searchQuery)) {
-        // Get all distinct topics from mcqs table
-        $stmt = $conn->prepare("SELECT DISTINCT topic, class_id, book_id, chapter_id FROM mcqs WHERE topic IS NOT NULL AND topic != '' ORDER BY topic");
-        $stmt->execute();
-        $result = $stmt->get_result();
+        $cacheKey = null;
+        $usedCache = false;
         
-        $allTopics = [];
-        while ($row = $result->fetch_assoc()) {
-            $allTopics[] = $row;
-        }
-        $stmt->close();
-        
-        // Filter topics with 50% or more similarity
-        foreach ($allTopics as $topicRow) {
-            $similarity = calculateSimilarity($searchQuery, $topicRow['topic']);
-            if ($similarity >= 50) {
-                $topicRow['similarity'] = round($similarity, 1);
-                $searchResults[] = $topicRow;
+        if (isset($cacheManager) && $cacheManager) {
+            $cacheKey = "topic_search_" . md5($searchQuery);
+            $cached = $cacheManager->get($cacheKey);
+            if ($cached !== false) {
+                $cachedData = json_decode($cached, true);
+                if (is_array($cachedData) && !empty($cachedData)) {
+                    $searchResults = $cachedData;
+                    $showResults = true;
+                    $usedCache = true;
+                }
             }
         }
         
-        // Search AIGeneratedMCQs table
-        $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic IS NOT NULL AND topic != ''");
-        $aiStmt->execute();
-        $aiResult = $aiStmt->get_result();
-        
-        while ($row = $aiResult->fetch_assoc()) {
-            $similarity = calculateSimilarity($searchQuery, $row['topic']);
-            if ($similarity >= 50) {
-                // Check if topic already exists in results
-                $exists = false;
-                foreach ($searchResults as $existing) {
-                    if (strcasecmp($existing['topic'], $row['topic']) === 0) {
-                        $exists = true;
-                        break;
-                    }
-                }
-                
-                if (!$exists) {
+        if (!$usedCache) {
+            $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic IS NOT NULL AND topic != '' ORDER BY topic");
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $allTopics = [];
+            while ($row = $result->fetch_assoc()) {
+                $allTopics[] = $row;
+            }
+            $stmt->close();
+            
+            foreach ($allTopics as $topicRow) {
+                $similarity = calculateSimilarity($searchQuery, $topicRow['topic']);
+                if ($similarity >= 50) {
                     $searchResults[] = [
-                        'topic' => $row['topic'],
-                        'class_id' => 0,
-                        'book_id' => 0,
-                        'chapter_id' => 0,
-                        'similarity' => round($similarity, 1),
-                        'source' => 'ai_generated'
+                        'topic' => $topicRow['topic'],
+                        'similarity' => round($similarity, 1)
                     ];
                 }
             }
-        }
-        $aiStmt->close();
-        
-        // Sort by similarity (highest first)
-        usort($searchResults, function($a, $b) {
-            return $b['similarity'] <=> $a['similarity'];
-        });
-        
-        $showResults = true;
-        
-        // If few results found or Load More requested, search web using Gemini API
-        if (count($searchResults) < 10 || isset($_POST['load_more'])) {
-            // Try to get class_id and book_id from first selected topic (if any)
-            $classId = 0;
-            $bookId = 0;
             
-            // Check if we have selected topics to get class/book info
-            if (isset($_SESSION['selected_topics']) && !empty($_SESSION['selected_topics'])) {
-                $firstSelected = json_decode($_SESSION['selected_topics'][0], true);
-                if ($firstSelected && isset($firstSelected['class_id']) && isset($firstSelected['book_id'])) {
-                    $classId = intval($firstSelected['class_id']);
-                    $bookId = intval($firstSelected['book_id']);
+            $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic IS NOT NULL AND topic != ''");
+            $aiStmt->execute();
+            $aiResult = $aiStmt->get_result();
+            
+            while ($row = $aiResult->fetch_assoc()) {
+                $similarity = calculateSimilarity($searchQuery, $row['topic']);
+                if ($similarity >= 50) {
+                    $exists = false;
+                    foreach ($searchResults as $existing) {
+                        if (strcasecmp($existing['topic'], $row['topic']) === 0) {
+                            $exists = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!$exists) {
+                        $searchResults[] = [
+                            'topic' => $row['topic'],
+                            'similarity' => round($similarity, 1),
+                            'source' => 'ai_generated'
+                        ];
+                    }
+                }
+            }
+            $aiStmt->close();
+            
+            usort($searchResults, function($a, $b) {
+                return $b['similarity'] <=> $a['similarity'];
+            });
+            
+            $showResults = true;
+            
+            if (empty($searchResults)) {
+                $generatedTopics = generateMCQsWithGemini($searchQuery, 10, $studyLevel);
+                if (!empty($generatedTopics)) {
+                    $searchResults[] = [
+                        'topic' => $searchQuery,
+                        'similarity' => 100.0,
+                        'source' => 'ai_generated'
+                    ];
+                    $showResults = true;
                 }
             }
             
-            // If no class/book from selected topics, try to get from most common in database
-            if ($classId == 0 || $bookId == 0) {
-                $commonStmt = $conn->prepare("SELECT class_id, book_id, COUNT(*) as cnt FROM mcqs WHERE topic IS NOT NULL GROUP BY class_id, book_id ORDER BY cnt DESC LIMIT 1");
-                $commonStmt->execute();
-                $commonResult = $commonStmt->get_result();
-                if ($commonRow = $commonResult->fetch_assoc()) {
-                    $classId = intval($commonRow['class_id']);
-                    $bookId = intval($commonRow['book_id']);
-                }
-                $commonStmt->close();
-            }
-            
-            // If we still don't have class/book, get first available
-            if ($classId == 0 || $bookId == 0) {
-                $firstStmt = $conn->prepare("SELECT class_id, book_id FROM mcqs LIMIT 1");
-                $firstStmt->execute();
-                $firstResult = $firstStmt->get_result();
-                if ($firstRow = $firstResult->fetch_assoc()) {
-                    $classId = intval($firstRow['class_id']);
-                    $bookId = intval($firstRow['book_id']);
-                }
-                $firstStmt->close();
-            }
-            
-            // Search web for related topics using Gemini API
-            $webSearchedTopics = searchTopicsWithGemini($searchQuery, $classId, $bookId);
-            
-            if (!empty($webSearchedTopics)) {
-                // Add web-searched topics to search results (deduplicate)
-                $existingTopics = array_column($searchResults, 'topic');
-                foreach ($webSearchedTopics as $webTopic) {
-                     $isDuplicate = false;
-                     foreach ($existingTopics as $existing) {
-                         if (strcasecmp($existing, $webTopic['topic']) === 0) {
-                             $isDuplicate = true;
-                             break;
-                         }
-                     }
-                     if (!$isDuplicate) {
-                         $searchResults[] = $webTopic;
-                         $existingTopics[] = $webTopic['topic'];
-                     }
-                }
-                $showResults = true;
-                
-                // Also auto-generate MCQs for the main search query topic
-                // Removed class/book dependency check
-                generateMCQsWithGemini($searchQuery, 10);
+            if (isset($cacheManager) && $cacheManager && $cacheKey && !empty($searchResults)) {
+                $cacheManager->setex($cacheKey, 86400, json_encode($searchResults));
             }
         }
     }
@@ -179,37 +163,11 @@ if (isset($_POST['start_quiz'])) {
     
     if (!empty($selectedTopics) && $mcqCount > 0) {
         $topicsArray = [];
-        $topicsData = []; // Store full topic data
-        
-        $classId = 0;
-        $bookId = 0;
-        $first = true;
-        $mixed = false;
 
         foreach ($selectedTopics as $topicJson) {
             $topicData = json_decode($topicJson, true);
             if ($topicData && isset($topicData['topic'])) {
                 $topicsArray[] = $topicData['topic'];
-                $topicsData[] = $topicData;
-                
-                // Track if we have a consistent class/book
-                if ($first) {
-                    $classId = intval($topicData['class_id'] ?? 0);
-                    $bookId = intval($topicData['book_id'] ?? 0);
-                    $first = false;
-                } else {
-                    if ($classId !== intval($topicData['class_id'] ?? 0) || $bookId !== intval($topicData['book_id'] ?? 0)) {
-                        $mixed = true;
-                    }
-                }
-            }
-        }
-        
-        if ($mixed) {
-            // Use first topic's class/book for generation
-            if (!empty($topicsData)) {
-                $classId = intval($topicsData[0]['class_id'] ?? 0);
-                $bookId = intval($topicsData[0]['book_id'] ?? 0);
             }
         }
         
@@ -237,19 +195,17 @@ if (isset($_POST['start_quiz'])) {
                 exit;
             }
             
-            // 1. Check mcqs table
-            if ($classId > 0 && $bookId > 0) {
-                $checkStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM mcqs WHERE topic IN ($placeholders) AND class_id = ? AND book_id = ?");
-                $types = str_repeat('s', count($topicsArray)) . 'ii';
-                $params = array_merge($topicsArray, [$classId, $bookId]);
-                $checkStmt->bind_param($types, ...$params);
-                $checkStmt->execute();
-                $checkResult = $checkStmt->get_result();
-                if ($row = $checkResult->fetch_assoc()) {
-                    $existingCount += intval($row['cnt']);
-                }
-                $checkStmt->close();
+            // 1. Check mcqs table (any class/book)
+            $checkStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM mcqs WHERE topic IN ($placeholders)");
+            $types = str_repeat('s', count($topicsArray));
+            $params = $topicsArray;
+            $checkStmt->bind_param($types, ...$params);
+            $checkStmt->execute();
+            $checkResult = $checkStmt->get_result();
+            if ($row = $checkResult->fetch_assoc()) {
+                $existingCount += intval($row['cnt']);
             }
+            $checkStmt->close();
             
             // 2. Check AIGeneratedMCQs table
             $aiCheckStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM AIGeneratedMCQs WHERE topic IN ($placeholders)");
@@ -277,21 +233,19 @@ if (isset($_POST['start_quiz'])) {
                     
                     $toGenerate = min($mcqsPerTopic, $neededCount - $generatedTotal);
                     if ($toGenerate > 0) {
-                        $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate);
+                        $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate, $studyLevel);
                         $generatedTotal += count($generatedMCQs);
                     }
                 }
             }
             
-            // Redirect to quiz.php with multiple topics
+            // Redirect to quiz.php with multiple topics (topics-only)
             $topicsParam = urlencode(json_encode($topicsArray));
-            header('Location: quiz.php?class_id=' . $classId . '&book_id=' . $bookId . '&topics=' . $topicsParam . '&mcq_count=' . $mcqCount);
+            header('Location: quiz.php?class_id=0&book_id=0&topics=' . $topicsParam . '&mcq_count=' . $mcqCount . '&study_level=' . urlencode($studyLevel));
             exit;
         } else {
             if (empty($topicsArray)) {
                 $error = "Please select at least one topic.";
-            } elseif ($classId == 0 || $bookId == 0) {
-                $error = "Unable to determine class and book. Please ensure topics have class and book information.";
             } else {
                 $error = "Please specify the number of MCQs (1-50).";
             }
@@ -311,14 +265,19 @@ if (isset($_POST['start_quiz'])) {
     <link rel="stylesheet" href="../css/quiz_setup.css">
     <style>
         .topic-search-container {
-            max-width: 900px;
+            max-width: 60%;
             margin: 0 auto;
             background: var(--white);
             padding: 40px;
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-lg);
         }
-        
+        @media (max-width: 768px) {
+            .topic-search-container {
+                max-width: 90%;
+                padding: 20px;
+            }
+        }
         .search-section {
             margin-bottom: 32px;
         }
@@ -495,6 +454,23 @@ if (isset($_POST['start_quiz'])) {
             margin-bottom: 20px;
         }
         
+        .loader-progress {
+            width: 260px;
+            max-width: 80%;
+            height: 8px;
+            border-radius: 999px;
+            background: #e5e7eb;
+            margin: 24px auto 0 auto;
+            overflow: hidden;
+        }
+        
+        .loader-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #6366f1, #22c55e);
+            transition: width 0.2s ease-out;
+        }
+        
         .selected-topic-badge {
             background: var(--primary-color);
             color: white;
@@ -614,6 +590,60 @@ if (isset($_POST['start_quiz'])) {
             font-weight: bold;
             font-size: 1.2rem;
         }
+
+        /* Honeycomb Loader Styles */
+        @-webkit-keyframes honeycomb { 
+            0%, 20%, 80%, 100% { opacity: 0; -webkit-transform: scale(0); transform: scale(0); } 
+            30%, 70% { opacity: 1; -webkit-transform: scale(1); transform: scale(1); } 
+        } 
+        @keyframes honeycomb { 
+            0%, 20%, 80%, 100% { opacity: 0; -webkit-transform: scale(0); transform: scale(0); } 
+            30%, 70% { opacity: 1; -webkit-transform: scale(1); transform: scale(1); } 
+        } 
+        
+        .honeycomb { 
+            height: 24px; 
+            position: relative; 
+            width: 24px; 
+            margin: 0 auto;
+        } 
+        
+        .honeycomb div { 
+            -webkit-animation: honeycomb 2.1s infinite backwards; 
+            animation: honeycomb 2.1s infinite backwards; 
+            background: var(--primary-color); 
+            height: 12px; 
+            margin-top: 6px; 
+            position: absolute; 
+            width: 24px; 
+        } 
+        
+        .honeycomb div:after, .honeycomb div:before { 
+            content: ''; 
+            border-left: 12px solid transparent; 
+            border-right: 12px solid transparent; 
+            position: absolute; 
+            left: 0; 
+            right: 0; 
+        } 
+        
+        .honeycomb div:after { 
+            top: -6px; 
+            border-bottom: 6px solid var(--primary-color); 
+        } 
+        
+        .honeycomb div:before { 
+            bottom: -6px; 
+            border-top: 6px solid var(--primary-color); 
+        } 
+        
+        .honeycomb div:nth-child(1) { -webkit-animation-delay: 0s; animation-delay: 0s; left: -28px; top: 0; } 
+        .honeycomb div:nth-child(2) { -webkit-animation-delay: 0.1s; animation-delay: 0.1s; left: -14px; top: 22px; } 
+        .honeycomb div:nth-child(3) { -webkit-animation-delay: 0.2s; animation-delay: 0.2s; left: 14px; top: 22px; } 
+        .honeycomb div:nth-child(4) { -webkit-animation-delay: 0.3s; animation-delay: 0.3s; left: 28px; top: 0; } 
+        .honeycomb div:nth-child(5) { -webkit-animation-delay: 0.4s; animation-delay: 0.4s; left: 14px; top: -22px; } 
+        .honeycomb div:nth-child(6) { -webkit-animation-delay: 0.5s; animation-delay: 0.5s; left: -14px; top: -22px; } 
+        .honeycomb div:nth-child(7) { -webkit-animation-delay: 0.6s; animation-delay: 0.6s; left: 0; top: 0; }
     </style>
 </head>
 <body>
@@ -663,10 +693,11 @@ if (isset($_POST['start_quiz'])) {
                     <div class="hint" style="margin: 0;">MCQs will be randomly selected from all your selected topics (Max: 50)</div>
                 </div>
                 
-                <form method="POST" action="" id="startQuizForm">
+            <form method="POST" action="" id="startQuizForm">
                     <input type="hidden" name="mcq_count" id="hidden_mcq_count">
                     <input type="hidden" name="source" value="<?= htmlspecialchars($source) ?>">
                     <input type="hidden" name="quiz_duration" value="<?= htmlspecialchars($quizDuration) ?>">
+                    <input type="hidden" name="study_level" value="<?= htmlspecialchars($studyLevel) ?>">
                     <div id="hidden_topics_inputs"></div>
                     <button type="submit" name="start_quiz" class="start-quiz-btn" id="startQuizBtn" disabled>
                         Start Quiz with Selected Topics
@@ -683,6 +714,16 @@ if (isset($_POST['start_quiz'])) {
                 <input type="hidden" name="quiz_duration" value="<?= htmlspecialchars($quizDuration) ?>">
                 <input type="hidden" name="mcq_count" value="<?= htmlspecialchars($_REQUEST['mcq_count'] ?? $_POST['mcq_count'] ?? 10) ?>">
                 
+                <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+                    <label for="study_level" style="font-weight: 600;">Level:</label>
+                    <select name="study_level" id="study_level" class="input inline" style="max-width: 260px;">
+                        <option value="">Select level (optional)</option>
+                        <option value="school" <?= $studyLevel === 'school' ? 'selected' : '' ?>>School</option>
+                        <option value="college" <?= $studyLevel === 'college' ? 'selected' : '' ?>>College</option>
+                        <option value="university" <?= $studyLevel === 'university' ? 'selected' : '' ?>>University</option>
+                    </select>
+                </div>
+                
                 <div class="search-input-wrapper">
                     <input 
                         type="text" 
@@ -697,6 +738,23 @@ if (isset($_POST['start_quiz'])) {
                 </div>
             </form>
         </div>
+
+        <!-- Inline Loader (Hidden by default) -->
+        <div id="inlineLoader" style="display:none; padding: 40px 0; text-align: center;">
+            <div class="honeycomb"> 
+               <div></div> 
+               <div></div> 
+               <div></div> 
+               <div></div> 
+               <div></div> 
+               <div></div> 
+               <div></div> 
+            </div>
+            <div class="loader-progress">
+                <div class="loader-progress-bar" id="loaderProgressBar"></div>
+            </div>
+            <div id="loaderText" style="margin-top: 16px; color: var(--text-muted); font-weight: 500; font-size: 1.1rem;">Searching...</div>
+        </div>
         
         <?php if ($showResults && !empty($searchResults)): ?>
             <div class="results-section">
@@ -709,8 +767,6 @@ if (isset($_POST['start_quiz'])) {
                         <?php foreach ($searchResults as $index => $result): 
                             $topicData = [
                                 'topic' => $result['topic'],
-                                'class_id' => $result['class_id'],
-                                'book_id' => $result['book_id'],
                                 'similarity' => $result['similarity']
                             ];
                             $topicJson = htmlspecialchars(json_encode($topicData), ENT_QUOTES);
@@ -725,33 +781,57 @@ if (isset($_POST['start_quiz'])) {
                     </div>
                     
                     <div style="text-align: center; margin-top: 24px;">
-                        <button type="button" onclick="triggerLoadMore()" class="btn secondary" style="padding: 10px 24px; cursor: pointer; background: #6366f1; color: white; border: none; border-radius: 8px; font-weight: 600;">
-                            Load More Topics 
+                        <button type="button" id="loadMoreTopicsBtn" class="search-btn" style="position: static; transform: none; min-width: 200px;">
+                            Load More Topics (AI)
                         </button>
+                        <div id="loadMoreLoader" style="display:none; width: 100%; max-width: 300px; margin: 10px auto;">
+                             <div class="loader-progress" style="margin: 0 auto;">
+                                 <div class="loader-progress-bar" id="loadMoreProgressBar" style="width:0%"></div>
+                             </div>
+                             <div style="text-align:center; margin-top:8px; color:var(--text-muted); font-size:0.9rem;">Searching for related topics...</div>
+                        </div>
                     </div>
-                    
-                    <script>
-                    function triggerLoadMore() {
-                        const form = document.getElementById('searchForm');
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = 'load_more';
-                        input.value = '1';
-                        form.appendChild(input);
-                        // Update selected topics before submit
-                        if (typeof saveSelectedTopicsToSession === 'function') {
-                            saveSelectedTopicsToSession();
-                        }
-                        form.submit();
-                    }
-                    </script>
                 <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>
 </div>
 
+<!-- Loader Overlay Removed -->
+
 <script>
+let loaderProgressInterval;
+
+function showLoader(title = 'Processing...', subtitle = '') {
+    const loader = document.getElementById('inlineLoader');
+    const titleEl = document.getElementById('loaderText');
+    const progressBar = document.getElementById('loaderProgressBar');
+    const resultsSection = document.querySelector('.results-section');
+    const noResults = document.querySelector('.no-results');
+    
+    if (loader) {
+        if (titleEl) titleEl.textContent = title;
+        loader.style.display = 'block';
+        
+        if (resultsSection) resultsSection.style.display = 'none';
+        if (noResults) noResults.style.display = 'none';
+        
+        if (progressBar) {
+            progressBar.style.width = '0%';
+            let progress = 0;
+            if (loaderProgressInterval) clearInterval(loaderProgressInterval);
+            loaderProgressInterval = setInterval(function() {
+                progress += 5;
+                if (progress >= 95) {
+                    progress = 95;
+                    clearInterval(loaderProgressInterval);
+                }
+                progressBar.style.width = progress + '%';
+            }, 200);
+        }
+    }
+}
+
 // Initialize selected topics from PHP session
 let selectedTopics = [];
 <?php
@@ -762,12 +842,11 @@ if (isset($_SESSION['selected_topics']) && is_array($_SESSION['selected_topics']
 
 function toggleTopic(element, topicJson) {
     const topicData = JSON.parse(topicJson);
-    const topicKey = topicData.topic + '_' + topicData.class_id + '_' + topicData.book_id;
     
-    // Check if topic is already selected
+    // Check if topic is already selected (topic-only)
     const index = selectedTopics.findIndex(t => {
         const tData = JSON.parse(t);
-        return tData.topic === topicData.topic && tData.class_id === topicData.class_id && tData.book_id === topicData.book_id;
+        return tData.topic === topicData.topic;
     });
     
     if (index > -1) {
@@ -791,7 +870,7 @@ function removeTopic(topicJson) {
         selectedTopics = selectedTopics.filter(t => {
             try {
                 const tData = JSON.parse(t);
-                return !(tData.topic === topicData.topic && tData.class_id === topicData.class_id && tData.book_id === topicData.book_id);
+                return !(tData.topic === topicData.topic);
             } catch(e) {
                 return true;
             }
@@ -803,7 +882,7 @@ function removeTopic(topicJson) {
             if (itemData) {
                 try {
                     const itemTopicData = JSON.parse(itemData);
-                    if (itemTopicData.topic === topicData.topic && itemTopicData.class_id === topicData.class_id && itemTopicData.book_id === topicData.book_id) {
+                    if (itemTopicData.topic === topicData.topic) {
                         item.classList.remove('selected');
                     }
                 } catch(e) {
@@ -831,6 +910,7 @@ function clearAllTopics() {
 // Save topics before form submission
 document.getElementById('searchForm')?.addEventListener('submit', function() {
     saveSelectedTopicsToSession();
+    showLoader('Searching Topics...', 'We are searching for relevant topics. This might involve an AI lookup.');
 });
 
 function saveSelectedTopicsToSession() {
@@ -970,6 +1050,9 @@ document.getElementById('startQuizForm')?.addEventListener('submit', function(e)
     });
     
     hiddenMcqCount.value = mcqCountInput.value;
+
+    // Show loader
+    showLoader('Generating Quiz...', 'We are creating unique MCQs for you. This usually takes 10-30 seconds depending on complexity.');
 });
 
 // Initialize on page load
@@ -985,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (itemData) {
                     try {
                         const itemTopicData = JSON.parse(itemData);
-                        if (itemTopicData.topic === topicData.topic && itemTopicData.class_id === topicData.class_id && itemTopicData.book_id === topicData.book_id) {
+                        if (itemTopicData.topic === topicData.topic) {
                             item.classList.add('selected');
                         }
                     } catch(e) {}
@@ -995,6 +1078,124 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     updateSelectedTopicsUI();
+});
+
+document.getElementById('loadMoreTopicsBtn')?.addEventListener('click', function() {
+    const btn = this;
+    const loader = document.getElementById('loadMoreLoader');
+    const progressBar = document.getElementById('loadMoreProgressBar');
+    const searchQuery = document.getElementById('topic_search').value;
+    
+    if (!searchQuery) return;
+    
+    // UI Loading State
+    btn.style.display = 'none';
+    if (loader) {
+        loader.style.display = 'block';
+        if (progressBar) {
+            progressBar.style.width = '0%';
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 90) clearInterval(interval);
+                else {
+                    width += 5;
+                    progressBar.style.width = width + '%';
+                }
+            }, 300);
+            
+            // Store interval to clear it later
+            btn.dataset.intervalId = interval;
+        }
+    }
+    
+    const formData = new FormData();
+    formData.append('action', 'load_more_topics');
+    formData.append('search_query', searchQuery);
+    
+    fetch('mcqs_topic.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (progressBar) progressBar.style.width = '100%';
+        
+        if (data.success && data.topics && data.topics.length > 0) {
+            const list = document.querySelector('.topic-list');
+            let addedCount = 0;
+            
+            data.topics.forEach(topic => {
+                // Check if topic already exists in list (by text content)
+                let exists = false;
+                document.querySelectorAll('.topic-name').forEach(el => {
+                    if (el.textContent.trim().toLowerCase() === topic.topic.trim().toLowerCase()) {
+                        exists = true;
+                    }
+                });
+                
+                if (!exists) {
+                    const topicData = {
+                        topic: topic.topic,
+                        similarity: topic.similarity || 85.0
+                    };
+                    const topicJson = JSON.stringify(topicData).replace(/"/g, '&quot;');
+                    
+                    const div = document.createElement('div');
+                    div.className = 'topic-item';
+                    div.setAttribute('data-topic-data', JSON.stringify(topicData));
+                    div.onclick = function() { toggleTopic(this, JSON.stringify(topicData)); };
+                    
+                    div.innerHTML = `
+                        <div class="topic-info">
+                            <div class="topic-name">${topic.topic}</div>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                    addedCount++;
+                }
+            });
+            
+            if (addedCount === 0) {
+                alert('No new unique topics found.');
+            }
+            
+            // Check if selected topics match any new ones
+            if (typeof selectedTopics !== 'undefined') {
+                selectedTopics.forEach(topicJson => {
+                    try {
+                        const topicData = JSON.parse(topicJson);
+                        document.querySelectorAll('.topic-item').forEach(item => {
+                            const itemData = item.getAttribute('data-topic-data');
+                            if (itemData) {
+                                try {
+                                    const itemTopicData = JSON.parse(itemData);
+                                    if (itemTopicData.topic === topicData.topic) {
+                                        item.classList.add('selected');
+                                    }
+                                } catch(e) {}
+                            }
+                        });
+                    } catch(e) {}
+                });
+            }
+            
+        } else {
+            alert(data.error || 'No more topics found.');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('An error occurred while fetching more topics.');
+    })
+    .finally(() => {
+        setTimeout(() => {
+            if (loader) loader.style.display = 'none';
+            // Button stays hidden after search
+            // btn.style.display = 'inline-block';
+            if (btn.dataset.intervalId) clearInterval(Number(btn.dataset.intervalId));
+            if (progressBar) progressBar.style.width = '0%';
+        }, 500);
+    });
 });
 </script>
 <?php include '../footer.php'; ?>

@@ -348,7 +348,7 @@ if (safeCountTable($conn, 'user_subscriptions') > 0) {
                                 </td>
                                 <td><?= date('M j, Y H:i', strtotime($user['created_at'])) ?></td>
                                 <td>
-                                    <a href="get_user_details.php?id=<?= $user['id'] ?>" class="btn-small btn-primary">View Details</a>
+                                    <button class="btn-small btn-primary" onclick="showUserDetails(<?= $user['id'] ?>)">View Details</button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -464,7 +464,7 @@ if (safeCountTable($conn, 'user_subscriptions') > 0) {
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <a href="get_user_details.php?id=<?= $sub['user_id'] ?>" class="btn-small btn-primary">View User</a>
+                                <button class="btn-small btn-primary" onclick="showUserDetails(<?= $sub['user_id'] ?>)">View User</button>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -503,6 +503,84 @@ if (safeCountTable($conn, 'user_subscriptions') > 0) {
             </div>
         </div>
     </div>
+    
+    <!-- User Details Modal -->
+    <div id="userDetailsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1050;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #e1e5e9; position: sticky; top: 0; background: white;">
+                <h5 style="margin: 0; color: #1e3c72; font-weight: 600;">User Details</h5>
+                <button onclick="closeUserDetailsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">&times;</button>
+            </div>
+            <div id="userDetailsContent" style="padding: 24px;">
+                <div style="text-align: center; padding: 40px;">
+                    <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #f3f4f6; border-top-color: #1e3c72; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <p style="margin-top: 16px; color: #6b7280;">Loading user details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-small.btn-primary {
+            background: #1e3c72;
+            color: white;
+        }
+        .btn-small.btn-primary:hover {
+            background: #152d52;
+        }
+    </style>
+    
+    <script>
+        function showUserDetails(userId) {
+            const modal = document.getElementById('userDetailsModal');
+            const content = document.getElementById('userDetailsContent');
+            
+            // Show modal
+            modal.style.display = 'block';
+            
+            // Show loading state
+            content.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #f3f4f6; border-top-color: #1e3c72; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 16px; color: #6b7280;">Loading user details...</p></div>';
+            
+            // Fetch user details
+            fetch('get_user_details.php?id=' + userId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        content.innerHTML = data.html;
+                    } else {
+                        content.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;"><i class="fas fa-exclamation-circle"></i> Error: ' + (data.error || 'Failed to load user details') + '</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching user details:', error);
+                    content.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;"><i class="fas fa-exclamation-circle"></i> Error loading user details. Please try again.</div>';
+                });
+        }
+        
+        function closeUserDetailsModal() {
+            const modal = document.getElementById('userDetailsModal');
+            modal.style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('userDetailsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeUserDetailsModal();
+            }
+        });
+    </script>
+    
     <?php include __DIR__ . '/../footer.php'; ?>
 </body>
 </html>

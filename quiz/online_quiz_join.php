@@ -13,6 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($room_code === '' || $name === '' || $roll === '') {
         $error = 'All fields are required.';
+    } elseif (!ctype_digit($roll)) {
+        $error = 'Roll Number must contain only numbers.';
     } else {
         // Lookup room and check lobby settings
         $stmt = $conn->prepare("SELECT id, status, lobby_enabled, quiz_started FROM quiz_rooms WHERE room_code = ?");

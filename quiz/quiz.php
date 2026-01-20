@@ -125,7 +125,7 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
     $params[] = $needed;
     $types .= 'i';
     
-    $aiSql = "SELECT id, question, option_a, option_b, option_c, option_d, correct_option 
+    $aiSql = "SELECT mcq_id, question, option_a, option_b, option_c, option_d, correct_option 
               FROM AIGeneratedMCQs 
               WHERE topic IN ($placeholders) 
               ORDER BY RAND() 
@@ -139,7 +139,7 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
         
         while ($row = $result->fetch_assoc()) {
             $questions[] = [
-                'mcq_id' => 'ai_' . $row['id'],
+                'mcq_id' => 'ai_' . $row['mcq_id'],
                 'question' => $row['question'],
                 'option_a' => $row['option_a'],
                 'option_b' => $row['option_b'],
@@ -177,7 +177,7 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
                 if ($generatedCount >= $neededCount) break;
                 
                 $questions[] = [
-                    'mcq_id' => 'ai_' . ($genMCQ['id'] ?? uniqid()),
+                    'mcq_id' => 'ai_' . ($genMCQ['mcq_id'] ?? uniqid()),
                     'question' => $genMCQ['question'],
                     'option_a' => $genMCQ['option_a'],
                     'option_b' => $genMCQ['option_b'],

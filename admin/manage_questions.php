@@ -9,25 +9,7 @@ $colCheck = $conn->query("SHOW COLUMNS FROM questions LIKE 'book_name'");
 if ($colCheck && $colCheck->num_rows > 0) { $hasBookName = true; }
 
 // Create mcqs table if it doesn't exist
-$conn->query(
-    "CREATE TABLE IF NOT EXISTS `mcqs` (
-        `mcq_id` int(11) NOT NULL AUTO_INCREMENT,
-        `class_id` int(11) NOT NULL,
-        `book_id` int(11) NOT NULL,
-        `chapter_id` int(11) NOT NULL,
-        `topic` varchar(255) NOT NULL,
-        `question` text NOT NULL,
-        `option_a` varchar(255) NOT NULL,
-        `option_b` varchar(255) NOT NULL,
-        `option_c` varchar(255) NOT NULL,
-        `option_d` varchar(255) NOT NULL,
-        `correct_option` varchar(255) DEFAULT NULL,
-        PRIMARY KEY (`mcq_id`),
-        KEY `class_id` (`class_id`),
-        KEY `book_id` (`book_id`),
-        KEY `chapter_id` (`chapter_id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
-);
+// Schema creation moved to install.php
 
 // Detect column naming for type/text: either (question_type, question_text) or (type, text)
 $hasQuestionType = false;
@@ -40,18 +22,7 @@ if ($colTextCheck && $colTextCheck->num_rows > 0) { $hasQuestionText = true; }
 $typeCol = ($hasQuestionType ? 'question_type' : 'type');
 $textCol = ($hasQuestionText ? 'question_text' : 'text');
 
-$conn->query(
-    "CREATE TABLE IF NOT EXISTS deleted_questions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        question_id INT NOT NULL,
-        class_id INT NOT NULL,
-        book_name VARCHAR(191) NULL,
-        chapter_id INT NOT NULL,
-        question_type ENUM('mcq','short','long') NOT NULL,
-        question_text TEXT NOT NULL,
-        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-);
+// Schema creation moved to install.php
 
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

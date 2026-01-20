@@ -30,10 +30,15 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
 </head>
 
 <body>
-    <div class="quiz-creator">
+        <div class="quiz-creator">
         <div class="creator-header">
-            <h1>🚀 Create Quiz Room</h1>
-            <p class="subtitle">Welcome back, <?= htmlspecialchars($user_name) ?>! Let's create an amazing quiz experience.</p>
+            <div>
+                <h1>🚀 Create Quiz Room</h1>
+                <p class="subtitle">Welcome back, <?= htmlspecialchars($user_name) ?>! Let's create an amazing quiz experience.</p>
+            </div>
+            <a href="online_quiz_dashboard.php" class="btn btn-secondary" style="text-decoration: none; white-space: nowrap;">
+                ← Back to Dashboard
+            </a>
         </div>
         
         <?php
@@ -77,11 +82,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                                 </div>
                                 <input type="hidden" name="topics" value="<?= htmlspecialchars(json_encode($selectedTopics)) ?>">
                                 
-                                <div style="margin-top: 15px; border-top: 1px dashed #bbf7d0; padding-top: 10px;">
-                                    <button type="button" class="btn btn-sm" onclick="previewQuestions()" style="width: 100%; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;">
-                                        👁️ View Available Questions
-                                    </button>
-                                </div>
+
                             </div>
                             <?php endif; ?>
                         </div>
@@ -171,6 +172,9 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                             <button type="button" class="btn btn-secondary" style="color: black;border: 1px solid black;" onclick="addCustomQuestion()">
                                 ➕ Add Question
                             </button>
+                            <button type="button" class="btn btn-secondary" style="color: black;border: 1px solid black;" onclick="openSavedQuestionsModal()">
+                                📂 Select from Saved Questions
+                            </button>
                             <button type="button" class="btn btn-secondary" style="color: black;border: 1px solid black;" onclick="clearCustomQuestions()">
                                 🗑️ Clear All
                             </button>
@@ -178,18 +182,245 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                         
                         <div id="customQuestionsList"></div>
                         <input type="hidden" name="custom_mcqs" id="custom_mcqs">
+                        <input type="hidden" name="selected_mcq_ids" id="selected_mcq_ids_input">
                     </div>
                 </div>
+
+                <!-- Saved Questions Modal -->
+                <div id="savedQuestionsModal" class="modal-overlay" style="display: none;">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>📂 Select Saved Questions</h3>
+                            <button type="button" class="close-btn" onclick="closeSavedQuestionsModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="savedQuestionsLoader" class="loader-container" style="display: none;">
+                                <div class="spinner"></div>
+                                <div style="margin-top: 10px;">Loading questions...</div>
+                            </div>
+                            <div id="savedQuestionsList">
+                                <!-- Questions will be loaded here -->
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeSavedQuestionsModal()">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="addSelectedSavedQuestions()">Add Selected Questions</button>
+                        </div>
+                    </div>
+                </div>
+
+                <style>
+                    /* Modal Styling */
+                    .modal-overlay {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0, 0, 0, 0.6);
+                        backdrop-filter: blur(4px);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 1000;
+                        animation: fadeIn 0.2s ease-out;
+                    }
+
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+
+                    .modal-content {
+                        background: #ffffff;
+                        width: 90%;
+                        max-width: 800px;
+                        max-height: 85vh;
+                        border-radius: 12px;
+                        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
+                        animation: slideUp 0.3s ease-out;
+                    }
+
+                    @keyframes slideUp {
+                        from { transform: translateY(20px); opacity: 0; }
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+
+                    .modal-header {
+                        padding: 20px 24px;
+                        border-bottom: 1px solid #e5e7eb;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        background: #f9fafb;
+                    }
+
+                    .modal-header h3 {
+                        margin: 0;
+                        font-size: 1.25rem;
+                        font-weight: 600;
+                        color: #111827;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+
+                    .close-btn {
+                        background: none;
+                        border: none;
+                        font-size: 1.5rem;
+                        color: #6b7280;
+                        cursor: pointer;
+                        padding: 4px;
+                        border-radius: 4px;
+                        transition: all 0.2s;
+                        line-height: 1;
+                    }
+
+                    .close-btn:hover {
+                        color: #ef4444;
+                        background: #fee2e2;
+                    }
+
+                    .modal-body {
+                        padding: 24px;
+                        overflow-y: auto;
+                        flex: 1;
+                        background: #f3f4f6;
+                    }
+
+                    /* Custom Scrollbar */
+                    .modal-body::-webkit-scrollbar {
+                        width: 8px;
+                    }
+                    .modal-body::-webkit-scrollbar-track {
+                        background: #f1f1f1;
+                    }
+                    .modal-body::-webkit-scrollbar-thumb {
+                        background: #d1d5db;
+                        border-radius: 4px;
+                    }
+                    .modal-body::-webkit-scrollbar-thumb:hover {
+                        background: #9ca3af;
+                    }
+
+                    .modal-footer {
+                        padding: 16px 24px;
+                        border-top: 1px solid #e5e7eb;
+                        background: #ffffff;
+                        display: flex;
+                        justify-content: flex-end;
+                        gap: 12px;
+                    }
+
+                    /* Saved Question Item */
+                    .saved-question-item {
+                        background: white;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        padding: 16px;
+                        margin-bottom: 12px;
+                        display: flex;
+                        gap: 16px;
+                        transition: all 0.2s ease;
+                        cursor: pointer;
+                        position: relative;
+                    }
+
+                    .saved-question-item:hover {
+                        border-color: #6366f1;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                        transform: translateY(-1px);
+                    }
+
+                    .saved-question-checkbox {
+                        margin-top: 4px;
+                        width: 18px;
+                        height: 18px;
+                        cursor: pointer;
+                        accent-color: #6366f1;
+                    }
+
+                    .saved-question-content {
+                        flex: 1;
+                    }
+
+                    .saved-question-text {
+                        font-size: 1rem;
+                        font-weight: 600;
+                        color: #1f2937;
+                        margin-bottom: 12px;
+                        line-height: 1.5;
+                    }
+
+                    .saved-question-options {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 8px;
+                        font-size: 0.9rem;
+                    }
+
+                    @media (max-width: 640px) {
+                        .saved-question-options {
+                            grid-template-columns: 1fr;
+                        }
+                    }
+
+                    .option-pill {
+                        padding: 8px 12px;
+                        background: #f9fafb;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 6px;
+                        color: #4b5563;
+                        display: flex;
+                        align-items: center;
+                    }
+                    
+                    .option-pill strong {
+                        margin-right: 8px;
+                        color: #6b7280;
+                    }
+
+                    .option-pill.correct {
+                        background-color: #ecfdf5;
+                        border-color: #34d399;
+                        color: #065f46;
+                    }
+                    
+                    .option-pill.correct strong {
+                        color: #059669;
+                    }
+
+                    .loader-container {
+                        text-align: center;
+                        padding: 40px;
+                        color: #6b7280;
+                    }
+
+                    .spinner {
+                        width: 40px;
+                        height: 40px;
+                        border: 3px solid #e5e7eb;
+                        border-top: 3px solid #6366f1;
+                        border-radius: 50%;
+                        margin: 0 auto;
+                        animation: spin 1s linear infinite;
+                    }
+
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
 
                 <!-- Quiz Preview -->
                 <div class="preview-section">
                     <h3 style="margin: 0 0 20px; color: #0369a1; display: flex; justify-content: space-between; align-items: center;">
                         <span>📊 Quiz Preview</span>
-                        <?php if (!$hasTopics): ?>
-                        <button type="button" class="btn btn-sm" onclick="previewQuestions()" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;">
-                            👁️ View Available Questions
-                        </button>
-                        <?php endif; ?>
+
                     </h3>
                     <div class="preview-stats">
                         <div class="stat-card">
@@ -224,214 +455,10 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
         </div>
     </div>
 
-    <!-- Question Preview Modal -->
-    <div id="previewModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
-        <div class="modal-content" style="background-color: #fefefe; margin: 5% auto; padding: 0; border: 1px solid #888; width: 80%; max-width: 800px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-            <div class="modal-header" style="padding: 15px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border-radius: 12px 12px 0 0;">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <h3 style="margin: 0; color: #111827;">Available Questions Preview</h3>
-                    <button id="regenerateBtn" type="button" class="btn btn-sm" onclick="regenerateQuestions()" style="display: none; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-size: 0.85em; padding: 6px 12px; align-items: center; gap: 5px;">
-                        🔄 Generate More 
-                    </button>
-                </div>
-                <span class="close" onclick="closePreviewModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-            </div>
-            <div class="modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
-                <div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
-                    <span>ℹ️</span>
-                    <span><strong>Note:</strong> Correct answers are highlighted in <strong style="color: #16a34a;">green</strong>. Use the dropdown menu to change the correct answer key if needed.</span>
-                </div>
-                <div id="previewLoading" style="text-align: center; padding: 20px;">
-                    <div class="spinner" style="width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid #6366f1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
-                    <p id="previewLoadingText">Loading questions...</p>
-                </div>
-                <div id="previewContent"></div>
-            </div>
-            <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid #e5e7eb; text-align: right; background: #f9fafb; border-radius: 0 0 12px 12px;">
-                <span id="previewCount" style="float: left; color: #6b7280; font-size: 0.9em; padding-top: 8px;"></span>
-                <button type="button" class="btn btn-secondary" onclick="closePreviewModal()">Close</button>
-            </div>
-        </div>
-    </div>
+
 
     <script>
-        function closePreviewModal() {
-            document.getElementById('previewModal').style.display = 'none';
-        }
 
-        function previewQuestions() {
-            const modal = document.getElementById('previewModal');
-            const content = document.getElementById('previewContent');
-            const loading = document.getElementById('previewLoading');
-            const loadingText = document.getElementById('previewLoadingText');
-            const countSpan = document.getElementById('previewCount');
-            const regenerateBtn = document.getElementById('regenerateBtn');
-            
-            modal.style.display = 'block';
-            content.innerHTML = '';
-            loading.style.display = 'block';
-            loadingText.textContent = 'Loading questions...';
-            countSpan.textContent = '';
-            
-            // Collect form data
-            const formData = new FormData();
-            
-            // Check for topics
-            const topicsInput = document.querySelector('input[name="topics"]');
-            if (topicsInput) {
-                formData.append('topics', topicsInput.value);
-                if (regenerateBtn) regenerateBtn.style.display = 'flex';
-            } else {
-                if (regenerateBtn) regenerateBtn.style.display = 'none';
-                // Check for class/book
-                const classId = document.getElementById('class_id').value;
-                const bookId = document.getElementById('class_id').value ? document.getElementById('book_id').value : '';
-                const chapterIds = document.getElementById('chapter_ids').value;
-                
-                formData.append('class_id', classId);
-                formData.append('book_id', bookId);
-                formData.append('chapter_ids', chapterIds);
-                
-                if (!classId || (!topicsInput && !bookId)) {
-                    loading.style.display = 'none';
-                    content.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">Please select Class and Book (or Topics) first to view questions.</div>';
-                    return;
-                }
-            }
-            
-            // Fetch questions
-            fetch('ajax_preview_questions.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                loading.style.display = 'none';
-                if (data.success) {
-                    if (data.questions.length === 0) {
-                        content.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">No questions found matching your criteria.</div>';
-                        countSpan.textContent = '0 questions found';
-                    } else {
-                        let html = '<div style="display: flex; flex-direction: column; gap: 15px;">';
-                        data.questions.forEach((q, index) => {
-                            const badgeColor = q.source === 'ai' ? '#dbeafe' : '#f3f4f6';
-                            const badgeText = q.source === 'ai' ? '#1e40af' : '#374151';
-                            const badgeLabel = q.source === 'ai' ? 'AI Generated' : 'Standard';
-                            
-                            html += `
-                                <div style="border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; background: white;">
-                                    <div style="margin-bottom: 8px; font-weight: 600; color: #111827; display: flex; justify-content: space-between;">
-                                        <span>Q${index + 1}. ${escapeHtml(q.question)}</span>
-                                        <div style="display: flex; gap: 5px; align-items: center;">
-                                            <span style="font-size: 0.7em; background: ${badgeColor}; color: ${badgeText}; padding: 2px 6px; border-radius: 4px; height: fit-content;">${badgeLabel}</span>
-                                            <select onchange="updateCorrectOption('${q.mcq_id}', '${q.source}', this.value)" style="font-size: 0.8em; padding: 2px; border: 1px solid #d1d5db; border-radius: 4px; background-color: #f0fdf4; border-color: #16a34a; color: #15803d; font-weight: 500;">
-                                                <option value="A" ${q.correct_option.toUpperCase() === 'A' ? 'selected' : ''}>Key: A</option>
-                                                <option value="B" ${q.correct_option.toUpperCase() === 'B' ? 'selected' : ''}>Key: B</option>
-                                                <option value="C" ${q.correct_option.toUpperCase() === 'C' ? 'selected' : ''}>Key: C</option>
-                                                <option value="D" ${q.correct_option.toUpperCase() === 'D' ? 'selected' : ''}>Key: D</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9em; color: #4b5563;">
-                                        <div class="${q.correct_option === 'A' || q.correct_option === 'a' ? 'text-green-600 font-bold' : ''}">A) ${escapeHtml(q.option_a)}</div>
-                                        <div class="${q.correct_option === 'B' || q.correct_option === 'b' ? 'text-green-600 font-bold' : ''}">B) ${escapeHtml(q.option_b)}</div>
-                                        <div class="${q.correct_option === 'C' || q.correct_option === 'c' ? 'text-green-600 font-bold' : ''}">C) ${escapeHtml(q.option_c)}</div>
-                                        <div class="${q.correct_option === 'D' || q.correct_option === 'd' ? 'text-green-600 font-bold' : ''}">D) ${escapeHtml(q.option_d)}</div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        html += '</div>';
-                        content.innerHTML = html;
-                        countSpan.textContent = `Showing ${data.questions.length} available questions`;
-                    }
-                } else {
-                    content.innerHTML = `<div style="color: red; text-align: center;">Error: ${data.message}</div>`;
-                }
-            })
-            .catch(error => {
-                loading.style.display = 'none';
-                console.error('Error:', error);
-                content.innerHTML = '<div style="color: red; text-align: center;">An error occurred while fetching questions.</div>';
-            });
-        }
-        
-        function regenerateQuestions() {
-            if (!confirm('This will generate more questions using AI for your selected topics. This may take a few seconds. Continue?')) {
-                return;
-            }
-            
-            const content = document.getElementById('previewContent');
-            const loading = document.getElementById('previewLoading');
-            const loadingText = document.getElementById('previewLoadingText');
-            
-            content.innerHTML = '';
-            loading.style.display = 'block';
-            loadingText.textContent = '🤖 AI is generating new questions... Please wait...';
-            
-            const formData = new FormData();
-            const topicsInput = document.querySelector('input[name="topics"]');
-            
-            if (topicsInput) {
-                formData.append('topics', topicsInput.value);
-                formData.append('count', 3); // Generate 3 per topic
-            } else {
-                alert('No topics selected');
-                loading.style.display = 'none';
-                return;
-            }
-            
-            fetch('ajax_regenerate_questions.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Refresh the list to show new questions
-                    previewQuestions();
-                    // Optionally show a toast or alert
-                    // alert(data.message);
-                } else {
-                    loading.style.display = 'none';
-                    content.innerHTML = `<div style="color: red; text-align: center;">Error generating questions: ${data.message}</div>`;
-                }
-            })
-            .catch(error => {
-                loading.style.display = 'none';
-                console.error('Error:', error);
-                content.innerHTML = '<div style="color: red; text-align: center;">An error occurred while generating questions.</div>';
-            });
-        }
-        
-        function updateCorrectOption(mcqId, source, newOption) {
-            fetch('ajax_update_correct_option.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `mcq_id=${mcqId}&source=${source}&correct_option=${newOption}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update the visual indication of the correct answer
-                    // We need to re-fetch or manually update the DOM classes
-                    // For simplicity, let's just show a toast/alert or refresh the preview if needed
-                    // But to make it smooth, let's just log it for now as the dropdown shows current state
-                    console.log('Updated successfully');
-                    
-                    // Optional: refresh the view to update the green bold styling
-                    previewQuestions();
-                } else {
-                    alert('Failed to update: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while updating.');
-            });
-        }
         
         function escapeHtml(text) {
             if (!text) return '';
@@ -440,13 +467,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
             return div.innerHTML;
         }
 
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('previewModal');
-            if (event.target == modal) {
-                modal.style.display = "none";
-            }
-        }
+
 
         function clearSelectedTopics() {
             if (confirm('Are you sure you want to clear the selected topics?')) {
@@ -594,16 +615,54 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
             }
         }
         
+        function saveCustomQuestionToProfile(index) {
+            const q = customQuestions[index];
+            if (!q.question.trim() || !q.option_a.trim() || !q.option_b.trim() || !q.option_c.trim() || !q.option_d.trim()) {
+                alert('Please fill all fields before saving.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('question', q.question);
+            formData.append('option_a', q.option_a);
+            formData.append('option_b', q.option_b);
+            formData.append('option_c', q.option_c);
+            formData.append('option_d', q.option_d);
+            formData.append('correct_option', q.correct);
+
+            fetch('ajax_save_question_to_profile.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Question saved to your profile!');
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving.');
+            });
+        }
+
         function renderCustomQuestions() {
             const container = document.getElementById('customQuestionsList');
             
             container.innerHTML = customQuestions.map((q, index) => `
                 <div class="mcq-card">
-                    <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h4 style="margin: 0; color: #374151;">Question ${index + 1}</h4>
-                        <button type="button" class="btn btn-secondary" onclick="removeCustomQuestion(${index})" style="padding: 6px 12px; font-size: 0.8rem;">
-                            🗑️ Remove
-                        </button>
+                        <div>
+                            <button type="button" class="btn btn-secondary" onclick="saveCustomQuestionToProfile(${index})" style="padding: 6px 12px; font-size: 0.8rem; margin-right: 8px; color: #059669; border-color: #10b981; background: #ecfdf5;">
+                                💾 Save to Profile
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="removeCustomQuestion(${index})" style="padding: 6px 12px; font-size: 0.8rem; color: #dc2626; border-color: #ef4444; background: #fef2f2;">
+                                🗑️ Remove
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 15px;">
@@ -722,6 +781,122 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
         
         // Initial preview update
         updatePreview();
+
+        // Saved Questions Logic
+        let savedQuestions = [];
+
+        function openSavedQuestionsModal() {
+            document.getElementById('savedQuestionsModal').style.display = 'flex';
+            fetchSavedQuestions();
+        }
+
+        function closeSavedQuestionsModal() {
+            document.getElementById('savedQuestionsModal').style.display = 'none';
+        }
+
+        function fetchSavedQuestions() {
+            const loader = document.getElementById('savedQuestionsLoader');
+            const list = document.getElementById('savedQuestionsList');
+            
+            loader.style.display = 'block';
+            list.innerHTML = '';
+            
+            fetch('ajax_get_saved_questions.php')
+                .then(response => response.json())
+                .then(data => {
+                    loader.style.display = 'none';
+                    if (data.success) {
+                        if (data.questions.length > 0) {
+                            savedQuestions = data.questions;
+                            renderSavedQuestions(data.questions);
+                        } else {
+                            list.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px;">No saved questions found.</div>';
+                        }
+                    } else {
+                        list.innerHTML = `<div style="text-align: center; color: red; padding: 20px;">Error: ${escapeHtml(data.message)}</div>`;
+                    }
+                })
+                .catch(error => {
+                    loader.style.display = 'none';
+                    list.innerHTML = '<div style="text-align: center; color: red; padding: 20px;">Error loading questions.</div>';
+                    console.error('Error:', error);
+                });
+        }
+
+        function renderSavedQuestions(questions) {
+            const list = document.getElementById('savedQuestionsList');
+            list.innerHTML = questions.map((q, index) => {
+                const correctOption = q.correct;
+                return `
+                <div class="saved-question-item" id="saved_item_${index}" onclick="document.getElementById('saved_q_${index}').click()">
+                    <input type="checkbox" id="saved_q_${index}" value="${index}" class="saved-question-checkbox" onclick="event.stopPropagation()" onchange="updateItemState(${index})">
+                    <div class="saved-question-content">
+                        <div class="saved-question-text">${escapeHtml(q.question)}</div>
+                        <div class="saved-question-options">
+                            <div class="option-pill ${correctOption === 'A' ? 'correct' : ''}">
+                                <strong>A:</strong> ${escapeHtml(q.option_a)}
+                            </div>
+                            <div class="option-pill ${correctOption === 'B' ? 'correct' : ''}">
+                                <strong>B:</strong> ${escapeHtml(q.option_b)}
+                            </div>
+                            <div class="option-pill ${correctOption === 'C' ? 'correct' : ''}">
+                                <strong>C:</strong> ${escapeHtml(q.option_c)}
+                            </div>
+                            <div class="option-pill ${correctOption === 'D' ? 'correct' : ''}">
+                                <strong>D:</strong> ${escapeHtml(q.option_d)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function updateItemState(index) {
+            const checkbox = document.getElementById(`saved_q_${index}`);
+            const item = document.getElementById(`saved_item_${index}`);
+            if (checkbox.checked) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        }
+
+        function addSelectedSavedQuestions() {
+            const checkboxes = document.querySelectorAll('#savedQuestionsList input[type="checkbox"]:checked');
+            let addedCount = 0;
+            
+            checkboxes.forEach(cb => {
+                const index = parseInt(cb.value);
+                const q = savedQuestions[index];
+                
+                // Add to custom questions
+                customQuestions.push({
+                    question: q.question,
+                    option_a: q.option_a,
+                    option_b: q.option_b,
+                    option_c: q.option_c,
+                    option_d: q.option_d,
+                    correct: q.correct
+                });
+                addedCount++;
+            });
+            
+            if (addedCount > 0) {
+                renderCustomQuestions();
+                closeSavedQuestionsModal();
+                
+                // Ensure the custom questions section is visible
+                const toggle = document.getElementById('customToggle');
+                const section = document.getElementById('customQuestions');
+                if (!toggle.classList.contains('active')) {
+                    toggle.classList.add('active');
+                    section.classList.add('active');
+                }
+            } else {
+                alert('Please select at least one question.');
+            }
+        }
     </script>
 </body>
 </html>
+q

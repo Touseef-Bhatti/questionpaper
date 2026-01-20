@@ -57,9 +57,20 @@ if ($participant_id <= 0 || $participant_room_id !== $room_id) {
     }
 }
 
-// Fetch questions snapshot
+// Fetch participant roll number
+$participant_roll = '';
+if ($participant_id > 0) {
+    $stmt = $conn->prepare("SELECT roll_number FROM quiz_participants WHERE id = ?");
+    $stmt->bind_param('i', $participant_id);
+    $stmt->execute();
+    $stmt->bind_result($participant_roll);
+    $stmt->fetch();
+    $stmt->close();
+}
+
+// Fetch questions snapshot - SHUFFLED for each participant
 $questions = [];
-$stmt = $conn->prepare("SELECT id as qrq_id, question, option_a, option_b, option_c, option_d, correct_option FROM quiz_room_questions WHERE room_id = ? ORDER BY id ASC");
+$stmt = $conn->prepare("SELECT id as qrq_id, question, option_a, option_b, option_c, option_d, correct_option FROM quiz_room_questions WHERE room_id = ? ORDER BY RAND()");
 $stmt->bind_param('i', $room_id);
 $stmt->execute();
 $res = $stmt->get_result();
@@ -70,6 +81,23 @@ $stmt->close();
 
 if (empty($questions)) {
     die('<h2 style="color:red;">This room has no questions configured.</h2>');
+}
+
+// Load any existing responses for this participant (for restore on refresh)
+$existingResponses = [];
+if ($participant_id > 0) {
+    $stmt = $conn->prepare("SELECT question_id, selected_option FROM quiz_responses WHERE participant_id = ?");
+    $stmt->bind_param('i', $participant_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $qid = (int)$row['question_id'];
+        $opt = $row['selected_option'];
+        if ($qid > 0 && $opt !== null && $opt !== '') {
+            $existingResponses[$qid] = $opt;
+        }
+    }
+    $stmt->close();
 }
 
 // Get class and book names
@@ -171,29 +199,53 @@ $stmt->close();
 <script>
 const participantId = <?php echo json_encode($participant_id, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 const roomCode = <?php echo json_encode($room_code, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+const participantRoll = <?php echo json_encode($participant_roll ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 const questions = <?php echo json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+const existingResponses = <?php echo json_encode($existingResponses, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 let currentQuestion = 0;
 let score = 0;
 let answers = [];
 const durationSec = <?php echo (int)$durationSec; ?>;
 const serverElapsedSec = <?php echo (int)$elapsedSec; ?>;
-let startTime = Date.now() - (serverElapsedSec * 1000);
+let remainingSec = Math.max(0, durationSec - serverElapsedSec);
+let startTime = Date.now(); // For tracking time spent on questions
 let questionStartTime = Date.now();
+
 let timerInterval = setInterval(updateTimer, 1000);
 
 function updateTimer() {
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
+  remainingSec--;
+  
+  if (remainingSec <= 0) {
+      remainingSec = 0;
+      clearInterval(timerInterval);
+      const timerEl = document.getElementById('timer');
+      timerEl.textContent = "Time Remaining: 00:00";
+      timerEl.className = 'timer danger';
+      
+      alert("Time Over! Your quiz is being submitted automatically.");
+      showResults();
+      return;
+  }
+
+  const minutes = Math.floor(remainingSec / 60);
+  const seconds = remainingSec % 60;
   const timerEl = document.getElementById('timer');
-  timerEl.textContent = `Time: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  if (elapsed > 600) timerEl.className = 'timer danger';
-  else if (elapsed > 300) timerEl.className = 'timer warning';
+  timerEl.textContent = `Time Remaining: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  
+  if (remainingSec < 60) timerEl.className = 'timer danger';
+  else if (remainingSec < 300) timerEl.className = 'timer warning';
+  else timerEl.className = 'timer';
 }
 
 function renderQuestion() {
   const q = questions[currentQuestion];
   const container = document.getElementById('questionContainer');
+  
+  // Check if this question is already answered
+  const savedAnswer = answers[currentQuestion];
+  const isAnswered = !!savedAnswer;
+  
   container.innerHTML = `
     <div class="question-card">
       <div class="question-header">
@@ -210,6 +262,25 @@ function renderQuestion() {
   const progress = ((currentQuestion) / questions.length) * 100;
   document.getElementById('progressFill').style.width = progress + '%';
   questionStartTime = Date.now();
+  
+  // Apply saved state if answered
+  if (isAnswered) {
+      const options = document.querySelectorAll('.option');
+      options.forEach(opt => {
+          const optionLetter = opt.dataset.option;
+          if (optionLetter === savedAnswer.selected) {
+              opt.classList.add(savedAnswer.isCorrect ? 'correct' : 'incorrect');
+          } else if (optionLetter === savedAnswer.correct) {
+              opt.classList.add('correct');
+          }
+          opt.style.pointerEvents = 'none';
+      });
+      
+      // Enable Next button if answered
+      document.getElementById('nextBtn').disabled = false;
+  } else {
+      document.getElementById('nextBtn').disabled = true;
+  }
 }
 
 function selectOption(option) {
@@ -237,6 +308,19 @@ function selectOption(option) {
     timeSpent: Math.floor((Date.now() - questionStartTime) / 1000)
   };
   if (isCorrect) score++;
+  
+  // Save answer live
+  const formData = new FormData();
+  formData.append('room_code', roomCode);
+  formData.append('roll_number', participantRoll);
+  formData.append('question_id', q.qrq_id);
+  formData.append('selected_option', option);
+  
+  fetch('online_quiz_save_answer.php', {
+      method: 'POST',
+      body: formData
+  }).catch(err => console.error('Error saving answer:', err));
+  
   const options = document.querySelectorAll('.option');
   options.forEach(opt => {
     const optionLetter = opt.dataset.option;
@@ -288,7 +372,54 @@ async function showResults() {
 }
 
 // Initialize first question
+restoreProgress();
 renderQuestion();
+
+function restoreProgress() {
+    // Reconstruct answers and score from existingResponses
+    questions.forEach((q, index) => {
+        const savedOption = existingResponses[q.qrq_id];
+        if (savedOption) {
+            let correctOptionLetter = '';
+            if (q.correct_option === q.option_a) correctOptionLetter = 'A';
+            else if (q.correct_option === q.option_b) correctOptionLetter = 'B';
+            else if (q.correct_option === q.option_c) correctOptionLetter = 'C';
+            else if (q.correct_option === q.option_d) correctOptionLetter = 'D';
+
+            const isCorrect = (savedOption === correctOptionLetter);
+            if (isCorrect) score++;
+
+            let selectedText = '';
+            if (savedOption === 'A') selectedText = q.option_a;
+            if (savedOption === 'B') selectedText = q.option_b;
+            if (savedOption === 'C') selectedText = q.option_c;
+            if (savedOption === 'D') selectedText = q.option_d;
+
+            answers[index] = {
+                question_id: q.qrq_id,
+                selected: savedOption,
+                selectedText: selectedText,
+                correct: correctOptionLetter,
+                correctText: q.correct_option,
+                isCorrect: isCorrect,
+                timeSpent: 0 // Cannot recover time spent accurately on refresh
+            };
+        }
+    });
+    
+    // Update UI counters if needed, but they are mostly hidden until result
+    // We could jump to the first unanswered question
+    const firstUnanswered = questions.findIndex(q => !existingResponses[q.qrq_id]);
+    if (firstUnanswered !== -1) {
+        currentQuestion = firstUnanswered;
+    } else if (questions.length > 0 && Object.keys(existingResponses).length === questions.length) {
+        // All answered? maybe stay on last or show results?
+        // Let's stay on last question to allow review if we allow it, 
+        // but typically we might want to show results if time is up.
+        // For now, just go to last question
+        currentQuestion = questions.length - 1;
+    }
+}
 </script>
 </body>
 </html>

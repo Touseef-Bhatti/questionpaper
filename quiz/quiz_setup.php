@@ -12,6 +12,87 @@ if (session_status() === PHP_SESSION_NONE) session_start();
     <title>Take a Quiz - Ahmad Learning Hub</title>
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/quiz_setup.css">
+    <style>
+        /* Loader Styles */
+        .loader-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .loader-spinner {
+            width: 60px;
+            height: 60px;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .loader-spinner:before, .loader-spinner:after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            border: 4px solid transparent;
+            border-top-color: var(--primary-color, #4f6ef7);
+        }
+        
+        .loader-spinner:before {
+            top: 0; left: 0; right: 0; bottom: 0;
+            animation: spin 1.5s linear infinite;
+        }
+        
+        .loader-spinner:after {
+            top: 10px; left: 10px; right: 10px; bottom: 10px;
+            border-top-color: #ec4899; /* Secondary color */
+            animation: spin 2s linear infinite reverse;
+        }
+
+        .loader-progress-container {
+            width: 300px;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loader-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color, #4f6ef7), #ec4899);
+            width: 0%;
+            transition: width 0.2s ease;
+            border-radius: 10px;
+        }
+        
+        .loader-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main, #1f2937);
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        
+        .loader-subtext {
+            font-size: 1rem;
+            color: var(--text-muted, #6b7280);
+            text-align: center;
+            max-width: 400px;
+            line-height: 1.5;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
 <?php include '../header.php'; ?>
@@ -75,6 +156,17 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         </form>
     </div>
 </div>
+
+<!-- Loader Overlay -->
+<div class="loader-overlay" id="loaderOverlay">
+    <div class="loader-spinner"></div>
+    <div class="loader-text" id="loaderText">Generating Quiz...</div>
+    <div class="loader-subtext" id="loaderSubtext">We are preparing your questions. This may take a moment.</div>
+    <div class="loader-progress-container">
+        <div class="loader-progress-bar" id="loaderProgressBar"></div>
+    </div>
+</div>
+
 <?php include '../footer.php'; ?>
 
 <script>
@@ -85,6 +177,29 @@ const chapterIdsInput = document.getElementById('chapter_ids');
 const resetBtn = document.getElementById('resetBtn');
 
 let selectedChapterIds = [];
+let progressInterval;
+
+function startLoaderProgress() {
+    const progressBar = document.getElementById('loaderProgressBar');
+    if (!progressBar) return;
+    
+    // Reset
+    progressBar.style.width = '0%';
+    clearInterval(progressInterval);
+    
+    let width = 0;
+    progressInterval = setInterval(() => {
+        if (width >= 90) {
+            // Slow down significantly after 90%
+            if (width < 95) width += 0.1;
+        } else {
+            // Fast initially, then slower
+            const increment = Math.max(0.5, (90 - width) / 20);
+            width += increment;
+        }
+        progressBar.style.width = width + '%';
+    }, 100);
+}
 
 function toQuery(params) {
   return Object.entries(params).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
@@ -213,6 +328,12 @@ resetBtn.addEventListener('click', () => {
   bookSel.innerHTML = '<option value="">Select a book</option>';
   bookSel.disabled = true;
   clearChapters();
+});
+
+// Show loader on form submit
+document.getElementById('quizForm').addEventListener('submit', function() {
+    document.getElementById('loaderOverlay').style.display = 'flex';
+    startLoaderProgress();
 });
 </script>
 </body>

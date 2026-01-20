@@ -126,9 +126,15 @@
 }
 
 /* ========== Responsive ========== */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
     .footer {
+        padding: 40px 20px 30px;
         text-align: center;
+    }
+
+    .footer-container {
+        grid-template-columns: 1fr; /* Force single column on smaller tablets/mobile */
+        gap: 35px;
     }
 
     .footer-section h3::after {
@@ -136,11 +142,56 @@
         transform: translateX(-50%);
     }
 
+    .footer-menu {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+    }
+
+    .footer-menu li {
+        margin: 0;
+    }
+
     .footer-menu a {
         justify-content: center;
+        padding: 8px 16px; /* Button-like padding */
+        font-size: 0.95rem;
+        background: rgba(255, 255, 255, 0.05); /* Subtle button background */
+        border-radius: 50px; /* Pill shape */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .footer-menu a:hover {
+        background: rgba(56, 189, 248, 0.1); /* Highlight on touch/hover */
+        transform: none; /* Simplify animation on mobile */
+    }
+
+    .footer-social {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
     }
 
     .footer-social a {
-        margin-right: 8px;
+        margin-right: 0;
+        width: 42px; /* Larger icons for mobile */
+        height: 42px;
+        line-height: 42px;
+        font-size: 1.1rem;
+    }
+
+    .footer-bottom {
+        margin-top: 30px;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer-brand .footer-logo {
+        font-size: 1.5rem;
+    }
+    
+    .footer-section h3 {
+        font-size: 1.1rem;
     }
 }

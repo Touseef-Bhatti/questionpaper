@@ -348,6 +348,7 @@
 /* ======================= MOBILE FIXES ======================= */
 @media (max-width: 480px) {
   .btn-wrapper {
+    width: 80%;
     margin: 1em;
     transform: scale(0.9); /* reduces overall footprint */
   }
