@@ -27,6 +27,8 @@ build/
 .cache/
 .tmp/
 coverage/
+
+# 📂 Cache files (AI MCQs, questions, topics)
 /cache/*
 !/cache/.gitkeep
 
@@ -46,6 +48,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
+
+# 📤 Uploads & User files
+/uploads/*
+!/uploads/.gitkeep
+/logs/*
+!/logs/.gitkeep
 
 # 🧰 Miscellaneous
 .env.local
