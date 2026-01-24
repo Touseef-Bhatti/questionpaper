@@ -1,10 +1,9 @@
 <?php
 require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/security.php';
+
 if (session_status() === PHP_SESSION_NONE) session_start();
-if (empty($_SESSION['role']) || !in_array($_SESSION['role'], ['admin','superadmin'])) {
-    header('Location: login.php');
-    exit;
-}
+requireAdminAuth();
 
 // Load classes and books for selection
 $classes = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC");
@@ -15,115 +14,119 @@ while ($books && $row = $books->fetch_assoc()) { $bookMap[] = $row; }
 $message = '';
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    if ($action === 'create') {
-        $name = trim($_POST['chapter_name'] ?? '');
-        $chapterNo = intval($_POST['chapter_no'] ?? 0);
-        $classId = intval($_POST['class_id'] ?? 0);
-        $bookName = trim($_POST['book_name'] ?? '');
-        
-        if ($name === '') {
-            $error = 'Chapter name is required.';
-        } elseif ($chapterNo <= 0) {
-            $error = 'Please enter a valid chapter number.';
-        } elseif ($classId <= 0) {
-            $error = 'Please select a valid class.';
-        } elseif ($bookName === '') {
-            $error = 'Please select a book.';
-        } else {
-            try {
-                // Get book_id from book table based on class_id and book_name
-                $bookStmt = $conn->prepare("SELECT book_id FROM book WHERE class_id = ? AND book_name = ? LIMIT 1");
-                $bookId = null;
-                if ($bookStmt) {
-                    $bookStmt->bind_param("is", $classId, $bookName);
-                    $bookStmt->execute();
-                    $result = $bookStmt->get_result();
-                    if ($row = $result->fetch_assoc()) {
-                        $bookId = intval($row['book_id']);
+    if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid CSRF token. Please reload the page.';
+    } else {
+        $action = $_POST['action'] ?? '';
+        if ($action === 'create') {
+            $name = trim($_POST['chapter_name'] ?? '');
+            $chapterNo = intval($_POST['chapter_no'] ?? 0);
+            $classId = intval($_POST['class_id'] ?? 0);
+            $bookName = trim($_POST['book_name'] ?? '');
+            
+            if ($name === '') {
+                $error = 'Chapter name is required.';
+            } elseif ($chapterNo <= 0) {
+                $error = 'Please enter a valid chapter number.';
+            } elseif ($classId <= 0) {
+                $error = 'Please select a valid class.';
+            } elseif ($bookName === '') {
+                $error = 'Please select a book.';
+            } else {
+                try {
+                    // Get book_id from book table based on class_id and book_name
+                    $bookStmt = $conn->prepare("SELECT book_id FROM book WHERE class_id = ? AND book_name = ? LIMIT 1");
+                    $bookId = null;
+                    if ($bookStmt) {
+                        $bookStmt->bind_param("is", $classId, $bookName);
+                        $bookStmt->execute();
+                        $result = $bookStmt->get_result();
+                        if ($row = $result->fetch_assoc()) {
+                            $bookId = intval($row['book_id']);
+                        }
+                        $bookStmt->close();
                     }
-                    $bookStmt->close();
-                }
-                
-                $stmt = $conn->prepare("INSERT INTO chapter (chapter_name, chapter_no, class_id, book_id, book_name) VALUES (?, ?, ?, ?, ?)");
-                if ($stmt) {
-                    $stmt->bind_param("siiis", $name, $chapterNo, $classId, $bookId, $bookName);
-                    if ($stmt->execute()) {
-                        header('Location: manage_chapters.php?msg=created');
-                        exit;
-                    } else {
-                        $error = 'Failed to create chapter: ' . $stmt->error;
-                    }
-                    $stmt->close();
-                } else {
-                    $error = 'Database prepare error: ' . $conn->error;
-                }
-            } catch (Exception $e) {
-                $error = 'Error creating chapter: ' . $e->getMessage();
-            }
-        }
-    } elseif ($action === 'update') {
-        $id = intval($_POST['chapter_id'] ?? 0);
-        $name = trim($_POST['chapter_name'] ?? '');
-        $classId = intval($_POST['class_id'] ?? 0);
-        $bookName = trim($_POST['book_name'] ?? '');
-        
-        if ($id <= 0) {
-            $error = 'Invalid chapter ID.';
-        } elseif ($name === '') {
-            $error = 'Chapter name is required.';
-        } elseif ($classId <= 0) {
-            $error = 'Please select a valid class.';
-        } elseif ($bookName === '') {
-            $error = 'Please select a book.';
-        } else {
-            try {
-                $stmt = $conn->prepare("UPDATE chapter SET chapter_name=?, class_id=?, book_name=? WHERE chapter_id=?");
-                if ($stmt) {
-                    $stmt->bind_param("sisi", $name, $classId, $bookName, $id);
-                    if ($stmt->execute()) {
-                        if ($stmt->affected_rows > 0) {
-                            header('Location: manage_chapters.php?msg=updated');
+                    
+                    $stmt = $conn->prepare("INSERT INTO chapter (chapter_name, chapter_no, class_id, book_id, book_name) VALUES (?, ?, ?, ?, ?)");
+                    if ($stmt) {
+                        $stmt->bind_param("siiis", $name, $chapterNo, $classId, $bookId, $bookName);
+                        if ($stmt->execute()) {
+                            header('Location: manage_chapters.php?msg=created');
                             exit;
                         } else {
-                            $error = 'Chapter not found or no changes made.';
+                            $error = 'Failed to create chapter: ' . $stmt->error;
                         }
+                        $stmt->close();
                     } else {
-                        $error = 'Failed to update chapter: ' . $stmt->error;
+                        $error = 'Database prepare error: ' . $conn->error;
                     }
-                    $stmt->close();
-                } else {
-                    $error = 'Database prepare error: ' . $conn->error;
+                } catch (Exception $e) {
+                    $error = 'Error creating chapter: ' . $e->getMessage();
                 }
-            } catch (Exception $e) {
-                $error = 'Error updating chapter: ' . $e->getMessage();
             }
-        }
-    } elseif ($action === 'delete') {
-        $id = intval($_POST['chapter_id'] ?? 0);
-        if ($id <= 0) {
-            $error = 'Invalid chapter ID.';
-        } else {
-            try {
-                $stmt = $conn->prepare("DELETE FROM chapter WHERE chapter_id=?");
-                if ($stmt) {
-                    $stmt->bind_param("i", $id);
-                    if ($stmt->execute()) {
-                        if ($stmt->affected_rows > 0) {
-                            header('Location: manage_chapters.php?msg=deleted');
-                            exit;
+        } elseif ($action === 'update') {
+            $id = intval($_POST['chapter_id'] ?? 0);
+            $name = trim($_POST['chapter_name'] ?? '');
+            $classId = intval($_POST['class_id'] ?? 0);
+            $bookName = trim($_POST['book_name'] ?? '');
+            
+            if ($id <= 0) {
+                $error = 'Invalid chapter ID.';
+            } elseif ($name === '') {
+                $error = 'Chapter name is required.';
+            } elseif ($classId <= 0) {
+                $error = 'Please select a valid class.';
+            } elseif ($bookName === '') {
+                $error = 'Please select a book.';
+            } else {
+                try {
+                    $stmt = $conn->prepare("UPDATE chapter SET chapter_name=?, class_id=?, book_name=? WHERE chapter_id=?");
+                    if ($stmt) {
+                        $stmt->bind_param("sisi", $name, $classId, $bookName, $id);
+                        if ($stmt->execute()) {
+                            if ($stmt->affected_rows > 0) {
+                                header('Location: manage_chapters.php?msg=updated');
+                                exit;
+                            } else {
+                                $error = 'Chapter not found or no changes made.';
+                            }
                         } else {
-                            $error = 'Chapter not found.';
+                            $error = 'Failed to update chapter: ' . $stmt->error;
                         }
+                        $stmt->close();
                     } else {
-                        $error = 'Failed to delete chapter: ' . $stmt->error;
+                        $error = 'Database prepare error: ' . $conn->error;
                     }
-                    $stmt->close();
-                } else {
-                    $error = 'Database prepare error: ' . $conn->error;
+                } catch (Exception $e) {
+                    $error = 'Error updating chapter: ' . $e->getMessage();
                 }
-            } catch (Exception $e) {
-                $error = 'Error deleting chapter: ' . $e->getMessage();
+            }
+        } elseif ($action === 'delete') {
+            $id = intval($_POST['chapter_id'] ?? 0);
+            if ($id <= 0) {
+                $error = 'Invalid chapter ID.';
+            } else {
+                try {
+                    $stmt = $conn->prepare("DELETE FROM chapter WHERE chapter_id=?");
+                    if ($stmt) {
+                        $stmt->bind_param("i", $id);
+                        if ($stmt->execute()) {
+                            if ($stmt->affected_rows > 0) {
+                                header('Location: manage_chapters.php?msg=deleted');
+                                exit;
+                            } else {
+                                $error = 'Chapter not found.';
+                            }
+                        } else {
+                            $error = 'Failed to delete chapter: ' . $stmt->error;
+                        }
+                        $stmt->close();
+                    } else {
+                        $error = 'Database prepare error: ' . $conn->error;
+                    }
+                } catch (Exception $e) {
+                    $error = 'Error deleting chapter: ' . $e->getMessage();
+                }
             }
         }
     }
@@ -204,6 +207,7 @@ $chapters = $conn->query("SELECT ch.chapter_id, ch.chapter_name, ch.class_id, ch
 
         <h3>Create New Chapter</h3>
         <form method="POST" class="row">
+            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
             <input type="hidden" name="action" value="create">
             <input type="text" name="chapter_name" placeholder="Chapter name" required>
             <input type="number" name="chapter_no" placeholder="Chapter number" min="1" required>
@@ -267,6 +271,7 @@ $chapters = $conn->query("SELECT ch.chapter_id, ch.chapter_name, ch.class_id, ch
                     <td><?= (int)$row['chapter_id'] ?></td>
                     <td>
                         <form method="POST" class="inline">
+                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                             <input type="hidden" name="action" value="update">
                             <input type="hidden" name="chapter_id" value="<?= (int)$row['chapter_id'] ?>">
                             <input type="text" name="chapter_name" value="<?= htmlspecialchars($row['chapter_name']) ?>" required>
@@ -297,6 +302,7 @@ $chapters = $conn->query("SELECT ch.chapter_id, ch.chapter_name, ch.class_id, ch
                     <td>
                         <!-- Delete button commented out -->
                         <form method="POST" class="inline" onsubmit="return confirm('Delete this chapter?');">
+                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="chapter_id" value="<?= (int)$row['chapter_id'] ?>">
                             <button type="submit">Delete</button>

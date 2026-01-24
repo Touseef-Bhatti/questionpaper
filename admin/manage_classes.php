@@ -1,47 +1,56 @@
 <?php
 require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/security.php';
+requireAdminAuth();
+
 if (session_status() === PHP_SESSION_NONE) session_start();
-if (empty($_SESSION['role']) || !in_array($_SESSION['role'], ['admin','superadmin'])) {
-    header('Location: login.php');
-    exit;
-}
 
 // Create / Update / Delete actions
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    if ($action === 'create') {
-        $name = trim($_POST['class_name'] ?? '');
-        if ($name !== '') {
-            $nameEsc = $conn->real_escape_string($name);
-            if ($conn->query("INSERT INTO class (class_name) VALUES ('$nameEsc')")) {
-                // Redirect to prevent form resubmission
-                header('Location: manage_classes.php?msg=created');
-                exit;
-            } else {
-                $message = 'Error creating class: ' . $conn->error;
+    if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
+        $message = 'Invalid CSRF token. Please reload the page.';
+    } else {
+        $action = $_POST['action'] ?? '';
+        if ($action === 'create') {
+            $name = trim($_POST['class_name'] ?? '');
+            if ($name !== '') {
+                $stmt = $conn->prepare("INSERT INTO class (class_name) VALUES (?)");
+                $stmt->bind_param("s", $name);
+                if ($stmt->execute()) {
+                    header('Location: manage_classes.php?msg=created');
+                    exit;
+                } else {
+                    $message = 'Error creating class: ' . $stmt->error;
+                }
+                $stmt->close();
             }
-        }
-    } elseif ($action === 'update') {
-        $id = intval($_POST['class_id'] ?? 0);
-        $name = trim($_POST['class_name'] ?? '');
-        if ($id > 0 && $name !== '') {
-            $nameEsc = $conn->real_escape_string($name);
-            if ($conn->query("UPDATE class SET class_name='$nameEsc' WHERE class_id=$id")) {
-                header('Location: manage_classes.php?msg=updated');
-                exit;
-            } else {
-                $message = 'Error updating class: ' . $conn->error;
+        } elseif ($action === 'update') {
+            $id = intval($_POST['class_id'] ?? 0);
+            $name = trim($_POST['class_name'] ?? '');
+            if ($id > 0 && $name !== '') {
+                $stmt = $conn->prepare("UPDATE class SET class_name=? WHERE class_id=?");
+                $stmt->bind_param("si", $name, $id);
+                if ($stmt->execute()) {
+                    header('Location: manage_classes.php?msg=updated');
+                    exit;
+                } else {
+                    $message = 'Error updating class: ' . $stmt->error;
+                }
+                $stmt->close();
             }
-        }
-    } elseif ($action === 'delete') {
-        $id = intval($_POST['class_id'] ?? 0);
-        if ($id > 0) {
-            if ($conn->query("DELETE FROM class WHERE class_id=$id")) {
-                header('Location: manage_classes.php?msg=deleted');
-                exit;
-            } else {
-                $message = 'Error deleting class: ' . $conn->error;
+        } elseif ($action === 'delete') {
+            $id = intval($_POST['class_id'] ?? 0);
+            if ($id > 0) {
+                $stmt = $conn->prepare("DELETE FROM class WHERE class_id=?");
+                $stmt->bind_param("i", $id);
+                if ($stmt->execute()) {
+                    header('Location: manage_classes.php?msg=deleted');
+                    exit;
+                } else {
+                    $message = 'Error deleting class: ' . $stmt->error;
+                }
+                $stmt->close();
             }
         }
     }
@@ -85,6 +94,7 @@ $classes = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_i
 
         <h3>Create New Class</h3>
         <form method="POST" class="row">
+            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
             <input type="hidden" name="action" value="create">
             <input type="text" name="class_name" placeholder="Class name" required>
             <button type="submit">Add</button>
@@ -101,6 +111,7 @@ $classes = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_i
                     <td><?= (int)$row['class_id'] ?></td>
                     <td>
                         <form method="POST" class="inline">
+                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                             <input type="hidden" name="action" value="update">
                             <input type="hidden" name="class_id" value="<?= (int)$row['class_id'] ?>">
                             <input type="text" name="class_name" value="<?= htmlspecialchars($row['class_name']) ?>" required>
@@ -110,6 +121,7 @@ $classes = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_i
                     <td>
                         <!-- Delete button commented out -->
                         <form method="POST" class="inline" onsubmit="return confirm('Delete this class?');">
+                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="class_id" value="<?= (int)$row['class_id'] ?>">
                             <button type="submit">Delete</button>

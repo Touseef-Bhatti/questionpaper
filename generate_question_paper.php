@@ -66,16 +66,42 @@ if ($isTopicSource) {
     // ---- TOPIC BASED GENERATION LOGIC ----
     $topics = $_POST['topics'] ?? [];
     $totalMcqs = isset($_POST['total_mcqs']) ? intval($_POST['total_mcqs']) : 20;
+    $totalShorts = isset($_POST['total_shorts']) ? intval($_POST['total_shorts']) : 0;
+    $totalLongs = isset($_POST['total_longs']) ? intval($_POST['total_longs']) : 0;
+    
     $classNameHeader = 'Topic Selection';
     
     // Fetch MCQs via Service
-    $mcqs = $questionService->getRandomMCQsByTopics($topics, $totalMcqs);
-    if (!empty($mcqs)) {
-        // Use a dummy chapter ID '0' to hold these
-        $mcqByChapter[0] = $mcqs;
+    if ($totalMcqs > 0) {
+        $mcqs = $questionService->getRandomMCQsByTopics($topics, $totalMcqs);
+        if (!empty($mcqs)) {
+            // Use a dummy chapter ID '0' to hold these
+            $mcqByChapter[0] = $mcqs;
+        }
+    }
+
+    // Fetch Short Questions
+    if ($totalShorts > 0) {
+        $shortQs = $questionService->getRandomQuestionsByTopics($topics, 'short', $totalShorts);
+        if (!empty($shortQs)) {
+            $shortQuestions[0] = $shortQs;
+            foreach ($shortQs as $q) {
+                $totalMarks += $q['marks'];
+            }
+        }
+    }
+
+    // Fetch Long Questions
+    if ($totalLongs > 0) {
+        $longQs = $questionService->getRandomQuestionsByTopics($topics, 'long', $totalLongs);
+        if (!empty($longQs)) {
+            $longQuestions[0] = $longQs;
+            foreach ($longQs as $q) {
+                $totalMarks += $q['marks'];
+            }
+        }
     }
     
-    // No short/long questions support for basic topic generation yet, or can be added similarly
     $chapterHeaderLabel = 'Topics: ' . implode(', ', array_slice($topics, 0, 3)) . (count($topics)>3 ? '...' : '');
 
 } else {

@@ -2,31 +2,53 @@
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../header.php';
 
-$questionType = $_GET['type'] ?? '';
+$questionTypes = (array)($_GET['type'] ?? []);
 $search = $_GET['search'] ?? '';
 $topics = [];
 $autoLoadAI = false;
 
-if ($search && $questionType) {
+// Initialize default values for configuration inputs
+$total_mcqs = $_GET['total_mcqs'] ?? 10;
+$total_shorts = $_GET['total_shorts'] ?? 5;
+$total_longs = $_GET['total_longs'] ?? 3;
+
+
+if ($search && !empty($questionTypes)) {
     $term = "%$search%";
     
-    // Step 1: Search main MCQs table first
-    $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic LIKE ? LIMIT 50");
-    $stmt->bind_param('s', $term);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $topics[] = $row['topic'];
-    }
-    
-    // Step 2: If no topics found, search AIGeneratedMCQs table
-    if (empty($topics)) {
+    // Step 1: Search MCQs
+    if (in_array('mcqs', $questionTypes) || in_array('all', $questionTypes)) {
+        $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic LIKE ? LIMIT 50");
+        $stmt->bind_param('s', $term);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $topics[] = $row['topic'];
+        }
+        
+        // Search AIGeneratedMCQs
         $stmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic LIKE ? LIMIT 50");
         $stmt->bind_param('s', $term);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
             $topics[] = $row['topic'];
+        }
+    }
+    
+    // Step 2: Search other questions (Short/Long)
+    $otherSearch = array_filter($questionTypes, function($t) { return $t === 'short' || $t === 'long'; });
+    if (in_array('all', $questionTypes)) $otherSearch = ['short', 'long'];
+    
+    if (!empty($otherSearch)) {
+        foreach ($otherSearch as $ot) {
+            $stmt = $conn->prepare("SELECT DISTINCT topic FROM questions WHERE question_type = ? AND topic LIKE ? LIMIT 50");
+            $stmt->bind_param('ss', $ot, $term);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $topics[] = $row['topic'];
+            }
         }
     }
     
@@ -117,25 +139,38 @@ if ($search && $questionType) {
         /* ========== Question Type Selection ========== */
         .type-selection {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin-bottom: 40px;
         }
 
         .type-card {
-            background: #f8fafc;
+            background: #ffffff;
             border: 2px solid #e2e8f0;
             border-radius: 20px;
-            padding: 32px 24px;
             text-align: center;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
 
         .type-card:hover {
-            border-color: #c7d2fe;
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(99, 102, 241, 0.12);
+            transform: translateY(-8px);
+            border-color: #6366f1;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-select-area {
+            padding: 24px 20px;
+            cursor: pointer;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         .type-card.selected {
@@ -148,15 +183,15 @@ if ($search && $questionType) {
         }
 
         .type-icon {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 16px;
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 12px;
             background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            border-radius: 16px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.75rem;
+            font-size: 1.25rem;
             color: #fff;
         }
 
@@ -165,15 +200,148 @@ if ($search && $questionType) {
         }
 
         .type-title {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 700;
             color: #1e293b;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
         .type-desc {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             color: #64748b;
+            margin-bottom: 10px;
+        }
+
+        .configuration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .config-item {
+            display: none; /* Controlled by toggleType */
+            background: #ffffff;
+            border: 2px solid #f1f5f9;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+        }
+
+        .config-item.active {
+            display: block;
+            border-color: #6366f1;
+            box-shadow: 0 15px 25px -5px rgba(99, 102, 241, 0.12);
+            animation: slideUp 0.4s ease;
+        }
+
+        .config-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .config-title i {
+            width: 32px;
+            height: 32px;
+            background: #eef2ff;
+            color: #6366f1;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .config-label-text {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .input-group:focus-within {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .input-group-text {
+            background: #f8fafc;
+            padding: 8px 12px;
+            color: #64748b;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .form-control-custom {
+            flex: 1;
+            border: none;
+            padding: 10px 12px;
+            font-weight: 700;
+            color: #1e293b;
+            outline: none;
+            width: 100%;
+            background: transparent;
+            cursor: text;
+            -moz-appearance: textfield;
+        }
+
+        .form-control-custom::-webkit-outer-spin-button,
+        .form-control-custom::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .type-check-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            background: #6366f1;
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .type-card.selected .type-check-badge {
+            opacity: 1;
+            transform: scale(1);
         }
 
         /* ========== Search Section ========== */
@@ -266,8 +434,8 @@ if ($search && $questionType) {
 
         .topics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
         }
 
         .topic-item {
@@ -283,8 +451,8 @@ if ($search && $questionType) {
             position: relative;
             background: #fff;
             border: 2px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 24px 16px;
+            border-radius: 12px;
+            padding: 14px 12px;
             text-align: center;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -303,8 +471,8 @@ if ($search && $questionType) {
         .topic-text {
             font-weight: 600;
             color: #334155;
-            font-size: 0.95rem;
-            line-height: 1.4;
+            font-size: 0.85rem;
+            line-height: 1.3;
             word-break: break-word;
         }
 
@@ -394,21 +562,24 @@ if ($search && $questionType) {
         /* ========== Floating Action Bar ========== */
         .action-bar {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(12px);
-            border-top: 1px solid #e2e8f0;
-            padding: 20px 0;
-            box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.08);
-            transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(150%);
+            width: calc(100% - 40px);
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 16px 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 1000;
         }
 
         .action-bar.visible {
-            transform: translateY(0);
+            transform: translateX(-50%) translateY(0);
         }
 
         .action-bar-inner {
@@ -557,59 +728,108 @@ if ($search && $questionType) {
 
         <!-- Step Indicator -->
         <div class="steps-indicator">
-            <div class="step-dot <?= $questionType ? 'completed' : 'active' ?>"></div>
-            <div class="step-dot <?= ($questionType && $search) ? 'completed' : ($questionType ? 'active' : '') ?>"></div>
+            <div class="step-dot <?= !empty($questionTypes) ? 'completed' : 'active' ?>"></div>
+            <div class="step-dot <?= (!empty($questionTypes) && $search) ? 'completed' : (!empty($questionTypes) ? 'active' : '') ?>"></div>
             <div class="step-dot <?= (!empty($topics)) ? 'active' : '' ?>"></div>
         </div>
 
-        <!-- Step 1: Question Type Selection -->
-        <form method="GET" action="" id="mainForm">
-            <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
+        <form action="configure_paper.php" method="POST" id="topicsForm">
+            <input type="hidden" name="source" value="topics">
+            <input type="hidden" name="pattern_mode" value="without">
+            <input type="hidden" name="class_id" value="0">
+            <input type="hidden" name="book_name" value="Custom Topic Paper">
+            <input type="hidden" name="question_type" id="hiddenQuestionType" value="<?= (!empty($questionTypes)) ? htmlspecialchars(implode(',', $questionTypes)) : '' ?>">
             
-            <div class="type-selection">
-                <label class="type-card <?= $questionType === 'mcqs' ? 'selected' : '' ?>" onclick="selectType('mcqs')">
-                    <input type="radio" name="type" value="mcqs" <?= $questionType === 'mcqs' ? 'checked' : '' ?>>
-                    <div class="type-icon"><i class="fas fa-list-check"></i></div>
-                    <div class="type-title">MCQs</div>
-                    <div class="type-desc">Multiple choice questions</div>
-                </label>
-                <label class="type-card <?= $questionType === 'short' ? 'selected' : '' ?>" onclick="selectType('short')">
-                    <input type="radio" name="type" value="short" <?= $questionType === 'short' ? 'checked' : '' ?>>
-                    <div class="type-icon"><i class="fas fa-align-left"></i></div>
-                    <div class="type-title">Short Questions</div>
-                    <div class="type-desc">Brief answer questions</div>
-                </label>
-                <label class="type-card <?= $questionType === 'long' ? 'selected' : '' ?>" onclick="selectType('long')">
-                    <input type="radio" name="type" value="long" <?= $questionType === 'long' ? 'checked' : '' ?>>
-                    <div class="type-icon"><i class="fas fa-file-lines"></i></div>
-                    <div class="type-title">Long Questions</div>
-                    <div class="type-desc">Detailed answer questions</div>
-                </label>
-            </div>
+            <!-- Step 1: Question Type Selection (Always Visible) -->
+                <div class="type-selection">
+                    <!-- MCQ Selection Button -->
+                    <div class="type-card <?= in_array('mcqs', $questionTypes) ? 'selected' : '' ?>">
+                        <div class="card-select-area" onclick="toggleType('mcqs', this.parentElement)">
+                            <input type="checkbox" name="type[]" value="mcqs" <?= in_array('mcqs', $questionTypes) ? 'checked' : '' ?>>
+                            <div class="type-check-badge"><i class="fas fa-check"></i></div>
+                            <div class="type-icon"><i class="fas fa-list-check"></i></div>
+                            <div class="type-title">MCQs</div>
+                            <div class="type-desc">Multiple choice questions</div>
+                        </div>
+                    </div>
 
-            <!-- Step 2: Search -->
-            <div class="search-section" id="searchSection" style="display: <?= $questionType ? 'block' : 'none' ?>;">
-                <label class="search-label" id="searchLabel">Search Topics for <?= ucfirst($questionType === 'mcqs' ? 'MCQs' : ($questionType === 'short' ? 'Short Questions' : 'Long Questions')) ?></label>
+                    <!-- Short Questions Selection Button -->
+                    <div class="type-card <?= in_array('short', $questionTypes) ? 'selected' : '' ?>">
+                        <div class="card-select-area" onclick="toggleType('short', this.parentElement)">
+                            <input type="checkbox" name="type[]" value="short" <?= in_array('short', $questionTypes) ? 'checked' : '' ?>>
+                            <div class="type-check-badge"><i class="fas fa-check"></i></div>
+                            <div class="type-icon"><i class="fas fa-align-left"></i></div>
+                            <div class="type-title">Short Questions</div>
+                            <div class="type-desc">Brief answer questions</div>
+                        </div>
+                    </div>
+
+                    <!-- Long Questions Selection Button -->
+                    <div class="type-card <?= in_array('long', $questionTypes) ? 'selected' : '' ?>">
+                        <div class="card-select-area" onclick="toggleType('long', this.parentElement)">
+                            <input type="checkbox" name="type[]" value="long" <?= in_array('long', $questionTypes) ? 'checked' : '' ?>>
+                            <div class="type-check-badge"><i class="fas fa-check"></i></div>
+                            <div class="type-icon"><i class="fas fa-file-lines"></i></div>
+                            <div class="type-title">Long Questions</div>
+                            <div class="type-desc">Detailed answer questions</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SEPARATE Configuration Section -->
+                <div class="configuration-grid" id="configGrid">
+                    <!-- MCQ Quantity Configuration -->
+                    <div class="config-item <?= in_array('mcqs', $questionTypes) ? 'active' : '' ?>" id="config-mcqs">
+                        <div class="config-title"><i class="fas fa-list-check"></i> MCQs Configuration</div>
+                        <label class="config-label-text">How many MCQs to include?</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                            <input type="number" name="total_mcqs" class="form-control-custom" value="<?= htmlspecialchars($total_mcqs) ?>" min="0" max="100" required>
+                        </div>
+                    </div>
+
+                    <!-- Short Questions Configuration -->
+                    <div class="config-item <?= in_array('short', $questionTypes) ? 'active' : '' ?>" id="config-short">
+                        <div class="config-title"><i class="fas fa-align-left"></i> Short Questions Configuration</div>
+                        <label class="config-label-text">Total number of short questions?</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                            <input type="number" name="total_shorts" class="form-control-custom" value="<?= htmlspecialchars($total_shorts) ?>" min="0" max="100" required>
+                        </div>
+                    </div>
+
+                    <!-- Long Questions Configuration -->
+                    <div class="config-item <?= in_array('long', $questionTypes) ? 'active' : '' ?>" id="config-long">
+                        <div class="config-title"><i class="fas fa-file-lines"></i> Long Questions Configuration</div>
+                        <label class="config-label-text">Total number of long questions?</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                            <input type="number" name="total_longs" class="form-control-custom" value="<?= htmlspecialchars($total_longs) ?>" min="0" max="100" required>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- Step 2: Search (Hidden until a type is selected) -->
+            <div class="search-section" id="searchSection" style="display: <?= (!empty($questionTypes)) ? 'block' : 'none' ?>;">
+                <label class="search-label" id="searchLabel">Search Topics</label>
                 <div class="search-box">
                     <input type="text" id="topicSearchInput" class="search-input" placeholder="Enter topic name (e.g., Photosynthesis, Cell Biology)..." value="">
                     <button type="button" class="search-btn" onclick="searchTopics()"><i class="fas fa-search"></i> Search</button>
                 </div>
                 <p class="search-hint">You can search multiple times and select topics from different searches</p>
             </div>
-        </form>
 
         <!-- Results Section - Always visible -->
-        <div id="resultsContainer" style="display: <?= $questionType ? 'block' : 'none' ?>;">
+        <div id="resultsContainer" style="display: <?= (!empty($questionTypes)) ? 'block' : 'none' ?>;">
             <div class="results-header" id="resultsHeader" style="display: none;">
                 <div class="results-title"><i class="fas fa-folder-open"></i> Found Topics</div>
                 <div class="results-count" id="resultsCount">0 results</div>
             </div>
 
-            <form action="configure_paper.php" method="POST" id="topicsForm">
-                <input type="hidden" name="question_type" id="hiddenQuestionType" value="<?= htmlspecialchars($questionType) ?>">
+                <!-- Step 1 selection was moved up to be always visible -->
                 
                 <!-- Selected Topics Section -->
-                <div id="selectedTopicsSection" style="display: none; margin-bottom: 20px;">
+                <div id="selectedTopicsSection" style="display: none; margin-bottom: 32px;">
                     <div class="selected-header">
                         <span><i class="fas fa-check-circle"></i> Selected Topics</span>
                         <span id="selectedBadge" class="selected-badge">0</span>
@@ -642,44 +862,66 @@ if ($search && $questionType) {
                             <span id="selectionCount">0 topics selected</span>
                         </div>
                         <button type="submit" class="continue-btn">
-                            Continue <i class="fas fa-arrow-right"></i>
+                            Generate Paper <i class="fas fa-magic"></i>
                         </button>
                     </div>
                 </div>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
 
 <script>
-    let activeQuestionType = <?= json_encode($questionType) ?>;
+    let selectedQuestionTypes = <?= json_encode($questionTypes) ?>;
 
-    function selectType(type) {
-        activeQuestionType = type;
-        document.querySelectorAll('.type-card').forEach(card => card.classList.remove('selected'));
-        event.currentTarget.classList.add('selected');
+    function toggleType(type, card) {
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
         
-        // Update hidden input
-        const typeInput = document.querySelector('input[name="type"][value="' + type + '"]');
-        if (typeInput) typeInput.checked = true;
+        const configItem = document.getElementById('config-' + type);
+        if (checkbox.checked) {
+            card.classList.add('selected');
+            if (configItem) configItem.classList.add('active');
+            if (!selectedQuestionTypes.includes(type)) selectedQuestionTypes.push(type);
+        } else {
+            card.classList.remove('selected');
+            if (configItem) configItem.classList.remove('active');
+            selectedQuestionTypes = selectedQuestionTypes.filter(t => t !== type);
+        }
         
         const hiddenType = document.getElementById('hiddenQuestionType');
-        if (hiddenType) hiddenType.value = type;
+        if (hiddenType) {
+            // If multiple types are selected, use 'all', otherwise use the single type
+            hiddenType.value = selectedQuestionTypes.length > 1 ? 'all' : (selectedQuestionTypes[0] || '');
+        }
 
-        // Show divisions
-        document.getElementById('searchSection').style.display = 'block';
-        document.getElementById('resultsContainer').style.display = 'block';
+        // Show/Hide search section
+        const hasSelection = selectedQuestionTypes.length > 0;
+        const searchSection = document.getElementById('searchSection');
+        const resultsContainer = document.getElementById('resultsContainer');
+        if (searchSection) searchSection.style.display = hasSelection ? 'block' : 'none';
+        if (resultsContainer) resultsContainer.style.display = hasSelection ? 'block' : 'none';
         
-        // Update label
-        const labelText = type === 'mcqs' ? 'MCQs' : (type === 'short' ? 'Short Questions' : 'Long Questions');
-        document.getElementById('searchLabel').textContent = 'Search Topics for ' + labelText;
+        // Update selection count context
+        const searchLabel = document.getElementById('searchLabel');
+        if (searchLabel && hasSelection) {
+            const labels = { 'mcqs': 'MCQs', 'short': 'Short Questions', 'long': 'Long Questions' };
+            searchLabel.textContent = 'Search Topics for ' + selectedQuestionTypes.map(t => labels[t]).join(', ');
+        }
 
         // Update step indicators
         const dots = document.querySelectorAll('.step-dot');
-        if (dots[0]) dots[0].classList.add('completed');
-        if (dots[1]) dots[1].classList.add('active');
+        if (hasSelection) {
+            if (dots[0]) dots[0].classList.add('completed');
+            if (dots[1]) dots[1].classList.add('active');
+        } else {
+            if (dots[0]) dots[0].classList.remove('completed');
+            if (dots[0]) dots[0].classList.add('active');
+            if (dots[1]) dots[1].classList.remove('active');
+            if (dots[1]) dots[1].classList.remove('completed');
+        }
 
-        // Clear current results to avoid confusion across types
+        // Clear current results
         const grid = document.getElementById('topicsGrid');
         if (grid) grid.innerHTML = '';
         const resultsHeader = document.getElementById('resultsHeader');
@@ -687,6 +929,9 @@ if ($search && $questionType) {
         const loadMoreWrapper = document.getElementById('loadMoreWrapper');
         if (loadMoreWrapper) loadMoreWrapper.style.display = 'none';
     }
+
+    // Replace original function call with our new toggle logic
+    window.selectType = function() { console.log('Legacy selectType called - redirected to toggleType'); };
 
     // Store selected topics across searches
     let selectedTopics = new Set();
@@ -702,7 +947,9 @@ if ($search && $questionType) {
         }
 
         currentSearchTerm = searchTerm;
-        const qType = activeQuestionType;
+        
+        // Build types query string
+        let typeParams = selectedQuestionTypes.map(t => 'type[]=' + encodeURIComponent(t)).join('&');
         
         // Show loading
         document.getElementById('loadingState').style.display = 'block';
@@ -714,7 +961,7 @@ if ($search && $questionType) {
 
         try {
             // First search database
-            const response = await fetch('search_topics.php?search=' + encodeURIComponent(searchTerm) + '&type=' + encodeURIComponent(qType));
+            const response = await fetch('search_topics.php?search=' + encodeURIComponent(searchTerm) + '&' + typeParams);
             const data = await response.json();
             
             document.getElementById('loadingState').style.display = 'none';
@@ -844,13 +1091,13 @@ if ($search && $questionType) {
     // Auto load from AI
     async function loadMoreTopicsAuto() {
         const searchTerm = currentSearchTerm;
-        const qType = activeQuestionType;
-        if (!searchTerm) return;
+        if (!searchTerm || selectedQuestionTypes.length === 0) return;
         
+        let typeParams = selectedQuestionTypes.map(t => 'type[]=' + encodeURIComponent(t)).join('&');
         document.getElementById('loadingState').style.display = 'block';
         
         try {
-            const response = await fetch('fetch_more_topics.php?search=' + encodeURIComponent(searchTerm) + '&type=' + encodeURIComponent(qType));
+            const response = await fetch('fetch_more_topics.php?search=' + encodeURIComponent(searchTerm) + '&' + typeParams);
             const data = await response.json();
             
             document.getElementById('loadingState').style.display = 'none';
@@ -880,15 +1127,15 @@ if ($search && $questionType) {
 
     async function loadMoreTopics(btn) {
         const searchTerm = currentSearchTerm;
-        const qType = activeQuestionType;
-        if (!searchTerm) return;
+        if (!searchTerm || selectedQuestionTypes.length === 0) return;
         
+        let typeParams = selectedQuestionTypes.map(t => 'type[]=' + encodeURIComponent(t)).join('&');
         const originalText = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finding topics...';
         btn.disabled = true;
         
         try {
-            const response = await fetch('fetch_more_topics.php?search=' + encodeURIComponent(searchTerm) + '&type=' + encodeURIComponent(qType));
+            const response = await fetch('fetch_more_topics.php?search=' + encodeURIComponent(searchTerm) + '&' + typeParams);
             const data = await response.json();
             
             if (data.success && data.topics && data.topics.length > 0) {
@@ -919,10 +1166,12 @@ if ($search && $questionType) {
     async function autoLoadAITopics() {
         const searchTerm = <?= json_encode($search) ?>;
         currentSearchTerm = searchTerm;
-        const qType = activeQuestionType;
+        if (!searchTerm || selectedQuestionTypes.length === 0) return;
+        
+        let typeParams = selectedQuestionTypes.map(t => 'type[]=' + encodeURIComponent(t)).join('&');
         
         try {
-            const response = await fetch('fetch_more_topics.php?search=' + encodeURIComponent(searchTerm) + '&type=' + encodeURIComponent(qType));
+            const response = await fetch('fetch_more_topics.php?search=' + encodeURIComponent(searchTerm) + '&' + typeParams);
             const data = await response.json();
             
             // Hide loading state

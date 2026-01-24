@@ -1,8 +1,19 @@
 <?php
 // ajax_get_saved_questions.php - Fetch saved questions for the current user
+// Turn off error displaying to avoid breaking JSON
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
+// Start output buffering to catch any unwanted output
+ob_start();
+
 header('Content-Type: application/json');
+
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once '../db_connect.php';
+
+// Clear buffer before sending JSON
+ob_clean();
 
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);

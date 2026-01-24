@@ -175,6 +175,28 @@
     border-bottom: none;
 }
 
+.styled-list {
+    list-style: none;
+    padding: 0;
+}
+.styled-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    color: #475569;
+}
+.styled-list li i {
+    color: #10b981;
+    font-size: 0.9rem;
+}
+.section-title {
+    font-size: 2.2rem;
+    color: #1e293b;
+    font-weight: 800;
+    margin-bottom: 1rem;
+}
+
 /* Contact Form Section */
 .contact-form-section {
     background: white;

@@ -430,5 +430,54 @@ class QuestionService
         
         return $mcqs;
     }
+    /**
+     * Get random Questions (Short/Long) by Topics
+     */
+    public function getRandomQuestionsByTopics($topics, $questionType, $limit)
+    {
+        if (empty($topics)) return [];
+        $limit = intval($limit);
+        if ($limit <= 0) return [];
+        
+        // Clean topics array
+        $topics = array_values(array_unique(array_filter(array_map('trim', $topics))));
+        if (empty($topics)) return [];
+
+        // Dynamic query building
+        $conditions = [];
+        $params = [];
+        $types = "";
+        
+        foreach ($topics as $t) {
+            $conditions[] = "topic LIKE ?";
+            $params[] = "%{$t}%";
+            $types .= "s";
+        }
+        
+        $whereClause = implode(" OR ", $conditions);
+        
+        $query = "SELECT id, question_text, marks, topic 
+                 FROM questions 
+                 WHERE question_type = ? AND ({$whereClause}) 
+                 ORDER BY RAND() 
+                 LIMIT ?";
+        
+        $stmt = $this->conn->prepare($query);
+        
+        // Add type and limit to params
+        $queryParams = array_merge([$questionType], $params, [$limit]);
+        $types = "s" . $types . "i";
+        
+        $stmt->bind_param($types, ...$queryParams);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $questions = [];
+        while ($row = $result->fetch_assoc()) {
+            $questions[] = $row;
+        }
+        
+        return $questions;
+    }
 }
 ?>

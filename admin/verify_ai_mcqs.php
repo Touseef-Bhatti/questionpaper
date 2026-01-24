@@ -4,17 +4,7 @@ require_once __DIR__ . '/security.php';
 requireAdminAuth();
 
 // Auto-fix schema for missing columns (Self-healing)
-$tablesToFix = ['AIMCQsVerification', 'MCQsVerification'];
-foreach ($tablesToFix as $fixTable) {
-    // Check if table exists first
-    $tblCheck = $conn->query("SHOW TABLES LIKE '$fixTable'");
-    if ($tblCheck && $tblCheck->num_rows > 0) {
-        $colCheck = $conn->query("SHOW COLUMNS FROM $fixTable LIKE 'original_correct_option'");
-        if ($colCheck && $colCheck->num_rows === 0) {
-            $conn->query("ALTER TABLE $fixTable ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option");
-        }
-    }
-}
+// Moved to install.php
 
 // Handle AJAX Request for Verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'check_ai_mcqs') {

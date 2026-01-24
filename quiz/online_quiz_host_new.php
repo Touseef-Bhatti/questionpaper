@@ -36,9 +36,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                 <h1>🚀 Create Quiz Room</h1>
                 <p class="subtitle">Welcome back, <?= htmlspecialchars($user_name) ?>! Let's create an amazing quiz experience.</p>
             </div>
-            <a href="online_quiz_dashboard.php" class="btn btn-secondary" style="text-decoration: none; white-space: nowrap;">
-                ← Back to Dashboard
-            </a>
+            
         </div>
         
         <?php
@@ -50,6 +48,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
 
         <div class="creator-body">
             <form id="quizForm" method="POST" action="online_quiz_create_room.php">
+                <input type="hidden" name="source" value="host">
                 <!-- Quiz Configuration -->
                 <div class="form-section">
                     <div class="section-header">
@@ -90,7 +89,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                         <?php if (!$hasTopics): ?>
                         <div class="form-group">
                             <label class="form-label">📚 Class</label>
-                            <select class="form-select" id="class_id" name="class_id" required>
+                            <select class="form-select" id="class_id" name="class_id">
                                 <option value="">Choose your class</option>
                                 <?php
                                 $cls = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC");
@@ -105,57 +104,14 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                         
                         <div class="form-group">
                             <label class="form-label">📖 Book</label>
-                            <select class="form-select" id="book_id" name="book_id" required disabled>
+                            <select class="form-select" id="book_id" name="book_id" disabled>
                                 <option value="">Select class first</option>
                             </select>
                         </div>
                         <?php endif; ?>
-                        
-                        <div class="form-group">
-                            <label class="form-label">🎯 Number of Questions</label>
-                            <input type="number" class="form-input" id="mcq_count" name="mcq_count" min="1" max="50" value="<?= htmlspecialchars($urlMcqCount) ?>" required>
-                            <div class="form-hint">Recommended: 10-20 questions for optimal experience</div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">⏱️ Quiz Duration</label>
-                            <input type="number" class="form-input" id="quiz_duration" name="quiz_duration_minutes" min="1" max="120" value="<?= htmlspecialchars($urlDuration) ?>" required>
-                            <div class="form-hint">Duration in minutes</div>
-                            
-                            <div class="time-grid">
-                                <div class="time-preset" data-time="3">3 min</div>
-                                <div class="time-preset" data-time="5">5 min</div>
-                                <div class="time-preset active" data-time="10">10 min</div>
-                                <div class="time-preset" data-time="15">15 min</div>
-                                <div class="time-preset" data-time="20">20 min</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Question Selection -->
-                <?php if (!$hasTopics): ?>
-                <div class="form-section">
-                    <div class="section-header">
-                        <div class="section-icon">❓</div>
-                        <div>
-                            <h2 class="section-title">Question Selection</h2>
-                            <p class="section-description">Choose which topics and chapters to include</p>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">📑 Chapters (Optional)</label>
-                        <div id="chapterSelector" class="chapter-selector">
-                            <div class="selector-hint">Select a book to view available chapters</div>
-                        </div>
-                        <input type="hidden" name="chapter_ids" id="chapter_ids">
-                        <div class="form-hint">Leave empty to include all chapters from selected book</div>
-                    </div>
-                </div>
-                <?php endif; ?>
-
-                <!-- Custom Questions -->
+                        </div> 
+                        <!-- Custom Questions -->
                 <div class="toggle-section">
                     <div class="toggle-header" onclick="toggleCustomQuestions()">
                         <div class="toggle-switch" id="customToggle">
@@ -208,213 +164,67 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                         </div>
                     </div>
                 </div>
-
-                <style>
-                    /* Modal Styling */
-                    .modal-overlay {
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0, 0, 0, 0.6);
-                        backdrop-filter: blur(4px);
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        z-index: 1000;
-                        animation: fadeIn 0.2s ease-out;
-                    }
-
-                    @keyframes fadeIn {
-                        from { opacity: 0; }
-                        to { opacity: 1; }
-                    }
-
-                    .modal-content {
-                        background: #ffffff;
-                        width: 90%;
-                        max-width: 800px;
-                        max-height: 85vh;
-                        border-radius: 12px;
-                        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-                        display: flex;
-                        flex-direction: column;
-                        overflow: hidden;
-                        animation: slideUp 0.3s ease-out;
-                    }
-
-                    @keyframes slideUp {
-                        from { transform: translateY(20px); opacity: 0; }
-                        to { transform: translateY(0); opacity: 1; }
-                    }
-
-                    .modal-header {
-                        padding: 20px 24px;
-                        border-bottom: 1px solid #e5e7eb;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        background: #f9fafb;
-                    }
-
-                    .modal-header h3 {
-                        margin: 0;
-                        font-size: 1.25rem;
-                        font-weight: 600;
-                        color: #111827;
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                    }
-
-                    .close-btn {
-                        background: none;
-                        border: none;
-                        font-size: 1.5rem;
-                        color: #6b7280;
-                        cursor: pointer;
-                        padding: 4px;
-                        border-radius: 4px;
-                        transition: all 0.2s;
-                        line-height: 1;
-                    }
-
-                    .close-btn:hover {
-                        color: #ef4444;
-                        background: #fee2e2;
-                    }
-
-                    .modal-body {
-                        padding: 24px;
-                        overflow-y: auto;
-                        flex: 1;
-                        background: #f3f4f6;
-                    }
-
-                    /* Custom Scrollbar */
-                    .modal-body::-webkit-scrollbar {
-                        width: 8px;
-                    }
-                    .modal-body::-webkit-scrollbar-track {
-                        background: #f1f1f1;
-                    }
-                    .modal-body::-webkit-scrollbar-thumb {
-                        background: #d1d5db;
-                        border-radius: 4px;
-                    }
-                    .modal-body::-webkit-scrollbar-thumb:hover {
-                        background: #9ca3af;
-                    }
-
-                    .modal-footer {
-                        padding: 16px 24px;
-                        border-top: 1px solid #e5e7eb;
-                        background: #ffffff;
-                        display: flex;
-                        justify-content: flex-end;
-                        gap: 12px;
-                    }
-
-                    /* Saved Question Item */
-                    .saved-question-item {
-                        background: white;
-                        border: 1px solid #e5e7eb;
-                        border-radius: 8px;
-                        padding: 16px;
-                        margin-bottom: 12px;
-                        display: flex;
-                        gap: 16px;
-                        transition: all 0.2s ease;
-                        cursor: pointer;
-                        position: relative;
-                    }
-
-                    .saved-question-item:hover {
-                        border-color: #6366f1;
-                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                        transform: translateY(-1px);
-                    }
-
-                    .saved-question-checkbox {
-                        margin-top: 4px;
-                        width: 18px;
-                        height: 18px;
-                        cursor: pointer;
-                        accent-color: #6366f1;
-                    }
-
-                    .saved-question-content {
-                        flex: 1;
-                    }
-
-                    .saved-question-text {
-                        font-size: 1rem;
-                        font-weight: 600;
-                        color: #1f2937;
-                        margin-bottom: 12px;
-                        line-height: 1.5;
-                    }
-
-                    .saved-question-options {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 8px;
-                        font-size: 0.9rem;
-                    }
-
-                    @media (max-width: 640px) {
-                        .saved-question-options {
-                            grid-template-columns: 1fr;
-                        }
-                    }
-
-                    .option-pill {
-                        padding: 8px 12px;
-                        background: #f9fafb;
-                        border: 1px solid #e5e7eb;
-                        border-radius: 6px;
-                        color: #4b5563;
-                        display: flex;
-                        align-items: center;
-                    }
+                </div>
+                  <!-- Question Selection -->
+                <?php if (!$hasTopics): ?>
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon">❓</div>
+                        <div>
+                            <h2 class="section-title">Question Selection</h2>
+                            <p class="section-description">Choose which topics and chapters to include</p>
+                        </div>
+                    </div>
                     
-                    .option-pill strong {
-                        margin-right: 8px;
-                        color: #6b7280;
-                    }
-
-                    .option-pill.correct {
-                        background-color: #ecfdf5;
-                        border-color: #34d399;
-                        color: #065f46;
-                    }
+                    <div class="form-group">
+                        <label class="form-label">📑 Chapters (Optional)</label>
+                        <div id="chapterSelector" class="chapter-selector">
+                            <div class="selector-hint">Select a book to view available chapters</div>
+                        </div>
+                        <input type="hidden" name="chapter_ids" id="chapter_ids">
+                        <div class="form-hint">Leave empty to include all chapters from selected book</div>
+                    </div>
+                </div>
+                <?php endif; ?>
+                        
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon">⚙️</div>
+                        <div>
+                            <h2 class="section-title">Quiz Settings</h2>
+                            <p class="section-description">Finalize question count and duration</p>
+                        </div>
+                    </div>
                     
-                    .option-pill.correct strong {
-                        color: #059669;
-                    }
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">🎯 Number of Questions</label>
+                            <input type="number" class="form-input" id="mcq_count" name="mcq_count" min="1" max="50" value="<?= htmlspecialchars($urlMcqCount) ?>" required>
+                            <div class="form-hint">Recommended: 10-20 questions for optimal experience</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">⏱️ Quiz Duration</label>
+                            <input type="number" class="form-input" id="quiz_duration" name="quiz_duration_minutes" min="1" max="120" value="<?= htmlspecialchars($urlDuration) ?>" required>
+                            <div class="form-hint">Duration in minutes</div>
+                            
+                            <div class="time-grid">
+                                <div class="time-preset" data-time="3">3 min</div>
+                                <div class="time-preset" data-time="5">5 min</div>
+                                <div class="time-preset active" data-time="10">10 min</div>
+                                <div class="time-preset" data-time="15">15 min</div>
+                                <div class="time-preset" data-time="20">20 min</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                    .loader-container {
-                        text-align: center;
-                        padding: 40px;
-                        color: #6b7280;
-                    }
+              
 
-                    .spinner {
-                        width: 40px;
-                        height: 40px;
-                        border: 3px solid #e5e7eb;
-                        border-top: 3px solid #6366f1;
-                        border-radius: 50%;
-                        margin: 0 auto;
-                        animation: spin 1s linear infinite;
-                    }
 
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                </style>
+              
+
+                <!-- Styles moved to CSS file -->
 
                 <!-- Quiz Preview -->
                 <div class="preview-section">
@@ -506,66 +316,71 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
         }
         
         // Load books based on class selection
-        document.getElementById('class_id').addEventListener('change', async function() {
-            const bookSelect = document.getElementById('book_id');
-            const classId = this.value;
-            
-            if (!classId) {
-                bookSelect.innerHTML = '<option value="">Select class first</option>';
-                bookSelect.disabled = true;
-                clearChapters();
-                return;
-            }
-            
-            bookSelect.innerHTML = '<option value="">Loading books...</option>';
-            
-            try {
-                const response = await fetch(`quiz_data.php?type=books&class_id=${classId}`);
-                const books = await response.json();
+        const classSelect = document.getElementById('class_id');
+        if (classSelect) {
+            classSelect.addEventListener('change', async function() {
+                const bookSelect = document.getElementById('book_id');
+                const classId = this.value;
                 
-                bookSelect.innerHTML = '<option value="">Choose a book</option>' + 
-                    books.map(book => `<option value="${book.book_id}">${book.book_name}</option>`).join('');
-                bookSelect.disabled = false;
-            } catch (error) {
-                bookSelect.innerHTML = '<option value="">Error loading books</option>';
-                console.error('Error loading books:', error);
-            }
-        });
-        
-        // Load chapters based on book selection
-        document.getElementById('book_id').addEventListener('change', async function() {
-            const chapterSelector = document.getElementById('chapterSelector');
-            const classId = document.getElementById('class_id').value;
-            const bookId = this.value;
-            
-            if (!classId || !bookId) {
-                clearChapters();
-                return;
-            }
-            
-            chapterSelector.innerHTML = '<div class="selector-hint">Loading chapters...</div>';
-            
-            try {
-                const response = await fetch(`quiz_data.php?type=chapters&class_id=${classId}&book_id=${bookId}`);
-                const chapters = await response.json();
-                
-                if (chapters.length === 0) {
-                    chapterSelector.innerHTML = '<div class="selector-hint">No chapters available</div>';
+                if (!classId) {
+                    bookSelect.innerHTML = '<option value="">Select class first</option>';
+                    bookSelect.disabled = true;
+                    clearChapters();
                     return;
                 }
                 
-                chapterSelector.innerHTML = chapters.map(chapter => `
-                    <div class="chapter-item" style="padding: 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" 
-                         onclick="toggleChapter(${chapter.chapter_id}, this)">
-                        <input type="checkbox" id="ch_${chapter.chapter_id}" value="${chapter.chapter_id}" onchange="handleChapterChange(${chapter.chapter_id})">
-                        <label for="ch_${chapter.chapter_id}" style="cursor: pointer; flex: 1;">${chapter.chapter_name}</label>
-                    </div>
-                `).join('');
-            } catch (error) {
-                chapterSelector.innerHTML = '<div class="selector-hint">Error loading chapters</div>';
-                console.error('Error loading chapters:', error);
-            }
-        });
+                bookSelect.innerHTML = '<option value="">Loading books...</option>';
+                
+                try {
+                    const response = await fetch(`quiz_data.php?type=books&class_id=${classId}`);
+                    const books = await response.json();
+                    
+                    bookSelect.innerHTML = '<option value="">Choose a book</option>' + 
+                        books.map(book => `<option value="${book.book_id}">${book.book_name}</option>`).join('');
+                    bookSelect.disabled = false;
+                } catch (error) {
+                    bookSelect.innerHTML = '<option value="">Error loading books</option>';
+                    console.error('Error loading books:', error);
+                }
+            });
+        }
+        
+        // Load chapters based on book selection
+        const bookSelect = document.getElementById('book_id');
+        if (bookSelect) {
+            bookSelect.addEventListener('change', async function() {
+                const chapterSelector = document.getElementById('chapterSelector');
+                const classId = document.getElementById('class_id').value;
+                const bookId = this.value;
+                
+                if (!classId || !bookId) {
+                    clearChapters();
+                    return;
+                }
+                
+                chapterSelector.innerHTML = '<div class="selector-hint">Loading chapters...</div>';
+                
+                try {
+                    const response = await fetch(`quiz_data.php?type=chapters&class_id=${classId}&book_id=${bookId}`);
+                    const chapters = await response.json();
+                    
+                    if (chapters.length === 0) {
+                            chapterSelector.innerHTML = '<div class="selector-hint">No chapters available</div>';
+                            return;
+                        }
+                        
+                        chapterSelector.innerHTML = chapters.map(chapter => `
+                            <div class="chapter-item" onclick="toggleChapter(${chapter.chapter_id}, this)">
+                                <input type="checkbox" id="ch_${chapter.chapter_id}" value="${chapter.chapter_id}" onchange="handleChapterChange(${chapter.chapter_id})">
+                                <label for="ch_${chapter.chapter_id}">${chapter.chapter_name}</label>
+                            </div>
+                        `).join('');
+                } catch (error) {
+                    chapterSelector.innerHTML = '<div class="selector-hint">Error loading chapters</div>';
+                    console.error('Error loading chapters:', error);
+                }
+            });
+        }
         
         function clearChapters() {
             selectedChapterIds = [];
@@ -578,6 +393,17 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
             const checkbox = element.querySelector('input[type="checkbox"]');
             checkbox.checked = !checkbox.checked;
             handleChapterChange(chapterId);
+            
+            // Visual feedback
+            if (checkbox.checked) {
+                element.classList.add('selected');
+                element.style.backgroundColor = '#eff6ff';
+                element.style.borderColor = '#bfdbfe';
+            } else {
+                element.classList.remove('selected');
+                element.style.backgroundColor = '';
+                element.style.borderColor = '';
+            }
         }
         
         function handleChapterChange(chapterId) {
@@ -727,7 +553,10 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
             const duration = parseInt(document.getElementById('quiz_duration').value) || 0;
             const chapterCount = selectedChapterIds.length;
             
-            document.getElementById('totalQuestions').textContent = mcqCount + customCount;
+            // Calculate effective total based on target count vs custom questions
+            const total = Math.max(mcqCount, customCount);
+            
+            document.getElementById('totalQuestions').textContent = total;
             document.getElementById('estimatedTime').textContent = duration;
             document.getElementById('customCount').textContent = customCount;
             document.getElementById('selectedChapters').textContent = chapterCount === 0 ? 'All' : chapterCount;
@@ -751,10 +580,34 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
         
         // Form submission
         document.getElementById('quizForm').addEventListener('submit', function(e) {
-            const mcqCount = parseInt(document.getElementById('mcq_count').value) || 0;
+            let mcqCount = parseInt(document.getElementById('mcq_count').value) || 0;
             const customCount = customQuestions.length;
             
-            if (mcqCount === 0 && customCount === 0) {
+            // Logic to determine if we can generate random questions
+            const classSelect = document.getElementById('class_id');
+            const bookSelect = document.getElementById('book_id');
+            const hasClassAndBook = classSelect && bookSelect && !classSelect.disabled && classSelect.value && bookSelect.value;
+            
+            // Check for topics
+            const topicsInput = document.querySelector('input[name="topics"]');
+            const hasTopics = topicsInput && topicsInput.value && topicsInput.value !== '[]';
+
+            // If we have no class/book selected, we can ONLY use custom questions.
+            let randomQuestionsNeeded = 0;
+            let effectiveTotal = 0;
+            
+            if (hasClassAndBook || hasTopics) {
+                // Standard mode: We can generate random questions
+                randomQuestionsNeeded = Math.max(0, mcqCount - customCount);
+                effectiveTotal = Math.max(mcqCount, customCount);
+            } else {
+                // Custom-only mode: Ignore mcqCount if it's higher than customCount
+                // We will force the quiz to be custom-only
+                randomQuestionsNeeded = 0;
+                effectiveTotal = customCount;
+            }
+            
+            if (effectiveTotal === 0) {
                 e.preventDefault();
                 alert('Please add at least one question to create a quiz room.');
                 return;
@@ -771,6 +624,34 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                     e.preventDefault();
                     alert('Please complete all custom questions before submitting.');
                     return;
+                }
+            }
+
+            // Confirmation Dialog
+            let message = "📝 Quiz Confirmation\n\n";
+            message += `Total Questions: ${effectiveTotal}\n`;
+            message += `------------------------\n`;
+            message += `• Custom Questions: ${customCount}\n`;
+            
+            if (randomQuestionsNeeded > 0) {
+                message += `• Random Questions: ${randomQuestionsNeeded}\n`;
+            } else {
+                 if (mcqCount > customCount && !hasClassAndBook && !hasTopics) {
+                     message += `(Note: You requested ${mcqCount} questions but didn't select a Class/Book or Topics. The quiz will only contain your ${customCount} custom questions.)\n`;
+                 } else if (customCount > mcqCount) {
+                     message += `(Note: You have more custom questions than the requested count. All ${customCount} will be included.)\n`;
+                 }
+            }
+            
+            message += `\nDuration: ${document.getElementById('quiz_duration').value} minutes\n`;
+            message += `\nDo you want to create this quiz?`;
+
+            if (!confirm(message)) {
+                e.preventDefault();
+            } else {
+                // If we are in custom-only fallback mode, update the input so the backend doesn't get confused
+                if (!hasClassAndBook && !hasTopics && customCount > 0) {
+                     document.getElementById('mcq_count').value = customCount;
                 }
             }
         });

@@ -4,42 +4,65 @@ require_once __DIR__ . '/security.php';
 requireSuperAdmin();
 
 $message = '';
+$error = ''; // Add error variable
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    
-    if ($action === 'create') {
-        $name = trim($_POST['name'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $role = strtolower(trim($_POST['role'] ?? 'admin'));
+    // CSRF Check
+    if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
+        $message = 'Invalid CSRF token.';
+    } else {
+        $action = $_POST['action'] ?? '';
         
-        if ($name !== '' && $email !== '' && $password !== '' && in_array($role, ['admin', 'superadmin', 'super_admin'])) {
-            $nameEsc = $conn->real_escape_string($name);
-            $emailEsc = $conn->real_escape_string($email);
-            $hash = password_hash($password, PASSWORD_DEFAULT);
-            $roleEsc = $conn->real_escape_string($role);
+        if ($action === 'create') {
+            $name = trim($_POST['name'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $role = strtolower(trim($_POST['role'] ?? 'admin'));
             
-            // Check if admin already exists
-            $checkResult = $conn->query("SELECT id FROM admins WHERE email = '$emailEsc'");
-            if ($checkResult && $checkResult->num_rows > 0) {
-                $message = 'Admin with this email already exists.';
+            if ($name !== '' && $email !== '' && $password !== '' && in_array($role, ['admin', 'superadmin', 'super_admin'])) {
+                $hash = password_hash($password, PASSWORD_DEFAULT);
+                
+                // Check if admin already exists
+                $stmt = $conn->prepare("SELECT id FROM admins WHERE email = ?");
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $stmt->store_result();
+                
+                if ($stmt->num_rows > 0) {
+                    $message = 'Admin with this email already exists.';
+                } else {
+                    $stmt->close();
+                    // Insert new admin
+                    $stmt = $conn->prepare("INSERT INTO admins (name, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())");
+                    $stmt->bind_param("ssss", $name, $email, $hash, $role);
+                    
+                    if ($stmt->execute()) {
+                        $message = 'Admin created successfully.';
+                    } else {
+                        $message = 'Error creating admin: ' . $stmt->error;
+                    }
+                }
+                $stmt->close();
             } else {
-                $conn->query("INSERT INTO admins (name, email, password, role, created_at) VALUES ('$nameEsc', '$emailEsc', '$hash', '$roleEsc', NOW())");
-                $message = 'Admin created successfully.';
+                $message = 'Please fill all fields correctly.';
             }
-        } else {
-            $message = 'Please fill all fields correctly.';
-        }
-    } elseif ($action === 'delete') {
-        $id = intval($_POST['id'] ?? 0);
-        if ($id > 0) {
-            // Prevent deleting the current admin
-            $currentAdminId = $_SESSION['id'] ?? $_SESSION['admin_id'] ?? null;
-            if ($id === $currentAdminId) {
-                $message = 'You cannot delete your own account.';
-            } else {
-                $conn->query("DELETE FROM admins WHERE id = $id");
-                $message = 'Admin deleted successfully.';
+        } elseif ($action === 'delete') {
+            $id = intval($_POST['id'] ?? 0);
+            if ($id > 0) {
+                // Prevent deleting the current admin
+                $currentAdminId = $_SESSION['id'] ?? $_SESSION['admin_id'] ?? null;
+                if ($id === $currentAdminId) {
+                    $message = 'You cannot delete your own account.';
+                } else {
+                    $stmt = $conn->prepare("DELETE FROM admins WHERE id = ?");
+                    $stmt->bind_param("i", $id);
+                    if ($stmt->execute()) {
+                        $message = 'Admin deleted successfully.';
+                    } else {
+                        $message = 'Error deleting admin.';
+                    }
+                    $stmt->close();
+                }
             }
         }
     }
@@ -109,6 +132,7 @@ $admins = $conn->query("SELECT id, name, email, role, created_at FROM admins ORD
         <div class="form-section">
             <h2>Create New Admin</h2>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                 <input type="hidden" name="action" value="create">
                 
                 <div class="form-row">
@@ -183,6 +207,7 @@ $admins = $conn->query("SELECT id, name, email, role, created_at FROM admins ORD
                                 <?php $currentAdminId = $_SESSION['id'] ?? $_SESSION['admin_id'] ?? null; ?>
                                 <?php if ($admin['id'] !== $currentAdminId): ?>
                                     <form method="POST" style="display: inline;" onsubmit="return confirm('Delete this admin account?');">
+                                        <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="id" value="<?= (int)$admin['id'] ?>">
                                         <button type="submit" class="btn-small btn-delete">Delete</button>

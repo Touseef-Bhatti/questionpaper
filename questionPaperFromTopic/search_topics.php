@@ -9,7 +9,10 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../db_connect.php';
 
 $search = $_GET['search'] ?? '';
-$type = $_GET['type'] ?? '';
+$types = $_GET['type'] ?? [];
+if (!is_array($types)) {
+    $types = $types ? [$types] : [];
+}
 
 if (!$search) {
     echo json_encode(['success' => false, 'message' => 'Search term required', 'topics' => []]);
@@ -19,8 +22,8 @@ if (!$search) {
 $topics = [];
 $term = "%$search%";
 
-if ($type === 'mcqs') {
-    // Step 1: Search main MCQs table
+// Search MCQs if requested
+if (in_array('mcqs', $types) || in_array('all', $types)) {
     $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic LIKE ? LIMIT 50");
     $stmt->bind_param('s', $term);
     $stmt->execute();
@@ -29,24 +32,31 @@ if ($type === 'mcqs') {
         $topics[] = $row['topic'];
     }
 
-    // Step 2: If no results, search AIGeneratedMCQs table
-    if (empty($topics)) {
-        $stmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic LIKE ? LIMIT 50");
-        $stmt->bind_param('s', $term);
+    // Search AIGeneratedMCQs
+    $stmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic LIKE ? LIMIT 50");
+    $stmt->bind_param('s', $term);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $topics[] = $row['topic'];
+    }
+}
+
+// Search Short/Long if requested
+$otherTypes = array_filter($types, function($t) { return $t === 'short' || $t === 'long'; });
+if (in_array('all', $types)) {
+    $otherTypes = ['short', 'long'];
+}
+
+if (!empty($otherTypes)) {
+    foreach ($otherTypes as $ot) {
+        $stmt = $conn->prepare("SELECT DISTINCT topic FROM questions WHERE question_type = ? AND topic LIKE ? LIMIT 50");
+        $stmt->bind_param('ss', $ot, $term);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
             $topics[] = $row['topic'];
         }
-    }
-} else {
-    // Search Short or Long questions
-    $stmt = $conn->prepare("SELECT DISTINCT topic FROM questions WHERE question_type = ? AND topic LIKE ? LIMIT 50");
-    $stmt->bind_param('ss', $type, $term);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $topics[] = $row['topic'];
     }
 }
 
@@ -58,3 +68,4 @@ echo json_encode([
     'topics' => $topics,
     'count' => count($topics)
 ]);
+?>

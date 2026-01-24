@@ -334,7 +334,18 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         
         if (isset($_POST['test_api_connection'])) {
             $apiKey = EnvLoader::get('OPENAI_API_KEY', '');
-            $model = EnvLoader::get('OPENAI_MODEL', 'openai/gpt-oss-120b');
+            
+            // If single key is empty or looks like a list, try to get from OPENAI_API_KEYS
+            if (empty($apiKey) || strpos($apiKey, ',') !== false) {
+                 $apiKeysStr = EnvLoader::get('OPENAI_API_KEYS', '');
+                 if (!empty($apiKeysStr)) {
+                     $keys = array_map('trim', explode(',', $apiKeysStr));
+                     // Use the last key as it's likely the newest/most valid one
+                     $apiKey = end($keys);
+                 }
+            }
+            
+            $model = EnvLoader::get('OPENAI_MODEL', 'nvidia/nemotron-3-nano-30b-a3b:free');
             
             if (!empty($apiKey)) {
                 echo '<div class="info">Testing API connection...</div>';

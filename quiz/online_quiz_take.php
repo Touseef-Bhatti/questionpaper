@@ -212,6 +212,45 @@ let startTime = Date.now(); // For tracking time spent on questions
 let questionStartTime = Date.now();
 
 let timerInterval = setInterval(updateTimer, 1000);
+let statusInterval = setInterval(checkServerStatus, 5000);
+
+function checkServerStatus() {
+    fetch('online_quiz_participant_status.php?room_code=' + encodeURIComponent(roomCode))
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) return;
+
+        // If room is closed, force finish
+        if (data.status === 'closed') {
+             if (!document.getElementById('resultsCard').classList.contains('hidden')) return; 
+             
+             clearInterval(statusInterval);
+             alert("The host has closed the quiz. Submitting your answers now.");
+             showResults();
+             return;
+        }
+
+        // Sync timer
+        if (typeof data.remaining_seconds !== 'undefined') {
+            const serverRemaining = parseInt(data.remaining_seconds);
+            
+            // If server says time is up
+            if (serverRemaining <= 0) {
+                 if (!document.getElementById('resultsCard').classList.contains('hidden')) return;
+                 clearInterval(statusInterval);
+                 alert("Time Over! Your quiz is being submitted automatically.");
+                 showResults();
+                 return;
+            }
+
+            // Allow small drift (e.g. 3 seconds) to avoid jitter, but hard sync if large difference
+            if (Math.abs(remainingSec - serverRemaining) > 3) {
+                remainingSec = serverRemaining;
+            }
+        }
+    })
+    .catch(err => console.error('Status check failed', err));
+}
 
 function updateTimer() {
   remainingSec--;
@@ -346,6 +385,7 @@ function nextQuestion() {
 
 async function showResults() {
   clearInterval(timerInterval);
+  if (typeof statusInterval !== 'undefined') clearInterval(statusInterval);
   const totalTime = Math.floor((Date.now() - startTime) / 1000);
   const percentage = Math.round((score / questions.length) * 100);
   document.getElementById('questionContainer').innerHTML = '';

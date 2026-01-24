@@ -1,24 +1,45 @@
 <?php
 require_once __DIR__ . '/../db_connect.php';
-if (session_status() === PHP_SESSION_NONE) session_start();
-if (empty($_SESSION['role']) || !in_array($_SESSION['role'], ['admin','superadmin'])) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/security.php';
+requireAdminAuth();
 
 $message = '';
+$error = '';
+
 // Example: save a site setting in a simple table `settings(key, value)`
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $siteName = trim($_POST['site_name'] ?? 'Ahmad Learning Hub');
-    $siteNameEsc = $conn->real_escape_string($siteName);
-    $conn->query("CREATE TABLE IF NOT EXISTS settings (skey VARCHAR(191) PRIMARY KEY, svalue TEXT)");
-    $conn->query("INSERT INTO settings (skey, svalue) VALUES ('site_name', '$siteNameEsc') ON DUPLICATE KEY UPDATE svalue=VALUES(svalue)");
-    $message = 'Settings saved.';
+    if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
+        $error = "Invalid CSRF token.";
+    } else {
+        $siteName = trim($_POST['site_name'] ?? 'Ahmad Learning Hub');
+        
+        // Use prepared statement
+        // Table creation moved to install.php
+        $stmt = $conn->prepare("INSERT INTO settings (skey, svalue) VALUES ('site_name', ?) ON DUPLICATE KEY UPDATE svalue = ?");
+        if ($stmt) {
+            $stmt->bind_param("ss", $siteName, $siteName);
+            if ($stmt->execute()) {
+                $message = 'Settings saved.';
+            } else {
+                $error = "Error saving settings: " . $stmt->error;
+            }
+            $stmt->close();
+        } else {
+            $error = "Database error: " . $conn->error;
+        }
+    }
 }
 
 $siteName = 'Ahmad Learning Hub';
-$res = $conn->query("SELECT svalue FROM settings WHERE skey='site_name' LIMIT 1");
-if ($res && $res->num_rows === 1) { $siteName = $res->fetch_assoc()['svalue']; }
+$stmt = $conn->prepare("SELECT svalue FROM settings WHERE skey='site_name' LIMIT 1");
+if ($stmt) {
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($res && $res->num_rows === 1) { 
+        $siteName = $res->fetch_assoc()['svalue']; 
+    }
+    $stmt->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -34,6 +55,7 @@ if ($res && $res->num_rows === 1) { $siteName = $res->fetch_assoc()['svalue']; }
         .nav { margin-bottom: 12px; }
         .nav a { margin-right: 8px; }
         .msg { color: green; }
+        .err { color: red; }
     </style>
     <?php include __DIR__ . '/header.php'; ?>
     <div class="main-content">
@@ -45,7 +67,9 @@ if ($res && $res->num_rows === 1) { $siteName = $res->fetch_assoc()['svalue']; }
         </div>
         <h1>Site Settings</h1>
         <?php if ($message): ?><p class="msg"><?= htmlspecialchars($message) ?></p><?php endif; ?>
+        <?php if ($error): ?><p class="err"><?= htmlspecialchars($error) ?></p><?php endif; ?>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
             <label for="site_name">Site Name</label>
             <input id="site_name" type="text" name="site_name" value="<?= htmlspecialchars($siteName) ?>" required>
             <button type="submit">Save Settings</button>

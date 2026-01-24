@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/security.php'; // Include security helper for CSRF
+
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 // Redirect if already logged in as admin
@@ -10,31 +12,41 @@ if (!empty($_SESSION['role']) && in_array($_SESSION['role'], ['admin','superadmi
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $password = isset($_POST['password']) ? $_POST['password'] : '';
-
-    if ($email !== '' && $password !== '') {
-        $emailEsc = $conn->real_escape_string($email);
-        // Authenticate against admins table now that admins and users are separate
-        $sql = "SELECT id, name, email, password, role FROM admins WHERE email = '$emailEsc' LIMIT 1";
-        $res = $conn->query($sql);
-        if ($res && $res->num_rows === 1) {
-            $user = $res->fetch_assoc();
-            // Accept either hashed or plain for early setups
-            $valid = password_verify($password, $user['password']) || $password === $user['password'];
-            if ($valid && in_array(strtolower($user['role']), ['admin', 'superadmin'])) {
-                session_regenerate_id(true);
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['name'] = $user['name'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['role'] = strtolower($user['role']);
-                header('Location: dashboard.php');
-                exit;
-            }
-        }
-        $error = 'Invalid credentials or not authorized.';
+    // Validate CSRF
+    if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid CSRF token. Please reload the page.';
     } else {
-        $error = 'Please enter email and password.';
+        $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+        $password = isset($_POST['password']) ? $_POST['password'] : '';
+
+        if ($email !== '' && $password !== '') {
+            // Use prepared statement
+            $stmt = $conn->prepare("SELECT id, name, email, password, role FROM admins WHERE email = ? LIMIT 1");
+            if ($stmt) {
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                
+                if ($res && $res->num_rows === 1) {
+                    $user = $res->fetch_assoc();
+                    // Accept either hashed or plain for early setups
+                    $valid = password_verify($password, $user['password']) || $password === $user['password'];
+                    if ($valid && in_array(strtolower($user['role']), ['admin', 'superadmin'])) {
+                        session_regenerate_id(true);
+                        $_SESSION['user_id'] = $user['id'];
+                        $_SESSION['name'] = $user['name'];
+                        $_SESSION['email'] = $user['email'];
+                        $_SESSION['role'] = strtolower($user['role']);
+                        header('Location: dashboard.php');
+                        exit;
+                    }
+                }
+                $stmt->close();
+            }
+            $error = 'Invalid credentials or not authorized.';
+        } else {
+            $error = 'Please enter email and password.';
+        }
     }
 }
 ?>
@@ -58,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="error"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
             <label for="email">Email</label>
             <input type="email" id="email" name="email" required>
             <label for="password">Password</label>

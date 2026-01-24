@@ -18,6 +18,67 @@ function runQuery($conn, $sql, $message) {
     }
 }
 
+// 0. Set Time Zone to PST (Pakistan Standard Time, UTC+5)
+// We set session time zone only, as GLOBAL requires SUPER privileges which might not be available
+runQuery($conn, "SET time_zone = '+05:00';", "Setting Session Time Zone to PST (+05:00)");
+
+
+// 0. Core Content Tables
+runQuery($conn, "CREATE TABLE IF NOT EXISTS class (
+    class_id INT AUTO_INCREMENT PRIMARY KEY,
+    class_name VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: class");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS book (
+    book_id INT AUTO_INCREMENT PRIMARY KEY,
+    book_name VARCHAR(255) NOT NULL,
+    class_id INT NOT NULL,
+    FOREIGN KEY (class_id) REFERENCES class(class_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: book");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS chapter (
+    chapter_id INT AUTO_INCREMENT PRIMARY KEY,
+    chapter_name VARCHAR(255) NOT NULL,
+    chapter_no INT NOT NULL,
+    class_id INT NOT NULL,
+    book_id INT NOT NULL,
+    book_name VARCHAR(255) NOT NULL,
+    FOREIGN KEY (class_id) REFERENCES class(class_id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES book(book_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: chapter");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS questions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    class_id INT NOT NULL,
+    book_id INT NOT NULL,
+    chapter_id INT NOT NULL,
+    question_type ENUM('short', 'long', 'mcq') NOT NULL DEFAULT 'short',
+    question_text TEXT NOT NULL,
+    topic VARCHAR(255) DEFAULT NULL,
+    book_name VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES class(class_id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES book(book_id) ON DELETE CASCADE,
+    FOREIGN KEY (chapter_id) REFERENCES chapter(chapter_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: questions");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS uploaded_notes (
+    note_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    file_path VARCHAR(255) NOT NULL,
+    class_id INT NOT NULL,
+    book_id INT NOT NULL,
+    chapter_id INT NOT NULL,
+    is_deleted TINYINT(1) DEFAULT 0,
+    deleted_at DATETIME DEFAULT NULL,
+    deleted_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES class(class_id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES book(book_id) ON DELETE CASCADE,
+    FOREIGN KEY (chapter_id) REFERENCES chapter(chapter_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: uploaded_notes");
+
 // 1. Core Tables from db_connect.php
 runQuery($conn, "CREATE TABLE IF NOT EXISTS question_papers (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -98,164 +159,234 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS `mcqs` (
     `class_id` int(11) NOT NULL,
     `book_id` int(11) NOT NULL,
     `chapter_id` int(11) NOT NULL,
-    `topic` varchar(255) NOT NULL,
     `question` text NOT NULL,
-    `option_a` varchar(255) NOT NULL,
-    `option_b` varchar(255) NOT NULL,
-    `option_c` varchar(255) NOT NULL,
-    `option_d` varchar(255) NOT NULL,
-    `correct_option` varchar(255) DEFAULT NULL,
-    PRIMARY KEY (`mcq_id`),
-    KEY `class_id` (`class_id`),
-    KEY `book_id` (`book_id`),
-    KEY `chapter_id` (`chapter_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci", "Table: mcqs");
+    `option_a` text NOT NULL,
+    `option_b` text NOT NULL,
+    `option_c` text NOT NULL,
+    `option_d` text NOT NULL,
+    `correct_option` enum('A','B','C','D') NOT NULL,
+    `difficulty_level` enum('Easy','Medium','Hard') DEFAULT 'Medium',
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`mcq_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: mcqs");
 
-runQuery($conn, "CREATE TABLE IF NOT EXISTS deleted_questions (
+// 7. API Keys (APIKeyManager.php)
+runQuery($conn, "CREATE TABLE IF NOT EXISTS api_keys (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    question_id INT NOT NULL,
-    class_id INT NOT NULL,
-    book_name VARCHAR(191) NULL,
-    chapter_id INT NOT NULL,
-    question_type ENUM('mcq','short','long') NOT NULL,
-    question_text TEXT NOT NULL,
-    deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", "Table: deleted_questions");
+    provider VARCHAR(50) NOT NULL DEFAULT 'openai',
+    key_value TEXT NOT NULL,
+    key_hash VARCHAR(64) NOT NULL,
+    account_name VARCHAR(100) DEFAULT 'Default',
+    status ENUM('active', 'inactive', 'rate_limited', 'quota_exceeded') DEFAULT 'active',
+    usage_count INT DEFAULT 0,
+    last_used DATETIME DEFAULT NULL,
+    error_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_key_hash (key_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: api_keys");
 
-// 7. Admin Notes (manage_notes.php)
-runQuery($conn, "CREATE TABLE IF NOT EXISTS `uploaded_notes` (
-    `note_id` INT AUTO_INCREMENT PRIMARY KEY,
-    `title` VARCHAR(255) NOT NULL,
-    `description` TEXT,
-    `file_name` VARCHAR(255) NOT NULL,
-    `original_file_name` VARCHAR(255) NOT NULL,
-    `file_path` VARCHAR(500) NOT NULL,
-    `file_type` VARCHAR(50) NOT NULL,
-    `file_size` BIGINT NOT NULL,
-    `mime_type` VARCHAR(100) NOT NULL,
-    `class_id` INT DEFAULT NULL,
-    `book_id` INT DEFAULT NULL,
-    `chapter_id` INT DEFAULT NULL,
-    `uploaded_by` INT NOT NULL,
-    `is_deleted` TINYINT(1) DEFAULT 0,
-    `deleted_at` DATETIME DEFAULT NULL,
-    `deleted_by` INT DEFAULT NULL,
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX `idx_class_book_chapter` (`class_id`, `book_id`, `chapter_id`),
-    INDEX `idx_is_deleted` (`is_deleted`),
-    INDEX `idx_uploaded_by` (`uploaded_by`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", "Table: uploaded_notes");
-
-// 8. AI Generated MCQs (quiz/mcq_generator.php)
-runQuery($conn, "CREATE TABLE IF NOT EXISTS `AIGeneratedMCQs` (
-    `id` int(11) NOT NULL AUTO_INCREMENT,
-    `topic` varchar(255) NOT NULL,
-    `question` text NOT NULL,
-    `option_a` varchar(255) NOT NULL,
-    `option_b` varchar(255) NOT NULL,
-    `option_c` varchar(255) NOT NULL,
-    `option_d` varchar(255) NOT NULL,
-    `correct_option` varchar(255) DEFAULT NULL,
-    `generated_at` datetime NOT NULL,
-    PRIMARY KEY (`id`),
-    KEY `topic` (`topic`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci", "Table: AIGeneratedMCQs");
-
-// AI table modifications
-echo "Checking AIGeneratedMCQs columns...\n";
-$ai_cols = ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_option'];
-foreach ($ai_cols as $col) {
-    $check = $conn->query("SHOW COLUMNS FROM AIGeneratedMCQs LIKE '$col'");
-    if ($check && $check->num_rows == 0) {
-        $type = ($col === 'question') ? 'TEXT NOT NULL' : 'VARCHAR(255) NOT NULL';
-        if ($col === 'correct_option') $type = 'VARCHAR(255) DEFAULT NULL';
-        runQuery($conn, "ALTER TABLE AIGeneratedMCQs ADD COLUMN $col $type", "Column: AIGeneratedMCQs.$col");
-    }
-}
-// Clean up legacy cols in AI table
-$ai_remove = ['class_id', 'book_id', 'chapter_id', 'mcq_id'];
-foreach ($ai_remove as $col) {
-    if ($col === 'mcq_id') {
-        // Try to drop FK first
-         $fkCheck = $conn->query("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_NAME = 'AIGeneratedMCQs' AND COLUMN_NAME = 'mcq_id' AND REFERENCED_TABLE_NAME = 'mcqs' LIMIT 1");
-        if ($fkCheck && $row = $fkCheck->fetch_assoc()) {
-            $fkName = $row['CONSTRAINT_NAME'];
-            runQuery($conn, "ALTER TABLE AIGeneratedMCQs DROP FOREIGN KEY `$fkName`", "Drop FK for $col");
-        }
-    }
-    $check = $conn->query("SHOW COLUMNS FROM AIGeneratedMCQs LIKE '$col'");
-    if ($check && $check->num_rows > 0) {
-        runQuery($conn, "ALTER TABLE AIGeneratedMCQs DROP COLUMN $col", "Drop Column: AIGeneratedMCQs.$col");
-    }
+try {
+    $conn->query("CREATE INDEX idx_status ON api_keys(status)");
+    echo "Index: api_keys.idx_status created (or existed).\n";
+} catch (Exception $e) {
+    // Ignore if exists
 }
 
-// 9. Quiz Rooms (quiz/online_quiz_create_room.php)
-runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_rooms (
+// 8. AI MCQs Verification (manage_ai_mcqs.php)
+// Note: Assuming AIGeneratedMCQs exists (usually created by other parts or needs creation)
+// Adding AIGeneratedMCQs creation just in case
+runQuery($conn, "CREATE TABLE IF NOT EXISTS AIGeneratedMCQs (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    room_code VARCHAR(10) NOT NULL UNIQUE,
-    class_id INT NOT NULL,
-    book_id INT NOT NULL,
-    mcq_count INT NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('active','closed') NOT NULL DEFAULT 'active',
-    quiz_started BOOLEAN DEFAULT FALSE,
-    lobby_enabled BOOLEAN DEFAULT TRUE,
-    start_time DATETIME NULL,
-    quiz_duration_minutes INT DEFAULT 30,
-    user_id INT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_rooms");
-
-// Quiz rooms modifications
-echo "Checking quiz_rooms columns...\n";
-$result = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'user_id'");
-if ($result && $result->num_rows == 0) {
-    runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN user_id INT NULL", "Column: quiz_rooms.user_id");
-}
-$result = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'quiz_duration_minutes'");
-if ($result && $result->num_rows == 0) {
-    runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN quiz_duration_minutes INT DEFAULT 30", "Column: quiz_rooms.quiz_duration_minutes");
-}
-
-runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_room_questions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    room_id INT NOT NULL,
-    question TEXT NOT NULL,
+    topic VARCHAR(255),
+    question TEXT,
     option_a TEXT,
     option_b TEXT,
     option_c TEXT,
     option_d TEXT,
     correct_option TEXT,
-    FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_room_questions");
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIGeneratedMCQs (if not exists)");
 
+runQuery($conn, "CREATE TABLE IF NOT EXISTS AIMCQsVerification (
+    mcq_id INT PRIMARY KEY,
+    verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
+    last_checked_at DATETIME,
+    suggested_correct_option TEXT,
+    original_correct_option TEXT, 
+    ai_notes TEXT,
+    FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIMCQsVerification");
+
+// 9. MCQs Verification (for standard MCQs)
+runQuery($conn, "CREATE TABLE IF NOT EXISTS MCQsVerification (
+    mcq_id INT PRIMARY KEY,
+    verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
+    last_checked_at DATETIME,
+    suggested_correct_option TEXT,
+    original_correct_option TEXT,
+    ai_notes TEXT,
+    FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: MCQsVerification");
+
+// 10. Settings (admin/settings.php)
+runQuery($conn, "CREATE TABLE IF NOT EXISTS settings (
+    skey VARCHAR(191) PRIMARY KEY,
+    svalue TEXT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: settings");
+
+// 11. Class Table Fixes
+echo "Checking Class Table Structure...\n";
+try {
+    // Ensure class_id is PRIMARY and AUTO_INCREMENT
+    $result = $conn->query("DESCRIBE class");
+    $class_id_is_primary = false;
+    $class_id_has_auto_increment = false;
+
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            if ($row['Field'] === 'class_id') {
+                $class_id_is_primary = ($row['Key'] === 'PRI');
+                $class_id_has_auto_increment = (strpos($row['Extra'], 'auto_increment') !== false);
+                break;
+            }
+        }
+    }
+
+    if (!$class_id_is_primary) {
+        runQuery($conn, "ALTER TABLE class ADD PRIMARY KEY (class_id)", "Class: Add PRIMARY KEY");
+    }
+    if (!$class_id_has_auto_increment) {
+        runQuery($conn, "ALTER TABLE class MODIFY COLUMN class_id INT AUTO_INCREMENT", "Class: Add AUTO_INCREMENT");
+    }
+} catch (Exception $e) {
+    echo "Error checking class table: " . $e->getMessage() . "\n";
+}
+
+// 12. Book Table Fixes
+echo "Checking Book Table Structure...\n";
+try {
+    // Ensure book_id is PRIMARY and AUTO_INCREMENT
+    $result = $conn->query("DESCRIBE book");
+    $book_id_is_primary = false;
+    $book_id_has_auto_increment = false;
+
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            if ($row['Field'] === 'book_id') {
+                $book_id_is_primary = ($row['Key'] === 'PRI');
+                $book_id_has_auto_increment = (strpos($row['Extra'], 'auto_increment') !== false);
+                break;
+            }
+        }
+    }
+
+    if (!$book_id_is_primary) {
+        runQuery($conn, "ALTER TABLE book ADD PRIMARY KEY (book_id)", "Book: Add PRIMARY KEY");
+    }
+    if (!$book_id_has_auto_increment) {
+        runQuery($conn, "ALTER TABLE book MODIFY COLUMN book_id INT AUTO_INCREMENT", "Book: Add AUTO_INCREMENT");
+    }
+
+    // Foreign Key Check
+    $fk_result = $conn->query("
+        SELECT CONSTRAINT_NAME 
+        FROM information_schema.KEY_COLUMN_USAGE 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'book' 
+        AND COLUMN_NAME = 'class_id' 
+        AND REFERENCED_TABLE_NAME IS NOT NULL
+    ");
+
+    if ($fk_result && $fk_result->num_rows == 0) {
+        // Cleanup invalid references before adding FK
+        $conn->query("DELETE FROM book WHERE class_id NOT IN (SELECT class_id FROM class)");
+        runQuery($conn, "ALTER TABLE book ADD CONSTRAINT fk_book_class FOREIGN KEY (class_id) REFERENCES class(class_id) ON DELETE CASCADE", "Book: Add FK to class");
+    }
+} catch (Exception $e) {
+    echo "Error checking book table: " . $e->getMessage() . "\n";
+}
+
+// 13. Fix Missing Columns (from fix_missing_columns.php)
+echo "Checking Missing Columns...\n";
+$tables = ['AIMCQsVerification', 'MCQsVerification'];
+foreach ($tables as $table) {
+    try {
+        $checkTable = $conn->query("SHOW TABLES LIKE '$table'");
+        if ($checkTable->num_rows > 0) {
+            $colCheck = $conn->query("SHOW COLUMNS FROM $table LIKE 'original_correct_option'");
+            if ($colCheck && $colCheck->num_rows === 0) {
+                runQuery($conn, "ALTER TABLE $table ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option", "Table $table: Add original_correct_option");
+            }
+        }
+    } catch (Exception $e) {
+        echo "Error checking columns for $table: " . $e->getMessage() . "\n";
+    }
+}
+
+// 14. Quiz Rooms Table
+runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_rooms (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    room_code VARCHAR(10) NOT NULL UNIQUE,
+    user_id INT NOT NULL,
+    class_id INT,
+    book_id INT,
+    mcq_count INT DEFAULT 10,
+    quiz_duration_minutes INT DEFAULT 30,
+    quiz_started BOOLEAN DEFAULT FALSE,
+    lobby_enabled BOOLEAN DEFAULT TRUE,
+    start_time DATETIME NULL,
+    status ENUM('active', 'completed', 'closed') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_rooms");
+
+// 15. Quiz Participants Table
 runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_participants (
     id INT AUTO_INCREMENT PRIMARY KEY,
     room_id INT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    roll_number VARCHAR(100) NOT NULL,
-    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    finished_at DATETIME NULL,
-    score INT DEFAULT NULL,
-    total_questions INT DEFAULT NULL,
+    user_id INT NULL,
+    name VARCHAR(100) NOT NULL,
+    roll_number VARCHAR(50),
     status ENUM('waiting', 'active', 'completed', 'disconnected') DEFAULT 'waiting',
     current_question INT DEFAULT 0,
     time_remaining_sec INT NULL,
+    score INT DEFAULT 0,
     last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE,
+    INDEX idx_room_status (room_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_participants");
 
-runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_responses (
+// 16. Quiz Room Questions (Snapshot)
+runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_room_questions (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    room_id INT NOT NULL,
+    question_text TEXT NOT NULL,
+    option_a TEXT NOT NULL,
+    option_b TEXT NOT NULL,
+    option_c TEXT NOT NULL,
+    option_d TEXT NOT NULL,
+    correct_option TEXT NOT NULL,
+    display_order INT DEFAULT 0,
+    FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_room_questions");
+
+// 17. Quiz Participant Answers (Scoring)
+runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_participant_answers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    room_id INT NOT NULL,
     participant_id INT NOT NULL,
     question_id INT NOT NULL,
-    selected_option VARCHAR(1) NULL,
-    is_correct TINYINT(1) NULL,
-    time_spent_sec INT NULL,
+    selected_option CHAR(1) NOT NULL,
+    is_correct BOOLEAN NOT NULL,
+    answered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE,
     FOREIGN KEY (participant_id) REFERENCES quiz_participants(id) ON DELETE CASCADE,
-    FOREIGN KEY (question_id) REFERENCES quiz_room_questions(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_responses");
+    UNIQUE KEY unique_participant_answer (participant_id, question_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_participant_answers");
 
+// 18. Live Quiz Events
 runQuery($conn, "CREATE TABLE IF NOT EXISTS live_quiz_events (
     id INT AUTO_INCREMENT PRIMARY KEY,
     room_id INT NOT NULL,
@@ -264,12 +395,10 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS live_quiz_events (
     event_data JSON NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE,
-    FOREIGN KEY (participant_id) REFERENCES quiz_participants(id) ON DELETE SET NULL,
-    INDEX idx_room_created (room_id, created_at),
-    INDEX idx_event_type (event_type)
+    INDEX idx_room_events (room_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: live_quiz_events");
 
-// 10. Enhancements (quiz/setup_quiz_enhancements.php)
+// 19. User Saved Questions
 runQuery($conn, "CREATE TABLE IF NOT EXISTS user_saved_questions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -280,44 +409,19 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS user_saved_questions (
     option_d TEXT NOT NULL,
     correct_option CHAR(1) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", "Table: user_saved_questions");
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_saved (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: user_saved_questions");
 
-runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_participant_answers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    room_code VARCHAR(10) NOT NULL,
-    roll_number VARCHAR(50) NOT NULL,
-    question_id INT NOT NULL,
-    selected_option CHAR(1) NOT NULL,
-    is_correct BOOLEAN NOT NULL,
-    answered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_answer (room_code, roll_number, question_id),
-    INDEX (room_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", "Table: quiz_participant_answers");
-
-// 11. AI Verification & New AI Generation
-runQuery($conn, "CREATE TABLE IF NOT EXISTS AIMCQsVerification (
-    mcq_id INT PRIMARY KEY,
-    verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
-    last_checked_at DATETIME,
-    suggested_correct_option TEXT,
-    ai_notes TEXT,
-    FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", "Table: AIMCQsVerification");
-
-runQuery($conn, "CREATE TABLE IF NOT EXISTS AIGeneratedQuestion (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    topic_id INT NULL, 
-    question_text TEXT NOT NULL,
-    option_a TEXT NOT NULL,
-    option_b TEXT NOT NULL,
-    option_c TEXT NOT NULL,
-    option_d TEXT NOT NULL,
-    correct_option CHAR(1) NOT NULL,
-    generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_topic (topic_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", "Table: AIGeneratedQuestion");
+// 20. AI Topic Cache
+runQuery($conn, "CREATE TABLE IF NOT EXISTS generated_topics (
+    id INT AUTO_INCREMENT PRIMARY KEY, 
+    topic_name VARCHAR(255) UNIQUE, 
+    source_term VARCHAR(255),
+    question_types VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: generated_topics");
 
 echo "</pre>";
-echo "<h2>Installation / Update Complete!</h2>";
-?>
+echo "<h1>Installation Complete</h1>";
+echo "<p><a href='index.php'>Return to Home</a></p>";

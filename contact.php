@@ -1,190 +1,153 @@
 <?php
-// Require authentication before accessing this page
-require_once 'auth/auth_check.php';
+// contact.php - Professional Contact page for Ahmad Learning Hub
+if (session_status() === PHP_SESSION_NONE) session_start();
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Contact Ahmad Learning Hub for support, feedback, or inquiries about 9th and 10th class past papers, online tests, guess papers, and notes for Punjab Board exams. We are here to assist teachers and students in Pakistan.">
-    <meta name="keywords" content="Ahmad Learning Hub, contact, support, feedback, inquiry, 9th class, 10th class, past papers, online tests, guess papers, notes, Punjab Board, exam preparation, Pakistan">
-    <title>Contact Ahmad Learning Hub - Support for 9th & 10th Class Exam Prep</title>
+    <meta name="description" content="Have questions about 9th or 10th class exam preparation? Contact Ahmad Learning Hub, the best AI exam preparation website in Pakistan for MCQs, online tests, and notes.">
+    <meta name="keywords" content="contact Ahmad Learning Hub, 9th class help, 10th class support, AI exam prep assistance, hosting online quiz support, questions prep feedback">
+    <title>Contact Us | Support for 9th & 10th Class AI Exam Prep | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/contact.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <?php include 'header.php'; ?>
 
-    <!-- Hero Section -->
-    <section class="contact-hero">
-        <div class="hero-content">
-            <h1 >📧 Get in Touch</h1>
-            <p class="hero-subtitle">We're here to help with any questions or feedback about Ahmad Learning Hub</p>
-        </div>
-    </section>
+    <main class="main-content p-0">
+        <!-- Hero Section -->
+        <section class="contact-hero">
+            <div class="hero-content">
+                <h1 class="animate-zoom">We're Here for Your Success</h1>
+                <p class="hero-subtitle">Get professional support for your <strong>9th and 10th class exam preparation</strong>. Our team is ready to assist you with AI tools and study material.</p>
+            </div>
+        </section>
 
-    <!-- Contact Information -->
-    <section class="contact-info-section">
-        <div class="container">
-            <div class="contact-grid">
-                <div class="contact-info">
-                    <h2>📞 Contact Information</h2>
-                    <div class="info-items">
-                        <div class="info-item">
-                            <div class="info-icon">📧</div>
-                            <div class="info-content">
-                                <h3>Email Support</h3>
-                                <p><a href="mailto:touseef12345bhatti@gmail.com">touseef12345bhatti@gmail.com</a></p>
-                                <small>We respond within 24 hours</small>
+        <!-- Contact Content -->
+        <section class="contact-info-section">
+            <div class="container">
+                <div class="contact-grid">
+                    <!-- Info Column -->
+                    <div class="contact-info animate-on-scroll">
+                        <h2 class="section-title">Reach Out to Experts</h2>
+                        <p class="mb-4">Whether you are a teacher looking to <strong>host online quizzes</strong> or a student needing help with <strong>mcqs</strong> and <strong>notes</strong>, we are just a message away.</p>
+                        
+                        <div class="info-items">
+                            <div class="info-item">
+                                <div class="info-icon"><i class="fas fa-envelope-open-text"></i></div>
+                                <div class="info-content">
+                                    <h3>Official Email</h3>
+                                    <p><a href="mailto:touseef12345bhatti@gmail.com">touseef12345bhatti@gmail.com</a></p>
+                                    <small>Direct support for AI tools & feature requests.</small>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon"><i class="fas fa-headset"></i></div>
+                                <div class="info-content">
+                                    <h3>Quick Response</h3>
+                                    <p>Within 24 Business Hours</p>
+                                    <small>Monday – Saturday, 9:00 AM – 8:00 PM (PST)</small>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon"><i class="fas fa-map-marker-alt"></i></div>
+                                <div class="info-content">
+                                    <h3>Service Area</h3>
+                                    <p>Nationwide - Pakistan</p>
+                                    <small>Proudly serving all Punjab and Federal Boards.</small>
+                                </div>
                             </div>
                         </div>
-                        <div class="info-item">
-                            <div class="info-icon">⏰</div>
-                            <div class="info-content">
-                                <h3>Response Time</h3>
-                                <p>24-48 hours</p>
-                                <small>Monday to Friday, 9 AM - 6 PM</small>
-                            </div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-icon">🌐</div>
-                            <div class="info-content">
-                                <h3>Website</h3>
-                                <p>paper.bhattichemicalsindustry.com.pk</p>
-                                <small>Available 24/7</small>
-                            </div>
+
+                        <div class="help-topics mt-4">
+                            <h3>How We Assist You:</h3>
+                            <ul class="styled-list">
+                                <li><i class="fas fa-check"></i> <strong>AI Exam Preparation Website</strong> guidance.</li>
+                                <li><i class="fas fa-check"></i> Setting up <strong>hosting online quiz</strong> sessions.</li>
+                                <li><i class="fas fa-check"></i> High-quality <strong>online mcqs test notes</strong> inquiries.</li>
+                                <li><i class="fas fa-check"></i> Board-specific <strong>questions prep</strong> requests.</li>
+                            </ul>
                         </div>
                     </div>
-                    
-                    <div class="help-topics">
-                        <h3>📝 What can we help you with?</h3>
-                        <ul>
-                            <li>❓ Questions about using Ahmad Learning Hub</li>
-                            <li>📚 Subject-specific question requests</li>
-                            <li>🐛 Bug reports and technical issues</li>
-                            <li>💡 Feature suggestions and feedback</li>
-                            <li>🏫 Partnership and collaboration inquiries</li>
-                            <li>📊 Usage statistics and analytics</li>
-                        </ul>
+
+                    <!-- Form Column -->
+                    <div class="contact-form-section animate-on-scroll">
+                        <div class="form-card">
+                            <h2>Send a Message</h2>
+                            <p>Fill out the form for personalized exam preparation assistance.</p>
+                            <form class="contact-form" id="contactForm">
+                                <div class="form-group">
+                                    <label for="name">Full Name</label>
+                                    <input type="text" id="name" name="name" required placeholder="Enter your name">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="email">Email Address</label>
+                                    <input type="email" id="email" name="email" required placeholder="name@example.com">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="message">Your Message</label>
+                                    <textarea id="message" name="message" required placeholder="Tell us how we can help with your 9th or 10th class studies..."></textarea>
+                                </div>
+                                
+                                <button type="submit" id="submitBtn" class="btn btn-primary w-100">
+                                    <span id="buttonText"><i class="fas fa-paper-plane"></i> Send Inquiry</span>
+                                    <span id="buttonLoader" style="display: none;"><i class="fas fa-spinner fa-spin"></i> Processing...</span>
+                                </button>
+                                
+                                <div id="formMessage" class="form-message mt-3" style="display: none;"></div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="contact-form-section">
-                    <h2>📝 Send us a Message</h2>
-                    <p>Fill out the form below and we'll get back to you as soon as possible.</p>
-                    <form class="contact-form" id="contactForm">
-        <label for="name">Name:</label>
-        <input type="text" id="name" name="name" required>
-        
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email" required>
-        
-        <label for="message">Message:</label>
-        <textarea id="message" name="message" required placeholder="Please describe your query or suggestion..."></textarea>
-        
-        <button type="submit" id="submitBtn">
-            <span id="buttonText">Send Message</span>
-            <span id="buttonLoader" style="display: none;">📧 Sending...</span>
-        </button>
-        
-        <div id="formMessage" class="form-message" style="display: none;"></div>
-                    </form>
                 </div>
             </div>
-        </div>
-    </section>
-</div>
-</div> <!-- main-content -->
+        </section>
+    </main>
 
-<?php include 'footer.php'; ?>
+    <?php include 'footer.php'; ?>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const contactForm = document.getElementById('contactForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const buttonText = document.getElementById('buttonText');
-    const buttonLoader = document.getElementById('buttonLoader');
-    const formMessage = document.getElementById('formMessage');
-    
-    if (contactForm) {
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const contactForm = document.getElementById('contactForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const formMessage = document.getElementById('formMessage');
             
-            // Get form data
-            const formData = new FormData(contactForm);
-            const name = formData.get('name').trim();
-            const email = formData.get('email').trim();
-            const message = formData.get('message').trim();
-            
-            // Basic validation
-            if (!name || !email || !message) {
-                showMessage('Please fill in all fields.', 'error');
-                return;
+            if (contactForm) {
+                contactForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    document.getElementById('buttonText').style.display = 'none';
+                    document.getElementById('buttonLoader').style.display = 'inline';
+                    submitBtn.disabled = true;
+
+                    const formData = new FormData(this);
+                    fetch('contact_handler.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        formMessage.textContent = data.message;
+                        formMessage.className = 'form-message ' + (data.success ? 'success' : 'error');
+                        formMessage.style.display = 'block';
+                        if(data.success) contactForm.reset();
+                    })
+                    .catch(() => {
+                        formMessage.textContent = 'Something went wrong. Please try again.';
+                        formMessage.className = 'form-message error';
+                        formMessage.style.display = 'block';
+                    })
+                    .finally(() => {
+                        document.getElementById('buttonText').style.display = 'inline';
+                        document.getElementById('buttonLoader').style.display = 'none';
+                        submitBtn.disabled = false;
+                    });
+                });
             }
-            
-            if (!isValidEmail(email)) {
-                showMessage('Please enter a valid email address.', 'error');
-                return;
-            }
-            
-            // Show loading state
-            setLoadingState(true);
-            
-            // Send form data to server
-            fetch('contact_handler.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                setLoadingState(false);
-                if (data.success) {
-                    showMessage(data.message, 'success');
-                    contactForm.reset();
-                } else {
-                    showMessage(data.message, 'error');
-                }
-            })
-            .catch(error => {
-                setLoadingState(false);
-                console.error('Error:', error);
-                showMessage('Sorry, there was an error sending your message. Please try again.', 'error');
-            });
         });
-    }
-    
-    function setLoadingState(loading) {
-        if (loading) {
-            submitBtn.disabled = true;
-            buttonText.style.display = 'none';
-            buttonLoader.style.display = 'inline';
-            submitBtn.style.opacity = '0.7';
-        } else {
-            submitBtn.disabled = false;
-            buttonText.style.display = 'inline';
-            buttonLoader.style.display = 'none';
-            submitBtn.style.opacity = '1';
-        }
-    }
-    
-    function showMessage(text, type) {
-        formMessage.textContent = text;
-        formMessage.className = 'form-message ' + type;
-        formMessage.style.display = 'block';
-        
-        // Hide message after 5 seconds
-        setTimeout(() => {
-            formMessage.style.display = 'none';
-        }, 5000);
-    }
-    
-    function isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-});
-</script>
-
+    </script>
 </body>
 </html>

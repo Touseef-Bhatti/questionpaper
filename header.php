@@ -34,6 +34,25 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
     $isRoot = ($scriptDir === '' || $scriptDir === '/' || $scriptDir === '.');
     $assetBase  = $isRoot ?  '' : '../';
 }
+
+// Active page detection logic
+$current_page = $_SERVER['SCRIPT_NAME'];
+function is_active($page_name) {
+    global $current_page;
+    // Check if the current page path contains the page name
+    // This handles both root-level and subdirectory pages
+    return (strpos($current_page, $page_name) !== false) ? 'active' : '';
+}
+
+// Special check for Generate Paper dropdown
+$gen_paper_pages = ['select_class.php', 'select_book.php', 'select_chapters.php', 'mcqs_topic.php', 'quiz_setup.php', 'online_quiz_host', 'online_quiz_lobby.php', 'quiz.php'];
+$is_gen_paper_active = false;
+foreach ($gen_paper_pages as $p) {
+    if (strpos($current_page, $p) !== false) {
+        $is_gen_paper_active = true;
+        break;
+    }
+}
 ?>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 <link rel="stylesheet" href="../css/index.css">
@@ -49,20 +68,20 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
       <span></span>
     </div>
     <ul class="nav-menu" id="navMenu">
-      <li><a href="<?= $assetBase ?>index.php"><i class="fas fa-home"></i> Home</a></li>
+      <li><a href="<?= $assetBase ?>index.php" class="<?= (basename($current_page) == 'index.php' || basename($current_page) == '') ? 'active' : '' ?>"><i class="fas fa-home"></i> Home</a></li>
       <li class="dropdown">
-        <a  class="dropbtn">Generate Paper <i class="fas fa-caret-down"></i></a>
+        <a class="dropbtn <?= $is_gen_paper_active ? 'active' : '' ?>">Generate Paper <i class="fas fa-caret-down"></i></a>
         <div class="dropdown-content">
-             <a href="<?= $assetBase ?>select_class.php"><i class="fas fa-file-alt"></i  > Create Question Paper</a>
-          <a href="<?= $assetBase ?>quiz/online_quiz_host_new.php"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
-          <a href="<?= $assetBase ?>quiz/quiz_setup.php"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
-          <a href="<?= $assetBase ?>quiz/online_quiz_join.php"><i class="fas fa-gamepad"></i> Join Quiz</a>
+             <a href="<?= $assetBase ?>select_class.php" class="<?= is_active('select_class.php') ?>"><i class="fas fa-file-alt"></i> Create Question Paper</a>
+          <a href="<?= $assetBase ?>quiz/online_quiz_host_new.php" class="<?= is_active('online_quiz_host_new.php') ?>"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
+          <a href="<?= $assetBase ?>quiz/quiz_setup.php" class="<?= is_active('quiz_setup.php') ?>"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
+          <a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="<?= is_active('online_quiz_join.php') ?>"><i class="fas fa-gamepad"></i> Join Quiz</a>
         </div>
       </li>
-      <li><a href="<?= $assetBase ?>notes/notes.php"><i class="fas fa-book"></i> Notes</a></li>
+      <li><a href="<?= $assetBase ?>notes/notes.php" class="<?= is_active('notes.php') ?>"><i class="fas fa-book"></i> Notes</a></li>
       <li><a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="btn-join"><i class="fas fa-gamepad" ></i> Join</a></li>
-      <li><a href="<?= $assetBase ?>about.php"><i class="fas fa-info-circle"></i> About</a></li>
-      <li><a href="<?= $assetBase ?>contact.php"><i class="fas fa-envelope"></i> Contact</a></li>
+      <li><a href="<?= $assetBase ?>about.php" class="<?= is_active('about.php') ?>"><i class="fas fa-info-circle"></i> About</a></li>
+      <li><a href="<?= $assetBase ?>contact.php" class="<?= is_active('contact.php') ?>"><i class="fas fa-envelope"></i> Contact</a></li>
 
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <?php
@@ -77,16 +96,16 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
                         <?php /* <li><a href="<?= $assetBase ?>subscription.php" style="background: <?= $subInfo['is_premium'] ? '#28a745' : '#ffc107' ?>; color: <?= $subInfo['is_premium'] ? 'white' : '#856404' ?>; padding: 5px 10px; border-radius: 15px; font-size: 0.9rem; margin-right: 10px;"><?= htmlspecialchars($subInfo['plan_name']) ?></a></li> */ ?>
                     <?php endif; ?>
                     <li class="dropdown">
-                        <a href="<?= $assetBase ?>profile.php" class="dropbtn"><i class="fas fa-user-circle"></i> Profile <i class="fas fa-caret-down"></i></a>
+                        <a href="<?= $assetBase ?>profile.php" class="dropbtn <?= is_active('profile.php') ?>"><i class="fas fa-user-circle"></i> Profile <i class="fas fa-caret-down"></i></a>
                         <div class="dropdown-content">
-                            <a href="<?= $assetBase ?>profile.php"><i class="fas fa-user-cog"></i> My Profile</a>
+                            <a href="<?= $assetBase ?>profile.php" class="<?= is_active('profile.php') ?>"><i class="fas fa-user-cog"></i> My Profile</a>
                             <a href="<?= $assetBase ?>auth/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
                         </div>
                     </li>
                 <?php else: ?>
                     <!-- <li><a href="<?= $assetBase ?>subscription.php">Plans</a></li> -->
                     
-                    <li><a href="<?= $assetBase ?>auth/login.php"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+                    <li><a href="<?= $assetBase ?>auth/login.php" class="<?= is_active('login.php') ?>"><i class="fas fa-sign-in-alt"></i> Login</a></li>
                 <?php endif; ?>
             </ul>
         </div>
@@ -255,12 +274,23 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
     position: relative;
 }
 
-.nav-menu li a:hover, .nav-menu li a.active {
+.nav-menu li a:hover, 
+.nav-menu li a.active,
+.nav-menu li.dropdown .dropbtn.active {
     color: var(--primary-dark);
     border-bottom: 3px solid var(--primary-dark);
     background: rgba(15, 23, 42, 0.04);
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
     transform: translateY(-2px);
+}
+
+/* Ensure btn-join active state maintains its premium look */
+.nav-menu li a.btn-join.active {
+    background: var(--gradient-primary, linear-gradient(135deg, #4F46E5 0%, #0EA5E9 100%));
+    color: #fff !important;
+    border-bottom: none;
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+    opacity: 1;
 }
 
 .nav-menu li a.btn-join {

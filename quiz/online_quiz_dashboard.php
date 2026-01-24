@@ -83,6 +83,11 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
     <div class="flex header-stack" style="justify-content: space-between;">
       <h1 style="margin: 0;">Live Quiz Dashboard</h1>
       <div class="flex mobile-actions">
+        <!-- Refresh Button -->
+        <button class="btn secondary" onclick="window.location.reload();">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+
         <form method="GET" action="online_quiz_dashboard.php" class="flex">
           <label class="muted">Status</label>
           <select name="status" class="input inline" style="height: 36px;">
@@ -207,6 +212,11 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
         </div>
       </div>
       <div class="flex mobile-actions">
+        <!-- Refresh Button -->
+        <button class="btn secondary" onclick="window.location.reload();">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        
         <a class="btn secondary" href="online_quiz_dashboard.php">Back</a>
         <?php if ($room['status']==='active'): ?>
           <form method="POST" action="online_quiz_room_status.php" style="display:inline;">
@@ -453,7 +463,7 @@ function startHostTimer(startTimeStr, durationMin) {
              }
          })
          .catch(console.error);
- }, 3000);
+ }, 15000);
  
  <?php endif; ?>
 
@@ -513,7 +523,7 @@ function startLiveUpdates() {
             // Silent refresh of participant data
             refreshParticipants();
         }
-    }, 10000); // Update every 10 seconds
+    }, 15000); // Update every 15 seconds
 }
 
 // Initialize live updates if we're viewing a room
@@ -529,15 +539,14 @@ if (currentRoomCode) {
     if (lobbySection) {
         updateInterval = setInterval(() => {
             window.location.reload();
-        }, 5000);
+        }, 15000);
     }
 }
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', function() {
-    if (updateInterval) {
-        clearInterval(updateInterval);
-    }
+    if (updateInterval) clearInterval(updateInterval);
+    if (timerInterval) clearInterval(timerInterval);
 });
 </script>
 

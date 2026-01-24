@@ -130,6 +130,32 @@ class EnvLoader
     }
     
     /**
+     * Get list of values from environment variable (comma separated)
+     * Also looks for _1, _2, etc. suffixes and merges them
+     */
+    public static function getList($key)
+    {
+        $values = [];
+        
+        // Base key
+        $base = self::get($key, '');
+        if (!empty($base)) {
+            $values = array_merge($values, array_map('trim', explode(',', $base)));
+        }
+        
+        // Numbered groups (up to 10)
+        for ($i = 1; $i <= 10; $i++) {
+            $suffixVal = self::get($key . '_' . $i, '');
+            if (!empty($suffixVal)) {
+                $values = array_merge($values, array_map('trim', explode(',', $suffixVal)));
+            }
+        }
+        
+        // Filter empty values and remove duplicates
+        return array_values(array_unique(array_filter($values)));
+    }
+
+    /**
      * Get boolean environment variable
      */
     public static function getBool($key, $default = false)

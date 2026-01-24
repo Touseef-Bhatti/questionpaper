@@ -1,290 +1,158 @@
 <?php
-// Require authentication before accessing this page
-// require_once 'auth/auth_check.php';
+// about.php - Professional About page for Ahmad Learning Hub
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Learn about Ahmad Learning Hub, your platform for 9th and 10th class past papers, online tests, guess papers, and solved notes for Punjab Board exams. Discover our mission to empower teachers and students in Pakistan with quality exam preparation material.">
-    <meta name="keywords" content="Ahmad Learning Hub, exam preparation, past papers, online tests, guess papers, notes">
-    <title>About Ahmad Learning Hub - 9th & 10th Class Exam Preparation Platform</title>
+    <meta name="description" content="Ahmad Learning Hub is Pakistan's leading AI-powered exam preparation website for 9th and 10th class students. Host online quizzes, access MCQs, solved notes, and smart question papers.">
+    <meta name="keywords" content="9th class exam preparation, 10th class exam preparation, AI exam preparation website, online mcqs test, 9th class notes, online quiz hosting, Ahmad Learning Hub, question prep, Pakistan education">
+    <title>About Us | AI-Powered 9th & 10th Class Exam Preparation | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/about.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <?php include 'header.php'; ?>
 
-    
-    <!-- Hero Section -->
-    <section class="hero-section">
-        <div class="hero-content">
-            <h1>📚 About Ahmad Learning Hub</h1>
-            <p class="hero-subtitle">Your Smart Question Paper Generation Platform</p>
-            <div class="hero-stats">
-                <div class="stat-item">
-                    <span class="stat-number">10,000+</span>
-                    <span class="stat-label">Questions</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">15+</span>
-                    <span class="stat-label">Subjects</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">500+</span>
-                    <span class="stat-label">Teachers</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Mission Section -->
-    <section class="mission-section">
-        <div class="container">
-            <h2>🎯 Our Mission</h2>
-            <p class="mission-text">
-                Ahmad Learning Hub is dedicated to revolutionizing the way educational institutions create and manage examination papers.
-                We believe in empowering teachers with intelligent tools that save time, ensure quality, and maintain educational standards.
-            </p>
-        </div>
-    </section>
-
-    <!-- Features Section -->
-    <section class="features-section">
-        <div class="container">
-            <h2>✨ What Makes Us Special</h2>
-            <div class="features-grid">
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">🧠</div>
-                    <h3>Smart Algorithm</h3>
-                    <p>Our intelligent system ensures balanced question distribution across difficulty levels and topics.</p>
-                </div>
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">📚</div>
-                    <h3>Updated Content</h3>
-                    <p>Regularly updated question bank with latest syllabus-aligned questions from all major educational boards.</p>
-                </div>
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Lightning Fast</h3>
-                    <p>Generate professional quality papers in seconds, not hours. Save valuable time for teaching.</p>
-                </div>
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">🎨</div>
-                    <h3>Professional Format</h3>
-                    <p>Beautifully formatted papers that follow official examination patterns and standards.</p>
-                </div>
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">🔒</div>
-                    <h3>Secure & Private</h3>
-                    <p>Your generated papers and data are secure with enterprise-grade security measures.</p>
-                </div>
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">📱</div>
-                    <h3>Mobile Friendly</h3>
-                    <p>Access and generate papers from any device - desktop, tablet, or mobile phone.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Subjects Section -->
-    <section class="subjects-section">
-        <div class="container">
-            <h2>📖 Available Subjects</h2>
-            <p>We cover a comprehensive range of subjects across different educational levels:</p>
-            <div class="subjects-grid">
-                <div class="subject-category">
-                    <h3>📐 Mathematics & Sciences</h3>
-                    <ul>
-                        <li>Mathematics</li>
-                        <li>Physics</li>
-                        <li>Chemistry</li>
-                        <li>Biology</li>
-                        <li>Computer Science</li>
-                    </ul>
-                </div>
-                <div class="subject-category">
-                    <h3>📝 Languages & Literature</h3>
-                    <ul>
-                        <li>English</li>
-                        <li>Urdu</li>
-                        <li>Arabic</li>
-                        <li>Literature</li>
-                    </ul>
-                </div>
-                <div class="subject-category">
-                    <h3>🌍 Social Sciences</h3>
-                    <ul>
-                        <li>History</li>
-                        <li>Geography</li>
-                        <li>Civics</li>
-                        <li>Economics</li>
-                    </ul>
-                </div>
-                <div class="subject-category">
-                    <h3>🕌 Islamic Studies</h3>
-                    <ul>
-                        <li>Islamiyat</li>
-                        <li>Quran Majeed</li>
-                        <li>Islamic History</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- How It Works Section
-    <section class="how-it-works">
-        <div class="container">
-            <h2>🔧 How It Works</h2>
-            <div class="steps-container">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>Select Class & Subject</h3>
-                        <p>Choose your class and subject from our comprehensive database</p>
+    <main class="main-content p-0">
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-content">
+                <h1 class="animate-zoom">Revolutionizing Pakistani Education with AI</h1>
+                <p class="hero-subtitle">The ultimate AI exam preparation platform for 9th and 10th class students. Prepare smarter, not harder.</p>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">50,000+</span>
+                        <span class="stat-label">MCQs Bank</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">98%</span>
+                        <span class="stat-label">Success Rate</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">5,000+</span>
+                        <span class="stat-label">Daily Quizzes</span>
                     </div>
                 </div>
-                <div class="step">
-                    <div class="step-content">
-                        <h3>Choose Chapters</h3>
-                        <p>Select relevant chapters and specify the number of questions needed</p>
-                    </div>
-                    <div class="step-number">2</div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>Customize Settings</h3>
-                        <p>Set question types, difficulty levels, and paper format preferences</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-content">
-                        <h3>Generate & Download</h3>
-                        <p>Get your professionally formatted question paper instantly</p>
-                    </div>
-                    <div class="step-number">4</div>
+            </div>
+        </section>
+
+        <!-- Mission Section -->
+        <section class="mission-section">
+            <div class="container text-center">
+                <h2 class="section-title">Why Choose Ahmad Learning Hub?</h2>
+                <p class="mission-text">
+                    Ahmad Learning Hub is not just a portal; it is an integrated <strong>AI exam preparation website</strong> designed to meet the rigorous demands of the modern curriculum. We specialize in <strong>9th and 10th class exam preparation</strong>, providing tools that help students master every subject with precision.
+                </p>
+            </div>
+        </section>
+
+        <!-- Features Grid -->
+        <section class="features-section">
+            <div class="container">
+                <h2 class="text-center mb-4">Our Powerful Features</h2>
+                <div class="features-grid">
+                    <a href="quiz/online_quiz_host_new.php" class="feature-card animate-on-scroll">
+                        <div class="feature-icon"><i class="fas fa-robot"></i></div>
+                        <h3>AI-Powered Questions</h3>
+                        <p>Leverage our advanced AI to generate targeted <strong>questions prep</strong> materials, ensuring you cover every important topic for your board exams.</p>
+                        <div class="feature-link">Explore AI Tools <i class="fas fa-arrow-right"></i></div>
+                    </a>
+                    <a href="quiz/online_quiz_host_new.php" class="feature-card animate-on-scroll">
+                        <div class="feature-icon"><i class="fas fa-desktop"></i></div>
+                        <h3>Host Online Quizzes</h3>
+                        <p>Teachers can easily <strong>host online quizzes</strong> for their students, making classroom assessment interactive and data-driven.</p>
+                        <div class="feature-link">Get Started <i class="fas fa-arrow-right"></i></div>
+                    </a>
+                    <a href="select_class.php" class="feature-card animate-on-scroll">
+                        <div class="feature-icon"><i class="fas fa-bolt"></i></div>
+                        <h3>Online MCQs Test</h3>
+                        <p>Prepare with our comprehensive <strong>online MCQs test</strong> series, designed to mirror the actual exam patterns of Punjab and Federal Boards.</p>
+                        <div class="feature-link">Take a Test <i class="fas fa-arrow-right"></i></div>
+                    </a>
+                    <a href="notes/uploaded_notes.php" class="feature-card animate-on-scroll">
+                        <div class="feature-icon"><i class="fas fa-file-alt"></i></div>
+                        <h3>Solved Notes</h3>
+                        <p>Access high-quality <strong>online mcqs test notes</strong> and solved papers for 9th and 10th class, curated by expert educators.</p>
+                        <div class="feature-link">View Notes <i class="fas fa-arrow-right"></i></div>
+                    </a>
+                    <a href="select_class.php" class="feature-card animate-on-scroll">
+                        <div class="feature-icon"><i class="fas fa-brain"></i></div>
+                        <h3>Smart Paper Generation</h3>
+                        <p>Generate professional question papers in seconds. Perfect for schools looking for standardized testing solutions.</p>
+                        <div class="feature-link">Generate Paper <i class="fas fa-arrow-right"></i></div>
+                    </a>
+                    <a href="profile.php" class="feature-card animate-on-scroll">
+                        <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                        <h3>Progress Analytics</h3>
+                        <p>Track your preparation levels with detailed performance reports and AI-driven insights into your weak areas.</p>
+                        <div class="feature-link">View Stats <i class="fas fa-arrow-right"></i></div>
+                    </a>
                 </div>
             </div>
-        </div>
-    </section> -->
+        </section>
 
-    <!-- Updates Section -->
-    <section class="updates-section">
-        <div class="container">
-            <h2>🚀 Latest Updates</h2>
-            <div class="update-cards">
-                <div class="update-card">
-                    <div class="update-date">December 2024</div>
-                    <h3>📚 New Question Bank</h3>
-                    <p>Added 2,000+ new questions across all subjects with latest syllabus updates</p>
-                </div>
-                <div class="update-card">
-                    <div class="update-date">November 2024</div>
-                    <h3>🔐 Google Sign-In</h3>
-                    <p>Introduced secure Google authentication for faster login and registration</p>
-                </div>
-                <div class="update-card">
-                    <div class="update-date">October 2024</div>
-                    <h3>📱 Mobile Optimization</h3>
-                    <p>Complete mobile-friendly redesign for better experience on all devices</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Contact CTA Section -->
-    <section class="cta-section">
-        <div class="container">
-            <div class="cta-content">
-                <h2>📧 Get In Touch</h2>
-                <p>Have questions, suggestions, or need support? We're here to help!</p>
-                <div class="cta-buttons">
-                    <a href="contact.php" class="btn btn-primary">Contact Us</a>
-                    <a href="select_class.php" class="btn btn-secondary">Start Generating Papers</a>
+        <!-- Subjects Summary -->
+        <section class="subjects-section">
+            <div class="container">
+                <h2 class="text-center mb-4">Comprehensive Coverage</h2>
+                <div class="subjects-grid">
+                    <div class="subject-category">
+                        <h3><i class="fas fa-microscope"></i> Science Group</h3>
+                        <ul>
+                            <li>9th & 10th Physics</li>
+                            <li>Applied Mathematics</li>
+                            <li>Advanced Chemistry</li>
+                            <li>Biology & Life Sciences</li>
+                            <li>Computer Science</li>
+                        </ul>
+                    </div>
+                    <div class="subject-category">
+                        <h3><i class="fas fa-pen-nib"></i> Humanities & Arts</h3>
+                        <ul>
+                            <li>English Grammar & Lit</li>
+                            <li>Urdu Complete Notes</li>
+                            <li>Pakistan Studies</li>
+                            <li>Islamic Studies</li>
+                            <li>General Science</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
+        <!-- CTA Section -->
+        <section class="cta-section">
+            <div class="container text-center">
+                <div class="cta-content">
+                    <h2>Ready to Ace Your Exams?</h2>
+                    <p>Join the thousands of students already using the best <strong>AI exam preparation website</strong> in Pakistan.</p>
+                    <div class="cta-buttons">
+                        <a href="quiz/online_quiz_join.php" class="btn btn-primary">Join a Live Quiz</a>
+                        <a href="auth/register.php" class="btn btn-secondary">Create Free Account</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
 
+    <?php include 'footer.php'; ?>
 
-<?php include 'footer.php'; ?>
-
-<script>
-// Scroll Animation JavaScript
-function initScrollAnimations() {
-    const animatedElements = document.querySelectorAll('.animate-on-scroll, .animate-fade-left, .animate-fade-right, .animate-zoom');
-    
-    const observerOptions = {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
-    };
-    
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('animate');
-            }
-        });
-    }, observerOptions);
-    
-    animatedElements.forEach(element => {
-        observer.observe(element);
-    });
-}
-
-// Initialize animations when page loads
-document.addEventListener('DOMContentLoaded', initScrollAnimations);
-
-// Counter animation for statistics
-function animateCounters() {
-    const counters = document.querySelectorAll('.stat-number');
-    
-    counters.forEach(counter => {
-        const target = parseInt(counter.textContent.replace(/[^0-9]/g, ''));
-        const increment = target / 50;
-        let current = 0;
-        
-        const updateCounter = () => {
-            if (current < target) {
-                current += increment;
-                if (counter.textContent.includes('+')) {
-                    counter.textContent = Math.ceil(current).toLocaleString() + '+';
-                } else {
-                    counter.textContent = Math.ceil(current).toLocaleString();
-                }
-                requestAnimationFrame(updateCounter);
-            } else {
-                if (counter.textContent.includes('+')) {
-                    counter.textContent = target.toLocaleString() + '+';
-                } else {
-                    counter.textContent = target.toLocaleString();
-                }
-            }
-        };
-        
-        // Start animation when hero section comes into view
-        const heroObserver = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-                setTimeout(() => updateCounter(), 500);
-                heroObserver.disconnect();
-            }
-        });
-        
-        const heroSection = document.querySelector('.hero-stats');
-        if (heroSection) {
-            heroObserver.observe(heroSection);
+    <script>
+        function initScrollAnimations() {
+            const animatedElements = document.querySelectorAll('.animate-on-scroll, .animate-zoom');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('animate');
+                    }
+                });
+            }, { threshold: 0.1 });
+            animatedElements.forEach(el => observer.observe(el));
         }
-    });
-}
-
-// Initialize counter animations
-document.addEventListener('DOMContentLoaded', animateCounters);
-</script>
-
+        document.addEventListener('DOMContentLoaded', initScrollAnimations);
+    </script>
 </body>
 </html>

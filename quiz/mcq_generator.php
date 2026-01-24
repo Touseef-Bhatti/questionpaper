@@ -7,6 +7,10 @@
 
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/../includes/APIKeyManager.php';
+
+// Initialize APIKeyManager
+$keyManager = new APIKeyManager();
 
 // Try to load CacheManager if available
 $cacheManager = null;
@@ -108,7 +112,7 @@ function getAvailableApiKey($apiKeys, $cacheManager, $excludedKeys = []) {
  * @return array Generated MCQs
  */
 function generateMCQsWithGemini($topic, $count, $level = null) {
-    global $conn, $cacheManager;
+    global $conn, $cacheManager, $keyManager;
     
     $lvl = is_string($level) ? strtolower(trim($level)) : '';
     $lvl = in_array($lvl, ['school','college','university']) ? $lvl : '';
@@ -126,16 +130,7 @@ function generateMCQsWithGemini($topic, $count, $level = null) {
     }
     
     // Get OpenAI API keys (OpenRouter)
-    $openaiApiKeys = EnvLoader::get('OPENAI_API_KEYS', '');
-    if (empty($openaiApiKeys)) {
-        // Fallback to single key if list not present
-        $openaiApiKeys = EnvLoader::get('OPENAI_API_KEY', '');
-    }
-    
-    $apiKeys = [];
-    if (!empty($openaiApiKeys)) {
-        $apiKeys = array_map('trim', explode(',', $openaiApiKeys));
-    }
+    $apiKeys = $keyManager->getActiveKeys();
     
     $openaiModel = EnvLoader::get('OPENAI_MODEL', 'nvidia/nemotron-3-nano-30b-a3b:free');
     
@@ -152,7 +147,7 @@ $prompt = "You are an academic question-paper generator.
 Generate exactly {$count} high-quality Multiple Choice Questions (MCQs) strictly on the topic: {$topic}.
 
 IMPORTANT RULES:
-- Treat the topic as a complete word or sentence. Do NOT change its meaning.
+- Treat the {$topic} as a complete word or sentence. Do NOT change its meaning.
 {$levelInstruction}
 - Questions must be factual, conceptual, or application-based (NO opinions).
 - Avoid repeated concepts or similar questions.
@@ -163,11 +158,7 @@ IMPORTANT RULES:
 MCQ STRUCTURE RULES:
 - Exactly 4 options per question labeled A, B, C, and D.
 - Options must be concise and similar in length.
-- Do NOT use:
-  - All of the above
-  - None of the above
-  - Both A and B
-- No ambiguous or trick wording.
+
 
 OUTPUT FORMAT (STRICT):
 - Return ONLY a valid JSON array.
@@ -223,7 +214,7 @@ FINAL CHECK BEFORE OUTPUT:
                     ]
                 ],
                 'temperature' => 0.7,
-                'max_tokens' => 6000
+                'max_tokens' => 7000
             ];
             
             $ch = curl_init($url);
@@ -253,13 +244,16 @@ FINAL CHECK BEFORE OUTPUT:
                 $responseData = json_decode($response, true);
                 if (isset($responseData['choices'][0]['message']['content'])) {
                     $success = true;
+                    $keyManager->logUsage($apiKey);
                     break; // Success!
                 } else {
                     $lastError = "Invalid response structure with key " . substr($apiKey, 0, 8) . "...: " . substr(json_encode($responseData), 0, 200);
+                    $keyManager->logError($apiKey);
                 }
             } else {
                 $lastError = "HTTP $httpCode with key " . substr($apiKey, 0, 8) . "...: " . substr($response, 0, 200);
                 if ($curlError) $lastError .= " Curl error: $curlError";
+                $keyManager->logError($apiKey);
             }
         }
         
@@ -368,12 +362,12 @@ FINAL CHECK BEFORE OUTPUT:
  * @param int $bookId Book ID (optional)
  * @return array Array of related topics found
  */
-function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0) {
-    global $conn, $cacheManager;
+function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questionTypes = []) {
+    global $conn, $cacheManager, $keyManager;
     
-    // Check cache first (Use a distinct cache key for AI suggestions to avoid collision with main search)
+    // Check cache first (Include types in hash to avoid collision)
     if ($cacheManager) {
-        $cacheKey = "ai_topic_suggestions_" . md5($searchQuery);
+        $cacheKey = "ai_topic_suggestions_" . md5($searchQuery . serialize($questionTypes));
         $cached = $cacheManager->get($cacheKey);
         if ($cached !== false) {
             $cachedData = json_decode($cached, true);
@@ -384,16 +378,7 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0) {
     }
     
     // Get OpenAI API keys (OpenRouter)
-    $openaiApiKeys = EnvLoader::get('OPENAI_API_KEYS', '');
-    if (empty($openaiApiKeys)) {
-        // Fallback to single key if list not present
-        $openaiApiKeys = EnvLoader::get('OPENAI_API_KEY', '');
-    }
-    
-    $apiKeys = [];
-    if (!empty($openaiApiKeys)) {
-        $apiKeys = array_map('trim', explode(',', $openaiApiKeys));
-    }
+    $apiKeys = $keyManager->getActiveKeys();
     
     $openaiModel = EnvLoader::get('OPENAI_MODEL', 'nvidia/nemotron-3-nano-30b-a3b:free');
     
@@ -401,19 +386,21 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0) {
         error_log("OpenAI API keys not found for topic search");
         return [];
     }
+
+    $typeContext = !empty($questionTypes) ? "specifically for questions of type: " . implode(', ', $questionTypes) : "";
     
     // Prepare prompt for OpenAI to search and suggest related educational topics
-    $prompt = "Based on current educational standards and curriculum, find related educational topics similar to: \"{$searchQuery}\"
+    $prompt = "Based on current educational standards and curriculum, find exactly 6 related educational topics similar to: \"{$searchQuery}\" {$typeContext}
     
-    Please provide a list of 4-7 related educational topics that students might study. These should be:
+    Please provide a list of exactly 6 related educational topics that students might study. These should be:
     - Educational/academic topics
     - Related to the search query
     - Commonly taught in schools/colleges
-    - Suitable for creating multiple choice questions
+    - Suitable for creating various types of questions (MCQs, Short/Long answers)
     - Real and valid educational topics
 
     Return ONLY a JSON array of topic names, like this:
-    [\"Topic 1\", \"Topic 2\", \"Topic 3\"]
+    [\"Topic 1\", \"Topic 2\", \"Topic 3\", \"Topic 4\", \"Topic 5\", \"Topic 6\"]
 
     Do not include any explanation, just the JSON array. Make sure the topics are real educational subjects.";
 
@@ -448,7 +435,7 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0) {
                     ]
                 ],
                 'temperature' => 0.7,
-                'max_tokens' => 5000
+                'max_tokens' => 7000
             ];
             
             $ch = curl_init($url);
@@ -478,13 +465,16 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0) {
                 $responseData = json_decode($response, true);
                 if (isset($responseData['choices'][0]['message']['content'])) {
                     $success = true;
+                    $keyManager->logUsage($apiKey);
                     break; // Success!
                 } else {
                     $lastError = "Invalid response structure with key " . substr($apiKey, 0, 8) . "...: " . substr(json_encode($responseData), 0, 200);
+                    $keyManager->logError($apiKey);
                 }
             } else {
                 $lastError = "HTTP $httpCode with key " . substr($apiKey, 0, 8) . "...: " . substr($response, 0, 200);
                 if ($curlError) $lastError .= " Curl error: $curlError";
+                $keyManager->logError($apiKey);
             }
         }
         

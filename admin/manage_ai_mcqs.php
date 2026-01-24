@@ -4,15 +4,9 @@ require_once __DIR__ . '/security.php';
 requireAdminAuth();
 
 // Ensure verification table exists (avoids error on first run)
-$createTableSql = "CREATE TABLE IF NOT EXISTS AIMCQsVerification (
-    mcq_id INT PRIMARY KEY,
-    verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
-    last_checked_at DATETIME,
-    suggested_correct_option TEXT,
-    ai_notes TEXT,
-    FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
-)";
-$conn->query($createTableSql);
+// Moved to install.php
+// $createTableSql = ...;
+// $conn->query($createTableSql);
 
 $message = '';
 $error = '';

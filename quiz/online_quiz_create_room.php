@@ -51,6 +51,7 @@ $class_id = intval($_POST['class_id'] ?? 0);
 $book_id = intval($_POST['book_id'] ?? 0);
 $mcq_count = intval($_POST['mcq_count'] ?? 0);
 $chapter_ids = trim($_POST['chapter_ids'] ?? '');
+$source = $_POST['source'] ?? '';
 $quiz_duration_minutes = max(1, min(120, intval($_POST['quiz_duration_minutes'] ?? 30)));
 $custom_mcqs_json = $_POST['custom_mcqs'] ?? '[]';
 $selected_mcq_ids_str = $_POST['selected_mcq_ids'] ?? '';
@@ -85,7 +86,13 @@ foreach ($custom_mcqs as $mcq) {
 if ($mcq_count <= 0 && !$hasAnyCustom && empty($topics) && empty($selected_mcq_ids)) {
     respond_error('Please select at least 1 Random MCQ, add at least 1 Custom MCQ, or select specific questions.');
 }
-if ($mcq_count > 0 && (!$class_id || !$book_id) && empty($topics) && empty($selected_mcq_ids)) {
+
+// Calculate if we need to generate random questions
+$custom_count = count($custom_mcqs);
+$selected_count = count($selected_mcq_ids);
+$random_needed = max(0, $mcq_count - $custom_count - $selected_count);
+
+if ($random_needed > 0 && (!$class_id || !$book_id) && empty($topics)) {
     respond_error('Class and Book are required when selecting Random MCQs.');
 }
 
@@ -239,7 +246,8 @@ if ($remaining_needed > 0) {
                 
                 // Assuming generateMCQsWithGemini is available (we added require)
                 if (function_exists('generateMCQsWithGemini')) {
-                    $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate);
+                    // Generate remaining questions + 2 extra as requested to ensure sufficient valid questions
+                    $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate + 2);
                     
                     if (!empty($generatedMCQs)) {
                         foreach ($generatedMCQs as $genMCQ) {

@@ -7,16 +7,14 @@ if (isset($_GET['debug'])) {
 
 try {
     require_once __DIR__ . '/../db_connect.php';
+    require_once __DIR__ . '/security.php';
 } catch (Exception $e) {
     error_log('Database connection error in manage_books.php: ' . $e->getMessage());
     die('Database connection failed. Please check server configuration.');
 }
 
 if (session_status() === PHP_SESSION_NONE) session_start();
-if (empty($_SESSION['role']) || !in_array($_SESSION['role'], ['admin','superadmin'])) {
-    header('Location: login.php');
-    exit;
-}
+requireAdminAuth();
 
 // Load classes for FK with error handling
 try {
@@ -36,40 +34,51 @@ try {
 
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    if ($action === 'create') {
-        $name = trim($_POST['book_name'] ?? '');
-        $classId = intval($_POST['class_id'] ?? 0);
-        if ($name !== '' && $classId > 0) {
-            $nameEsc = $conn->real_escape_string($name);
-            if ($conn->query("INSERT INTO book (book_name, class_id) VALUES ('$nameEsc', $classId)")) {
-                header('Location: manage_books.php?msg=created');
-                exit;
-            } else {
-                $message = 'Error creating book: ' . $conn->error;
+    if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
+        $message = 'Invalid CSRF token. Please reload the page.';
+    } else {
+        $action = $_POST['action'] ?? '';
+        if ($action === 'create') {
+            $name = trim($_POST['book_name'] ?? '');
+            $classId = intval($_POST['class_id'] ?? 0);
+            if ($name !== '' && $classId > 0) {
+                $stmt = $conn->prepare("INSERT INTO book (book_name, class_id) VALUES (?, ?)");
+                $stmt->bind_param("si", $name, $classId);
+                if ($stmt->execute()) {
+                    header('Location: manage_books.php?msg=created');
+                    exit;
+                } else {
+                    $message = 'Error creating book: ' . $stmt->error;
+                }
+                $stmt->close();
             }
-        }
-    } elseif ($action === 'update') {
-        $id = intval($_POST['book_id'] ?? 0);
-        $name = trim($_POST['book_name'] ?? '');
-        $classId = intval($_POST['class_id'] ?? 0);
-        if ($id > 0 && $name !== '' && $classId > 0) {
-            $nameEsc = $conn->real_escape_string($name);
-            if ($conn->query("UPDATE book SET book_name='$nameEsc', class_id=$classId WHERE book_id=$id")) {
-                header('Location: manage_books.php?msg=updated');
-                exit;
-            } else {
-                $message = 'Error updating book: ' . $conn->error;
+        } elseif ($action === 'update') {
+            $id = intval($_POST['book_id'] ?? 0);
+            $name = trim($_POST['book_name'] ?? '');
+            $classId = intval($_POST['class_id'] ?? 0);
+            if ($id > 0 && $name !== '' && $classId > 0) {
+                $stmt = $conn->prepare("UPDATE book SET book_name=?, class_id=? WHERE book_id=?");
+                $stmt->bind_param("sii", $name, $classId, $id);
+                if ($stmt->execute()) {
+                    header('Location: manage_books.php?msg=updated');
+                    exit;
+                } else {
+                    $message = 'Error updating book: ' . $stmt->error;
+                }
+                $stmt->close();
             }
-        }
-    } elseif ($action === 'delete') {
-        $id = intval($_POST['book_id'] ?? 0);
-        if ($id > 0) {
-            if ($conn->query("DELETE FROM book WHERE book_id=$id")) {
-                header('Location: manage_books.php?msg=deleted');
-                exit;
-            } else {
-                $message = 'Error deleting book: ' . $conn->error;
+        } elseif ($action === 'delete') {
+            $id = intval($_POST['book_id'] ?? 0);
+            if ($id > 0) {
+                $stmt = $conn->prepare("DELETE FROM book WHERE book_id=?");
+                $stmt->bind_param("i", $id);
+                if ($stmt->execute()) {
+                    header('Location: manage_books.php?msg=deleted');
+                    exit;
+                } else {
+                    $message = 'Error deleting book: ' . $stmt->error;
+                }
+                $stmt->close();
             }
         }
     }
@@ -113,6 +122,7 @@ $books = $conn->query("SELECT b.book_id, b.book_name, c.class_id, c.class_name F
 
         <h3>Create New Book</h3>
         <form method="POST" class="row">
+            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
             <input type="hidden" name="action" value="create">
             <input type="text" name="book_name" placeholder="Book name" required>
             <select name="class_id" required>
@@ -133,6 +143,7 @@ $books = $conn->query("SELECT b.book_id, b.book_name, c.class_id, c.class_name F
                     <td><?= (int)$row['book_id'] ?></td>
                     <td>
                         <form method="POST" class="inline">
+                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                             <input type="hidden" name="action" value="update">
                             <input type="hidden" name="book_id" value="<?= (int)$row['book_id'] ?>">
                             <input type="text" name="book_name" value="<?= htmlspecialchars($row['book_name']) ?>" required>
@@ -149,6 +160,7 @@ $books = $conn->query("SELECT b.book_id, b.book_name, c.class_id, c.class_name F
                     <td><?= htmlspecialchars($row['class_name']) ?></td>
                     <td>
                         <form method="POST" class="inline" onsubmit="return confirm('Delete this book?');">
+                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="book_id" value="<?= (int)$row['book_id'] ?>">
                             <button type="submit">Delete</button>
