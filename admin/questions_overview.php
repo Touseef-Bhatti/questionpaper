@@ -7,13 +7,14 @@ requireAdminAuth();
 $sql = "SELECT 
             c.class_name,
             b.book_name,
-            COUNT(CASE WHEN q.question_type = 'mcq' THEN 1 END) as mcq_count,
-            COUNT(CASE WHEN q.question_type = 'short' THEN 1 END) as short_count,
-            COUNT(CASE WHEN q.question_type = 'long' THEN 1 END) as long_count,
-            COUNT(q.id) as total_count
+            (SELECT COUNT(*) FROM mcqs WHERE book_id = b.book_id) as mcq_count,
+            (SELECT COUNT(*) FROM questions WHERE book_id = b.book_id AND question_type = 'short') as short_count,
+            (SELECT COUNT(*) FROM questions WHERE book_id = b.book_id AND question_type = 'long') as long_count,
+            (SELECT COUNT(*) FROM mcqs WHERE book_id = b.book_id) + 
+            (SELECT COUNT(*) FROM questions WHERE book_id = b.book_id AND question_type = 'short') +
+            (SELECT COUNT(*) FROM questions WHERE book_id = b.book_id AND question_type = 'long') as total_count
         FROM book b
         JOIN class c ON b.class_id = c.class_id
-        LEFT JOIN questions q ON b.book_id = q.book_id
         GROUP BY c.class_id, b.book_id
         ORDER BY c.class_name, b.book_name";
 
