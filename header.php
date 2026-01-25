@@ -54,173 +54,24 @@ foreach ($gen_paper_pages as $p) {
     }
 }
 ?>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-<link rel="stylesheet" href="../css/index.css">
-<link rel="stylesheet" href="../css/main.css">
-
-    
-<nav class="navbar">
-  <div class="navbar-container">
-    <a href="<?= $assetBase ?>index.php" class="nav-logo">AhmadLearningHub</a>
-    <div class="nav-toggle" id="navToggle">
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
-    <ul class="nav-menu" id="navMenu">
-      <li><a href="<?= $assetBase ?>index.php" class="<?= (basename($current_page) == 'index.php' || basename($current_page) == '') ? 'active' : '' ?>"><i class="fas fa-home"></i> Home</a></li>
-      <li class="dropdown">
-        <a class="dropbtn <?= $is_gen_paper_active ? 'active' : '' ?>">Generate Paper <i class="fas fa-caret-down"></i></a>
-        <div class="dropdown-content">
-             <a href="<?= $assetBase ?>select_class.php" class="<?= is_active('select_class.php') ?>"><i class="fas fa-file-alt"></i> Create Question Paper</a>
-          <a href="<?= $assetBase ?>quiz/online_quiz_host_new.php" class="<?= is_active('online_quiz_host_new.php') ?>"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
-          <a href="<?= $assetBase ?>quiz/quiz_setup.php" class="<?= is_active('quiz_setup.php') ?>"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
-          <a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="<?= is_active('online_quiz_join.php') ?>"><i class="fas fa-gamepad"></i> Join Quiz</a>
-        </div>
-      </li>
-      <li><a href="<?= $assetBase ?>notes/notes.php" class="<?= is_active('notes.php') ?>"><i class="fas fa-book"></i> Notes</a></li>
-      <li><a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="btn-join"><i class="fas fa-gamepad" ></i> Join</a></li>
-      <li><a href="<?= $assetBase ?>about.php" class="<?= is_active('about.php') ?>"><i class="fas fa-info-circle"></i> About</a></li>
-      <li><a href="<?= $assetBase ?>contact.php" class="<?= is_active('contact.php') ?>"><i class="fas fa-envelope"></i> Contact</a></li>
-
-                <?php if (isset($_SESSION['user_id'])): ?>
-                    <?php
-                    // Include subscription middleware for header info
-                    if (file_exists(__DIR__ . '/middleware/SubscriptionCheck.php')) {
-                        require_once __DIR__ . '/middleware/SubscriptionCheck.php';
-                        $subInfo = getSubscriptionInfo($_SESSION['user_id']);
-                    }
-                    ?>
-                    <?php if (isset($subInfo) && $subInfo): ?>
-                        <!-- Subscription plan button hidden -->
-                        <?php /* <li><a href="<?= $assetBase ?>subscription.php" style="background: <?= $subInfo['is_premium'] ? '#28a745' : '#ffc107' ?>; color: <?= $subInfo['is_premium'] ? 'white' : '#856404' ?>; padding: 5px 10px; border-radius: 15px; font-size: 0.9rem; margin-right: 10px;"><?= htmlspecialchars($subInfo['plan_name']) ?></a></li> */ ?>
-                    <?php endif; ?>
-                    <li class="dropdown">
-                        <a href="<?= $assetBase ?>profile.php" class="dropbtn <?= is_active('profile.php') ?>"><i class="fas fa-user-circle"></i> Profile <i class="fas fa-caret-down"></i></a>
-                        <div class="dropdown-content">
-                            <a href="<?= $assetBase ?>profile.php" class="<?= is_active('profile.php') ?>"><i class="fas fa-user-cog"></i> My Profile</a>
-                            <a href="<?= $assetBase ?>auth/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
-                        </div>
-                    </li>
-                <?php else: ?>
-                    <!-- <li><a href="<?= $assetBase ?>subscription.php">Plans</a></li> -->
-                    
-                    <li><a href="<?= $assetBase ?>auth/login.php" class="<?= is_active('login.php') ?>"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-                <?php endif; ?>
-            </ul>
-        </div>
-        <div class="nav-overlay" id="navOverlay"></div>
-    </nav>
-
-    <script>
-    // Responsive Navbar Toggle
-    const navToggle = document.getElementById('navToggle');
-    const navMenu = document.getElementById('navMenu');
-    const navOverlay = document.getElementById('navOverlay');
-    
-    function closeMenu() {
-        navMenu.classList.remove('open');
-        navToggle.classList.remove('open');
-        navOverlay.classList.remove('open');
-        document.body.classList.remove('menu-open');
-        // Close all dropdowns when mobile menu is closed
-        document.querySelectorAll('.dropdown-content').forEach(content => {
-            content.classList.remove('show');
-        });
-    }
-    
-    function openMenu() {
-        navMenu.classList.add('open');
-        navToggle.classList.add('open');
-        navOverlay.classList.add('open');
-        document.body.classList.add('menu-open');
-    }
-    
-    if (navToggle) {
-        navToggle.addEventListener('click', function() {
-            if (navMenu.classList.contains('open')) {
-                closeMenu();
-            } else {
-                openMenu();
-            }
-        });
-    }
-    
-    if (navOverlay) {
-        navOverlay.addEventListener('click', closeMenu);
-    }
-
-    // Close the mobile menu when clicking outside the menu area (sides of the page)
-    document.addEventListener('click', function(e) {
-        // Only active when menu open and on small screens
-        if (!navMenu.classList.contains('open') || window.innerWidth > 768) return;
-
-        // If click inside the menu or on the toggle, ignore
-        if (navMenu.contains(e.target) || (navToggle && navToggle.contains(e.target))) return;
-
-        closeMenu();
-    }, true);
-    
-    // Close on ESC
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeMenu();
-    });
-    
-    // Close on menu link click (mobile)
-    if (navMenu) {
-        navMenu.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', function() {
-                // Only close if it's not a dropdown toggle
-                if (!link.classList.contains('dropbtn') && window.innerWidth <= 768) {
-                    closeMenu();
-                }
-            });
-        });
-    }
-
-    // Dropdown functionality (desktop hover, mobile click)
-    document.querySelectorAll('.dropdown > .dropbtn').forEach(dropbtn => {
-        dropbtn.addEventListener('click', function(e) {
-            if (window.innerWidth <= 768) { // Only for mobile
-                e.preventDefault();
-                e.stopPropagation(); // Prevent closing the mobile menu if it's open
-                const dropdownContent = this.nextElementSibling;
-                
-                // Close other open dropdowns
-                document.querySelectorAll('.dropdown-content.show').forEach(content => {
-                    if (content !== dropdownContent) {
-                        content.classList.remove('show');
-                    }
-                });
-                
-                dropdownContent.classList.toggle('show');
-            }
-        });
-    });
-
-    // Close dropdowns when clicking outside (only for mobile click dropdowns)
-    window.addEventListener('click', function(e) {
-        if (window.innerWidth <= 768 && !e.target.matches('.dropbtn')) {
-            document.querySelectorAll('.dropdown-content.show').forEach(content => {
-                content.classList.remove('show');
-            });
-        }
-    });
-
-    </script>
-   <style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+     <style>
     /* Header / Navbar styles appended below */
 /* header.css - Responsive, professional navbar (uses design system variables) */
 
 .navbar {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     color: var(--text-primary);
     padding: 0.7rem 0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
     position: sticky;
     top: 0;
     z-index: 1000;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     width: 100%;
     margin: 0;
     min-height: 70px;
@@ -397,7 +248,10 @@ body.menu-open {
         left: -300px; /* Wider menu, off-screen to the left */
         height: 100vh;
         width: 280px; /* Wider menu */
-        background: rgba(255, 255, 255, 0.9); /* Semi-transparent white for mobile menu */
+        background: rgba(255, 255, 255, 0.65); /* Glass effect for mobile menu */
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-right: 1px solid rgba(255, 255, 255, 0.4);
         color: #000; /* Black text for mobile menu */
         flex-direction: column;
         gap: 1.3rem; /* Consistent gap */
@@ -606,3 +460,164 @@ body.menu-open {
     transition: opacity 0.3s ease-in; /* Slower fade in */
 }
    </style>
+</head>
+<body>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+<link rel="stylesheet" href="../css/index.css">
+<link rel="stylesheet" href="../css/main.css">
+
+    
+<nav class="navbar">
+  <div class="navbar-container">
+    <a href="<?= $assetBase ?>index.php" class="nav-logo">AhmadLearningHub</a>
+    <div class="nav-toggle" id="navToggle">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <ul class="nav-menu" id="navMenu">
+      <li><a href="<?= $assetBase ?>index.php" class="<?= (basename($current_page) == 'index.php' || basename($current_page) == '') ? 'active' : '' ?>"><i class="fas fa-home"></i> Home</a></li>
+      <li class="dropdown">
+        <a class="dropbtn <?= $is_gen_paper_active ? 'active' : '' ?>">Generate Paper <i class="fas fa-caret-down"></i></a>
+        <div class="dropdown-content">
+             <a href="<?= $assetBase ?>select_class.php" class="<?= is_active('select_class.php') ?>"><i class="fas fa-file-alt"></i> Create Question Paper</a>
+          <a href="<?= $assetBase ?>quiz/online_quiz_host_new.php" class="<?= is_active('online_quiz_host_new.php') ?>"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
+          <a href="<?= $assetBase ?>quiz/quiz_setup.php" class="<?= is_active('quiz_setup.php') ?>"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
+          <a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="<?= is_active('online_quiz_join.php') ?>"><i class="fas fa-gamepad"></i> Join Quiz</a>
+        </div>
+      </li>
+      <li><a href="<?= $assetBase ?>notes/notes.php" class="<?= is_active('notes.php') ?>"><i class="fas fa-book"></i> Notes</a></li>
+      <li><a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="btn-join"><i class="fas fa-gamepad" ></i> Join</a></li>
+      <li><a href="<?= $assetBase ?>about.php" class="<?= is_active('about.php') ?>"><i class="fas fa-info-circle"></i> About</a></li>
+      <li><a href="<?= $assetBase ?>contact.php" class="<?= is_active('contact.php') ?>"><i class="fas fa-envelope"></i> Contact</a></li>
+
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <?php
+                    // Include subscription middleware for header info
+                    if (file_exists(__DIR__ . '/middleware/SubscriptionCheck.php')) {
+                        require_once __DIR__ . '/middleware/SubscriptionCheck.php';
+                        $subInfo = getSubscriptionInfo($_SESSION['user_id']);
+                    }
+                    ?>
+                    <?php if (isset($subInfo) && $subInfo): ?>
+                        <!-- Subscription plan button hidden -->
+                        <?php /* <li><a href="<?= $assetBase ?>subscription.php" style="background: <?= $subInfo['is_premium'] ? '#28a745' : '#ffc107' ?>; color: <?= $subInfo['is_premium'] ? 'white' : '#856404' ?>; padding: 5px 10px; border-radius: 15px; font-size: 0.9rem; margin-right: 10px;"><?= htmlspecialchars($subInfo['plan_name']) ?></a></li> */ ?>
+                    <?php endif; ?>
+                    <li class="dropdown">
+                        <a href="<?= $assetBase ?>profile.php" class="dropbtn <?= is_active('profile.php') ?>"><i class="fas fa-user-circle"></i> Profile <i class="fas fa-caret-down"></i></a>
+                        <div class="dropdown-content">
+                            <a href="<?= $assetBase ?>profile.php" class="<?= is_active('profile.php') ?>"><i class="fas fa-user-cog"></i> My Profile</a>
+                            <a href="<?= $assetBase ?>auth/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </li>
+                <?php else: ?>
+                    <!-- <li><a href="<?= $assetBase ?>subscription.php">Plans</a></li> -->
+                    
+                    <li><a href="<?= $assetBase ?>auth/login.php" class="<?= is_active('login.php') ?>"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+                <?php endif; ?>
+            </ul>
+        </div>
+        <div class="nav-overlay" id="navOverlay"></div>
+    </nav>
+
+</body>
+</html>
+
+    <script>
+    // Responsive Navbar Toggle
+    const navToggle = document.getElementById('navToggle');
+    const navMenu = document.getElementById('navMenu');
+    const navOverlay = document.getElementById('navOverlay');
+    
+    function closeMenu() {
+        navMenu.classList.remove('open');
+        navToggle.classList.remove('open');
+        navOverlay.classList.remove('open');
+        document.body.classList.remove('menu-open');
+        // Close all dropdowns when mobile menu is closed
+        document.querySelectorAll('.dropdown-content').forEach(content => {
+            content.classList.remove('show');
+        });
+    }
+    
+    function openMenu() {
+        navMenu.classList.add('open');
+        navToggle.classList.add('open');
+        navOverlay.classList.add('open');
+        document.body.classList.add('menu-open');
+    }
+    
+    if (navToggle) {
+        navToggle.addEventListener('click', function() {
+            if (navMenu.classList.contains('open')) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
+        });
+    }
+    
+    if (navOverlay) {
+        navOverlay.addEventListener('click', closeMenu);
+    }
+
+    // Close the mobile menu when clicking outside the menu area (sides of the page)
+    document.addEventListener('click', function(e) {
+        // Only active when menu open and on small screens
+        if (!navMenu.classList.contains('open') || window.innerWidth > 768) return;
+
+        // If click inside the menu or on the toggle, ignore
+        if (navMenu.contains(e.target) || (navToggle && navToggle.contains(e.target))) return;
+
+        closeMenu();
+    }, true);
+    
+    // Close on ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeMenu();
+    });
+    
+    // Close on menu link click (mobile)
+    if (navMenu) {
+        navMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', function() {
+                // Only close if it's not a dropdown toggle
+                if (!link.classList.contains('dropbtn') && window.innerWidth <= 768) {
+                    closeMenu();
+                }
+            });
+        });
+    }
+
+    // Dropdown functionality (desktop hover, mobile click)
+    document.querySelectorAll('.dropdown > .dropbtn').forEach(dropbtn => {
+        dropbtn.addEventListener('click', function(e) {
+            if (window.innerWidth <= 768) { // Only for mobile
+                e.preventDefault();
+                e.stopPropagation(); // Prevent closing the mobile menu if it's open
+                const dropdownContent = this.nextElementSibling;
+                
+                // Close other open dropdowns
+                document.querySelectorAll('.dropdown-content.show').forEach(content => {
+                    if (content !== dropdownContent) {
+                        content.classList.remove('show');
+                    }
+                });
+                
+                dropdownContent.classList.toggle('show');
+            }
+        });
+    });
+
+    // Close dropdowns when clicking outside (only for mobile click dropdowns)
+    window.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768 && !e.target.matches('.dropbtn')) {
+            document.querySelectorAll('.dropdown-content.show').forEach(content => {
+                content.classList.remove('show');
+            });
+        }
+    });
+
+    </script>
+  

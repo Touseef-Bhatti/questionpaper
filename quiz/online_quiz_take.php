@@ -308,9 +308,7 @@ function renderQuestion() {
       options.forEach(opt => {
           const optionLetter = opt.dataset.option;
           if (optionLetter === savedAnswer.selected) {
-              opt.classList.add(savedAnswer.isCorrect ? 'correct' : 'incorrect');
-          } else if (optionLetter === savedAnswer.correct) {
-              opt.classList.add('correct');
+              opt.classList.add('selected');
           }
           opt.style.pointerEvents = 'none';
       });
@@ -364,9 +362,7 @@ function selectOption(option) {
   options.forEach(opt => {
     const optionLetter = opt.dataset.option;
     if (optionLetter === option) {
-      opt.classList.add(isCorrect ? 'correct' : 'incorrect');
-    } else if (optionLetter === correctOptionLetter) {
-      opt.classList.add('correct');
+      opt.classList.add('selected');
     }
     opt.style.pointerEvents = 'none';
   });

@@ -26,11 +26,11 @@ $stmt->close();
 // Get participants and their scores
 // We can join quiz_participants with quiz_participant_answers
 // Or just use the score column in quiz_participants if we updated it (we did in online_quiz_save_answer.php)
-$sql = "SELECT p.name, p.roll_number, p.status, p.score, p.total_questions,
+$sql = "SELECT p.id, p.name, p.roll_number, p.status, p.score, p.total_questions, p.started_at, p.finished_at, p.current_question,
         (SELECT COUNT(*) FROM quiz_participant_answers a WHERE a.room_code = ? AND a.roll_number = p.roll_number) as answered_count
         FROM quiz_participants p
         WHERE p.room_id = ?
-        ORDER BY p.score DESC, p.name ASC";
+        ORDER BY p.score DESC, TIMESTAMPDIFF(SECOND, p.started_at, COALESCE(p.finished_at, NOW())) ASC";
 
 $stmt = $conn->prepare($sql);
 $stmt->bind_param('si', $room_code, $room_id);

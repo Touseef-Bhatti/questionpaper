@@ -9,9 +9,55 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Take a Quiz - Ahmad Learning Hub</title>
+    <title>Take a Free Online Quiz - AI MCQ Generator - Ahmad Learning Hub</title>
+    <!-- Enhanced SEO Meta Tags -->
+    <meta name="description" content="Free AI-powered MCQ generator for board exams. Practice with thousands of questions according to the new 2026 syllabus. Perfect for Matric, FSc, MDCAT & ECAT prep. Generate custom tests by class, book, or AI topic search.">
+    <meta name="keywords" content="AI MCQs, AI quiz generator, new syllabus MCQs 2026, board exam preparation, online MCQs practice, Matric MCQs, FSc MCQs, Biology MCQs, Chemistry MCQs, Physics MCQs, All board MCQs, Ahmad Learning Hub, automatic test generator">
+    <meta name="author" content="Ahmad Learning Hub">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://paper.bhattichemicalsindustry.com.pk/quiz/quiz_setup.php">
+    <meta property="og:title" content="Free AI MCQ Generator for Board Exams | Ahmad Learning Hub">
+    <meta property="og:description" content="Generate 100% accurate MCQs based on the latest 2026 syllabus using advanced AI. All subjects covered - science and arts.">
+    <meta property="og:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-og.jpg">
+
+    <!-- JSON-LD Structured Data for SEO Rich Snippets -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "EducationalApplication",
+      "name": "Ahmad Learning Hub Quiz Builder",
+      "description": "An AI-powered application to generate custom MCQs for students preparing for board exams.",
+      "applicationCategory": "Education",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "educationalAlignment": [
+        {
+          "@type": "AlignmentObject",
+          "educationalFramework": "National Curriculum",
+          "targetName": "Matric / FSc / MDCAT",
+          "alignmentType": "teaches"
+        }
+      ]
+    }
+    </script>
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://paper.bhattichemicalsindustry.com.pk/quiz/quiz_setup.php">
+    <meta property="twitter:title" content="Take a Free Online Quiz - Ahmad Learning Hub">
+    <meta property="twitter:description" content="Tailor your study sessions with our advanced MCQ generator. Practice by class, book, or specific chapters.">
+    <meta property="twitter:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-og.jpg">
+
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/quiz_setup.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         /* Loader Styles */
         .loader-overlay {
@@ -98,8 +144,10 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 <?php include '../header.php'; ?>
 <div class="main-content">
     <div class="quiz-setup-container">
-        <h1>Take a Quiz</h1>
-        <p class="desc">Select your class, book, chapters, and the number of MCQs you want. We'll pick random questions for you from the selected content.</p>
+        <header class="setup-header">
+            <h1>Master Your Exams with Custom Quizzes</h1>
+            <p class="desc">Ahmad Learning Hub provides a personalized learning experience. Select your current academic level below to generate a focused MCQ practice session tailored to your syllabus.</p>
+        </header>
 
         <form id="quizForm" method="POST" action="quiz.php">
             <div class="grid">
@@ -149,12 +197,44 @@ if (session_status() === PHP_SESSION_NONE) session_start();
                 </div>
             </div>
 
+
+
             <div class="actions">
                 <button type="button" class="btn secondary" id="resetBtn">Reset</button>
                 <button type="submit" class="btn primary">Start Quiz</button>
             </div>
         </form>
     </div>
+
+    <!-- SEO Content Section -->
+    <section class="info-section" style="max-width: 900px; margin: 60px auto; padding: 0 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;">
+            <div class="info-card" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; transition: transform 0.3s ease;">
+                <h3 style="color: var(--primary-color, #4f6ef7); margin-top: 0; font-size: 1.25rem;">🤖 AI-Powered MCQs</h3>
+                <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.6;">Using advanced AI, we generate high-quality questions for any topic. Our AI matches the difficulty and style of modern board exams, ensuring you're ready for anything.</p>
+            </div>
+            
+            <div class="info-card" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; transition: transform 0.3s ease;">
+                <h3 style="color: var(--primary-color, #4f6ef7); margin-top: 0; font-size: 1.25rem;">🆕 New 2026 Syllabus</h3>
+                <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.6;">Our database is updated daily to follow the latest Board Exam New Syllabus and paper patterns. Practice with confidence knowing you're studying the right material.</p>
+            </div>
+            
+            <div class="info-card" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; transition: transform 0.3s ease;">
+                <h3 style="color: var(--primary-color, #4f6ef7); margin-top: 0; font-size: 1.25rem;">�️ All Boards Coverage</h3>
+                <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.6;">From Punjab Board to Federal and Sindh Boards, we provide MCQs for all standard educational curricula, including MDCAT, ECAT, and GRE foundations.</p>
+            </div>
+        </div>
+
+        <article style="margin-top: 50px; background: #fdfdfd; padding: 40px; border-radius: 20px; border: 1px dashed #ced4da;">
+            <h2 style="font-size: 1.75rem; font-weight: 800; color: #1e293b; margin-bottom: 20px;">Why Practice with Ahmad Learning Hub Online Quizzes?</h2>
+            <p style="color: #4b5563; line-height: 1.8; margin-bottom: 15px;">
+                Regular testing is proven to increase retention by up to 40%. Our platform allows students to simulate exam environments, tracking time and accuracy to improve performance. From simple definitions to complex application-based questions, our MCQs are designed to challenge and educate.
+            </p>
+            <p style="color: #4b5563; line-height: 1.8;">
+                Teachers can also use this tool to quickly display questions in the classroom or recommend specific chapter-wise tests to their students. Join thousands of students today and start your journey towards academic excellence!
+            </p>
+        </article>
+    </section>
 </div>
 
 <!-- Loader Overlay -->

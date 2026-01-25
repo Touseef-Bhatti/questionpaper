@@ -195,7 +195,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
         echo '<h2 style="color:red;">Room not found.</h2>';
       } else {
         $room_id = (int)$room['id'];
-        $pstmt = $conn->prepare("SELECT id, name, roll_number, started_at, finished_at, score, total_questions, status, current_question, last_activity FROM quiz_participants WHERE room_id = ? ORDER BY started_at ASC");
+        $pstmt = $conn->prepare("SELECT id, name, roll_number, started_at, finished_at, score, total_questions, status, current_question, last_activity FROM quiz_participants WHERE room_id = ? ORDER BY score DESC, TIMESTAMPDIFF(SECOND, started_at, COALESCE(finished_at, NOW())) ASC");
         $pstmt->bind_param('i', $room_id);
         $pstmt->execute();
         $participants = $pstmt->get_result();

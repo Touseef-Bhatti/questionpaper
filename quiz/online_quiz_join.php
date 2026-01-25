@@ -60,9 +60,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join Quiz Room - Ahmad Learning Hub</title>
+  <title>Join Live AI Quiz - Competition & Board Prep - Ahmad Learning Hub</title>
+  <!-- SEO & AI Optimization Meta Tags -->
+  <meta name="description" content="Join a live AI-powered quiz room at Ahmad Learning Hub. Compete with students on new syllabus board exam MCQs, view real-time leaderboards, and get instant AI-driven performance assessment.">
+  <meta name="keywords" content="join live quiz, online competition, board exam MCQs, Ahmad Learning Hub lobby, AI quiz prep, 2026 board syllabus, student leaderboard">
+  <meta name="author" content="Ahmad Learning Hub">
+  <meta name="robots" content="index, follow">
+
+  <!-- Facebook / Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Join Live AI Quiz Room | Ahmad Learning Hub">
+  <meta property="og:description" content="Enter room code to compete in a live MCQ session. Optimized for Matric, FSc, and MDCAT students.">
+  <meta property="og:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-join-og.jpg">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Join Live Quiz Room",
+    "description": "Enter your room code to join a live MCQ competition with other students.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Ahmad Learning Hub"
+    }
+  }
+  </script>
+
   <link rel="stylesheet" href="../css/main.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -239,9 +263,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 <?php include '../header.php'; ?>
 <div class="main-content">
-  <div class="join-container">
+  <div class="join-container" style="flex-direction: column;">
     <div class="join-card">
-      <h1>Join Quiz Room</h1>
+      <h1>Join Live AI Quiz</h1>
       <p class="subtitle">Enter your details to join the live session</p>
 
       <?php if ($error): ?>
@@ -253,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       <form method="POST" action="online_quiz_join.php">
         <div class="field">
-          <label for="room_code">Room Code</label>
+          <label for="room_code">📌 Room Code</label>
           <div class="input-wrapper">
             <i class="fas fa-hashtag"></i>
             <input type="text" id="room_code" name="room_code" value="<?php echo htmlspecialchars($room_code); ?>" placeholder="e.g., ABC123" required />
@@ -261,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         
         <div class="field">
-          <label for="name">Your Full Name</label>
+          <label for="name">👤 Your Full Name</label>
           <div class="input-wrapper">
             <i class="fas fa-user"></i>
             <input type="text" id="name" name="name" placeholder="Enter your name" required />
@@ -269,7 +293,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="field">
-          <label for="roll_number">Roll Number</label>
+          <label for="roll_number">🔢 Roll Number</label>
           <div class="input-wrapper">
             <i class="fas fa-id-card"></i>
             <input type="text" id="roll_number" name="roll_number" placeholder="Enter your roll number" required />
@@ -277,10 +301,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <button type="submit" class="btn-join">
-          <span>Join Room</span>
+          <span>Enter Quiz Room</span>
           <i class="fas fa-arrow-right"></i>
         </button>
       </form>
+    </div>
+
+    <!-- SEO Content Section -->
+    <div style="max-width: 800px; margin-top: 40px; color: #4b5563; text-align: center; background: white; padding: 40px; border-radius: 20px; border: 1px solid #e5e7eb; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+        <h2 style="color: #1e293b; font-size: 1.75rem; font-weight: 800; margin-bottom: 15px;">Why Join Ahmad Learning Hub Live Quizzes?</h2>
+        <p style="line-height: 1.8; margin-bottom: 30px; font-size: 1.05rem;">Participate in real-time MCQ competitions designed around the <strong>New Syllabus Board Exams 2026</strong>. Our platform provides students with instant feedback, a dynamic competitive leaderboard, and <strong>AI-generated accuracy reports</strong>.</p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 25px; text-align: left;">
+            <div style="padding: 15px; border-radius: 12px; background: #f8fafc;">
+                <h4 style="margin: 0; color: var(--primary); font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">🌐 Global Rankings</h4>
+                <p style="font-size: 0.9rem; margin-top: 10px; color: #64748b;">See how you rank against peers in real-time as you answer questions correctly and quickly.</p>
+            </div>
+            <div style="padding: 15px; border-radius: 12px; background: #f8fafc;">
+                <h4 style="margin: 0; color: var(--primary); font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">🤖 AI Evaluation</h4>
+                <p style="font-size: 0.9rem; margin-top: 10px; color: #64748b;">Understand your performance with automated AI analysis that highlights your strengths and weaknesses.</p>
+            </div>
+            <div style="padding: 15px; border-radius: 12px; background: #f8fafc;">
+                <h4 style="margin: 0; color: var(--primary); font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">📘 Syllabus Focused</h4>
+                <p style="font-size: 0.9rem; margin-top: 10px; color: #64748b;">All room questions are verified and mapped to the latest board paper patterns (Punjab, Federal, and more).</p>
+            </div>
+        </div>
+    </div>
     </div>
   </div>
 </div>

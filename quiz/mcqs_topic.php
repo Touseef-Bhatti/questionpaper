@@ -6,15 +6,63 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 
 // Handle AJAX load more topics
 if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
-    // Clear any previous output
     if (ob_get_length()) ob_clean();
     header('Content-Type: application/json');
     $searchQuery = $_POST['search_query'] ?? '';
     
     if (!empty($searchQuery)) {
         try {
-            $relatedTopics = searchTopicsWithGemini($searchQuery);
-            echo json_encode(['success' => true, 'topics' => $relatedTopics]);
+            $aiTopics = searchTopicsWithGemini($searchQuery);
+            $existingTopics = [];
+            $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic LIKE ? LIMIT 10");
+            if ($stmt) {
+                $searchPattern = '%' . $searchQuery . '%';
+                $stmt->bind_param('s', $searchPattern);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                while ($row = $result->fetch_assoc()) {
+                    if (!empty($row['topic']) && !in_array($row['topic'], array_column($existingTopics, 'topic'))) {
+                        $existingTopics[] = ['topic' => $row['topic'], 'similarity' => 80.0, 'source' => 'mcqs'];
+                    }
+                }
+                $stmt->close();
+            }
+            $aiMcqTopics = [];
+            $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic LIKE ? LIMIT 10");
+            if ($aiStmt) {
+                $searchPattern = '%' . $searchQuery . '%';
+                $aiStmt->bind_param('s', $searchPattern);
+                $aiStmt->execute();
+                $result = $aiStmt->get_result();
+                while ($row = $result->fetch_assoc()) {
+                    if (!empty($row['topic'])) {
+                        $exists = false;
+                        foreach ($existingTopics as $existing) {
+                            if (strcasecmp($existing['topic'], $row['topic']) === 0) {
+                                $exists = true; break;
+                            }
+                        }
+                        if (!$exists && !in_array($row['topic'], array_column($aiMcqTopics, 'topic'))) {
+                            $aiMcqTopics[] = ['topic' => $row['topic'], 'similarity' => 80.0, 'source' => 'ai_generated_mcqs'];
+                        }
+                    }
+                }
+                $aiStmt->close();
+            }
+            $combinedTopics = array_merge($aiTopics, $existingTopics, $aiMcqTopics);
+            $uniqueTopics = [];
+            $seenTopics = [];
+            foreach ($combinedTopics as $topic) {
+                $topicLower = strtolower(trim($topic['topic']));
+                if (!in_array($topicLower, $seenTopics)) {
+                    $uniqueTopics[] = $topic;
+                    $seenTopics[] = $topicLower;
+                }
+            }
+            usort($uniqueTopics, function($a, $b) {
+                return ($b['similarity'] ?? 0) <=> ($a['similarity'] ?? 0);
+            });
+            echo json_encode(['success' => true, 'topics' => $uniqueTopics]);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
@@ -24,27 +72,14 @@ if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
     exit;
 }
 
-// Function to calculate similarity percentage between two strings
 function calculateSimilarity($str1, $str2) {
-    $str1 = strtolower(trim($str1));
-    $str2 = strtolower(trim($str2));
-    
-    if (empty($str1) || empty($str2)) {
-        return 0;
-    }
-    
-    // Use similar_text for better matching
+    $str1 = strtolower(trim($str1)); $str2 = strtolower(trim($str2));
+    if (empty($str1) || empty($str2)) return 0;
     similar_text($str1, $str2, $percent);
-    
-    // Also check if one string contains the other
-    if (strpos($str1, $str2) !== false || strpos($str2, $str1) !== false) {
-        $percent = max($percent, 70); // Boost if one contains the other
-    }
-    
+    if (strpos($str1, $str2) !== false || strpos($str2, $str1) !== false) $percent = max($percent, 70);
     return $percent;
 }
 
-// Handle search
 $searchQuery = '';
 $searchResults = [];
 $showResults = false;
@@ -55,18 +90,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
     $studyLevel = $_POST['study_level'] ?? '';
     
     if (!empty($searchQuery)) {
-        $cacheKey = null;
-        $usedCache = false;
-        
+        $cacheKey = null; $usedCache = false;
         if (isset($cacheManager) && $cacheManager) {
             $cacheKey = "topic_search_" . md5($searchQuery);
             $cached = $cacheManager->get($cacheKey);
             if ($cached !== false) {
                 $cachedData = json_decode($cached, true);
                 if (is_array($cachedData) && !empty($cachedData)) {
-                    $searchResults = $cachedData;
-                    $showResults = true;
-                    $usedCache = true;
+                    $searchResults = $cachedData; $showResults = true; $usedCache = true;
                 }
             }
         }
@@ -75,67 +106,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
             $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic IS NOT NULL AND topic != '' ORDER BY topic");
             $stmt->execute();
             $result = $stmt->get_result();
-            
             $allTopics = [];
-            while ($row = $result->fetch_assoc()) {
-                $allTopics[] = $row;
-            }
+            while ($row = $result->fetch_assoc()) $allTopics[] = $row;
             $stmt->close();
             
             foreach ($allTopics as $topicRow) {
                 $similarity = calculateSimilarity($searchQuery, $topicRow['topic']);
                 if ($similarity >= 50) {
-                    $searchResults[] = [
-                        'topic' => $topicRow['topic'],
-                        'similarity' => round($similarity, 1)
-                    ];
+                    $searchResults[] = ['topic' => $topicRow['topic'], 'similarity' => round($similarity, 1)];
                 }
             }
             
             $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic IS NOT NULL AND topic != ''");
             $aiStmt->execute();
             $aiResult = $aiStmt->get_result();
-            
             while ($row = $aiResult->fetch_assoc()) {
                 $similarity = calculateSimilarity($searchQuery, $row['topic']);
                 if ($similarity >= 50) {
                     $exists = false;
                     foreach ($searchResults as $existing) {
-                        if (strcasecmp($existing['topic'], $row['topic']) === 0) {
-                            $exists = true;
-                            break;
-                        }
+                        if (strcasecmp($existing['topic'], $row['topic']) === 0) { $exists = true; break; }
                     }
-                    
-                    if (!$exists) {
-                        $searchResults[] = [
-                            'topic' => $row['topic'],
-                            'similarity' => round($similarity, 1),
-                            'source' => 'ai_generated'
-                        ];
-                    }
+                    if (!$exists) $searchResults[] = ['topic' => $row['topic'], 'similarity' => round($similarity, 1), 'source' => 'ai_generated'];
                 }
             }
             $aiStmt->close();
-            
-            usort($searchResults, function($a, $b) {
-                return $b['similarity'] <=> $a['similarity'];
-            });
-            
+            usort($searchResults, function($a, $b) { return $b['similarity'] <=> $a['similarity']; });
             $showResults = true;
             
             if (empty($searchResults)) {
                 $generatedTopics = generateMCQsWithGemini($searchQuery, 10, $studyLevel);
                 if (!empty($generatedTopics)) {
-                    $searchResults[] = [
-                        'topic' => $searchQuery,
-                        'similarity' => 100.0,
-                        'source' => 'ai_generated'
-                    ];
+                    $searchResults[] = ['topic' => $searchQuery, 'similarity' => 100.0, 'source' => 'ai_generated'];
                     $showResults = true;
                 }
             }
-            
             if (isset($cacheManager) && $cacheManager && $cacheKey && !empty($searchResults)) {
                 $cacheManager->setex($cacheKey, 86400, json_encode($searchResults));
             }
@@ -143,94 +148,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
     }
 }
 
-// Handle saving selected topics to session (via hidden field in search form)
 if (isset($_POST['selected_topics_json']) && !empty($_POST['selected_topics_json'])) {
     $_SESSION['selected_topics'] = json_decode($_POST['selected_topics_json'], true) ?? [];
 }
 
-// Handle start quiz with selected topics
 if (isset($_POST['start_quiz'])) {
     $selectedTopics = $_POST['selected_topics'] ?? [];
     $mcqCount = intval($_POST['mcq_count'] ?? 10);
-    
-    // Limit max MCQs to 50
-    if ($mcqCount > 50) {
-        $mcqCount = 50;
-    }
-    
-    // Clear session after starting quiz
+    if ($mcqCount > 50) $mcqCount = 50;
     unset($_SESSION['selected_topics']);
     
     if (!empty($selectedTopics) && $mcqCount > 0) {
         $topicsArray = [];
-
         foreach ($selectedTopics as $topicJson) {
             $topicData = json_decode($topicJson, true);
-            if ($topicData && isset($topicData['topic'])) {
-                $topicsArray[] = $topicData['topic'];
-            }
+            if ($topicData && isset($topicData['topic'])) $topicsArray[] = $topicData['topic'];
         }
         
         if (!empty($topicsArray) && $mcqCount > 0) {
-            // Check how many MCQs exist for these topics in mcqs table
             $placeholders = str_repeat('?,', count($topicsArray) - 1) . '?';
             $existingCount = 0;
-            
-            // Check if this is a hosting request
             $source = $_POST['source'] ?? '';
             $quizDuration = intval($_POST['quiz_duration'] ?? 10);
             
             if ($source === 'host') {
-                // Store topics in session and redirect back to host page
                 $_SESSION['host_quiz_topics'] = $topicsArray;
-                
-                // Build query params for other settings
-                $redirectParams = [
-                    'mcq_count' => $mcqCount,
-                    'duration' => $quizDuration
-                ];
-                $queryString = http_build_query($redirectParams);
-                
+                $queryString = http_build_query(['mcq_count' => $mcqCount, 'duration' => $quizDuration]);
                 header("Location: online_quiz_host_new.php?" . $queryString);
                 exit;
             }
             
-            // 1. Check mcqs table (any class/book)
             $checkStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM mcqs WHERE topic IN ($placeholders)");
             $types = str_repeat('s', count($topicsArray));
             $params = $topicsArray;
             $checkStmt->bind_param($types, ...$params);
             $checkStmt->execute();
             $checkResult = $checkStmt->get_result();
-            if ($row = $checkResult->fetch_assoc()) {
-                $existingCount += intval($row['cnt']);
-            }
+            if ($row = $checkResult->fetch_assoc()) $existingCount += intval($row['cnt']);
             $checkStmt->close();
             
-            // 2. Check AIGeneratedMCQs table
             $aiCheckStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM AIGeneratedMCQs WHERE topic IN ($placeholders)");
-            $types = str_repeat('s', count($topicsArray));
-            $params = $topicsArray;
             $aiCheckStmt->bind_param($types, ...$params);
             $aiCheckStmt->execute();
             $aiCheckResult = $aiCheckStmt->get_result();
-            if ($row = $aiCheckResult->fetch_assoc()) {
-                $existingCount += intval($row['cnt']);
-            }
+            if ($row = $aiCheckResult->fetch_assoc()) $existingCount += intval($row['cnt']);
             $aiCheckStmt->close();
             
-            // Generate MCQs if needed
             $neededCount = max(0, $mcqCount - $existingCount);
-            
             if ($neededCount > 0) {
-                // Distribute MCQs across topics
                 $topicsCount = count($topicsArray);
                 $mcqsPerTopic = ceil($neededCount / $topicsCount);
-                
                 $generatedTotal = 0;
                 foreach ($topicsArray as $topic) {
                     if ($generatedTotal >= $neededCount) break;
-                    
                     $toGenerate = min($mcqsPerTopic, $neededCount - $generatedTotal);
                     if ($toGenerate > 0) {
                         $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate, $studyLevel);
@@ -239,16 +209,11 @@ if (isset($_POST['start_quiz'])) {
                 }
             }
             
-            // Redirect to quiz.php with multiple topics (topics-only)
             $topicsParam = urlencode(json_encode($topicsArray));
             header('Location: quiz.php?class_id=0&book_id=0&topics=' . $topicsParam . '&mcq_count=' . $mcqCount . '&study_level=' . urlencode($studyLevel));
             exit;
         } else {
-            if (empty($topicsArray)) {
-                $error = "Please select at least one topic.";
-            } else {
-                $error = "Please specify the number of MCQs (1-50).";
-            }
+            $error = empty($topicsArray) ? "Please select at least one topic." : "Please specify the number of MCQs (1-50).";
         }
     } else {
         $error = "Please select at least one topic and specify the number of MCQs (1-50).";
@@ -260,391 +225,37 @@ if (isset($_POST['start_quiz'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search MCQs by Topic - Ahmad Learning Hub</title>
-    <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/quiz_setup.css">
-    <style>
-        .topic-search-container {
-            max-width: 60%;
-            margin: 0 auto;
-            background: var(--white);
-            padding: 40px;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-lg);
-        }
-        @media (max-width: 768px) {
-            .topic-search-container {
-                max-width: 90%;
-                padding: 20px;
-            }
-        }
-        .search-section {
-            margin-bottom: 32px;
-        }
-        
-        .search-input-wrapper {
-            position: relative;
-            margin-bottom: 24px;
-        }
-        
-        .search-input {
-            width: 100%;
-            padding: 16px 20px;
-            padding-right: 60px;
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-md);
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-        }
-        
-        .search-input:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-            outline: none;
-        }
-        
-        .search-btn {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .search-btn:hover {
-            background: var(--primary-hover);
-        }
-        
-        .results-section {
-            margin-top: 32px;
-        }
-        
-        .results-header {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 20px;
-        }
-        
-        .topic-list {
-            display: grid;
-            gap: 12px;
-        }
-        
-        .topic-item {
-            background: #f8fafc;
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-md);
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .topic-item:hover {
-            border-color: var(--primary-color);
-            background: #f5f3ff;
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-sm);
-        }
-        
-        .topic-info {
-            flex: 1;
-        }
-        
-        .topic-name {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 8px;
-        }
-        
-        .topic-meta {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
-        
-        .topic-similarity {
-            background: var(--primary-color);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        
-        .no-results {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
-        }
-        
-        .no-results-icon {
-            font-size: 4rem;
-            margin-bottom: 16px;
-        }
-        
-        .back-btn {
-            margin-bottom: 24px;
-            display: inline-block;
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .back-btn:hover {
-            color: var(--primary-hover);
-        }
-        
-        .selected-topics-section {
-            margin-bottom: 32px;
-            padding: 24px;
-            background: #f0f9ff;
-            border: 2px solid #0ea5e9;
-            border-radius: var(--radius-md);
-            display: block;
-        }
-        
-        .selected-topics-section.empty .selected-topics-list {
-            min-height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-muted);
-            font-style: italic;
-        }
-        
-        .selected-topics-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        
-        .selected-topics-info {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-            padding: 12px;
-            background: white;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border-color);
-        }
-        
-        .selected-topics-title {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--text-main);
-        }
-        
-        .selected-topics-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        
-        .loader-progress {
-            width: 260px;
-            max-width: 80%;
-            height: 8px;
-            border-radius: 999px;
-            background: #e5e7eb;
-            margin: 24px auto 0 auto;
-            overflow: hidden;
-        }
-        
-        .loader-progress-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #6366f1, #22c55e);
-            transition: width 0.2s ease-out;
-        }
-        
-        .selected-topic-badge {
-            background: var(--primary-color);
-            color: white;
-            padding: 10px 16px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        
-        .remove-topic-btn {
-            background: rgba(255, 255, 255, 0.3);
-            border: none;
-            color: white;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            transition: all 0.2s ease;
-        }
-        
-        .remove-topic-btn:hover {
-            background: rgba(255, 255, 255, 0.5);
-        }
-        
-        .quiz-config-section {
-            margin-top: 24px;
-            padding-top: 24px;
-            border-top: 2px solid var(--border-color);
-        }
-        
-        .mcq-count-input {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-        
-        .mcq-count-input input {
-            width: 120px;
-            padding: 12px 16px;
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-        }
-        
-        .start-quiz-btn {
-            width: 100%;
-            padding: 16px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: var(--radius-md);
-            font-weight: 700;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 20px;
-        }
-        
-        .start-quiz-btn:hover {
-            background: var(--primary-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25);
-        }
-        
-        .start-quiz-btn:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .add-topic-btn {
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-            margin-left: 12px;
-        }
-        
-        .add-topic-btn:hover {
-            background: #059669;
-        }
-        
-        .topic-item {
-            position: relative;
-        }
-        
-        .topic-item.selected {
-            border-color: #10b981;
-            background: #dcfce7;
-        }
-        
-        .topic-item.selected::after {
-            content: '✓';
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: #10b981;
-            color: white;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.2rem;
-        }
+    <title>Search MCQs by Topic - AI Powered discovery - Ahmad Learning Hub</title>
+    <!-- SEO & AI Optimization Meta Tags -->
+    <meta name="description" content="Discover thousands of MCQs by any topic using our advanced AI-driven search. Perfect for 2026 Board Exam preparation, MDCAT, ECAT, and GRE topic-wise study. 100% accurate syllabus-based questions.">
+    <meta name="keywords" content="topic wise MCQs, AI question finder, Ahmad Learning Hub search, board exam topics, science MCQs 2026, chemistry MCQs by topic, physics MCQs by topic">
+    <meta name="author" content="Ahmad Learning Hub">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://paper.bhattichemicalsindustry.com.pk/quiz/mcqs_topic.php">
+    <meta property="og:title" content="AI-Powered MCQ Search by Topic | Ahmad Learning Hub">
+    <meta property="og:description" content="Type any educational topic and let our AI find or generate the best MCQs for your exam practice.">
+    <meta property="og:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/topic-search-og.jpg">
 
-        /* Honeycomb Loader Styles */
-        @-webkit-keyframes honeycomb { 
-            0%, 20%, 80%, 100% { opacity: 0; -webkit-transform: scale(0); transform: scale(0); } 
-            30%, 70% { opacity: 1; -webkit-transform: scale(1); transform: scale(1); } 
-        } 
-        @keyframes honeycomb { 
-            0%, 20%, 80%, 100% { opacity: 0; -webkit-transform: scale(0); transform: scale(0); } 
-            30%, 70% { opacity: 1; -webkit-transform: scale(1); transform: scale(1); } 
-        } 
-        
-        .honeycomb { 
-            height: 24px; 
-            position: relative; 
-            width: 24px; 
-            margin: 0 auto;
-        } 
-        
-        .honeycomb div { 
-            -webkit-animation: honeycomb 2.1s infinite backwards; 
-            animation: honeycomb 2.1s infinite backwards; 
-            background: var(--primary-color); 
-            height: 12px; 
-            margin-top: 6px; 
-            position: absolute; 
-            width: 24px; 
-        } 
-        
-        .honeycomb div:after, .honeycomb div:before { 
-            content: ''; 
-            border-left: 12px solid transparent; 
-            border-right: 12px solid transparent; 
-            position: absolute; 
-            left: 0; 
-            right: 0; 
-        } 
-        
-        .honeycomb div:after { 
-            top: -6px; 
-            border-bottom: 6px solid var(--primary-color); 
-        } 
-        
-        .honeycomb div:before { 
-            bottom: -6px; 
-            border-top: 6px solid var(--primary-color); 
-        } 
-        
-        .honeycomb div:nth-child(1) { -webkit-animation-delay: 0s; animation-delay: 0s; left: -28px; top: 0; } 
-        .honeycomb div:nth-child(2) { -webkit-animation-delay: 0.1s; animation-delay: 0.1s; left: -14px; top: 22px; } 
-        .honeycomb div:nth-child(3) { -webkit-animation-delay: 0.2s; animation-delay: 0.2s; left: 14px; top: 22px; } 
-        .honeycomb div:nth-child(4) { -webkit-animation-delay: 0.3s; animation-delay: 0.3s; left: 28px; top: 0; } 
-        .honeycomb div:nth-child(5) { -webkit-animation-delay: 0.4s; animation-delay: 0.4s; left: 14px; top: -22px; } 
-        .honeycomb div:nth-child(6) { -webkit-animation-delay: 0.5s; animation-delay: 0.5s; left: -14px; top: -22px; } 
-        .honeycomb div:nth-child(7) { -webkit-animation-delay: 0.6s; animation-delay: 0.6s; left: 0; top: 0; }
-    </style>
+    <!-- JSON-LD Structured Data for Search Function -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Search MCQs by Topic",
+      "description": "An AI-powered tool to search and generate multiple choice questions based on specific educational topics.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://paper.bhattichemicalsindustry.com.pk/quiz/mcqs_topic.php?topic_search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/mcqs_topic.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <?php include '../header.php'; ?>
@@ -659,48 +270,52 @@ if (isset($_POST['start_quiz'])) {
         <a href="<?= $backLink ?>" class="back-btn"><?= $backText ?></a>
         
         <h1>Search MCQs by Topic</h1>
-        <p class="desc">Search and add multiple topics to create your quiz. You can add as many topics as you want!</p>
+        <p class="desc">Create custom quizzes by searching and adding multiple topics. Powered by AI topic generation.</p>
         
         <?php if (isset($error)): ?>
-            <div style="background: #fee2e2; border: 2px solid #ef4444; color: #991b1b; padding: 16px; border-radius: var(--radius-md); margin-bottom: 24px;">
-                <strong>Error:</strong> <?= htmlspecialchars($error) ?>
+            <div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 16px; border-radius: 12px; margin-bottom: 24px; text-align: center; font-weight: 600;">
+                ⚠️ <?= htmlspecialchars($error) ?>
             </div>
         <?php endif; ?>
         
-        <!-- Selected Topics Section (Moved above search) -->
         <div class="selected-topics-section empty" id="selectedTopicsSection">
             <div class="selected-topics-header">
                 <div class="selected-topics-title">Selected Topics (<span id="selectedCount">0</span>)</div>
-                <button type="button" class="btn secondary" onclick="clearAllTopics()" style="padding: 8px 16px; font-size: 0.9rem;">Clear All</button>
+                <button type="button" class="btn btn-secondary" onclick="clearAllTopics()" style="padding: 8px 16px; font-size: 0.875rem;color:var(--primary-dark);border-color:var(--primary-dark);">Clear All</button>
             </div>
+            
             <div class="selected-topics-list" id="selectedTopicsList">
-                <!-- Selected topics will be added here -->
+                 <div class="no-selection-hint" style="width: 100%; text-align: center; color: var(--text-muted); font-style: italic; padding: 20px;">
+                    No topics selected yet. Search and add topics below.
+                </div>
             </div>
             
             <div class="quiz-config-section">
-                <div class="mcq-count-input">
-                    <label for="mcq_count" style="font-weight: 600;">Number of MCQs:</label>
-                    <input 
-                        type="number" 
-                        id="mcq_count" 
-                        name="mcq_count" 
-                        min="1" 
-                        max="50" 
-                        value="<?= htmlspecialchars($_REQUEST['mcq_count'] ?? $_POST['mcq_count'] ?? 10) ?>" 
-                        required
-                        oninput="if(parseInt(this.value) > 50) this.value = 10; if(parseInt(this.value) < 1 && this.value !== '') this.value = 1;"
-                    >
-                    <div class="hint" style="margin: 0;">MCQs will be randomly selected from all your selected topics (Max: 50)</div>
+                <div class="form-grid" style="margin-bottom: 24px; display: grid; grid-template-columns: 1fr; max-width: 300px; margin-left: auto; margin-right: auto;">
+                    <div class="form-group" style="text-align: center;">
+                        <label for="mcq_count" class="form-label">Number of MCQs (1-50)</label>
+                        <input 
+                            type="number" 
+                            id="mcq_count" 
+                            class="form-input"
+                            min="1" 
+                            max="50" 
+                            value="<?= htmlspecialchars($_REQUEST['mcq_count'] ?? $_POST['mcq_count'] ?? 10) ?>" 
+                            required
+                            style="text-align: center; font-size: 1.25rem; font-weight: 800;"
+                            oninput="if(parseInt(this.value) > 50) this.value = 50; if(parseInt(this.value) < 1 && this.value !== '') this.value = 1;"
+                        >
+                    </div>
                 </div>
                 
-            <form method="POST" action="" id="startQuizForm">
+                <form method="POST" action="" id="startQuizForm">
                     <input type="hidden" name="mcq_count" id="hidden_mcq_count">
                     <input type="hidden" name="source" value="<?= htmlspecialchars($source) ?>">
                     <input type="hidden" name="quiz_duration" value="<?= htmlspecialchars($quizDuration) ?>">
                     <input type="hidden" name="study_level" value="<?= htmlspecialchars($studyLevel) ?>">
                     <div id="hidden_topics_inputs"></div>
                     <button type="submit" name="start_quiz" class="start-quiz-btn" id="startQuizBtn" disabled>
-                        Start Quiz with Selected Topics
+                        🚀 Start Quiz with Selected Topics
                     </button>
                 </form>
             </div>
@@ -708,20 +323,20 @@ if (isset($_POST['start_quiz'])) {
 
         <div class="search-section">
             <form method="POST" action="" id="searchForm">
-                <!-- Hidden input to persist selected topics across searches -->
                 <input type="hidden" name="selected_topics_json" id="selected_topics_json" value="<?= htmlspecialchars(isset($_SESSION['selected_topics']) ? json_encode($_SESSION['selected_topics']) : '') ?>">
                 <input type="hidden" name="source" value="<?= htmlspecialchars($source) ?>">
                 <input type="hidden" name="quiz_duration" value="<?= htmlspecialchars($quizDuration) ?>">
                 <input type="hidden" name="mcq_count" value="<?= htmlspecialchars($_REQUEST['mcq_count'] ?? $_POST['mcq_count'] ?? 10) ?>">
                 
-                <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
-                    <label for="study_level" style="font-weight: 600;">Level:</label>
-                    <select name="study_level" id="study_level" class="input inline" style="max-width: 260px;">
-                        <option value="">Select level (optional)</option>
-                        <option value="school" <?= $studyLevel === 'school' ? 'selected' : '' ?>>School</option>
-                        <option value="college" <?= $studyLevel === 'college' ? 'selected' : '' ?>>College</option>
-                        <option value="university" <?= $studyLevel === 'university' ? 'selected' : '' ?>>University</option>
-                    </select>
+                <div style="margin-bottom: 24px;">
+                    <label class="form-label">Difficulty Level <span style="color: var(--danger);">*</span></label>
+                    <div style="display: flex; gap: 12px;">
+                        <button type="button" class="level-btn" id="btn-easy" data-level="easy" onclick="selectLevel('easy', this)">Easy</button>
+                        <button type="button" class="level-btn" id="btn-medium" data-level="medium" onclick="selectLevel('medium', this)">Medium</button>
+                        <button type="button" class="level-btn" id="btn-hard" data-level="hard" onclick="selectLevel('hard', this)">Hard</button>
+                    </div>
+                    <input type="hidden" name="study_level" id="study_level" value="<?= htmlspecialchars($studyLevel) ?>">
+                    <span id="levelError" style="color: var(--danger); font-size: 0.875rem; display: none; margin-top: 8px; font-weight: 600;">Please select a difficulty level</span>
                 </div>
                 
                 <div class="search-input-wrapper">
@@ -730,91 +345,101 @@ if (isset($_POST['start_quiz'])) {
                         name="topic_search" 
                         id="topic_search"
                         class="search-input" 
-                        placeholder="Enter topic name (e.g., 'Algebra', 'Photosynthesis', 'Newton Laws')" 
+                        placeholder="Search topics (e.g., Algebra, Atoms, Biology...)" 
                         value="<?= htmlspecialchars($searchQuery) ?>"
                         autofocus
                     >
-                    <button type="submit" class="search-btn">Search</button>
+                    <button type="submit" class="search-btn">🔍 Search</button>
                 </div>
             </form>
         </div>
 
-        <!-- Inline Loader (Hidden by default) -->
-        <div id="inlineLoader" style="display:none; padding: 40px 0; text-align: center;">
+        <!-- Inline Loader -->
+        <div id="inlineLoader" style="display:none; padding: 40px 0;">
             <div class="honeycomb"> 
-               <div></div> 
-               <div></div> 
-               <div></div> 
-               <div></div> 
-               <div></div> 
-               <div></div> 
-               <div></div> 
+               <div></div><div></div><div></div><div></div><div></div><div></div><div></div> 
             </div>
             <div class="loader-progress">
                 <div class="loader-progress-bar" id="loaderProgressBar"></div>
             </div>
-            <div id="loaderText" style="margin-top: 16px; color: var(--text-muted); font-weight: 500; font-size: 1.1rem;">Searching...</div>
+            <div id="loaderText" style="text-align: center; color: var(--text-muted); font-weight: 700; font-size: 1.1rem;">Searching Topics...</div>
         </div>
-        
+
         <?php if ($showResults && !empty($searchResults)): ?>
             <div class="results-section">
                 <div class="results-header">
-                    Found <?= count($searchResults) ?> topic(s)
+                    ✨ Found <?= count($searchResults) ?> search results
                 </div>
                 
-                <?php if (!empty($searchResults)): ?>
-                    <div class="topic-list">
-                        <?php foreach ($searchResults as $index => $result): 
-                            $topicData = [
-                                'topic' => $result['topic'],
-                                'similarity' => $result['similarity']
-                            ];
-                            $topicJson = htmlspecialchars(json_encode($topicData), ENT_QUOTES);
-                        ?>
-                            <div class="topic-item" data-topic-data="<?= $topicJson ?>" onclick="toggleTopic(this, '<?= $topicJson ?>')">
-                                <div class="topic-info">
-                                    <div class="topic-name"><?= htmlspecialchars($result['topic']) ?></div>
-                                </div>
-                                <div class="topic-similarity"><?= $result['similarity'] ?>% match</div>
+                <div class="topic-list">
+                    <?php foreach ($searchResults as $index => $result): 
+                        $topicData = ['topic' => $result['topic'], 'similarity' => $result['similarity']];
+                        $topicJson = htmlspecialchars(json_encode($topicData), ENT_QUOTES);
+                    ?>
+                        <div class="topic-item" data-topic-data="<?= $topicJson ?>" onclick="toggleTopic(this, '<?= $topicJson ?>')">
+                            <div class="topic-info">
+                                <div class="topic-name"><?= htmlspecialchars($result['topic']) ?></div>
                             </div>
-                        <?php endforeach; ?>
-                    </div>
-                    
-                    <div style="text-align: center; margin-top: 24px;">
-                        <button type="button" id="loadMoreTopicsBtn" class="search-btn" style="position: static; transform: none; min-width: 200px;">
-                            Load More Topics (AI)
-                        </button>
-                        <div id="loadMoreLoader" style="display:none; width: 100%; max-width: 300px; margin: 10px auto;">
-                             <div class="loader-progress" style="margin: 0 auto;">
-                                 <div class="loader-progress-bar" id="loadMoreProgressBar" style="width:0%"></div>
-                             </div>
-                             <div style="text-align:center; margin-top:8px; color:var(--text-muted); font-size:0.9rem;">Searching for related topics...</div>
+                            <div class="topic-similarity"><?= $result['similarity'] ?>% match</div>
                         </div>
+                    <?php endforeach; ?>
+                </div>
+                
+                <div style="text-align: center; margin-top: 32px;">
+                    <button type="button" id="loadMoreTopicsBtn" class="btn btn-secondary" style="min-width: 280px; border-width: 2px;color:var(--primary-dark);border-color:var(--primary-dark); ">
+                        ✨ Load Related Topics (AI)
+                    </button>
+                    <div id="loadMoreLoader" style="display:none; width: 100%; max-width: 300px; margin: 20px auto;">
+                         <div class="loader-progress" style="margin: 0 auto;">
+                             <div class="loader-progress-bar" id="loadMoreProgressBar" style="width:0%"></div>
+                         </div>
+                         <div style="text-align:center; margin-top:12px; color:var(--text-muted); font-size:0.95rem; font-weight: 600;">AI is exploring related topics...</div>
                     </div>
-                <?php endif; ?>
+                </div>
             </div>
         <?php endif; ?>
+        
+        <!-- Additional SEO Content for Topic Search -->
+        <article style="margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 40px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; text-align: left;">
+                <div style="background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;">
+                    <h3 style="color: var(--primary); margin-top: 0; font-size: 1.15rem; font-weight: 800;">🧬 Topic-Wise Precision</h3>
+                    <p style="color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">Generic tests can be overwhelming. Our AI helps you break down your syllabus into bite-sized topics like 'Quantum Mechanics', 'Organic nomenclature', or 'Cellular Respiration' for focused revision.</p>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;">
+                    <h3 style="color: var(--primary); margin-top: 0; font-size: 1.15rem; font-weight: 800;">🤖 AI-Generated Variation</h3>
+                    <p style="color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">If a topic doesn't exist in our massive database, our Gemini AI engine generates high-quality, syllabus-compliant MCQs on the fly to fulfill your request.</p>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;">
+                    <h3 style="color: var(--primary); margin-top: 0; font-size: 1.15rem; font-weight: 800;">📈 Exam Compliance</h3>
+                    <p style="color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">Every question generated follows the 2026 paper pattern for Federal Board, BISE, and CSS standard competitive exams across Pakistan.</p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 40px; text-align: center; color: #475569; font-size: 0.95rem;">
+                <p>Trusted by students appearing in <strong>MDCAT 2026</strong> and <strong>FSc Part 1 & 2</strong> Board Exams.</p>
+            </div>
+        </article>
     </div>
 </div>
 
-<!-- Loader Overlay Removed -->
-
 <script>
 let loaderProgressInterval;
+let selectedTopics = [];
+<?php if (isset($_SESSION['selected_topics']) && is_array($_SESSION['selected_topics'])) {
+    echo "selectedTopics = " . json_encode($_SESSION['selected_topics']) . ";\n";
+} ?>
 
 function showLoader(title = 'Processing...', subtitle = '') {
     const loader = document.getElementById('inlineLoader');
     const titleEl = document.getElementById('loaderText');
     const progressBar = document.getElementById('loaderProgressBar');
     const resultsSection = document.querySelector('.results-section');
-    const noResults = document.querySelector('.no-results');
     
     if (loader) {
         if (titleEl) titleEl.textContent = title;
         loader.style.display = 'block';
-        
         if (resultsSection) resultsSection.style.display = 'none';
-        if (noResults) noResults.style.display = 'none';
         
         if (progressBar) {
             progressBar.style.width = '0%';
@@ -822,103 +447,62 @@ function showLoader(title = 'Processing...', subtitle = '') {
             if (loaderProgressInterval) clearInterval(loaderProgressInterval);
             loaderProgressInterval = setInterval(function() {
                 progress += 5;
-                if (progress >= 95) {
-                    progress = 95;
-                    clearInterval(loaderProgressInterval);
-                }
+                if (progress >= 95) { progress = 95; clearInterval(loaderProgressInterval); }
                 progressBar.style.width = progress + '%';
             }, 200);
         }
     }
 }
 
-// Initialize selected topics from PHP session
-let selectedTopics = [];
-<?php
-if (isset($_SESSION['selected_topics']) && is_array($_SESSION['selected_topics'])) {
-    echo "selectedTopics = " . json_encode($_SESSION['selected_topics']) . ";\n";
+function selectLevel(level, button) {
+    event.preventDefault();
+    document.getElementById('study_level').value = level;
+    document.getElementById('levelError').style.display = 'none';
+    
+    document.querySelectorAll('.level-btn').forEach(btn => {
+        btn.classList.remove('selected-easy', 'selected-medium', 'selected-hard');
+    });
+    
+    button.classList.add('selected-' + level);
 }
-?>
 
 function toggleTopic(element, topicJson) {
     const topicData = JSON.parse(topicJson);
-    
-    // Check if topic is already selected (topic-only)
-    const index = selectedTopics.findIndex(t => {
-        const tData = JSON.parse(t);
-        return tData.topic === topicData.topic;
-    });
+    const index = selectedTopics.findIndex(t => JSON.parse(t).topic === topicData.topic);
     
     if (index > -1) {
-        // Remove topic
         selectedTopics.splice(index, 1);
         element.classList.remove('selected');
     } else {
-        // Add topic (allow mixed classes/books)
         selectedTopics.push(topicJson);
         element.classList.add('selected');
     }
-    
-    // Save to hidden field (will be saved to session on next form submit)
     saveSelectedTopicsToSession();
     updateSelectedTopicsUI();
 }
 
 function removeTopic(topicJson) {
-    try {
-        const topicData = JSON.parse(topicJson);
-        selectedTopics = selectedTopics.filter(t => {
-            try {
-                const tData = JSON.parse(t);
-                return !(tData.topic === topicData.topic);
-            } catch(e) {
-                return true;
-            }
-        });
-        
-        // Update visual state of topic items
-        document.querySelectorAll('.topic-item').forEach(item => {
-            const itemData = item.getAttribute('data-topic-data');
-            if (itemData) {
-                try {
-                    const itemTopicData = JSON.parse(itemData);
-                    if (itemTopicData.topic === topicData.topic) {
-                        item.classList.remove('selected');
-                    }
-                } catch(e) {
-                    // Skip invalid data
-                }
-            }
-        });
-        
-        saveSelectedTopicsToSession();
-        updateSelectedTopicsUI();
-    } catch(e) {
-        console.error('Error removing topic:', e);
-    }
-}
-
-function clearAllTopics() {
-    selectedTopics = [];
+    const topicData = JSON.parse(topicJson);
+    selectedTopics = selectedTopics.filter(t => JSON.parse(t).topic !== topicData.topic);
+    
     document.querySelectorAll('.topic-item').forEach(item => {
-        item.classList.remove('selected');
+        const itemData = item.getAttribute('data-topic-data');
+        if (itemData && JSON.parse(itemData).topic === topicData.topic) item.classList.remove('selected');
     });
     saveSelectedTopicsToSession();
     updateSelectedTopicsUI();
 }
 
-// Save topics before form submission
-document.getElementById('searchForm')?.addEventListener('submit', function() {
+function clearAllTopics() {
+    selectedTopics = [];
+    document.querySelectorAll('.topic-item').forEach(item => item.classList.remove('selected'));
     saveSelectedTopicsToSession();
-    showLoader('Searching Topics...', 'We are searching for relevant topics. This might involve an AI lookup.');
-});
+    updateSelectedTopicsUI();
+}
 
 function saveSelectedTopicsToSession() {
-    // Update hidden field in search form
     const hiddenInput = document.getElementById('selected_topics_json');
-    if (hiddenInput) {
-        hiddenInput.value = JSON.stringify(selectedTopics);
-    }
+    if (hiddenInput) hiddenInput.value = JSON.stringify(selectedTopics);
 }
 
 function updateSelectedTopicsUI() {
@@ -933,151 +517,84 @@ function updateSelectedTopicsUI() {
     count.textContent = selectedTopics.length;
     
     if (selectedTopics.length > 0) {
-        section.classList.add('active');
-        
-        // Update hidden inputs for form submission
+        section.classList.remove('empty');
         hiddenInputs.innerHTML = '';
-        selectedTopics.forEach((topicJson, index) => {
+        selectedTopics.forEach((topicJson) => {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = 'selected_topics[]';
             input.value = topicJson;
             hiddenInputs.appendChild(input);
         });
-        
         hiddenMcqCount.value = mcqCountInput.value;
+        startBtn.disabled = !(mcqCountInput.value > 0);
         
-        // Update button state
-        if (mcqCountInput.value > 0) {
-            startBtn.disabled = false;
-        } else {
-            startBtn.disabled = true;
-        }
-        
-        // Render selected topics
         list.innerHTML = '';
-        selectedTopics.forEach((topicJson, index) => {
-            try {
-                const topicData = JSON.parse(topicJson);
-                const badge = document.createElement('div');
-                badge.className = 'selected-topic-badge';
-                
-                const removeBtn = document.createElement('button');
-                removeBtn.type = 'button';
-                removeBtn.className = 'remove-topic-btn';
-                removeBtn.title = 'Remove';
-                removeBtn.textContent = '×';
-                removeBtn.onclick = function() {
-                    removeTopic(topicJson);
-                };
-                
-                const span = document.createElement('span');
-                span.textContent = topicData.topic;
-                
-                badge.appendChild(span);
-                badge.appendChild(removeBtn);
-                list.appendChild(badge);
-            } catch(e) {
-                console.error('Error rendering topic:', e);
-            }
+        selectedTopics.forEach((topicJson) => {
+            const topicData = JSON.parse(topicJson);
+            const badge = document.createElement('div');
+            badge.className = 'selected-topic-badge';
+            badge.innerHTML = `<span>${topicData.topic}</span>`;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-topic-btn';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = () => removeTopic(topicJson);
+            
+            badge.appendChild(removeBtn);
+            list.appendChild(badge);
         });
     } else {
-        section.classList.remove('active');
+        section.classList.add('empty');
+        list.innerHTML = '<div style="width: 100%; text-align: center; color: var(--text-muted); font-style: italic; padding: 20px;">No topics selected yet. Search and add topics below.</div>';
         startBtn.disabled = true;
     }
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Update MCQ count input handler
-const mcqCountInput = document.getElementById('mcq_count');
-if (mcqCountInput) {
-    mcqCountInput.addEventListener('input', function() {
-        const startBtn = document.getElementById('startQuizBtn');
-        const hiddenMcqCount = document.getElementById('hidden_mcq_count');
-        
-        if (hiddenMcqCount) {
-            hiddenMcqCount.value = this.value;
-        }
-        
-        if (selectedTopics.length > 0 && this.value > 0) {
-            if (startBtn) startBtn.disabled = false;
-        } else {
-            if (startBtn) startBtn.disabled = true;
-        }
-    });
-}
-
-// Handle form submission to ensure data is set
-document.getElementById('startQuizForm')?.addEventListener('submit', function(e) {
-    // Ensure hidden inputs are populated
-    const hiddenInputs = document.getElementById('hidden_topics_inputs');
-    const hiddenMcqCount = document.getElementById('hidden_mcq_count');
-    const mcqCountInput = document.getElementById('mcq_count');
-    
-    if (!hiddenInputs || !hiddenMcqCount || !mcqCountInput) {
-        e.preventDefault();
-        alert('Error: Form elements not found. Please refresh the page.');
-        return false;
-    }
-    
-    // Ensure topics are set
-    if (selectedTopics.length === 0) {
-        e.preventDefault();
-        alert('Please select at least one topic.');
-        return false;
-    }
-    
-    // Ensure MCQ count is set
-    if (!mcqCountInput.value || parseInt(mcqCountInput.value) <= 0) {
-        e.preventDefault();
-        alert('Please enter a valid number of MCQs.');
-        return false;
-    }
-    
-    // Update hidden inputs one more time before submit
-    hiddenInputs.innerHTML = '';
-    selectedTopics.forEach((topicJson) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'selected_topics[]';
-        input.value = topicJson;
-        hiddenInputs.appendChild(input);
-    });
-    
-    hiddenMcqCount.value = mcqCountInput.value;
-
-    // Show loader
-    showLoader('Generating Quiz...', 'We are creating unique MCQs for you. This usually takes 10-30 seconds depending on complexity.');
+document.getElementById('mcq_count')?.addEventListener('input', function() {
+    document.getElementById('hidden_mcq_count').value = this.value;
+    document.getElementById('startQuizBtn').disabled = !(selectedTopics.length > 0 && this.value > 0);
 });
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    updateSelectedTopicsUI();
-    
-    // If we have selected topics from PHP (persistence), mark them as selected in the UI if they appear in search results
-    selectedTopics.forEach(topicJson => {
-        try {
-            const topicData = JSON.parse(topicJson);
-            document.querySelectorAll('.topic-item').forEach(item => {
-                const itemData = item.getAttribute('data-topic-data');
-                if (itemData) {
-                    try {
-                        const itemTopicData = JSON.parse(itemData);
-                        if (itemTopicData.topic === topicData.topic) {
-                            item.classList.add('selected');
-                        }
-                    } catch(e) {}
-                }
-            });
-        } catch(e) {}
-    });
+document.getElementById('searchForm')?.addEventListener('submit', function(e) {
+    const level = document.getElementById('study_level').value;
+    if (!level) {
+        e.preventDefault();
+        const err = document.getElementById('levelError');
+        err.style.display = 'block';
+        err.scrollIntoView({behavior: 'smooth', block: 'center'});
+        return false;
+    }
+    saveSelectedTopicsToSession();
+    showLoader('Searching Topics...', 'Deep search in progress.');
+});
 
+document.getElementById('startQuizForm')?.addEventListener('submit', function(e) {
+    if (selectedTopics.length === 0 || !document.getElementById('mcq_count').value) {
+        e.preventDefault();
+        alert('Selection internal error.');
+        return;
+    }
+    showLoader('Generating Quiz...', 'AI is crafting your unique MCQs. Please wait 10-30 seconds.');
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Restore persistent level selection
+    const currentLevel = document.getElementById('study_level').value;
+    if (currentLevel) {
+        const btn = document.getElementById('btn-' + currentLevel);
+        if (btn) btn.classList.add('selected-' + currentLevel);
+    }
+    
     updateSelectedTopicsUI();
+    selectedTopics.forEach(topicJson => {
+        const topicData = JSON.parse(topicJson);
+        document.querySelectorAll('.topic-item').forEach(item => {
+            const itemData = item.getAttribute('data-topic-data');
+            if (itemData && JSON.parse(itemData).topic === topicData.topic) item.classList.add('selected');
+        });
+    });
 });
 
 document.getElementById('loadMoreTopicsBtn')?.addEventListener('click', function() {
@@ -1085,115 +602,43 @@ document.getElementById('loadMoreTopicsBtn')?.addEventListener('click', function
     const loader = document.getElementById('loadMoreLoader');
     const progressBar = document.getElementById('loadMoreProgressBar');
     const searchQuery = document.getElementById('topic_search').value;
-    
     if (!searchQuery) return;
     
-    // UI Loading State
     btn.style.display = 'none';
-    if (loader) {
-        loader.style.display = 'block';
-        if (progressBar) {
-            progressBar.style.width = '0%';
-            let width = 0;
-            const interval = setInterval(() => {
-                if (width >= 90) clearInterval(interval);
-                else {
-                    width += 5;
-                    progressBar.style.width = width + '%';
-                }
-            }, 300);
-            
-            // Store interval to clear it later
-            btn.dataset.intervalId = interval;
-        }
-    }
+    loader.style.display = 'block';
     
-    const formData = new FormData();
-    formData.append('action', 'load_more_topics');
-    formData.append('search_query', searchQuery);
+    let width = 0;
+    const interval = setInterval(() => {
+        width = Math.min(width + 5, 90);
+        progressBar.style.width = width + '%';
+    }, 300);
     
     fetch('mcqs_topic.php', {
         method: 'POST',
-        body: formData
+        body: new URLSearchParams({'action': 'load_more_topics', 'search_query': searchQuery})
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
-        if (progressBar) progressBar.style.width = '100%';
-        
-        if (data.success && data.topics && data.topics.length > 0) {
+        progressBar.style.width = '100%';
+        if (data.success && data.topics) {
             const list = document.querySelector('.topic-list');
-            let addedCount = 0;
-            
             data.topics.forEach(topic => {
-                // Check if topic already exists in list (by text content)
-                let exists = false;
-                document.querySelectorAll('.topic-name').forEach(el => {
-                    if (el.textContent.trim().toLowerCase() === topic.topic.trim().toLowerCase()) {
-                        exists = true;
-                    }
-                });
-                
-                if (!exists) {
-                    const topicData = {
-                        topic: topic.topic,
-                        similarity: topic.similarity || 85.0
-                    };
-                    const topicJson = JSON.stringify(topicData).replace(/"/g, '&quot;');
-                    
-                    const div = document.createElement('div');
-                    div.className = 'topic-item';
-                    div.setAttribute('data-topic-data', JSON.stringify(topicData));
-                    div.onclick = function() { toggleTopic(this, JSON.stringify(topicData)); };
-                    
-                    div.innerHTML = `
-                        <div class="topic-info">
-                            <div class="topic-name">${topic.topic}</div>
-                        </div>
-                    `;
-                    list.appendChild(div);
-                    addedCount++;
-                }
+                const isSelected = selectedTopics.some(t => JSON.parse(t).topic === topic.topic);
+                const div = document.createElement('div');
+                div.className = 'topic-item' + (isSelected ? ' selected' : '');
+                const tData = {topic: topic.topic, similarity: topic.similarity || 85.0};
+                div.setAttribute('data-topic-data', JSON.stringify(tData));
+                div.onclick = () => toggleTopic(div, JSON.stringify(tData));
+                div.innerHTML = `<div class="topic-info"><div class="topic-name">${topic.topic}</div></div><div class="topic-similarity">${tData.similarity}% match</div>`;
+                list.appendChild(div);
             });
-            
-            if (addedCount === 0) {
-                alert('No new unique topics found.');
-            }
-            
-            // Check if selected topics match any new ones
-            if (typeof selectedTopics !== 'undefined') {
-                selectedTopics.forEach(topicJson => {
-                    try {
-                        const topicData = JSON.parse(topicJson);
-                        document.querySelectorAll('.topic-item').forEach(item => {
-                            const itemData = item.getAttribute('data-topic-data');
-                            if (itemData) {
-                                try {
-                                    const itemTopicData = JSON.parse(itemData);
-                                    if (itemTopicData.topic === topicData.topic) {
-                                        item.classList.add('selected');
-                                    }
-                                } catch(e) {}
-                            }
-                        });
-                    } catch(e) {}
-                });
-            }
-            
-        } else {
-            alert(data.error || 'No more topics found.');
         }
     })
-    .catch(err => {
-        console.error(err);
-        alert('An error occurred while fetching more topics.');
-    })
     .finally(() => {
-        setTimeout(() => {
-            if (loader) loader.style.display = 'none';
-            // Button stays hidden after search
-            // btn.style.display = 'inline-block';
-            if (btn.dataset.intervalId) clearInterval(Number(btn.dataset.intervalId));
-            if (progressBar) progressBar.style.width = '0%';
+        clearInterval(interval);
+        setTimeout(() => { 
+            loader.style.display = 'none'; 
+            btn.style.display = 'inline-block';
         }, 500);
     });
 });

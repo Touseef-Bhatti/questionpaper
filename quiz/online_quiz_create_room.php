@@ -63,6 +63,16 @@ if (!is_array($topics)) { $topics = []; }
 $custom_mcqs = json_decode($custom_mcqs_json, true);
 if (!is_array($custom_mcqs)) { $custom_mcqs = []; }
 
+// Filter out invalid custom MCQs to ensure accurate count
+$custom_mcqs = array_filter($custom_mcqs, function($mcq) {
+    $q = trim($mcq['question'] ?? '');
+    $a = trim($mcq['option_a'] ?? '');
+    $b = trim($mcq['option_b'] ?? '');
+    $c = trim($mcq['option_c'] ?? '');
+    $d = trim($mcq['option_d'] ?? '');
+    return ($q !== '' && $a !== '' && $b !== '' && $c !== '' && $d !== '');
+});
+
 $selected_mcq_ids = [];
 if (!empty($selected_mcq_ids_str)) {
     $selected_mcq_ids = array_filter(array_map('intval', explode(',', $selected_mcq_ids_str)));
@@ -143,7 +153,7 @@ if (!empty($selected_mcq_ids)) {
 }
 
 // 2. Fill remainder if needed
-$remaining_needed = $mcq_count - count($selectedQuestions);
+$remaining_needed = $mcq_count - count($selectedQuestions) - count($custom_mcqs);
 
 if ($remaining_needed > 0) {
     // Exclude already selected IDs
@@ -189,8 +199,9 @@ if ($remaining_needed > 0) {
         }
     
         // Check AIGeneratedMCQs if needed
-        if (count($selectedQuestions) < $mcq_count) {
-            $needed = $mcq_count - count($selectedQuestions);
+        $target_db_count = $mcq_count - count($custom_mcqs);
+        if (count($selectedQuestions) < $target_db_count) {
+            $needed = $target_db_count - count($selectedQuestions);
             
             // Re-prepare params for AI table (same topics)
             $aiParams = $topics;
@@ -232,8 +243,8 @@ if ($remaining_needed > 0) {
         }
     
         // Generate if still needed
-        if (count($selectedQuestions) < $mcq_count) {
-            $neededCount = $mcq_count - count($selectedQuestions);
+        if (count($selectedQuestions) < $target_db_count) {
+            $neededCount = $target_db_count - count($selectedQuestions);
             $generatedCount = 0;
             $shuffledTopics = $topics;
             shuffle($shuffledTopics);

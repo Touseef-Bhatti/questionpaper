@@ -482,6 +482,7 @@ $stmt->close();
 <script>
 // Quiz data and state
 const questions = <?= json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
 let currentQuestion = 0;
 let score = 0;
 let answers = [];
@@ -534,6 +535,7 @@ function renderQuestion() {
                     <div>${q.option_d}</div>
                 </div>
             </div>
+            <div id="feedback-message" style="margin-top: 15px; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; display: none;"></div>
         </div>
     `;
     
@@ -551,6 +553,9 @@ function selectOption(option) {
     let selectedOptionText = '';
     let correctOptionLetter = '';
     
+    // Helper to normalize text for comparison
+    const clean = str => str ? str.toString().trim() : '';
+    
     switch(option) {
         case 'A': selectedOptionText = q.option_a; break;
         case 'B': selectedOptionText = q.option_b; break;
@@ -559,12 +564,17 @@ function selectOption(option) {
     }
     
     // Find which letter corresponds to the correct answer
-    if (q.correct_option === q.option_a) correctOptionLetter = 'A';
-    else if (q.correct_option === q.option_b) correctOptionLetter = 'B';
-    else if (q.correct_option === q.option_c) correctOptionLetter = 'C';
-    else if (q.correct_option === q.option_d) correctOptionLetter = 'D';
+    const correctVal = clean(q.correct_option);
     
-    const isCorrect = selectedOptionText === q.correct_option;
+    if (correctVal === clean(q.option_a)) correctOptionLetter = 'A';
+    else if (correctVal === clean(q.option_b)) correctOptionLetter = 'B';
+    else if (correctVal === clean(q.option_c)) correctOptionLetter = 'C';
+    else if (correctVal === clean(q.option_d)) correctOptionLetter = 'D';
+    // Fallback if correct_option is stored as 'A', 'B', 'C', 'D'
+    else if (['A','B','C','D'].includes(correctVal.toUpperCase())) correctOptionLetter = correctVal.toUpperCase();
+    
+    // Check correctness using letter or text match
+    const isCorrect = (option === correctOptionLetter) || (clean(selectedOptionText) === correctVal);
     
     // Mark answer
     answers[currentQuestion] = {
@@ -593,13 +603,33 @@ function selectOption(option) {
         opt.style.pointerEvents = 'none'; // Disable further clicks
     });
     
+    // Show Feedback Message
+    const feedbackEl = document.getElementById('feedback-message');
+    if (feedbackEl) {
+        if (isCorrect) {
+            feedbackEl.textContent = 'Correct Answer!';
+            feedbackEl.style.backgroundColor = '#dcfce7';
+            feedbackEl.style.color = '#16a34a';
+        } else {
+            feedbackEl.innerHTML = `Incorrect! The correct answer is <strong>${correctOptionLetter}</strong>`;
+            feedbackEl.style.backgroundColor = '#fee2e2';
+            feedbackEl.style.color = '#dc2626';
+        }
+        feedbackEl.style.display = 'block';
+    }
+    
     // Enable next button
     document.getElementById('nextBtn').disabled = false;
     
-    // Auto-advance after 1.5 seconds
+    // Auto-advance after delay (increased to allow reading feedback)
     setTimeout(() => {
-        nextQuestion();
-    }, 1500);
+        if (currentQuestion < questions.length - 1) {
+            nextQuestion();
+        } else {
+            // Last question, show results
+            showResults();
+        }
+    }, 2000); // Increased to 2 seconds
 }
 
 function nextQuestion() {

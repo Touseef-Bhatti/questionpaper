@@ -21,10 +21,27 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <title>Create Quiz Room - Ahmad Learning Hub</title>
+    <title>Host Live AI Quiz - Teacher Dashboard - Ahmad Learning Hub</title>
+    <!-- SEO & AI Optimization Meta Tags -->
+    <meta name="description" content="Professional live quiz hosting tool for teachers. Generate board exam standard MCQs using AI, host live classroom competitions, and track student performance with real-time analytics.">
+    <meta name="keywords" content="host live quiz, online classroom tool, AI test generator for teachers, Ahmad Learning Hub instructor, live leaderboard, digitizing education Pakistan">
+    <meta name="author" content="Ahmad Learning Hub">
+    
+    <!-- JSON-LD Structured Data for Teachers -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Live Quiz Hosting Tool",
+      "operatingSystem": "Web",
+      "applicationCategory": "EducationSupport",
+      "description": "An interactive digital classroom tool to host live MCQ competitions and assessments."
+    }
+    </script>
+
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/online_quiz_host_new.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
    
      <?php include '../header.php'; ?>
 </head>
@@ -67,21 +84,19 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                             <div class="form-hint" style="text-align: center; margin-top: 8px;">Instead of selecting class/book, search for specific topics</div>
                             
                             <?php if ($hasTopics): ?>
-                            <div id="selectedTopicsContainer" style="margin-top: 15px; padding: 15px; background: #f0fdf4; border: 1px solid #16a34a; border-radius: 8px;">
-                                <h4 style="margin: 0 0 10px; color: #15803d; display: flex; justify-content: space-between; align-items: center;">
+                            <div id="selectedTopicsContainer" class="topic-container">
+                                <h4 class="topic-header">
                                     <span>✅ Selected Topics (<?= count($selectedTopics) ?>)</span>
-                                    <button type="button" onclick="clearSelectedTopics()" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.9em; text-decoration: underline;">Clear</button>
+                                    <button type="button" onclick="clearSelectedTopics()" class="topic-clear-btn">Clear</button>
                                 </h4>
                                 <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                     <?php foreach ($selectedTopics as $topic): ?>
-                                        <span style="background: white; padding: 4px 10px; border-radius: 15px; border: 1px solid #bbf7d0; font-size: 0.9em; color: #166534;">
+                                        <span class="topic-badge">
                                             <?= htmlspecialchars($topic) ?>
                                         </span>
                                     <?php endforeach; ?>
                                 </div>
                                 <input type="hidden" name="topics" value="<?= htmlspecialchars(json_encode($selectedTopics)) ?>">
-                                
-
                             </div>
                             <?php endif; ?>
                         </div>
@@ -159,7 +174,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" onclick="closeSavedQuestionsModal()">Cancel</button>
+                             <button type="button" class="btn btn-secondary" onclick="closeSavedQuestionsModal()">Cancel</button>
                             <button type="button" class="btn btn-primary" onclick="addSelectedSavedQuestions()">Add Selected Questions</button>
                         </div>
                     </div>
@@ -260,6 +275,25 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                     <button type="submit" class="btn btn-primary">
                         🚀 Create Quiz Room
                     </button>
+                </div>
+                
+                <!-- SEO Informational Section for Teachers -->
+                <div style="margin-top: 60px; padding: 40px; background: #f8fafc; border-radius: 20px; border: 1px solid #e2e8f0;">
+                    <h2 style="color: #1e293b; font-size: 1.5rem; font-weight: 800; margin-bottom: 24px; text-align: center;">Enhanced Teaching with AI-Driven Assessments</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 30px;">
+                        <div>
+                            <h4 style="color: var(--primary); margin-bottom: 10px;">📊 Real-time Analytics</h4>
+                            <p style="font-size: 0.9rem; line-height: 1.6; color: #64748b;">Monitor student progress live as they answer. Identify collective weak points and 2026 Board Exam readiness instantly.</p>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--primary); margin-bottom: 10px;">✨ AI Content Creation</h4>
+                            <p style="font-size: 0.9rem; line-height: 1.6; color: #64748b;">Save hours of preparation. Our AI can draft questions for any subject level, mirroring the difficulty of new syllabus board papers.</p>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--primary); margin-bottom: 10px;">🥇 Gamified Learning</h4>
+                            <p style="font-size: 0.9rem; line-height: 1.6; color: #64748b;">Boost classroom engagement. Students compete on a live leaderboard, making exam preparation an exciting and collaborative activity.</p>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -479,21 +513,21 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
             
             container.innerHTML = customQuestions.map((q, index) => `
                 <div class="mcq-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h4 style="margin: 0; color: #374151;">Question ${index + 1}</h4>
-                        <div>
-                            <button type="button" class="btn btn-secondary" onclick="saveCustomQuestionToProfile(${index})" style="padding: 6px 12px; font-size: 0.8rem; margin-right: 8px; color: #059669; border-color: #10b981; background: #ecfdf5;">
+                    <div class="mcq-card-header">
+                        <h4 class="mcq-card-title">Question ${index + 1}</h4>
+                        <div class="mcq-card-actions">
+                            <button type="button" class="btn btn-primary btn-save-profile" onclick="saveCustomQuestionToProfile(${index})">
                                 💾 Save to Profile
                             </button>
-                            <button type="button" class="btn btn-secondary" onclick="removeCustomQuestion(${index})" style="padding: 6px 12px; font-size: 0.8rem; color: #dc2626; border-color: #ef4444; background: #fef2f2;">
+                            <button type="button" class="btn btn-primary btn-remove-question" onclick="removeCustomQuestion(${index})">
                                 🗑️ Remove
                             </button>
                         </div>
                     </div>
                     
-                    <div class="form-group" style="margin-bottom: 15px;">
+                    <div class="form-group" style="margin-bottom: 20px;">
                         <label class="form-label">Question Text</label>
-                        <input type="text" class="form-input" value="${q.question}" 
+                        <input type="text" class="form-input" value="${escapeHtml(q.question)}" 
                                onchange="updateCustomQuestion(${index}, 'question', this.value)"
                                placeholder="Enter your question">
                     </div>
@@ -501,31 +535,31 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                     <div class="mcq-options">
                         <div class="form-group">
                             <label class="form-label">Option A</label>
-                            <input type="text" class="form-input" value="${q.option_a}"
+                            <input type="text" class="form-input" value="${escapeHtml(q.option_a)}"
                                    onchange="updateCustomQuestion(${index}, 'option_a', this.value)"
                                    placeholder="Option A">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Option B</label>
-                            <input type="text" class="form-input" value="${q.option_b}"
+                            <input type="text" class="form-input" value="${escapeHtml(q.option_b)}"
                                    onchange="updateCustomQuestion(${index}, 'option_b', this.value)"
                                    placeholder="Option B">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Option C</label>
-                            <input type="text" class="form-input" value="${q.option_c}"
+                            <input type="text" class="form-input" value="${escapeHtml(q.option_c)}"
                                    onchange="updateCustomQuestion(${index}, 'option_c', this.value)"
                                    placeholder="Option C">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Option D</label>
-                            <input type="text" class="form-input" value="${q.option_d}"
+                            <input type="text" class="form-input" value="${escapeHtml(q.option_d)}"
                                    onchange="updateCustomQuestion(${index}, 'option_d', this.value)"
                                    placeholder="Option D">
                         </div>
                     </div>
                     
-                    <div class="form-group" style="margin-top: 15px;">
+                    <div class="form-group" style="margin-top: 20px;">
                         <label class="form-label">Correct Answer</label>
                         <select class="form-select" onchange="updateCustomQuestion(${index}, 'correct', this.value)">
                             <option value="A" ${q.correct === 'A' ? 'selected' : ''}>A</option>
@@ -667,13 +701,28 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
         let savedQuestions = [];
 
         function openSavedQuestionsModal() {
-            document.getElementById('savedQuestionsModal').style.display = 'flex';
+            const modal = document.getElementById('savedQuestionsModal');
+            modal.style.display = 'flex';
             fetchSavedQuestions();
+            
+            // Close on click outside
+            modal.onclick = function(e) {
+                if (e.target === this) {
+                    closeSavedQuestionsModal();
+                }
+            };
         }
 
         function closeSavedQuestionsModal() {
             document.getElementById('savedQuestionsModal').style.display = 'none';
         }
+
+        // Close modal on Escape key
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeSavedQuestionsModal();
+            }
+        });
 
         function fetchSavedQuestions() {
             const loader = document.getElementById('savedQuestionsLoader');
@@ -780,4 +829,3 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
     </script>
 </body>
 </html>
-q
