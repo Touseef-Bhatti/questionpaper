@@ -7,7 +7,35 @@ class APIKeyManager {
     public function __construct() {
         global $conn;
         $this->conn = $conn;
+        $this->ensureTableExists(); // Ensure table exists before doing anything
         $this->checkDailyReset();
+    }
+
+    public function ensureTableExists() {
+        $sql = "CREATE TABLE IF NOT EXISTS api_keys (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            key_value TEXT NOT NULL,
+            key_hash VARCHAR(64) NOT NULL,
+            provider VARCHAR(50) DEFAULT 'openai',
+            account_name VARCHAR(100) DEFAULT 'Primary Account',
+            usage_count INT DEFAULT 0,
+            error_count INT DEFAULT 0,
+            status ENUM('active', 'exhausted', 'rate_limited', 'quota_exceeded') DEFAULT 'active',
+            last_used DATETIME DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX (key_hash),
+            INDEX (provider),
+            INDEX (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+        
+        $this->conn->query($sql);
+        
+        // Add error_count column if it doesn't exist (for existing tables)
+        $check = $this->conn->query("SHOW COLUMNS FROM api_keys LIKE 'error_count'");
+        if ($check && $check->num_rows == 0) {
+            $this->conn->query("ALTER TABLE api_keys ADD COLUMN error_count INT DEFAULT 0 AFTER usage_count");
+        }
     }
 
     private function checkDailyReset() {
@@ -37,9 +65,7 @@ class APIKeyManager {
         }
     }
 
-    public function ensureTableExists() {
-        // Table creation moved to install.php
-    }
+
 
     private function getAppKey() {
         $key = EnvLoader::get('APP_KEY');
@@ -66,7 +92,16 @@ class APIKeyManager {
         if (strlen($data) < $ivLength) return $value; // Not encrypted or invalid
         $iv = substr($data, 0, $ivLength);
         $encrypted = substr($data, $ivLength);
-        return openssl_decrypt($encrypted, 'aes-256-cbc', $key, 0, $iv);
+        $decrypted = openssl_decrypt($encrypted, 'aes-256-cbc', $key, 0, $iv);
+        
+        // If decryption fails (e.g. wrong key), return empty string or handle error
+        if ($decrypted === false) {
+             error_log("APIKeyManager: Decryption failed for key value.");
+             // Try to return original value if it looks like a key (starts with sk-)
+             // But usually it's garbage if decrypted with wrong key.
+             return ''; 
+        }
+        return $decrypted;
     }
 
     public function getAllKeys() {
@@ -81,7 +116,22 @@ class APIKeyManager {
     }
 
     public function getActiveKeys($provider = 'openai') {
-        $sql = "SELECT key_value FROM api_keys WHERE status = 'active' AND provider = ? ORDER BY last_used ASC";
+        $keys = [];
+        
+        // 1. First, check if we need to sync with EnvLoader
+        // This ensures new keys added to .env are immediately available
+        if (class_exists('EnvLoader')) {
+            $envKeys = EnvLoader::getList('OPENAI_API_KEYS');
+            
+            // If Env has more keys than DB (or DB is empty), trigger import
+            // Optimization: Just check counts roughly or just run import (it handles duplicates)
+            // For now, we'll just run import if Env has keys. It's safe due to ignore on duplicates.
+            if (!empty($envKeys)) {
+                $this->importFromEnv(); 
+            }
+        }
+
+        $sql = "SELECT key_value, account_name, last_used FROM api_keys WHERE status = 'active' AND provider = ? ORDER BY last_used ASC";
         
         // Check if table exists first to avoid fatal error if not migrated
         $check = $this->conn->query("SHOW TABLES LIKE 'api_keys'");
@@ -91,12 +141,66 @@ class APIKeyManager {
                 $stmt->bind_param('s', $provider);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                $keys = [];
                 while ($row = $result->fetch_assoc()) {
-                    $keys[] = $this->decrypt($row['key_value']);
+                    $keys[] = [
+                        'key' => $this->decrypt($row['key_value']),
+                        'account' => $row['account_name'],
+                        'last_used' => $row['last_used']
+                    ];
                 }
                 $stmt->close();
             }
+        }
+        
+        // If DB returned keys, we need to sort them to respect user priority (Account 2 first)
+        // EnvLoader::getList() returns keys in the desired order: [Account 2 keys, Primary keys, ...]
+        // We should try to match that order if the keys have never been used (last_used IS NULL)
+        
+        if (!empty($keys)) {
+            // Extract just the key strings for final return
+            $finalKeys = [];
+            
+            // Separate unused keys (likely new ones from Account 2) and used keys
+            $unusedKeys = [];
+            $usedKeys = [];
+            
+            foreach ($keys as $k) {
+                if (is_null($k['last_used'])) {
+                    $unusedKeys[] = $k;
+                } else {
+                    $usedKeys[] = $k;
+                }
+            }
+            
+            // For unused keys, we want to respect EnvLoader order if possible
+            // But since we just want Account 2 (Account 1 in DB?) to be first...
+            // Account 2 in DB is stored as "Account 1" (from suffix _1)
+            
+            usort($unusedKeys, function($a, $b) {
+                // Prioritize "Account 2" specifically as requested
+                if ($a['account'] === 'Account 2' && $b['account'] !== 'Account 2') return -1;
+                if ($b['account'] === 'Account 2' && $a['account'] !== 'Account 2') return 1;
+                
+                // Then Prioritize "Account 1"
+                if ($a['account'] === 'Account 1' && $b['account'] !== 'Account 1') return -1;
+                if ($b['account'] === 'Account 1' && $a['account'] !== 'Account 1') return 1;
+                
+                // General: Numbered accounts before Primary
+                $aIsNumbered = strpos($a['account'], 'Account') === 0;
+                $bIsNumbered = strpos($b['account'], 'Account') === 0;
+                if ($aIsNumbered && !$bIsNumbered) return -1;
+                if (!$aIsNumbered && $bIsNumbered) return 1;
+                
+                return 0;
+            });
+            
+            // Merge: Unused (New/Priority) -> Used (Old)
+            // This ensures fresh keys from Account 2 get used first
+            foreach (array_merge($unusedKeys, $usedKeys) as $k) {
+                $finalKeys[] = $k['key'];
+            }
+            
+            return $finalKeys;
         }
         
         // Fallback to EnvLoader if no keys in DB or table missing
@@ -177,16 +281,8 @@ class APIKeyManager {
 
         $imported = 0;
         
-        // Import Base Keys (Primary)
-        $rawBase = EnvLoader::get('OPENAI_API_KEYS', '');
-        if (!empty($rawBase)) {
-             $keys = explode(',', $rawBase);
-             foreach ($keys as $key) {
-                 if ($this->addKey($key, "Primary Account", 'openai')) $imported++;
-             }
-        }
-
-        // Import Backup Keys (Suffixes 1-10)
+        // 1. Import Backup Keys (Suffixes 1-10) FIRST to ensure they get attributed to specific accounts
+        // This is important for prioritization logic in getActiveKeys
         for ($i = 1; $i <= 10; $i++) {
             $raw = EnvLoader::get('OPENAI_API_KEYS_' . $i, '');
             if (!empty($raw)) {
@@ -195,6 +291,15 @@ class APIKeyManager {
                     if ($this->addKey($key, "Account $i", 'openai')) $imported++;
                 }
             }
+        }
+        
+        // 2. Import Base Keys (Primary)
+        $rawBase = EnvLoader::get('OPENAI_API_KEYS', '');
+        if (!empty($rawBase)) {
+             $keys = explode(',', $rawBase);
+             foreach ($keys as $key) {
+                 if ($this->addKey($key, "Primary Account", 'openai')) $imported++;
+             }
         }
         
         return $imported;

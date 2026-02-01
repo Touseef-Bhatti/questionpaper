@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $stmt = $conn->prepare(
                         "UPDATE AIGeneratedMCQs 
-                         SET topic = ?, question = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_option = ?
+                         SET topic = ?, question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_option = ?
                          WHERE id = ?"
                     );
                     if ($stmt) {
@@ -213,7 +213,7 @@ $limitSql = $viewAll ? '' : " LIMIT $offset, $perPage";
 
 $mcqs = [];
 if ($whereSql === '') {
-    $sql = "SELECT m.id, m.topic, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.generated_at, v.verification_status, v.last_checked_at 
+    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.generated_at, v.verification_status, v.last_checked_at 
             FROM AIGeneratedMCQs m
             LEFT JOIN AIMCQsVerification v ON m.id = v.mcq_id
             ORDER BY m.generated_at DESC" . $limitSql;
@@ -224,7 +224,7 @@ if ($whereSql === '') {
         }
     }
 } else {
-    $sql = "SELECT m.id, m.topic, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.generated_at, v.verification_status, v.last_checked_at 
+    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.generated_at, v.verification_status, v.last_checked_at 
             FROM AIGeneratedMCQs m
             LEFT JOIN AIMCQsVerification v ON m.id = v.mcq_id
             $whereSql 

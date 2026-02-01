@@ -9,11 +9,18 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // Include required files
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/mcq_generator.php';
 require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../db_connect.php';
+require_once __DIR__ . '/../services/AIKeyRotator.php';
+require_once __DIR__ . '/mcq_generator.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
+
+$cacheManager = null;
+if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
+    require_once __DIR__ . '/../services/CacheManager.php';
+    try { $cacheManager = new CacheManager(); } catch (Exception $e) {}
+}
 
 ?>
 <!DOCTYPE html>
@@ -155,41 +162,33 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         echo '<div class="test-section">';
         echo '<h2>Test 1: API Key Configuration</h2>';
         
-        $apiKeysStr = EnvLoader::get('OPENAI_API_KEYS', '');
-        $apiKey = EnvLoader::get('OPENAI_API_KEY', '');
-        $model = EnvLoader::get('OPENAI_MODEL', 'nvidia/nemotron-3-nano-30b-a3b:free');
+        $rotator = new AIKeyRotator($cacheManager);
+        $allKeys = $rotator->getAllKeys();
+        $nextKey = $rotator->getNextKey();
+        $model = EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
         
-        if (!empty($apiKeysStr)) {
-             $keys = explode(',', $apiKeysStr);
-             echo '<div class="success">✓ Found ' . count($keys) . ' API Keys in rotation</div>';
+        if (!empty($allKeys)) {
+             echo '<div class="success">✓ Found ' . count($allKeys) . ' API Keys in rotation (AIKeyRotator - Account 2 → Primary → Account 3)</div>';
              
-             // Get current index from cache
-             $currentIndex = 0;
-             $cacheManager = null;
-             if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
-                 require_once __DIR__ . '/../services/CacheManager.php';
-                 try {
-                     $cacheManager = new CacheManager();
-                     $cachedIndex = $cacheManager->get('openai_api_key_index');
-                     if ($cachedIndex !== false) {
-                         $currentIndex = (int)$cachedIndex;
-                     }
-                 } catch (Exception $e) {}
-             }
-             
-             foreach($keys as $i => $k) {
-                 $k = trim($k);
+             foreach ($allKeys as $i => $item) {
+                 $k = $item['key'] ?? '';
                  if (empty($k)) continue;
-                 $isNext = ($i === $currentIndex);
-                 $status = $isNext ? ' <span style="color: #28a745; font-weight: bold;">(Next Request)</span>' : '';
-                 $style = $isNext ? 'border: 2px solid #28a745; background-color: #f0fff4;' : '';
+                 $account = $item['account'] ?? 'Unknown';
+                 $isNext = ($nextKey && ($nextKey['key'] ?? '') === $k);
+                 $exhausted = $rotator->isKeyExhausted($k);
+                 $status = $exhausted ? ' <span style="color: #dc3545;">(Exhausted)</span>' : ($isNext ? ' <span style="color: #28a745; font-weight: bold;">(Next Request)</span>' : '');
+                 $style = $exhausted ? 'opacity: 0.7;' : ($isNext ? 'border: 2px solid #28a745; background-color: #f0fff4;' : '');
                  
-                 echo '<div class="info" style="' . $style . '">Key ' . ($i+1) . ': ' . substr($k, 0, 10) . '...' . substr($k, -5) . $status . '</div>';
+                 echo '<div class="info" style="' . $style . '">Key ' . ($i+1) . ' [' . htmlspecialchars($account) . ']: ' . substr($k, 0, 10) . '...' . substr($k, -5) . $status . '</div>';
              }
-        } elseif (!empty($apiKey)) {
-            echo '<div class="success">✓ Single OpenAI API Key found: ' . substr($apiKey, 0, 20) . '...' . substr($apiKey, -10) . '</div>';
         } else {
-            echo '<div class="error">✗ API Key not found in environment variables!</div>';
+            $hasKey1 = EnvLoader::get('KEY_1', '');
+            $hasKey2 = EnvLoader::get('KEY_2', '');
+            if (!empty($hasKey1) || !empty($hasKey2)) {
+                echo '<div class="warning">⚠ AIKeyRotator found no keys. Check ACCOUNT_2_KEYS_START/END and PRIMARY_KEYS_START/END in .env.local.</div>';
+            } else {
+                echo '<div class="error">✗ API Key not found! Add KEY_1, KEY_2, etc. to config/.env.local</div>';
+            }
         }
         echo '<div class="info">Model: <strong>' . htmlspecialchars($model) . '</strong></div>';
         echo '</div>';
@@ -225,6 +224,9 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         echo '<div class="test-section">';
         echo '<h2>Test 3: MCQ Generation Test</h2>';
         
+        // Enable debug for MCQ generation
+        if (!defined('DEBUG_MCQ_GEN')) define('DEBUG_MCQ_GEN', true);
+        
         if (isset($_POST['test_generate'])) {
             $testTopic = $_POST['test_topic'] ?? 'Mathematics';
             $testCount = intval($_POST['test_count'] ?? 3);
@@ -252,24 +254,34 @@ if (session_status() === PHP_SESSION_NONE) session_start();
                         echo '<div class="mcq-option">C) ' . htmlspecialchars($mcq['option_c'] ?? '') . '</div>';
                         echo '<div class="mcq-option">D) ' . htmlspecialchars($mcq['option_d'] ?? '') . '</div>';
                         echo '<div class="mcq-option mcq-correct">✓ Correct Answer: ' . htmlspecialchars($mcq['correct_option'] ?? '') . '</div>';
-                        echo '<div style="margin-top: 10px; font-size: 12px; color: #666;">ID: ' . ($mcq['mcq_id'] ?? 'N/A') . '</div>';
+                        echo '<div style="margin-top: 10px; font-size: 12px; color: #666;">ID: ' . ($mcq['id'] ?? $mcq['mcq_id'] ?? 'N/A') . '</div>';
                         echo '</div>';
                     }
                     
                     // Check if stored in AIGeneratedMCQs table
-                    if (isset($generatedMCQs[0]['mcq_id'])) {
-                        $checkStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM AIGeneratedMCQs WHERE mcq_id = ?");
-                        $checkStmt->bind_param('i', $generatedMCQs[0]['mcq_id']);
-                        $checkStmt->execute();
-                        $checkResult = $checkStmt->get_result();
-                        if ($checkRow = $checkResult->fetch_assoc()) {
-                            if ($checkRow['cnt'] > 0) {
-                                echo '<div class="success">✓ MCQs stored in AIGeneratedMCQs table</div>';
-                            } else {
-                                echo '<div class="warning">⚠ MCQs not found in AIGeneratedMCQs table</div>';
-                            }
+                    $firstId = $generatedMCQs[0]['id'] ?? $generatedMCQs[0]['mcq_id'] ?? null;
+                    
+                    if ($firstId) {
+                        // Check both id and mcq_id columns just in case
+                        $checkStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM AIGeneratedMCQs WHERE id = ?");
+                        if (!$checkStmt) {
+                             // Fallback if id column doesn't exist (unlikely with new schema)
+                             $checkStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM AIGeneratedMCQs WHERE mcq_id = ?");
                         }
-                        $checkStmt->close();
+                        
+                        if ($checkStmt) {
+                            $checkStmt->bind_param('i', $firstId);
+                            $checkStmt->execute();
+                            $checkResult = $checkStmt->get_result();
+                            if ($checkRow = $checkResult->fetch_assoc()) {
+                                if ($checkRow['cnt'] > 0) {
+                                    echo '<div class="success">✓ MCQs stored in AIGeneratedMCQs table (ID: ' . $firstId . ')</div>';
+                                } else {
+                                    echo '<div class="warning">⚠ MCQs not found in AIGeneratedMCQs table (ID: ' . $firstId . ')</div>';
+                                }
+                            }
+                            $checkStmt->close();
+                        }
                     }
                     
                     // Show raw JSON for debugging
@@ -333,19 +345,21 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         echo '<h2>Test 5: Direct API Connection Test</h2>';
         
         if (isset($_POST['test_api_connection'])) {
-            $apiKey = EnvLoader::get('OPENAI_API_KEY', '');
+            $rotator = new AIKeyRotator($cacheManager);
+            $keyItem = $rotator->getNextKey();
             
-            // If single key is empty or looks like a list, try to get from OPENAI_API_KEYS
-            if (empty($apiKey) || strpos($apiKey, ',') !== false) {
-                 $apiKeysStr = EnvLoader::get('OPENAI_API_KEYS', '');
-                 if (!empty($apiKeysStr)) {
-                     $keys = array_map('trim', explode(',', $apiKeysStr));
-                     // Use the last key as it's likely the newest/most valid one
-                     $apiKey = end($keys);
-                 }
+            $apiKey = '';
+            if ($keyItem && !empty($keyItem['key'])) {
+                $apiKey = $keyItem['key'];
             }
             
-            $model = EnvLoader::get('OPENAI_MODEL', 'nvidia/nemotron-3-nano-30b-a3b:free');
+            // Check manual input
+            if (empty($apiKey) && !empty($_POST['manual_api_key'])) {
+                $apiKey = trim($_POST['manual_api_key']);
+                echo '<div class="info">Using manually provided API Key</div>';
+            }
+            
+            $model = EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
             
             if (!empty($apiKey)) {
                 echo '<div class="info">Testing API connection...</div>';
@@ -362,7 +376,8 @@ if (session_status() === PHP_SESSION_NONE) session_start();
                         ]
                     ],
                     'temperature' => 0.7,
-                    'max_tokens' => 100
+                    'max_tokens' => 1000,
+                    // 'provider' => ['order' => ['Hypbolic'], 'allow_fallbacks' => false] // Optional: Force provider if needed
                 ];
                 
                 $ch = curl_init($url);
@@ -385,12 +400,29 @@ if (session_status() === PHP_SESSION_NONE) session_start();
                 if ($httpCode === 200) {
                     $responseData = json_decode($response, true);
                     if (isset($responseData['choices'][0]['message']['content'])) {
-                        $apiResponse = $responseData['choices'][0]['message']['content'];
-                        echo '<div class="success">✓ API Connection Successful!</div>';
-                        echo '<div class="info">API Response: ' . htmlspecialchars($apiResponse) . '</div>';
+                        $apiResponse = $responseData['choices'][0]['message']['content'] ?? '';
+                        
+                        if (!empty($apiResponse)) {
+                             echo '<div class="success">✓ API Connection Successful!</div>';
+                             echo '<div class="info">API Response: ' . htmlspecialchars($apiResponse) . '</div>';
+                        } else {
+                             echo '<div class="warning">⚠ API Connection Successful (200 OK), but returned empty content. This might be due to the model not producing output.</div>';
+                        }
+
+                        // Always show raw response for debugging
+                        echo '<details open>';
+                        echo '<summary style="cursor: pointer; color: #6366f1; font-weight: bold;">View Raw API Response (Debug)</summary>';
+                        echo '<pre>' . htmlspecialchars($response) . '</pre>';
+                        echo '</details>';
+
                     } else {
                         echo '<div class="error">✗ API returned unexpected response format</div>';
                         echo '<pre>' . htmlspecialchars(json_encode($responseData, JSON_PRETTY_PRINT)) . '</pre>';
+                        
+                        echo '<details open>';
+                        echo '<summary style="cursor: pointer; color: #6366f1; font-weight: bold;">View Raw API Response (Debug)</summary>';
+                        echo '<pre>' . htmlspecialchars($response) . '</pre>';
+                        echo '</details>';
                     }
                 } else {
                     echo '<div class="error">✗ API Connection Failed</div>';
@@ -405,6 +437,10 @@ if (session_status() === PHP_SESSION_NONE) session_start();
             }
         } else {
             echo '<form method="POST" action="">';
+            echo '<div class="form-group">';
+            echo '<label for="manual_api_key">Optional: Manually enter API Key (if env fails)</label>';
+            echo '<input type="password" id="manual_api_key" name="manual_api_key" placeholder="sk-or-v1-...">';
+            echo '</div>';
             echo '<button type="submit" name="test_api_connection">🔌 Test API Connection</button>';
             echo '</form>';
         }

@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: quiz_setup.php');
     exit;
 }
+$studyLevel = $_GET['study_level'] ?? $_POST['study_level'] ?? '';
 
 // Validate parameters: Either class+book OR topics must be provided
 // Allow topics-only requests (class_id and book_id can be 0 when topics are provided)
@@ -154,39 +155,21 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
     }
 }
 
-// If still don't have enough questions, auto-generate the missing ones using API
+// If still don't have enough questions, auto-generate in 1 API request
 if (count($questions) < $mcq_count && !empty($topicsArray)) {
     $neededCount = $mcq_count - count($questions);
-    $generatedCount = 0;
-    
-    // Shuffle topics to randomize generation if multiple topics
-    shuffle($topicsArray);
-    
-    foreach ($topicsArray as $topic) {
-        if ($generatedCount >= $neededCount) break;
-        
-        // Calculate how many to generate for this topic
-        // Try to distribute evenly, but ensure we get enough
-        $remainingNeeded = $neededCount - $generatedCount;
-        $toGenerate = ($remainingNeeded > 2) ? ceil($remainingNeeded / 2) : $remainingNeeded;
-        
-        $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate);
-        
-        if (!empty($generatedMCQs)) {
-            foreach ($generatedMCQs as $genMCQ) {
-                if ($generatedCount >= $neededCount) break;
-                
-                $questions[] = [
-                    'mcq_id' => 'ai_' . ($genMCQ['mcq_id'] ?? uniqid()),
-                    'question' => $genMCQ['question'],
-                    'option_a' => $genMCQ['option_a'],
-                    'option_b' => $genMCQ['option_b'],
-                    'option_c' => $genMCQ['option_c'],
-                    'option_d' => $genMCQ['option_d'],
-                    'correct_option' => $genMCQ['correct_option']
-                ];
-                $generatedCount++;
-            }
+    $generatedMCQs = generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel ?? '');
+    if (!empty($generatedMCQs)) {
+        foreach ($generatedMCQs as $genMCQ) {
+            $questions[] = [
+                'mcq_id' => 'ai_' . ($genMCQ['id'] ?? $genMCQ['mcq_id'] ?? uniqid()),
+                'question' => $genMCQ['question'],
+                'option_a' => $genMCQ['option_a'],
+                'option_b' => $genMCQ['option_b'],
+                'option_c' => $genMCQ['option_c'],
+                'option_d' => $genMCQ['option_d'],
+                'correct_option' => $genMCQ['correct_option']
+            ];
         }
     }
 }

@@ -57,6 +57,12 @@ foreach ($gen_paper_pages as $p) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'AhmadLearningHub' ?></title>
+    <?php if (isset($metaDescription)): ?>
+    <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
+    <?php endif; ?>
      <style>
     /* Header / Navbar styles appended below */
 /* header.css - Responsive, professional navbar (uses design system variables) */

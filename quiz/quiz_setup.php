@@ -206,35 +206,40 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         </form>
     </div>
 
-    <!-- SEO Content Section -->
-    <section class="info-section" style="max-width: 900px; margin: 60px auto; padding: 0 20px;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;">
-            <div class="info-card" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; transition: transform 0.3s ease;">
-                <h3 style="color: var(--primary-color, #4f6ef7); margin-top: 0; font-size: 1.25rem;">🤖 AI-Powered MCQs</h3>
-                <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.6;">Using advanced AI, we generate high-quality questions for any topic. Our AI matches the difficulty and style of modern board exams, ensuring you're ready for anything.</p>
+    <!-- SEO Article Section -->
+    <article class="seo-article-section">
+        <div class="seo-grid">
+            <div class="seo-card">
+                <div class="seo-icon">🤖</div>
+                <h3 class="seo-card-title">AI-Powered MCQs</h3>
+                <p class="seo-card-text">Using advanced AI, we generate high-quality questions for any topic. Our AI matches the difficulty and style of modern board exams, ensuring you're ready for anything.</p>
             </div>
             
-            <div class="info-card" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; transition: transform 0.3s ease;">
-                <h3 style="color: var(--primary-color, #4f6ef7); margin-top: 0; font-size: 1.25rem;">🆕 New 2026 Syllabus</h3>
-                <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.6;">Our database is updated daily to follow the latest Board Exam New Syllabus and paper patterns. Practice with confidence knowing you're studying the right material.</p>
+            <div class="seo-card">
+                <div class="seo-icon">🆕</div>
+                <h3 class="seo-card-title">New 2026 Syllabus</h3>
+                <p class="seo-card-text">Our database is updated daily to follow the latest Board Exam New Syllabus and paper patterns. Practice with confidence knowing you're studying the right material.</p>
             </div>
             
-            <div class="info-card" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; transition: transform 0.3s ease;">
-                <h3 style="color: var(--primary-color, #4f6ef7); margin-top: 0; font-size: 1.25rem;">�️ All Boards Coverage</h3>
-                <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.6;">From Punjab Board to Federal and Sindh Boards, we provide MCQs for all standard educational curricula, including MDCAT, ECAT, and GRE foundations.</p>
+            <div class="seo-card">
+                <div class="seo-icon">🌍</div>
+                <h3 class="seo-card-title">All Boards Coverage</h3>
+                <p class="seo-card-text">From Punjab Board to Federal and Sindh Boards, we provide MCQs for all standard educational curricula, including MDCAT, ECAT, and GRE foundations.</p>
+            </div>
+            <div class="seo-card">
+                <div class="seo-icon">📈</div>
+                <h3 class="seo-card-title">Success Analytics</h3>
+                <p class="seo-card-text">Simulate real exam environments and track your performance. Regular testing on our platform is proven to increase retention and boost exam confidence.</p>
             </div>
         </div>
 
-        <article style="margin-top: 50px; background: #fdfdfd; padding: 40px; border-radius: 20px; border: 1px dashed #ced4da;">
-            <h2 style="font-size: 1.75rem; font-weight: 800; color: #1e293b; margin-bottom: 20px;">Why Practice with Ahmad Learning Hub Online Quizzes?</h2>
-            <p style="color: #4b5563; line-height: 1.8; margin-bottom: 15px;">
-                Regular testing is proven to increase retention by up to 40%. Our platform allows students to simulate exam environments, tracking time and accuracy to improve performance. From simple definitions to complex application-based questions, our MCQs are designed to challenge and educate.
+        <div class="seo-footer">
+            <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 15px;">Why Practice with Ahmad Learning Hub Online Quizzes?</h2>
+            <p style="color: #4b5563; line-height: 1.8; margin-bottom: 0;">
+                Join thousands of students across Pakistan using the most advanced <strong>AI MCQ Generator</strong>. Whether you are a student preparing for board exams or a teacher looking for quick assessment tools, our platform is designed for your success.
             </p>
-            <p style="color: #4b5563; line-height: 1.8;">
-                Teachers can also use this tool to quickly display questions in the classroom or recommend specific chapter-wise tests to their students. Join thousands of students today and start your journey towards academic excellence!
-            </p>
-        </article>
-    </section>
+        </div>
+    </article>
 </div>
 
 <!-- Loader Overlay -->

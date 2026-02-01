@@ -50,12 +50,46 @@ if (in_array('all', $types)) {
 
 if (!empty($otherTypes)) {
     foreach ($otherTypes as $ot) {
+        // Search Legacy Questions Table
         $stmt = $conn->prepare("SELECT DISTINCT topic FROM questions WHERE question_type = ? AND topic LIKE ? LIMIT 50");
         $stmt->bind_param('ss', $ot, $term);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
             $topics[] = $row['topic'];
+        }
+
+        // Search New AI Generated Tables
+        if ($ot === 'short') {
+            // Join with AIQuestionsTopic to get topic name
+            $stmt = $conn->prepare("
+                SELECT DISTINCT t.topic_name 
+                FROM AIGeneratedShortQuestions q
+                JOIN AIQuestionsTopic t ON q.topic_id = t.id
+                WHERE t.topic_name LIKE ? 
+                LIMIT 50
+            ");
+            $stmt->bind_param('s', $term);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $topics[] = $row['topic_name'];
+            }
+        } elseif ($ot === 'long') {
+            // Join with AIQuestionsTopic to get topic name
+            $stmt = $conn->prepare("
+                SELECT DISTINCT t.topic_name 
+                FROM AIGeneratedLongQuestions q
+                JOIN AIQuestionsTopic t ON q.topic_id = t.id
+                WHERE t.topic_name LIKE ? 
+                LIMIT 50
+            ");
+            $stmt->bind_param('s', $term);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $topics[] = $row['topic_name'];
+            }
         }
     }
 }

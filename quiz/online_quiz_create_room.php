@@ -242,39 +242,22 @@ if ($remaining_needed > 0) {
             }
         }
     
-        // Generate if still needed
+        // Generate if still needed - 1 request for all MCQs
         if (count($selectedQuestions) < $target_db_count) {
-            $neededCount = $target_db_count - count($selectedQuestions);
-            $generatedCount = 0;
-            $shuffledTopics = $topics;
-            shuffle($shuffledTopics);
-            
-            foreach ($shuffledTopics as $topic) {
-                if ($generatedCount >= $neededCount) break;
-                
-                $remainingNeeded = $neededCount - $generatedCount;
-                $toGenerate = ($remainingNeeded > 2) ? ceil($remainingNeeded / 2) : $remainingNeeded;
-                
-                // Assuming generateMCQsWithGemini is available (we added require)
-                if (function_exists('generateMCQsWithGemini')) {
-                    // Generate remaining questions + 2 extra as requested to ensure sufficient valid questions
-                    $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate + 2);
-                    
-                    if (!empty($generatedMCQs)) {
-                        foreach ($generatedMCQs as $genMCQ) {
-                            if ($generatedCount >= $neededCount) break;
-                            
-                            $selectedQuestions[] = [
-                                'mcq_id' => null,
-                                'question' => $genMCQ['question'],
-                                'option_a' => $genMCQ['option_a'],
-                                'option_b' => $genMCQ['option_b'],
-                                'option_c' => $genMCQ['option_c'],
-                                'option_d' => $genMCQ['option_d'],
-                                'correct_option' => $genMCQ['correct_option']
-                            ];
-                            $generatedCount++;
-                        }
+            $neededCount = $target_db_count - count($selectedQuestions) + 2;
+            if (function_exists('generateMCQsBulkWithGemini')) {
+                $generatedMCQs = generateMCQsBulkWithGemini($topics, $neededCount);
+                if (!empty($generatedMCQs)) {
+                    foreach ($generatedMCQs as $genMCQ) {
+                        $selectedQuestions[] = [
+                            'mcq_id' => null,
+                            'question' => $genMCQ['question'],
+                            'option_a' => $genMCQ['option_a'],
+                            'option_b' => $genMCQ['option_b'],
+                            'option_c' => $genMCQ['option_c'],
+                            'option_d' => $genMCQ['option_d'],
+                            'correct_option' => $genMCQ['correct_option']
+                        ];
                     }
                 }
             }

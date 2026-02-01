@@ -20,6 +20,8 @@
             <ul class="footer-menu">
                 <li><a href="<?= $assetBase ?? '' ?>about.php"><i class="fas fa-info-circle"></i> About</a></li>
                 <li><a href="<?= $assetBase ?? '' ?>contact.php"><i class="fas fa-envelope"></i> Contact</a></li>
+                <li><a href="<?= $assetBase ?? '' ?>privacy-policy.php"><i class="fas fa-shield-alt"></i> Privacy Policy</a></li>
+                <li><a href="<?= $assetBase ?? '' ?>terms-and-conditions.php"><i class="fas fa-file-contract"></i> Terms & Conditions</a></li>
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <li><a href="<?= $assetBase ?? '' ?>profile.php"><i class="fas fa-user-circle"></i> Profile</a></li>
                 <?php else: ?>
@@ -43,3 +45,5 @@
         <p class="footer-copyright">&copy; <?php echo date('Y'); ?> Ahmad Learning Hub. All rights reserved. | Built with ❤️ for Education</p>
     </div>
 </footer>
+<?php include __DIR__ . '/cookie_consent.php'; ?>
+<?php include __DIR__ . '/user_type_selection.php'; ?>

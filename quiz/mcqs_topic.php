@@ -2,7 +2,16 @@
 // mcqs_topic.php - Topic search page for MCQs
 include '../db_connect.php';
 require_once 'mcq_generator.php';
+require_once 'MongoSearchLogger.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
+
+function calculateSimilarity($str1, $str2) {
+    $str1 = mb_strtolower(trim($str1)); $str2 = mb_strtolower(trim($str2));
+    if (empty($str1) || empty($str2)) return 0;
+    similar_text($str1, $str2, $percent);
+    if (strpos($str1, $str2) !== false || strpos($str2, $str1) !== false) $percent = max($percent, 70);
+    return $percent;
+}
 
 // Handle AJAX load more topics
 if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
@@ -12,48 +21,115 @@ if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
     
     if (!empty($searchQuery)) {
         try {
-            $aiTopics = searchTopicsWithGemini($searchQuery);
+            $mongoLogger = new MongoSearchLogger();
+            $mongoLogger->logSearch($searchQuery, 'ajax_load_more');
+
             $existingTopics = [];
-            $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic LIKE ? LIMIT 10");
+            
+            // 1. Search in mcqs (Fetch all and filter by similarity)
+            $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic IS NOT NULL AND topic != ''");
             if ($stmt) {
-                $searchPattern = '%' . $searchQuery . '%';
-                $stmt->bind_param('s', $searchPattern);
                 $stmt->execute();
                 $result = $stmt->get_result();
                 while ($row = $result->fetch_assoc()) {
-                    if (!empty($row['topic']) && !in_array($row['topic'], array_column($existingTopics, 'topic'))) {
-                        $existingTopics[] = ['topic' => $row['topic'], 'similarity' => 80.0, 'source' => 'mcqs'];
+                    if (!empty($row['topic'])) {
+                        $sim = calculateSimilarity($searchQuery, $row['topic']);
+                        if ($sim >= 50) {
+                            $isDuplicate = false;
+                            foreach ($existingTopics as $existing) {
+                                if (strcasecmp($existing['topic'], $row['topic']) === 0) {
+                                    $isDuplicate = true; break;
+                                }
+                            }
+                            if (!$isDuplicate) {
+                                $existingTopics[] = ['topic' => $row['topic'], 'similarity' => $sim, 'source' => 'mcqs'];
+                            }
+                        }
                     }
                 }
                 $stmt->close();
             }
+
+            // 2. Search in AIGeneratedMCQs
             $aiMcqTopics = [];
-            $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic LIKE ? LIMIT 10");
+            $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic IS NOT NULL AND topic != ''");
             if ($aiStmt) {
-                $searchPattern = '%' . $searchQuery . '%';
-                $aiStmt->bind_param('s', $searchPattern);
                 $aiStmt->execute();
                 $result = $aiStmt->get_result();
                 while ($row = $result->fetch_assoc()) {
                     if (!empty($row['topic'])) {
-                        $exists = false;
-                        foreach ($existingTopics as $existing) {
-                            if (strcasecmp($existing['topic'], $row['topic']) === 0) {
-                                $exists = true; break;
+                        $sim = calculateSimilarity($searchQuery, $row['topic']);
+                        if ($sim >= 50) {
+                            $exists = false;
+                            foreach ($existingTopics as $existing) {
+                                if (strcasecmp($existing['topic'], $row['topic']) === 0) {
+                                    $exists = true; break;
+                                }
                             }
-                        }
-                        if (!$exists && !in_array($row['topic'], array_column($aiMcqTopics, 'topic'))) {
-                            $aiMcqTopics[] = ['topic' => $row['topic'], 'similarity' => 80.0, 'source' => 'ai_generated_mcqs'];
+                            if (!$exists && !in_array($row['topic'], array_column($aiMcqTopics, 'topic'))) {
+                                $aiMcqTopics[] = ['topic' => $row['topic'], 'similarity' => $sim, 'source' => 'ai_generated_mcqs'];
+                            }
                         }
                     }
                 }
                 $aiStmt->close();
             }
-            $combinedTopics = array_merge($aiTopics, $existingTopics, $aiMcqTopics);
+
+            // 3. Search in generated_topics
+            $genTopics = [];
+            $genStmt = $conn->prepare("SELECT DISTINCT topic_name FROM generated_topics WHERE topic_name IS NOT NULL AND topic_name != ''");
+            if ($genStmt) {
+                $genStmt->execute();
+                $result = $genStmt->get_result();
+                while ($row = $result->fetch_assoc()) {
+                    if (!empty($row['topic_name'])) {
+                        $sim = calculateSimilarity($searchQuery, $row['topic_name']);
+                        if ($sim >= 50) {
+                            $exists = false;
+                            foreach (array_merge($existingTopics, $aiMcqTopics) as $existing) {
+                                if (strcasecmp($existing['topic'], $row['topic_name']) === 0) {
+                                    $exists = true; break;
+                                }
+                            }
+                            if (!$exists && !in_array($row['topic_name'], array_column($genTopics, 'topic'))) {
+                                $genTopics[] = ['topic' => $row['topic_name'], 'similarity' => $sim, 'source' => 'generated_topics'];
+                            }
+                        }
+                    }
+                }
+                $genStmt->close();
+            }
+
+            // Fetch fresh AI topics (bypass cache) for "load more" - get different topics each time
+            $excludeTopics = [];
+            if (!empty($_POST['exclude_topics'])) {
+                $decoded = json_decode($_POST['exclude_topics'], true);
+                if (is_array($decoded)) {
+                    $excludeTopics = array_map('trim', array_slice($decoded, 0, 30));
+                }
+            }
+            $aiTopics = searchTopicsWithGemini($searchQuery, 0, 0, [], true, $excludeTopics);
+            
+            // Store AI topics in generated_topics
+            if (!empty($aiTopics)) {
+                $insertStmt = $conn->prepare("INSERT IGNORE INTO generated_topics (topic_name, source_term, question_types) VALUES (?, ?, 'mcq')");
+                if ($insertStmt) {
+                    foreach ($aiTopics as $aiTopic) {
+                        $topicName = $aiTopic['topic']; // searchTopicsWithGemini returns array of ['topic' => ..., 'similarity' => ...]
+                        $insertStmt->bind_param('ss', $topicName, $searchQuery);
+                        $insertStmt->execute();
+                    }
+                    $insertStmt->close();
+                }
+            }
+
+            $combinedTopics = array_merge($existingTopics, $aiMcqTopics, $genTopics, $aiTopics);
+            $excludeLower = array_map('strtolower', $excludeTopics);
             $uniqueTopics = [];
             $seenTopics = [];
             foreach ($combinedTopics as $topic) {
                 $topicLower = strtolower(trim($topic['topic']));
+                if (in_array($topicLower, $excludeLower)) continue;
                 if (!in_array($topicLower, $seenTopics)) {
                     $uniqueTopics[] = $topic;
                     $seenTopics[] = $topicLower;
@@ -62,6 +138,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
             usort($uniqueTopics, function($a, $b) {
                 return ($b['similarity'] ?? 0) <=> ($a['similarity'] ?? 0);
             });
+            $uniqueTopics = array_slice($uniqueTopics, 0, 50);
             echo json_encode(['success' => true, 'topics' => $uniqueTopics]);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -70,14 +147,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
         echo json_encode(['success' => false, 'error' => 'No search query provided']);
     }
     exit;
-}
-
-function calculateSimilarity($str1, $str2) {
-    $str1 = strtolower(trim($str1)); $str2 = strtolower(trim($str2));
-    if (empty($str1) || empty($str2)) return 0;
-    similar_text($str1, $str2, $percent);
-    if (strpos($str1, $str2) !== false || strpos($str2, $str1) !== false) $percent = max($percent, 70);
-    return $percent;
 }
 
 $searchQuery = '';
@@ -90,6 +159,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
     $studyLevel = $_POST['study_level'] ?? '';
     
     if (!empty($searchQuery)) {
+        $mongoLogger = new MongoSearchLogger();
+        $mongoLogger->logSearch($searchQuery, 'post_search');
+
         $cacheKey = null; $usedCache = false;
         if (isset($cacheManager) && $cacheManager) {
             $cacheKey = "topic_search_" . md5($searchQuery);
@@ -131,14 +203,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
                 }
             }
             $aiStmt->close();
+
+            // Search in generated_topics
+            $genStmt = $conn->prepare("SELECT DISTINCT topic_name FROM generated_topics WHERE topic_name IS NOT NULL AND topic_name != '' ORDER BY topic_name");
+            if ($genStmt) {
+                $genStmt->execute();
+                $genResult = $genStmt->get_result();
+                while ($row = $genResult->fetch_assoc()) {
+                    $similarity = calculateSimilarity($searchQuery, $row['topic_name']);
+                    if ($similarity >= 50) {
+                        $exists = false;
+                        foreach ($searchResults as $existing) {
+                            if (strcasecmp($existing['topic'], $row['topic_name']) === 0) { $exists = true; break; }
+                        }
+                        if (!$exists) $searchResults[] = ['topic' => $row['topic_name'], 'similarity' => round($similarity, 1), 'source' => 'generated_topics'];
+                    }
+                }
+                $genStmt->close();
+            }
+
             usort($searchResults, function($a, $b) { return $b['similarity'] <=> $a['similarity']; });
             $showResults = true;
             
             if (empty($searchResults)) {
-                $generatedTopics = generateMCQsWithGemini($searchQuery, 10, $studyLevel);
-                if (!empty($generatedTopics)) {
-                    $searchResults[] = ['topic' => $searchQuery, 'similarity' => 100.0, 'source' => 'ai_generated'];
+                // Use AI to search for topics
+                $aiTopics = searchTopicsWithGemini($searchQuery);
+                
+                if (!empty($aiTopics)) {
+                    // Store AI topics
+                    $insertStmt = $conn->prepare("INSERT IGNORE INTO generated_topics (topic_name, source_term, question_types) VALUES (?, ?, 'mcq')");
+                    if ($insertStmt) {
+                        foreach ($aiTopics as $aiTopic) {
+                            $topicName = $aiTopic['topic'];
+                            $insertStmt->bind_param('ss', $topicName, $searchQuery);
+                            $insertStmt->execute();
+                        }
+                        $insertStmt->close();
+                    }
+                    
+                    // Add to results
+                    foreach ($aiTopics as $aiTopic) {
+                        $searchResults[] = $aiTopic;
+                    }
                     $showResults = true;
+                } else {
+                    // Fallback to generating MCQs directly for the term
+                    $generatedTopics = generateMCQsWithGemini($searchQuery, 10, $studyLevel);
+                    if (!empty($generatedTopics)) {
+                        $searchResults[] = ['topic' => $searchQuery, 'similarity' => 100.0, 'source' => 'ai_generated'];
+                        $showResults = true;
+                    }
                 }
             }
             if (isset($cacheManager) && $cacheManager && $cacheKey && !empty($searchResults)) {
@@ -196,17 +310,7 @@ if (isset($_POST['start_quiz'])) {
             
             $neededCount = max(0, $mcqCount - $existingCount);
             if ($neededCount > 0) {
-                $topicsCount = count($topicsArray);
-                $mcqsPerTopic = ceil($neededCount / $topicsCount);
-                $generatedTotal = 0;
-                foreach ($topicsArray as $topic) {
-                    if ($generatedTotal >= $neededCount) break;
-                    $toGenerate = min($mcqsPerTopic, $neededCount - $generatedTotal);
-                    if ($toGenerate > 0) {
-                        $generatedMCQs = generateMCQsWithGemini($topic, $toGenerate, $studyLevel);
-                        $generatedTotal += count($generatedMCQs);
-                    }
-                }
+                generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel);
             }
             
             $topicsParam = urlencode(json_encode($topicsArray));
@@ -267,7 +371,10 @@ if (isset($_POST['start_quiz'])) {
         $backLink = ($source === 'host') ? 'online_quiz_host_new.php' : 'quiz_setup.php';
         $backText = ($source === 'host') ? '← Back to Host Quiz' : '← Back to Quiz Setup';
         ?>
-        <a href="<?= $backLink ?>" class="back-btn"><?= $backText ?></a>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <a href="<?= $backLink ?>" class="back-btn"><?= $backText ?></a>
+            <a href="quiz_setup.php" class="school-mode-btn">🏫 School Mode (Class/Book)</a>
+        </div>
         
         <h1>Search MCQs by Topic</h1>
         <p class="desc">Create custom quizzes by searching and adding multiple topics. Powered by AI topic generation.</p>
@@ -354,7 +461,45 @@ if (isset($_POST['start_quiz'])) {
             </form>
         </div>
 
-        <!-- Inline Loader -->
+        <!-- Advanced AI Loader Modal -->
+        <div id="aiLoaderModal" class="ai-loader-overlay">
+            <div class="ai-loader-card">
+                <div class="ai-icon-container">
+                    <div class="ai-icon-glow"></div>
+                    🤖
+                </div>
+                <h2 class="ai-loader-title">Crafting Your Quiz</h2>
+                
+                <div class="ai-steps-list">
+                    <div class="ai-step" id="step-1">
+                        <div class="ai-step-icon" id="icon-1">⏳</div>
+                        <div class="ai-step-text">Analyzing topics</div>
+                    </div>
+                    <div class="ai-step" id="step-2">
+                        <div class="ai-step-icon" id="icon-2">⏳</div>
+                        <div class="ai-step-text">Extracting key concepts</div>
+                    </div>
+                    <div class="ai-step" id="step-3">
+                        <div class="ai-step-icon" id="icon-3">⏳</div>
+                        <div class="ai-step-text">Designing MCQs</div>
+                    </div>
+                    <div class="ai-step" id="step-4">
+                        <div class="ai-step-icon" id="icon-4">⏳</div>
+                        <div class="ai-step-text">Validating difficulty</div>
+                    </div>
+                    <div class="ai-step" id="step-5">
+                        <div class="ai-step-icon" id="icon-5">⏳</div>
+                        <div class="ai-step-text">Finalizing paper</div>
+                    </div>
+                </div>
+
+                <div class="ai-progress-container">
+                    <div class="ai-progress-bar" id="aiProgressBar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keep inline loader for simple searches -->
         <div id="inlineLoader" style="display:none; padding: 40px 0;">
             <div class="honeycomb"> 
                <div></div><div></div><div></div><div></div><div></div><div></div><div></div> 
@@ -365,13 +510,17 @@ if (isset($_POST['start_quiz'])) {
             <div id="loaderText" style="text-align: center; color: var(--text-muted); font-weight: 700; font-size: 1.1rem;">Searching Topics...</div>
         </div>
 
-        <?php if ($showResults && !empty($searchResults)): ?>
-            <div class="results-section">
-                <div class="results-header">
-                    ✨ Found <?= count($searchResults) ?> search results
+        <?php if ($showResults): ?>
+            <div class="results-section" id="resultsSection">
+                <div class="results-header" id="resultsHeader">
+                    <?php if (!empty($searchResults)): ?>
+                        ✨ Found <?= count($searchResults) ?> search results
+                    <?php else: ?>
+                        No topics found in database for "<?= htmlspecialchars($searchQuery) ?>"
+                    <?php endif; ?>
                 </div>
                 
-                <div class="topic-list">
+                <div class="topic-list" id="topicList">
                     <?php foreach ($searchResults as $index => $result): 
                         $topicData = ['topic' => $result['topic'], 'similarity' => $result['similarity']];
                         $topicJson = htmlspecialchars(json_encode($topicData), ENT_QUOTES);
@@ -383,10 +532,15 @@ if (isset($_POST['start_quiz'])) {
                             <div class="topic-similarity"><?= $result['similarity'] ?>% match</div>
                         </div>
                     <?php endforeach; ?>
+                    <?php if (empty($searchResults)): ?>
+                        <div id="noTopicsHint" style="text-align: center; color: var(--text-muted); font-style: italic; padding: 24px;">
+                            Click the button below to load AI-generated related topics.
+                        </div>
+                    <?php endif; ?>
                 </div>
                 
                 <div style="text-align: center; margin-top: 32px;">
-                    <button type="button" id="loadMoreTopicsBtn" class="btn btn-secondary" style="min-width: 280px; border-width: 2px;color:var(--primary-dark);border-color:var(--primary-dark); ">
+                    <button type="button" id="loadMoreTopicsBtn" class="btn btn-secondary" style="min-width: 280px; border-width: 2px;color:var(--primary-dark);border-color:var(--primary-dark);">
                         ✨ Load Related Topics (AI)
                     </button>
                     <div id="loadMoreLoader" style="display:none; width: 100%; max-width: 300px; margin: 20px auto;">
@@ -399,28 +553,37 @@ if (isset($_POST['start_quiz'])) {
             </div>
         <?php endif; ?>
         
-        <!-- Additional SEO Content for Topic Search -->
-        <article style="margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 40px;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; text-align: left;">
-                <div style="background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;">
-                    <h3 style="color: var(--primary); margin-top: 0; font-size: 1.15rem; font-weight: 800;">🧬 Topic-Wise Precision</h3>
-                    <p style="color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">Generic tests can be overwhelming. Our AI helps you break down your syllabus into bite-sized topics like 'Quantum Mechanics', 'Organic nomenclature', or 'Cellular Respiration' for focused revision.</p>
-                </div>
-                <div style="background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;">
-                    <h3 style="color: var(--primary); margin-top: 0; font-size: 1.15rem; font-weight: 800;">🤖 AI-Generated Variation</h3>
-                    <p style="color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">If a topic doesn't exist in our massive database, our Gemini AI engine generates high-quality, syllabus-compliant MCQs on the fly to fulfill your request.</p>
-                </div>
-                <div style="background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #f1f5f9;">
-                    <h3 style="color: var(--primary); margin-top: 0; font-size: 1.15rem; font-weight: 800;">📈 Exam Compliance</h3>
-                    <p style="color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">Every question generated follows the 2026 paper pattern for Federal Board, BISE, and CSS standard competitive exams across Pakistan.</p>
-                </div>
-            </div>
-            
-            <div style="margin-top: 40px; text-align: center; color: #475569; font-size: 0.95rem;">
-                <p>Trusted by students appearing in <strong>MDCAT 2026</strong> and <strong>FSc Part 1 & 2</strong> Board Exams.</p>
-            </div>
-        </article>
     </div>
+    
+    <!-- Additional SEO Content for Topic Search -->
+    <article class="seo-article-section">
+        <div class="seo-grid">
+            <div class="seo-card">
+                <div class="seo-icon">🧬</div>
+                <h3 class="seo-card-title">Topic-Wise Precision</h3>
+                <p class="seo-card-text">Our AI-driven engine specializes in granular topic extraction. Whether you're searching for "Mitosis in Biology" or "Projectiles in Physics", get questions that hit the mark for <strong>BISE Punjab, Federal Board,</strong> and <strong>KPK Boards</strong>.</p>
+            </div>
+            <div class="seo-card">
+                <div class="seo-icon">🤖</div>
+                <h3 class="seo-card-title">AI-Powered Generation</h3>
+                <p class="seo-card-text">Leveraging <strong>Google Gemini AI</strong>, we provide dynamic MCQ generation for niche topics. If our database of 50,000+ questions doesn't have it, our AI creates high-standard, conceptually sound questions instantly.</p>
+            </div>
+            <div class="seo-card">
+                <div class="seo-icon">📈</div>
+                <h3 class="seo-card-title">Exam-Ready Standards</h3>
+                <p class="seo-card-text">Stay ahead with questions modeled after the <strong>2026 Paper Pattern</strong>. Perfect for <strong>MDCAT, ECAT, NTS,</strong> and board exam preparation for Classes 9, 10, 11, and 12.</p>
+            </div>
+            <div class="seo-card">
+                <div class="seo-icon">⚡</div>
+                <h3 class="seo-card-title">Instant Quiz Hosting</h3>
+                <p class="seo-card-text">Once you've selected your topics, host a live quiz for your students or peers in seconds. Real-time leaderboards and instant results tracking make learning interactive and fun.</p>
+            </div>
+        </div>
+        
+        <div class="seo-footer">
+            <p>Empowering students across Pakistan with the most advanced <strong>AI MCQ Generator</strong> and <strong>Online Quiz Platform</strong>. Trusted for Matric, Intermediate, and Entrance Test success.</p>
+        </div>
+    </article>
 </div>
 
 <script>
@@ -452,6 +615,85 @@ function showLoader(title = 'Processing...', subtitle = '') {
             }, 200);
         }
     }
+}
+
+function showAILoader() {
+    const modal = document.getElementById('aiLoaderModal');
+    const progressBar = document.getElementById('aiProgressBar');
+    
+    // Disable scrolling while loader is active
+    document.body.style.overflow = 'hidden';
+    
+    // Ensure modal occupies full screen and is visible
+    modal.style.display = 'flex';
+    
+    const steps = [
+        { id: 1, text: 'Analyzing topics', duration: 5500 },
+        { id: 2, text: 'Extracting key concepts', duration: 5500 },
+        { id: 3, text: 'Designing MCQs', duration: 6000 },
+        { id: 4, text: 'Validating difficulty', duration: 5000 },
+        { id: 5, text: 'Finalizing paper', duration: 15000 }
+    ];
+    
+    let currentStepIndex = 0;
+    let totalDuration = steps.reduce((acc, s) => acc + s.duration, 0);
+    let elapsed = 0;
+    
+    // Initialize all steps to pending state (hourglass)
+    steps.forEach(step => {
+        const stepEl = document.getElementById(`step-${step.id}`);
+        const iconEl = document.getElementById(`icon-${step.id}`);
+        if (stepEl) {
+            stepEl.classList.remove('active', 'completed');
+            iconEl.textContent = '⏳';
+        }
+    });
+    
+    function updateStep() {
+        if (currentStepIndex >= steps.length) return;
+        
+        const step = steps[currentStepIndex];
+        const stepEl = document.getElementById(`step-${step.id}`);
+        const iconEl = document.getElementById(`icon-${step.id}`);
+        
+        // Mark previous steps as completed
+        for (let i = 0; i < currentStepIndex; i++) {
+            const prevStep = steps[i];
+            const prevStepEl = document.getElementById(`step-${prevStep.id}`);
+            const prevIconEl = document.getElementById(`icon-${prevStep.id}`);
+            if (prevStepEl) {
+                prevStepEl.classList.add('completed');
+                prevStepEl.classList.remove('active');
+                prevIconEl.textContent = '✔';
+            }
+        }
+        
+        // Mark current step as active
+        if (stepEl) {
+            stepEl.classList.add('active');
+            iconEl.textContent = '⏳';
+        }
+        
+        // Move to next step after duration
+        setTimeout(() => {
+            currentStepIndex++;
+            updateStep();
+        }, step.duration);
+    }
+    
+    // Higher interval for fewer DOM updates, CSS transition handles the smoothness
+    const progressUpdateFreq = 250; 
+    const progressInterval = setInterval(() => {
+        elapsed += progressUpdateFreq;
+        let progress = (elapsed / totalDuration) * 100;
+        if (progress >= 99) {
+            progress = 99;
+            clearInterval(progressInterval);
+        }
+        if (progressBar) progressBar.style.width = progress + '%';
+    }, progressUpdateFreq);
+    
+    updateStep();
 }
 
 function selectLevel(level, button) {
@@ -576,7 +818,7 @@ document.getElementById('startQuizForm')?.addEventListener('submit', function(e)
         alert('Selection internal error.');
         return;
     }
-    showLoader('Generating Quiz...', 'AI is crafting your unique MCQs. Please wait 10-30 seconds.');
+    showAILoader();
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -602,7 +844,20 @@ document.getElementById('loadMoreTopicsBtn')?.addEventListener('click', function
     const loader = document.getElementById('loadMoreLoader');
     const progressBar = document.getElementById('loadMoreProgressBar');
     const searchQuery = document.getElementById('topic_search').value;
+    const topicList = document.getElementById('topicList');
+    const resultsHeader = document.getElementById('resultsHeader');
+    const noTopicsHint = document.getElementById('noTopicsHint');
+    
     if (!searchQuery) return;
+    
+    // Collect currently displayed topic names to exclude (get different topics)
+    const excludeTopics = [];
+    document.querySelectorAll('.topic-item[data-topic-data]').forEach(item => {
+        try {
+            const d = JSON.parse(item.getAttribute('data-topic-data'));
+            if (d && d.topic) excludeTopics.push(d.topic);
+        } catch(e) {}
+    });
     
     btn.style.display = 'none';
     loader.style.display = 'block';
@@ -613,25 +868,42 @@ document.getElementById('loadMoreTopicsBtn')?.addEventListener('click', function
         progressBar.style.width = width + '%';
     }, 300);
     
+    const params = {
+        action: 'load_more_topics',
+        search_query: searchQuery,
+        exclude_topics: JSON.stringify(excludeTopics)
+    };
+    
     fetch('mcqs_topic.php', {
         method: 'POST',
-        body: new URLSearchParams({'action': 'load_more_topics', 'search_query': searchQuery})
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams(params)
     })
     .then(r => r.json())
     .then(data => {
         progressBar.style.width = '100%';
-        if (data.success && data.topics) {
-            const list = document.querySelector('.topic-list');
+        if (data.success && data.topics && data.topics.length > 0) {
+            if (noTopicsHint) noTopicsHint.remove();
+            let added = 0;
             data.topics.forEach(topic => {
-                const isSelected = selectedTopics.some(t => JSON.parse(t).topic === topic.topic);
+                const topicName = typeof topic === 'string' ? topic : topic.topic;
+                const similarity = (topic.similarity !== undefined) ? topic.similarity : 85.0;
+                const isSelected = selectedTopics.some(t => {
+                    try { return JSON.parse(t).topic === topicName; } catch(e) { return false; }
+                });
+                const tData = {topic: topicName, similarity: similarity};
                 const div = document.createElement('div');
                 div.className = 'topic-item' + (isSelected ? ' selected' : '');
-                const tData = {topic: topic.topic, similarity: topic.similarity || 85.0};
                 div.setAttribute('data-topic-data', JSON.stringify(tData));
                 div.onclick = () => toggleTopic(div, JSON.stringify(tData));
-                div.innerHTML = `<div class="topic-info"><div class="topic-name">${topic.topic}</div></div><div class="topic-similarity">${tData.similarity}% match</div>`;
-                list.appendChild(div);
+                div.innerHTML = '<div class="topic-info"><div class="topic-name">' + topicName + '</div></div><div class="topic-similarity">' + similarity + '% match</div>';
+                topicList.appendChild(div);
+                added++;
             });
+            if (resultsHeader) {
+                const total = document.querySelectorAll('.topic-item[data-topic-data]').length;
+                resultsHeader.textContent = '\u2728 Found ' + total + ' search results';
+            }
         }
     })
     .finally(() => {

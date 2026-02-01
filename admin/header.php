@@ -60,6 +60,15 @@ $adminUrl = $baseUrl . 'admin/';
                         <li><a href="<?= $adminUrl ?>manage_questions.php">❓ Questions</a></li>
                     </ul>
                 </li>
+                <li class="nav-dropdown">
+                    <a href="#" class="nav-link-dropdown">🤖 AI Content</a>
+                    <ul class="dropdown-menu">
+                        <li><a href="<?= $adminUrl ?>manage_ai_mcqs.php">☑️ MCQs</a></li>
+                        <li><a href="<?= $adminUrl ?>manage_ai_short.php">📝 Short Qs</a></li>
+                        <li><a href="<?= $adminUrl ?>manage_ai_long.php">📑 Long Qs</a></li>
+                        <li><a href="<?= $adminUrl ?>manage_ai_keys.php">🔑 API Keys</a></li>
+                    </ul>
+                </li>
                 <li><a href="<?= $adminUrl ?>deleted_questions.php" class="nav-link-deleted">🗑️ Deleted</a></li>
                 <li><a href="<?= $adminUrl ?>contact_messages.php" class="nav-link-contact">💌 Contact Messages</a></li>
                 <li><a href="<?= $adminUrl ?>users.php" class="nav-link-users">👥 Admins</a></li>

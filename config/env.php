@@ -11,11 +11,11 @@ class EnvLoader
     // Define default values if not present in .env
     private static $defaults = [
         'BASE_URL' => 'https://paper.bhattichemicalsindustry.com.pk/',
-        'OPENAI_API_KEY' => '',
-        'OPENAI_API_KEYS' => '',
-        'OPENAI_MODEL' => 'nvidia/nemotron-3-nano-30b-a3b:free',
-        'GEMINI_API_KEY' => '',
-        'GEMINI_MODEL' => 'gemini-2.0-flash-exp:free',
+        'AI_DEFAULT_MODEL' => 'gpt-4-turbo',
+        'AI_FALLBACK_MODEL' => 'gpt-3.5-turbo',
+        'AI_DAILY_QUOTA_PER_KEY' => '100000',
+        'AI_MAX_RETRIES' => '3',
+        'AI_RETRY_DELAY_MS' => '100',
     ];
 
     /**
@@ -131,20 +131,26 @@ class EnvLoader
     
     /**
      * Get list of values from environment variable (comma separated)
-     * Also looks for _1, _2, etc. suffixes and merges them
+     * Modified to prioritize Account 2 (suffix _1) over Primary (base)
      */
     public static function getList($key)
     {
         $values = [];
         
-        // Base key
+        // 1. Account 2 (Suffix _1) - Prioritized per user request
+        $account2 = self::get($key . '_1', '');
+        if (!empty($account2)) {
+            $values = array_merge($values, array_map('trim', explode(',', $account2)));
+        }
+        
+        // 2. Primary Account (Base key)
         $base = self::get($key, '');
         if (!empty($base)) {
             $values = array_merge($values, array_map('trim', explode(',', $base)));
         }
         
-        // Numbered groups (up to 10)
-        for ($i = 1; $i <= 10; $i++) {
+        // 3. Other Backup Accounts (Suffix _2 to _10)
+        for ($i = 2; $i <= 10; $i++) {
             $suffixVal = self::get($key . '_' . $i, '');
             if (!empty($suffixVal)) {
                 $values = array_merge($values, array_map('trim', explode(',', $suffixVal)));

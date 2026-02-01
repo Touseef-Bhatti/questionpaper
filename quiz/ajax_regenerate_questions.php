@@ -29,23 +29,15 @@ try {
         $topics = array_slice($topics, 0, 5);
     }
 
-    $totalGenerated = 0;
+    $totalCount = count($topics) * $countPerTopic;
+    $generated = [];
     $errors = [];
-
-    foreach ($topics as $topic) {
-        try {
-            // Call the generation function from mcq_generator.php
-            // generateMCQsWithGemini($topic, $numQuestions)
-            // It returns an array of generated MCQs and saves them to DB
-            $generated = generateMCQsWithGemini($topic, $countPerTopic);
-            
-            if (is_array($generated)) {
-                $totalGenerated += count($generated);
-            }
-        } catch (Exception $e) {
-            $errors[] = "Error generating for topic '$topic': " . $e->getMessage();
-        }
+    try {
+        $generated = generateMCQsBulkWithGemini($topics, $totalCount);
+    } catch (Exception $e) {
+        $errors[] = "Error generating: " . $e->getMessage();
     }
+    $totalGenerated = count($generated);
 
     echo json_encode([
         'success' => true, 
