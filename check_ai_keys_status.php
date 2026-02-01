@@ -13,8 +13,26 @@ echo "<h2>🔍 AI Keys System - Status Report</h2>\n";
 echo "<hr>\n";
 
 try {
+    // Determine which environment file to use
+    $envFile = __DIR__ . '/config/.env.local';
+    
+    // Check if in production environment
+    if ((defined('ENVIRONMENT') && ENVIRONMENT === 'production') || getenv('APP_ENV') === 'production') {
+        $envFile = __DIR__ . '/config/.env.production';
+    }
+    
+    // Use .env.production if it exists and .env.local doesn't
+    if (!file_exists($envFile)) {
+        $altFile = (strpos($envFile, '.env.production') !== false) ? 
+            __DIR__ . '/config/.env.local' : 
+            __DIR__ . '/config/.env.production';
+        if (file_exists($altFile)) {
+            $envFile = $altFile;
+        }
+    }
+    
     // Load configuration
-    $configManager = new AIKeyConfigManager(__DIR__ . '/config/.env.local');
+    $configManager = new AIKeyConfigManager($envFile);
     echo "<h3>✅ Configuration Loaded</h3>\n";
     
     // Get system info

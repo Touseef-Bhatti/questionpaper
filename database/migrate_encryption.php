@@ -1,10 +1,27 @@
 <?php
 require_once __DIR__ . '/../config/env.php';
 
-// Force load .env.local for CLI
-if (file_exists(__DIR__ . '/../config/.env.local')) {
+// Force load environment file for CLI
+$envPath = __DIR__ . '/../config/.env.local';
+
+// Check if in production environment
+if ((defined('ENVIRONMENT') && ENVIRONMENT === 'production') || getenv('APP_ENV') === 'production') {
+    $envPath = __DIR__ . '/../config/.env.production';
+}
+
+// Use .env.production if it exists and .env.local doesn't
+if (!file_exists($envPath)) {
+    $alternativePath = (strpos($envPath, '.env.production') !== false) ? 
+        __DIR__ . '/../config/.env.local' : 
+        __DIR__ . '/../config/.env.production';
+    if (file_exists($alternativePath)) {
+        $envPath = $alternativePath;
+    }
+}
+
+if (file_exists($envPath)) {
     EnvLoader::reset(); // Reset to allow reloading
-    EnvLoader::load(__DIR__ . '/../config/.env.local');
+    EnvLoader::load($envPath);
 }
 
 echo "DB_HOST: " . EnvLoader::get('DB_HOST') . "\n";

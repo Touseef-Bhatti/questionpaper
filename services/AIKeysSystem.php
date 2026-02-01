@@ -31,7 +31,23 @@ class AIKeysSystem {
         $this->conn = $conn;
         
         if ($envPath === null) {
+            // Determine which environment file to use
             $envPath = __DIR__ . '/../config/.env.local';
+            
+            // Check if in production environment
+            if ((defined('ENVIRONMENT') && ENVIRONMENT === 'production') || getenv('APP_ENV') === 'production') {
+                $envPath = __DIR__ . '/../config/.env.production';
+            }
+            
+            // Use .env.production if it exists and .env.local doesn't
+            if (!file_exists($envPath)) {
+                $alternativePath = (strpos($envPath, '.env.production') !== false) ? 
+                    __DIR__ . '/../config/.env.local' : 
+                    __DIR__ . '/../config/.env.production';
+                if (file_exists($alternativePath)) {
+                    $envPath = $alternativePath;
+                }
+            }
         }
         
         try {

@@ -674,12 +674,30 @@ try {
 echo "\n<strong>Verifying AI API Keys schema...</strong>\n";
 
 // ============================================================================
-// Load API Keys from .env.local using new AIKeyConfigManager
+// Load API Keys from .env.local or .env.production using new AIKeyConfigManager
 // ============================================================================
 require_once __DIR__ . '/config/AIKeyConfigManager.php';
 
 try {
-    $configManager = new AIKeyConfigManager(__DIR__ . '/config/.env.local');
+    // Determine which environment file to use
+    $envFile = __DIR__ . '/config/.env.local';
+    
+    // Check if in production environment
+    if ((defined('ENVIRONMENT') && ENVIRONMENT === 'production') || getenv('APP_ENV') === 'production') {
+        $envFile = __DIR__ . '/config/.env.production';
+    }
+    
+    // Use .env.production if it exists and .env.local doesn't
+    if (!file_exists($envFile)) {
+        $altFile = (strpos($envFile, '.env.production') !== false) ? 
+            __DIR__ . '/config/.env.local' : 
+            __DIR__ . '/config/.env.production';
+        if (file_exists($altFile)) {
+            $envFile = $altFile;
+        }
+    }
+    
+    $configManager = new AIKeyConfigManager($envFile);
     $encryption_key = getenv('AI_ENCRYPTION_KEY') ?: (defined('AI_ENCRYPTION_KEY') ? AI_ENCRYPTION_KEY : null);
     
     echo "Found " . $configManager->getTotalKeyCount() . " key(s) in .env.local\n";

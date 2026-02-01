@@ -24,7 +24,25 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
 }
 
 try {
-    $configManager = new AIKeyConfigManager(__DIR__ . '/../config/.env.local');
+    // Determine which environment file to use
+    $envFile = __DIR__ . '/../config/.env.local';
+    
+    // Check if in production environment
+    if (defined('ENVIRONMENT') && ENVIRONMENT === 'production') {
+        $envFile = __DIR__ . '/../config/.env.production';
+    } elseif (getenv('APP_ENV') === 'production') {
+        $envFile = __DIR__ . '/../config/.env.production';
+    }
+    
+    // Use .env.production if it exists and .env.local doesn't
+    $productionFile = __DIR__ . '/../config/.env.production';
+    $localFile = __DIR__ . '/../config/.env.local';
+    
+    if (!file_exists($localFile) && file_exists($productionFile)) {
+        $envFile = $productionFile;
+    }
+    
+    $configManager = new AIKeyConfigManager($envFile);
     $systemConfig = $configManager->getSystemConfig();
     $allAccounts = $configManager->getAllAccounts();
     $allKeys = $configManager->getAllKeys();
