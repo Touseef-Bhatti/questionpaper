@@ -21,7 +21,7 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
 /**
  * Make OpenRouter API call - returns [response_text, http_code] or [null, code]
  */
-function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 8000, $timeout = 60) {
+function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 18000, $timeout = 60) {
     $payload = [
         'model' => $model,
         'messages' => [['role' => 'user', 'content' => $prompt]],
@@ -262,7 +262,7 @@ function generateMCQsWithGemini($topic, $count = 10, $level = '') {
     $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
     $levelHint = $lvl ? "Difficulty: {$lvl}. " : '';
     $prompt = "Generate exactly {$count} MCQs on topic: {$topic}. {$levelHint}Return ONLY a JSON array. Each item: {\"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. No extra text.";
-    $maxTokens = min(8000, 500 + $count * 400);
+    $maxTokens = min(18000, 500 + $count * 400);
 
     list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, 60);
 

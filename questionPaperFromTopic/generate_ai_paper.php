@@ -89,6 +89,33 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
     
     // Check DB for existing questions first
     $existingQuestions = [];
+
+    // Check manual MCQs table if type is mcqs
+    if ($type === 'mcqs' && !empty($topics)) {
+        $likes = [];
+        $params = [];
+        $typesStr = "";
+        foreach ($topics as $t) {
+            $likes[] = "topic LIKE ?";
+            $params[] = "%" . trim($t) . "%";
+            $typesStr .= "s";
+        }
+        
+        if (!empty($likes)) {
+            $sql = "SELECT question, option_a, option_b, option_c, option_d, correct_option FROM mcqs WHERE " . implode(" OR ", $likes) . " ORDER BY RAND() LIMIT " . ($count * 2);
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param($typesStr, ...$params);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $existingQuestions[md5($row['question'])] = $row;
+                }
+                $stmt->close();
+            }
+        }
+    }
+
     $tableMap = [
         'mcqs' => ['table' => 'AIGeneratedMCQs', 'cols' => 'question_text as question, option_a, option_b, option_c, option_d, correct_option'],
         'short' => ['table' => 'AIGeneratedShortQuestions', 'cols' => 'question_text as question, typical_answer'],
@@ -279,8 +306,8 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
 
     foreach ($data as $q) {
         if ($type === 'mcqs') {
-            $stmt = $conn->prepare("INSERT INTO AIGeneratedMCQs (topic_id, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('isssssss', $topicId, $q['question'], $q['option_a'], $q['option_b'], $q['option_c'], $q['option_d'], $q['correct_option'], $today);
+            $stmt = $conn->prepare("INSERT INTO AIGeneratedMCQs (topic_id, topic, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('issssssss', $topicId, $topicStr, $q['question'], $q['option_a'], $q['option_b'], $q['option_c'], $q['option_d'], $q['correct_option'], $today);
             $stmt->execute();
             
             // Update MCQ Count
@@ -454,6 +481,19 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
         transform: translateY(-2px);
     }
 
+    [contenteditable="true"]:hover {
+        background-color: rgba(255, 255, 0, 0.1);
+        cursor: text;
+        outline: 1px dashed #ccc;
+    }
+    
+    [contenteditable="true"]:focus {
+        background-color: #fff;
+        outline: 2px solid var(--accent-color);
+        padding: 2px;
+        border-radius: 2px;
+    }
+
     /* Print Optimizations */
     @media print {
         @page { size: A4; margin: 0; }
@@ -528,12 +568,12 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
                 <div class="section-title">Section A: Multiple Choice Questions</div>
                 <?php foreach ($generatedContent['mcqs'] as $i => $q): ?>
                     <div class="q-item">
-                        <span class="q-text">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
+                        <span class="q-text" contenteditable="true">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
                         <div class="options-grid">
-                            <span class="option">(A) <?= htmlspecialchars($q['option_a']) ?></span>
-                            <span class="option">(B) <?= htmlspecialchars($q['option_b']) ?></span>
-                            <span class="option">(C) <?= htmlspecialchars($q['option_c']) ?></span>
-                            <span class="option">(D) <?= htmlspecialchars($q['option_d']) ?></span>
+                            <span class="option" contenteditable="true">(A) <?= htmlspecialchars($q['option_a']) ?></span>
+                            <span class="option" contenteditable="true">(B) <?= htmlspecialchars($q['option_b']) ?></span>
+                            <span class="option" contenteditable="true">(C) <?= htmlspecialchars($q['option_c']) ?></span>
+                            <span class="option" contenteditable="true">(D) <?= htmlspecialchars($q['option_d']) ?></span>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -543,7 +583,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
                 <div class="section-title">Section B: Short Questions</div>
                 <?php foreach ($generatedContent['short'] as $i => $q): ?>
                     <div class="q-item">
-                        <span class="q-text">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
+                        <span class="q-text" contenteditable="true">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
                         <div style="height: 60px;"></div> <!-- Space for answer -->
                     </div>
                 <?php endforeach; ?>
@@ -553,27 +593,127 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
                 <div class="section-title">Section C: Detailed Questions</div>
                 <?php foreach ($generatedContent['long'] as $i => $q): ?>
                     <div class="q-item">
-                        <span class="q-text">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
+                        <span class="q-text" contenteditable="true">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
                         <div style="height: 120px;"></div> <!-- Space for answer -->
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
 
             <div class="text-center mt-5 pt-4 border-top">
-                <p class="fst-italic text-muted small">"Education is the most powerful weapon which you can use to change the world."</p>
+                <?php
+                $quotes = [
+                    "Education is the most powerful weapon which you can use to change the world.",
+                    "The beautiful thing about learning is that no one can take it away from you.",
+                    "Education is not the filling of a pail, but the lighting of a fire.",
+                    "Live as if you were to die tomorrow. Learn as if you were to live forever.",
+                    "The roots of education are bitter, but the fruit is sweet.",
+                    "Education is the passport to the future, for tomorrow belongs to those who prepare for it today.",
+                    "Investment in knowledge pays the best interest.",
+                    "Education is what remains after one has forgotten what one has learned in school.",
+                    "The more that you read, the more things you will know. The more that you learn, the more places you'll go.",
+                    "Teachers can open the door, but you must enter it yourself.",
+                    "Develop a passion for learning. If you do, you will never cease to grow."
+                ];
+                $randomQuote = $quotes[array_rand($quotes)];
+                ?>
+                <p class="fst-italic text-muted small">"<?= htmlspecialchars($randomQuote) ?>"</p>
             </div>
+        </div>
+
+        <!-- Hidden Answer Key Container -->
+        <div id="answer-key-content" style="display:none;">
+            <div class="paper-header">
+                <div class="institute-name">Ahmad Learning Hub</div>
+                <div class="text-uppercase fw-bold mb-2">ANSWER KEY</div>
+                <div class="paper-meta">
+                    <span><strong>Subject:</strong> <?= htmlspecialchars(implode(', ', array_slice($topics, 0, 3))) ?></span>
+                    <span><strong>Date:</strong> <?= date('d M, Y') ?></span>
+                </div>
+            </div>
+
+            <?php if (!empty($generatedContent['mcqs'])): ?>
+                <div class="section-title">Section A: MCQs Key</div>
+                <table style="width: 100%; border-collapse: collapse;">
+                <?php foreach ($generatedContent['mcqs'] as $i => $q): ?>
+                    <tr>
+                        <td style="padding: 5px; border-bottom: 1px solid #eee;"><strong>Q.<?= $i+1 ?></strong></td>
+                        <td style="padding: 5px; border-bottom: 1px solid #eee;">Correct Option: <strong><?= htmlspecialchars($q['correct_option']) ?></strong></td>
+                    </tr>
+                <?php endforeach; ?>
+                </table>
+            <?php endif; ?>
+
+            <?php if (!empty($generatedContent['short'])): ?>
+                <div class="section-title">Section B: Short Answers</div>
+                <?php foreach ($generatedContent['short'] as $i => $q): ?>
+                    <div class="q-item">
+                        <div class="q-text"><strong>Q.<?= $i+1 ?>:</strong> <?= htmlspecialchars($q['question']) ?></div>
+                        <div style="margin-top: 5px; padding: 10px; background: #f9f9f9; border-left: 3px solid #000;">
+                            <strong>Answer:</strong> <?= nl2br(htmlspecialchars($q['typical_answer'])) ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+
+            <?php if (!empty($generatedContent['long'])): ?>
+                <div class="section-title">Section C: Detailed Answers</div>
+                <?php foreach ($generatedContent['long'] as $i => $q): ?>
+                    <div class="q-item">
+                        <div class="q-text"><strong>Q.<?= $i+1 ?>:</strong> <?= htmlspecialchars($q['question']) ?></div>
+                        <div style="margin-top: 5px; padding: 10px; background: #f9f9f9; border-left: 3px solid #000;">
+                            <strong>Answer Outline:</strong> <?= nl2br(htmlspecialchars($q['typical_answer'])) ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
 
         <!-- Floating Action Bar -->
         <div class="action-bar">
+            <button onclick="downloadDocx('paper')" class="btn btn-success btn-float shadow-sm">
+                <i class="fas fa-file-word"></i> <span>Download Paper</span>
+            </button>
+            <button onclick="downloadDocx('key')" class="btn btn-info btn-float shadow-sm text-white">
+                <i class="fas fa-key"></i> <span>Download Key</span>
+            </button>
             <button onclick="window.print()" class="btn btn-dark btn-float shadow-sm">
-                <i class="fas fa-print"></i> <span>Print Paper</span>
+                <i class="fas fa-print"></i> <span>Print</span>
             </button>
             <a href="index.php" class="btn btn-primary btn-float shadow-sm">
-                <i class="fas fa-plus-circle"></i> <span>Create New</span>
+                <i class="fas fa-plus-circle"></i> <span>New</span>
             </a>
-            <!-- Optional: Save as PDF button if we had jsPDF, but Print to PDF is standard -->
         </div>
+
+        <form id="downloadForm" action="download_docx.php" method="POST" target="_blank" style="display:none;">
+            <input type="hidden" name="content" id="downloadContent">
+            <input type="hidden" name="filename" id="downloadFilename">
+        </form>
+
+        <script>
+        function downloadDocx(type) {
+            const form = document.getElementById('downloadForm');
+            const contentInput = document.getElementById('downloadContent');
+            const filenameInput = document.getElementById('downloadFilename');
+            
+            if (type === 'paper') {
+                // Clone the paper preview to manipulate it for export without changing view
+                const paper = document.querySelector('.paper-preview').cloneNode(true);
+                
+                // Remove contenteditable attributes for the static file
+                const editables = paper.querySelectorAll('[contenteditable]');
+                editables.forEach(el => el.removeAttribute('contenteditable'));
+                
+                contentInput.value = paper.innerHTML;
+                filenameInput.value = 'Assessment_Paper_' + new Date().toISOString().slice(0,10);
+            } else if (type === 'key') {
+                const keyContent = document.getElementById('answer-key-content').innerHTML;
+                contentInput.value = keyContent;
+                filenameInput.value = 'Answer_Key_' + new Date().toISOString().slice(0,10);
+            }
+            
+            form.submit();
+        }
+        </script>
 
     <?php endif; ?>
 </div>

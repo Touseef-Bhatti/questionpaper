@@ -465,6 +465,118 @@ body.menu-open {
     pointer-events: auto; /* Clickable when open */
     transition: opacity 0.3s ease-in; /* Slower fade in */
 }
+/* Auth Modal Styles */
+.auth-modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.auth-modal.show {
+    display: flex;
+    opacity: 1;
+}
+
+.auth-modal-content {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2.5rem;
+    border-radius: 24px;
+    width: 90%;
+    max-width: 450px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    transform: translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.auth-modal.show .auth-modal-content {
+    transform: translateY(0);
+}
+
+.close-modal {
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #64748b;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-modal:hover {
+    color: #1e293b;
+}
+
+.auth-modal-header h2 {
+    font-size: 1.8rem;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+    font-weight: 800;
+}
+
+.auth-modal-header p {
+    color: #64748b;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+}
+
+.auth-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.btn-auth-login, .btn-auth-register {
+    padding: 0.8rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s;
+    font-size: 1rem;
+}
+
+.btn-auth-login {
+    background: var(--gradient-primary, linear-gradient(135deg, #4F46E5 0%, #0EA5E9 100%));
+    color: white;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+}
+
+.btn-auth-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+    opacity: 0.95;
+}
+
+.btn-auth-register {
+    background: #f1f5f9;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
+}
+
+.btn-auth-register:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+}
+
+.auth-modal-footer {
+    margin-top: 2rem;
+    font-size: 0.85rem;
+    color: #94a3b8;
+}
    </style>
 </head>
 <body>
@@ -526,6 +638,26 @@ body.menu-open {
         </div>
         <div class="nav-overlay" id="navOverlay"></div>
     </nav>
+
+<!-- Auth Modal -->
+<div id="authModal" class="auth-modal">
+    <div class="auth-modal-content">
+        <span class="close-modal" id="closeAuthModal">&times;</span>
+        <div class="auth-modal-header">
+            <h2 id="modalTitle">Welcome to AhmadLearningHub</h2>
+            <p id="modalSubtitle">Please login or create an account to access premium features.</p>
+        </div>
+        <div class="auth-modal-body">
+            <div class="auth-options">
+                <a href="<?= $assetBase ?>auth/login.php" class="btn-auth-login">Login to My Account</a>
+                <a href="<?= $assetBase ?>auth/register.php" class="btn-auth-register">Create New Account</a>
+            </div>
+            <div class="auth-modal-footer">
+                <p>Unlock smart paper generation, online quizzes, and expert notes!</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>
@@ -622,6 +754,69 @@ body.menu-open {
             document.querySelectorAll('.dropdown-content.show').forEach(content => {
                 content.classList.remove('show');
             });
+        }
+    });
+
+    // Auth Modal Logic
+    const authModal = document.getElementById('authModal');
+    const closeAuthBtn = document.getElementById('closeAuthModal');
+    const isUserLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
+
+    function showAuthModal() {
+        if (!authModal) return;
+        
+        // Check if previously logged in
+        const wasLoggedIn = localStorage.getItem('alh_was_logged_in');
+        if (wasLoggedIn === 'true') {
+            document.getElementById('modalTitle').textContent = 'Welcome Back!';
+            document.getElementById('modalSubtitle').textContent = 'Your session has expired. Please login again to continue.';
+        }
+
+        authModal.style.display = 'flex';
+        setTimeout(() => {
+            authModal.classList.add('show');
+        }, 10);
+    }
+
+    function hideAuthModal() {
+        if (!authModal) return;
+        authModal.classList.remove('show');
+        setTimeout(() => {
+            authModal.style.display = 'none';
+        }, 400);
+        // Mark as seen for this session
+        sessionStorage.setItem('alh_auth_modal_seen', 'true');
+    }
+
+    if (closeAuthBtn) {
+        closeAuthBtn.addEventListener('click', hideAuthModal);
+    }
+
+    // Auto-show logic
+    window.addEventListener('load', function() {
+        const path = window.location.pathname;
+        const isAuthPage = path.includes('login.php') || path.includes('register.php') || path.includes('forgot_password.php') || path.includes('reset_password.php');
+        
+        if (!isUserLoggedIn && !isAuthPage) {
+            const hasSeenRecently = sessionStorage.getItem('alh_auth_modal_seen');
+            if (!hasSeenRecently) {
+                // Mark as seen for this session immediately (this prevents it from showing on refresh or other pages)
+                sessionStorage.setItem('alh_auth_modal_seen', 'true');
+                
+                // Show modal after a short delay
+                setTimeout(showAuthModal, 2000);
+            }
+        } else if (isUserLoggedIn) {
+            // Store login status for future reference if they are currently logged in
+            localStorage.setItem('alh_was_logged_in', 'true');
+            localStorage.setItem('alh_last_active', Date.now());
+        }
+    });
+
+    // Close on click outside
+    window.addEventListener('click', function(e) {
+        if (e.target === authModal) {
+            hideAuthModal();
         }
     });
 

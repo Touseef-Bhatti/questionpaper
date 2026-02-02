@@ -769,11 +769,16 @@ try {
         ],
         'AIGeneratedMCQs' => [
             'topic_id' => "INT DEFAULT NULL",
+            'topic' => "VARCHAR(255) NOT NULL",
             'question_text' => "TEXT",
             'generated_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
         ],
         'questions' => [
-            'question_text' => "TEXT NOT NULL"
+            'question_text' => "TEXT NOT NULL",
+            'typical_answer' => "TEXT DEFAULT NULL"
+        ],
+        'mcqs' => [
+            'correct_option' => "enum('A','B','C','D') NOT NULL"
         ],
         'user_saved_questions' => [
             'question_text' => "TEXT NOT NULL"
