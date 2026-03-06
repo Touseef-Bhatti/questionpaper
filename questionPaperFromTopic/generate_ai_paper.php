@@ -7,7 +7,7 @@ require_once __DIR__ . '/../header.php';
 require_once __DIR__ . '/../quiz/mcq_generator.php'; 
 require_once __DIR__ . '/../includes/APIKeyManager.php';
 ?>
-<link rel="stylesheet" href="../css/paper-builder.css">
+<link rel="stylesheet" href="../css/paper-builder.css?v=<?= time() . rand(6000, 7000) ?>">
 <?php
 
 // Get inputs from configure_paper.php or topic search
@@ -188,13 +188,15 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
     
     if ($type === 'mcqs') {
         $prompt = "Generate exactly {$count} multiple choice questions covering topics: \"{$topicsList}\".
-        Format: JSON Array of objects with keys: question, option_a, option_b, option_c, option_d, correct_option.
+        Format: JSON Array of objects with keys: topic, question, option_a, option_b, option_c, option_d, correct_option.
+        \"topic\" MUST be one of the searched topics: \"{$topicsList}\".
         correct_option MUST be just the character A, B, C, or D.
         Strictly JSON only.";
     } else {
         $mode = ($type === 'short') ? 'short answer questions (brief)' : 'long detailed answer questions';
         $prompt = "Generate exactly {$count} {$mode} covering topics: \"{$topicsList}\".
-        Format: JSON Array of objects with keys: question, typical_answer.
+        Format: JSON Array of objects with keys: topic, question, typical_answer.
+        \"topic\" MUST be one of the searched topics: \"{$topicsList}\".
         Strictly JSON only.";
     }
 
@@ -223,7 +225,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
             'model' => $openaiModel,
             'messages' => [['role' => 'user', 'content' => $prompt]],
             'temperature' => 0.7,
-            'max_tokens' => 4000
+            'max_tokens' => 16000
         ]));
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
@@ -281,38 +283,26 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
 
     // Persist to Database for future searchability
     $today = date('Y-m-d H:i:s');
-    
-    // Create/Get Topic ID
-    $topicStr = implode(',', $topics);
-    $topicId = null;
-    
-    // Check if topic exists
-    $stmt = $conn->prepare("SELECT id FROM AIQuestionsTopic WHERE topic_name = ?");
-    $stmt->bind_param("s", $topicStr);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->num_rows > 0) {
-        $row = $result->fetch_assoc();
-        $topicId = $row['id'];
-    } else {
-        // Insert new topic
-        $stmt = $conn->prepare("INSERT INTO AIQuestionsTopic (topic_name) VALUES (?)");
-        $stmt->bind_param("s", $topicStr);
-        if ($stmt->execute()) {
-            $topicId = $stmt->insert_id;
-        }
-    }
+    $firstTopicInList = !empty($topics) ? trim($topics[0]) : 'General';
+    $topicIdCache = [];
 
     foreach ($data as $q) {
+        $topicVal = isset($q['topic']) ? (string) trim($q['topic']) : $firstTopicInList;
+        
+        // Resolve topic_id (using helper from mcq_generator.php)
+        if (!isset($topicIdCache[$topicVal])) {
+            $topicIdCache[$topicVal] = getOrCreateTopicId($conn, $topicVal);
+        }
+        $topicId = $topicIdCache[$topicVal];
+
         if ($type === 'mcqs') {
             $stmt = $conn->prepare("INSERT INTO AIGeneratedMCQs (topic_id, topic, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('issssssss', $topicId, $topicStr, $q['question'], $q['option_a'], $q['option_b'], $q['option_c'], $q['option_d'], $q['correct_option'], $today);
+            $stmt->bind_param('issssssss', $topicId, $topicVal, $q['question'], $q['option_a'], $q['option_b'], $q['option_c'], $q['option_d'], $q['correct_option'], $today);
             $stmt->execute();
             
             // Update MCQ Count
             $countStmt = $conn->prepare("INSERT INTO TopicQuestionCounts (topic_name, question_count) VALUES (?, 1) ON DUPLICATE KEY UPDATE question_count = question_count + 1");
-            $countStmt->bind_param("s", $topicStr);
+            $countStmt->bind_param("s", $topicVal);
             $countStmt->execute();
             
         } elseif ($type === 'short') {
@@ -322,7 +312,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
             
             // Update Short Question Count
             $countStmt = $conn->prepare("INSERT INTO TopicShortQuestionCounts (topic_name, question_count) VALUES (?, 1) ON DUPLICATE KEY UPDATE question_count = question_count + 1");
-            $countStmt->bind_param("s", $topicStr);
+            $countStmt->bind_param("s", $topicVal);
             $countStmt->execute();
             
         } elseif ($type === 'long') {
@@ -332,7 +322,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
             
             // Update Long Question Count
             $countStmt = $conn->prepare("INSERT INTO TopicLongQuestionCounts (topic_name, question_count) VALUES (?, 1) ON DUPLICATE KEY UPDATE question_count = question_count + 1");
-            $countStmt->bind_param("s", $topicStr);
+            $countStmt->bind_param("s", $topicVal);
             $countStmt->execute();
         }
     }
@@ -421,17 +411,22 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
     .q-text {
         font-size: 16px;
         font-weight: bold;
-        display: block;
-        margin-bottom: 8px;
         line-height: 1.4;
     }
 
-    /* MCQ Grid */
-    .options-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px 20px;
-        padding-left: 20px;
+    /* MCQ Table Grid */
+    .options-table {
+        width: 100%;
+        margin-left: 20px;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .options-table td {
+        width: 50%;
+        padding: 4px 5px;
+        font-size: 15px;
+        vertical-align: top;
     }
 
     .option {
@@ -456,29 +451,55 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
         bottom: 30px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-        padding: 12px 24px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        padding: 10px 20px;
         border-radius: 50px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.18);
         display: flex;
-        gap: 15px;
+        gap: 12px;
         z-index: 1000;
-        border: 1px solid rgba(255,255,255,0.5);
+        border: 1px solid rgba(255,255,255,0.8);
+        transition: all 0.3s ease;
+        width: auto;
+        max-width: 95vw;
     }
 
     .btn-float {
         border-radius: 30px;
-        padding: 10px 24px;
-        font-weight: 600;
+        padding: 12px 24px;
+        font-weight: 700;
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
-        transition: all 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        white-space: nowrap;
     }
 
     .btn-float:hover {
-        transform: translateY(-2px);
+        transform: translateY(-4px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 768px) {
+        .action-bar {
+            bottom: 20px;
+            padding: 8px 12px;
+            gap: 8px;
+        }
+        .btn-float {
+            padding: 12px;
+            min-width: 48px;
+            height: 48px;
+        }
+        .btn-float span {
+            display: none;
+        }
+        .btn-float i {
+            margin: 0;
+            font-size: 1.2rem;
+        }
     }
 
     [contenteditable="true"]:hover {
@@ -492,6 +513,31 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
         outline: 2px solid var(--accent-color);
         padding: 2px;
         border-radius: 2px;
+    }
+
+    .marks-badge {
+        font-family: 'Arial', sans-serif;
+        font-size: 13px;
+        font-weight: bold;
+        border: 1px solid #000;
+        padding: 2px 6px;
+        border-radius: 4px;
+        min-width: 40px;
+        text-align: center;
+        background: #fff;
+        cursor: pointer;
+        display: inline-block;
+    }
+
+    .marks-badge::before {
+        content: '[';
+    }
+    .marks-badge::after {
+        content: ']';
+    }
+
+    .marks-val {
+        outline: none;
     }
 
     /* Print Optimizations */
@@ -509,6 +555,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
         }
         .action-bar, .navbar, footer, .alert { display: none !important; }
         .section-title { background-color: #eee !important; }
+        .marks-badge { border: none; padding: 0; }
     }
 </style>
 
@@ -555,45 +602,76 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
         <!-- Professional Paper Preview -->
         <div class="paper-preview">
             <div class="paper-header">
-                <div class="institute-name">Ahmad Learning Hub</div>
-                <div class="text-uppercase fw-bold mb-2">Professional Assessment Test</div>
+                <div class="institute-name" contenteditable="true">Ahmad Learning Hub</div>
+                <div class="text-uppercase fw-bold mb-2" contenteditable="true">Professional Assessment Test</div>
                 <div class="paper-meta">
-                    <span><strong>Subject:</strong> <?= htmlspecialchars(implode(', ', array_slice($topics, 0, 3))) . (count($topics) > 3 ? '...' : '') ?></span>
-                    <span><strong>Date:</strong> <?= date('d M, Y') ?></span>
-                    <span><strong>Total Marks:</strong> Auto</span>
+                    <span contenteditable="true"><strong>Subject:</strong> <?= htmlspecialchars(implode(', ', array_slice($topics, 0, 3))) . (count($topics) > 3 ? '...' : '') ?></span>
+                    <span contenteditable="true"><strong>Date:</strong> <?= date('d M, Y') ?></span>
+                    <span><strong>Total Marks:</strong> <span id="total-marks-display" style="font-weight: 900;">0</span></span>
                 </div>
             </div>
 
             <?php if (!empty($generatedContent['mcqs'])): ?>
-                <div class="section-title">Section A: Multiple Choice Questions</div>
+                <div class="section-title" contenteditable="true">Section A: Multiple Choice Questions</div>
                 <?php foreach ($generatedContent['mcqs'] as $i => $q): ?>
                     <div class="q-item">
-                        <span class="q-text" contenteditable="true">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
-                        <div class="options-grid">
-                            <span class="option" contenteditable="true">(A) <?= htmlspecialchars($q['option_a']) ?></span>
-                            <span class="option" contenteditable="true">(B) <?= htmlspecialchars($q['option_b']) ?></span>
-                            <span class="option" contenteditable="true">(C) <?= htmlspecialchars($q['option_c']) ?></span>
-                            <span class="option" contenteditable="true">(D) <?= htmlspecialchars($q['option_d']) ?></span>
-                        </div>
+                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                            <tr>
+                                <td style="vertical-align: top;">
+                                    <span class="q-text" contenteditable="true">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
+                                </td>
+                                <td style="width: 60px; vertical-align: top; text-align: right;">
+                                    <div class="marks-badge"><span class="marks-val" contenteditable="true" oninput="calculateTotalMarks()">1</span></div>
+                                </td>
+                            </tr>
+                        </table>
+                        <table class="options-table">
+                            <tr>
+                                <td class="option" contenteditable="true">(A) <?= htmlspecialchars($q['option_a']) ?></td>
+                                <td class="option" contenteditable="true">(B) <?= htmlspecialchars($q['option_b']) ?></td>
+                            </tr>
+                            <tr>
+                                <td class="option" contenteditable="true">(C) <?= htmlspecialchars($q['option_c']) ?></td>
+                                <td class="option" contenteditable="true">(D) <?= htmlspecialchars($q['option_d']) ?></td>
+                            </tr>
+                        </table>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
 
             <?php if (!empty($generatedContent['short'])): ?>
-                <div class="section-title">Section B: Short Questions</div>
+                <div class="section-title" contenteditable="true">Section B: Short Questions</div>
                 <?php foreach ($generatedContent['short'] as $i => $q): ?>
                     <div class="q-item">
-                        <span class="q-text" contenteditable="true">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
+                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                            <tr>
+                                <td style="vertical-align: top;">
+                                    <span class="q-text" contenteditable="true">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
+                                </td>
+                                <td style="width: 60px; vertical-align: top; text-align: right;">
+                                    <div class="marks-badge"><span class="marks-val" contenteditable="true" oninput="calculateTotalMarks()">2</span></div>
+                                </td>
+                            </tr>
+                        </table>
                         <div style="height: 60px;"></div> <!-- Space for answer -->
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
 
             <?php if (!empty($generatedContent['long'])): ?>
-                <div class="section-title">Section C: Detailed Questions</div>
+                <div class="section-title" contenteditable="true">Section C: Detailed Questions</div>
                 <?php foreach ($generatedContent['long'] as $i => $q): ?>
                     <div class="q-item">
-                        <span class="q-text" contenteditable="true">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
+                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                            <tr>
+                                <td style="vertical-align: top;">
+                                    <span class="q-text" contenteditable="true">Q.<?= $i+1 ?>: <?= htmlspecialchars($q['question']) ?></span>
+                                </td>
+                                <td style="width: 60px; vertical-align: top; text-align: right;">
+                                    <div class="marks-badge"><span class="marks-val" contenteditable="true" oninput="calculateTotalMarks()">5</span></div>
+                                </td>
+                            </tr>
+                        </table>
                         <div style="height: 120px;"></div> <!-- Space for answer -->
                     </div>
                 <?php endforeach; ?>
@@ -671,7 +749,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
         <!-- Floating Action Bar -->
         <div class="action-bar">
             <button onclick="downloadDocx('paper')" class="btn btn-success btn-float shadow-sm">
-                <i class="fas fa-file-word"></i> <span>Download Paper</span>
+                <i class="fas fa-download"></i> <span>Download Paper</span>
             </button>
             <button onclick="downloadDocx('key')" class="btn btn-info btn-float shadow-sm text-white">
                 <i class="fas fa-key"></i> <span>Download Key</span>
@@ -713,6 +791,19 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
             
             form.submit();
         }
+
+        function calculateTotalMarks() {
+            const displays = document.querySelectorAll('.marks-val');
+            let total = 0;
+            displays.forEach(d => {
+                const val = parseInt(d.innerText) || 0;
+                total += val;
+            });
+            document.getElementById('total-marks-display').innerText = total;
+        }
+
+        // Initialize total marks on load
+        window.addEventListener('load', calculateTotalMarks);
         </script>
 
     <?php endif; ?>

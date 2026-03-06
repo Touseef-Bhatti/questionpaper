@@ -160,7 +160,7 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '') {
         ? "Distribute across topics: " . $topicsStr . ". Each MCQ must include \"topic\" field with the topic name."
         : "Topic: {$topicsStr}.";
 
-    $prompt = "Generate exactly {$count} MCQs. {$distHint} {$levelHint}Return ONLY a JSON array. Each item: {\"topic\":\"...\", \"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. No extra text.";
+    $prompt = "Generate exactly {$count} MCQs. {$distHint} {$levelHint}Return ONLY a JSON array. Each item: {\"topic\":\"...\", \"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. also recheck correct answer. No extra text.";
     $maxTokens = min(16000, 500 + $count * 400);
 
     list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, 120);
@@ -261,7 +261,7 @@ function generateMCQsWithGemini($topic, $count = 10, $level = '') {
 
     $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
     $levelHint = $lvl ? "Difficulty: {$lvl}. " : '';
-    $prompt = "Generate exactly {$count} MCQs on topic: {$topic}. {$levelHint}Return ONLY a JSON array. Each item: {\"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. No extra text.";
+    $prompt = "Generate exactly {$count} MCQs on topic: {$topic}. {$levelHint}Return ONLY a JSON array. Each item: {\"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. Also recheck the correct answer. No extra text.";
     $maxTokens = min(18000, 500 + $count * 400);
 
     list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, 60);

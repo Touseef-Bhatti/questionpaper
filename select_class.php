@@ -56,6 +56,9 @@ $classResult = $conn->query($classQuery);
                     <?= htmlspecialchars($row['class_name']); ?>
                 </div>
             <?php } ?>
+            <div class="class-box other-class-box" onclick="window.location.href = 'questionPaperFromTopic/index.php'">
+                Others
+            </div>
         </div>
     </div>
      <div class="features-highlight">

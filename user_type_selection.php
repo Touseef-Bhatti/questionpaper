@@ -10,38 +10,43 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(15, 23, 42, 0.8); /* Dark blur background */
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        z-index: 10000; /* Very high to sit on top of everything */
-        display: none; /* Hidden by default */
+        background-color: rgba(15, 23, 42, 0.85); /* Slightly darker, removed blur for performance */
+        z-index: 10000;
+        display: flex;
         justify-content: center;
         align-items: center;
         opacity: 0;
-        transition: opacity 0.3s ease;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.2s linear, visibility 0.2s linear;
+        will-change: opacity;
     }
 
     .user-type-overlay.show {
-        display: flex;
+        visibility: visible;
+        pointer-events: auto;
         opacity: 1;
     }
 
     /* The Modal Box */
     .user-type-modal {
-        background: rgba(255, 255, 255, 0.95);
+        background: #ffffff;
         padding: 2.5rem;
         border-radius: 24px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
         text-align: center;
         max-width: 90%;
         width: 400px;
-        transform: scale(0.9);
-        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        border: 1px solid rgba(255, 255, 255, 0.5);
+        transform: translateY(10px);
+        opacity: 0;
+        transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        will-change: transform, opacity;
     }
 
     .user-type-overlay.show .user-type-modal {
-        transform: scale(1);
+        transform: translateY(0);
+        opacity: 1;
     }
 
     .user-type-title {
@@ -49,7 +54,7 @@
         font-weight: 800;
         color: #1e293b;
         margin-bottom: 0.5rem;
-        font-family: 'Inter', system-ui, sans-serif;
+        font-family: inherit;
     }
 
     .user-type-subtitle {
@@ -62,45 +67,40 @@
     .user-type-buttons {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.75rem;
     }
 
     .type-btn {
-        padding: 1rem;
+        padding: 1.1rem;
         border: 2px solid #e2e8f0;
-        border-radius: 16px;
-        background: white;
+        border-radius: 12px;
+        background: #ffffff;
         color: #1e293b;
         font-weight: 700;
         font-size: 1.1rem;
         cursor: pointer;
-        transition: all 0.2s ease;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 10px;
-        font-family: 'Inter', system-ui, sans-serif;
+        font-family: inherit;
+        width: 100%;
+        transition: background 0.1s;
     }
 
     .type-btn:hover {
-        border-color: #6366f1;
-        color: #6366f1;
-        background: #f8fafc;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        background: #f1f5f9;
+        border-color: #cbd5e1;
     }
 
     .type-btn.primary {
-        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-        color: white;
+        background: #6366f1;
+        color: #ffffff;
         border: none;
-        box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
     }
 
     .type-btn.primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.23);
-        background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+        background: #4f46e5;
     }
 
     /* Icon styling placeholder */
@@ -137,11 +137,10 @@
             // No choice made yet, show popup after 5 seconds
             setTimeout(() => {
                 const overlay = document.getElementById('userTypeOverlay');
-                overlay.style.display = 'flex';
-                // Small timeout for animation
-                setTimeout(() => {
+                // Use requestAnimationFrame for smoother entry
+                requestAnimationFrame(() => {
                     overlay.classList.add('show');
-                }, 50);
+                });
             }, 5000);
         } else {
             console.log('User type already selected:', userType);
@@ -157,12 +156,11 @@
         const overlay = document.getElementById('userTypeOverlay');
         overlay.classList.remove('show');
         
-        setTimeout(() => {
-            overlay.style.display = 'none';
-        }, 300);
+        // Apply settings immediately but smoothly
+        requestAnimationFrame(() => {
+            applyUserTypeSettings(type);
+        });
 
-        applyUserTypeSettings(type);
-        
         console.log('User type saved:', type);
     }
 
@@ -171,58 +169,45 @@
         document.body.classList.remove('user-type-school', 'user-type-other');
         document.body.classList.add('user-type-' + type.toLowerCase());
 
-        // Update Navigation Links based on user type
+        // Update Navigation Links based on user type - targeting only relevant sections to avoid lag
         updateLinks(type);
     }
 
     function updateLinks(type) {
-        const links = document.querySelectorAll('a');
+        // Only target links in nav and footer to minimize iteration
+        // Also target links that explicitly point to our target files
+        const links = document.querySelectorAll('nav a, footer a, [href*="select_class.php"], [href*="quiz_setup.php"], [href*="questionPaperFromTopic"], [href*="mcqs_topic.php"]');
+        
+        // Batch the updates to avoid layout thrashing
+        const updates = [];
         
         links.forEach(link => {
             const href = link.getAttribute('href');
             if (!href) return;
 
-            // Define targets
             const targetGeneratePaper = 'select_class.php';
-            const targetQuizSetup = 'quiz_setup.php'; // Matches quiz/quiz_setup.php or just quiz_setup.php
+            const targetQuizSetup = 'quiz_setup.php';
 
-            // Logic for "Other" type
             if (type === 'Other') {
-                if (href.indexOf(targetGeneratePaper) !== -1) {
-                    // Check if we need to adjust path (e.g. if we are in a subdir)
-                    // We can just replace the filename part if we assume structure
-                    // But simpler: if it contains select_class.php, replace it with questionPaperFromTopic/index.php
-                    // We need to handle relative paths carefully.
-                    // If href is "select_class.php", new is "questionPaperFromTopic/index.php"
-                    // If href is "../select_class.php", new is "../questionPaperFromTopic/index.php"
-                    link.href = link.href.replace('select_class.php', 'questionPaperFromTopic/index.php');
+                if (href.includes(targetGeneratePaper)) {
+                    updates.push(() => { link.href = link.href.replace('select_class.php', 'questionPaperFromTopic/index.php'); });
+                } else if (href.includes(targetQuizSetup)) {
+                    updates.push(() => { link.href = link.href.replace('quiz_setup.php', 'mcqs_topic.php'); });
                 }
-                if (href.indexOf(targetQuizSetup) !== -1) {
-                    // Replace quiz_setup.php with mcqs_topic.php
-                    // Note: mcqs_topic.php is usually in the same directory (quiz/) as quiz_setup.php
-                    // So we just replace the filename.
-                    // However, in header.php it might be "quiz/quiz_setup.php".
-                    // If we replace "quiz_setup.php" with "mcqs_topic.php", "quiz/quiz_setup.php" becomes "quiz/mcqs_topic.php". Correct.
-                    link.href = link.href.replace('quiz_setup.php', 'mcqs_topic.php');
-                }
-            } 
-            // Logic for "School" type (Revert to defaults if needed, though usually default HTML is School)
-            else if (type === 'School') {
-                // If the link was previously changed to the "Other" version, revert it.
-                // This handles the case where user switches types without reloading (if we allowed that)
-                // or if we just want to be safe.
-                if (href.indexOf('questionPaperFromTopic/index.php') !== -1) {
-                    link.href = link.href.replace('questionPaperFromTopic/index.php', 'select_class.php');
-                }
-                if (href.indexOf('mcqs_topic.php') !== -1) {
-                    // Be careful not to replace legitimate links to mcqs_topic.php if any exist that SHOULD remain mcqs_topic.php
-                    // But based on user request, for School, "Take a Test" should be quiz_setup.php.
-                    // If there was a link explicitly to mcqs_topic.php that shouldn't change, this might be an issue.
-                    // However, standard nav usually points to quiz_setup.php.
-                    // Let's assume we are reverting our own changes.
-                    link.href = link.href.replace('mcqs_topic.php', 'quiz_setup.php');
+            } else if (type === 'School') {
+                if (href.includes('questionPaperFromTopic/index.php')) {
+                    updates.push(() => { link.href = link.href.replace('questionPaperFromTopic/index.php', 'select_class.php'); });
+                } else if (href.includes('mcqs_topic.php')) {
+                    updates.push(() => { link.href = link.href.replace('mcqs_topic.php', 'quiz_setup.php'); });
                 }
             }
         });
+
+        // Apply all updates in one frame
+        if (updates.length > 0) {
+            requestAnimationFrame(() => {
+                updates.forEach(update => update());
+            });
+        }
     }
 </script>

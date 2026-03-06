@@ -12,6 +12,10 @@ $types = $_GET['type'] ?? [];
 if (!is_array($types)) {
     $types = $types ? [$types] : [];
 }
+$exclude = $_GET['exclude'] ?? [];
+if (!is_array($exclude)) {
+    $exclude = $exclude ? [$exclude] : [];
+}
 
 if (!$search) {
     echo json_encode(['success' => false, 'message' => 'Search term required']);
@@ -28,15 +32,9 @@ $conn->query("CREATE TABLE IF NOT EXISTS generated_topics (
 )");
 
 try {
-    // 2. Call AI
-    // We pass the types context to get better results
-    $typeStr = !empty($types) ? implode(', ', $types) : 'all';
-    
-    // Custom logic to enhance the search query for AI if needed
-    // Actually searchTopicsWithGemini in mcq_generator.php already handles the AI call.
-    // We can wrap it or modify it to accept types.
-    
-    $results = searchTopicsWithGemini($search, 0, 0, $types);
+    // 2. Call AI with forceRefresh = true to skip cache and get new results
+    // Also pass $exclude to get DIFFERENT topics than those already shown
+    $results = searchTopicsWithGemini($search, 0, 0, $types, true, $exclude);
     
     $newTopics = [];
     foreach ($results as $res) {

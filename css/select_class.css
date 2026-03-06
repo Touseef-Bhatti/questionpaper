@@ -256,5 +256,15 @@
                 padding: 1.5rem;
             }
         }
+
+        .other-class-box {
+            background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark)) !important;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4) !important;
+        }
+
+        .other-class-box:hover {
+            background: linear-gradient(135deg, var(--secondary-dark), var(--secondary-color)) !important;
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.5) !important;
+        }
         
    

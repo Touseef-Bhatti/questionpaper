@@ -94,6 +94,24 @@ if (!empty($otherTypes)) {
     }
 }
 
+// Search AI Generated Tables (General Topic List)
+$stmt = $conn->prepare("SELECT DISTINCT topic_name FROM AIQuestionsTopic WHERE topic_name LIKE ? LIMIT 50");
+$stmt->bind_param('s', $term);
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $topics[] = $row['topic_name'];
+}
+
+// Search generated_topics table (Search by topic_name OR source_term)
+$stmt = $conn->prepare("SELECT DISTINCT topic_name FROM generated_topics WHERE topic_name LIKE ? OR source_term LIKE ? LIMIT 100");
+$stmt->bind_param('ss', $term, $term);
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $topics[] = $row['topic_name'];
+}
+
 // Remove duplicates
 $topics = array_values(array_unique($topics));
 

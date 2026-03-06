@@ -467,39 +467,42 @@ body.menu-open {
 }
 /* Auth Modal Styles */
 .auth-modal {
-    display: none;
     position: fixed;
     z-index: 2000;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background-color: rgba(15, 23, 42, 0.85); /* Slightly darker, removed blur for performance */
+    display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.4s ease;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s linear, visibility 0.2s linear;
+    will-change: opacity;
 }
 
 .auth-modal.show {
-    display: flex;
     opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .auth-modal-content {
-    background: rgba(255, 255, 255, 0.95);
+    background: #ffffff;
     padding: 2.5rem;
     border-radius: 24px;
     width: 90%;
     max-width: 450px;
     text-align: center;
     position: relative;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    transform: translateY(20px);
-    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    transform: translateY(10px);
+    transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    will-change: transform, opacity;
 }
 
 .auth-modal.show .auth-modal-content {
@@ -545,20 +548,18 @@ body.menu-open {
     border-radius: 12px;
     font-weight: 600;
     text-decoration: none;
-    transition: all 0.3s;
     font-size: 1rem;
+    transition: background 0.1s;
+    display: block;
 }
 
 .btn-auth-login {
-    background: var(--gradient-primary, linear-gradient(135deg, #4F46E5 0%, #0EA5E9 100%));
+    background: #6366f1;
     color: white;
-    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
 }
 
 .btn-auth-login:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
-    opacity: 0.95;
+    background: #4f46e5;
 }
 
 .btn-auth-register {
@@ -569,7 +570,6 @@ body.menu-open {
 
 .btn-auth-register:hover {
     background: #e2e8f0;
-    transform: translateY(-2px);
 }
 
 .auth-modal-footer {
@@ -772,18 +772,14 @@ body.menu-open {
             document.getElementById('modalSubtitle').textContent = 'Your session has expired. Please login again to continue.';
         }
 
-        authModal.style.display = 'flex';
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             authModal.classList.add('show');
-        }, 10);
+        });
     }
 
     function hideAuthModal() {
         if (!authModal) return;
         authModal.classList.remove('show');
-        setTimeout(() => {
-            authModal.style.display = 'none';
-        }, 400);
         // Mark as seen for this session
         sessionStorage.setItem('alh_auth_modal_seen', 'true');
     }

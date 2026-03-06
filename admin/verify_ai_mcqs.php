@@ -179,7 +179,7 @@ $totalRows = $countRes ? $countRes->fetch_assoc()['cnt'] : 0;
 $totalPages = ceil($totalRows / $perPage);
 
 // Fetch Report Data
-$reportSql = "SELECT m.$pk as id, m.topic, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option as current_correct, 
+$reportSql = "SELECT m.$pk as id, m.topic, m.question_text as question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option as current_correct, 
         v.verification_status, v.suggested_correct_option, v.original_correct_option, v.ai_notes, v.last_checked_at
         FROM $mainTable m
         JOIN $verifyTable v ON m.$pk = v.$fk
