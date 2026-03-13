@@ -1,10 +1,15 @@
 <?php 
+ob_start(); // Start output buffering to prevent header issues
 session_start();
 
 include '../db_connect.php'; // mysqli $conn
 require_once '../config/google_oauth.php';
 require_once '../services/SubscriptionService.php';
 
+// Prevent caching of login page
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
 
 // Handle error messages from OAuth callback
 $error = '';
@@ -37,8 +42,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_SESSION["role"] = $_SESSION["role"] ?? 'user';
             
             // Auto-cleanup expired subscriptions on login
-            $subService = new SubscriptionService($conn);
-            $subService->cleanupExpiredSubscriptions($user["id"]);
+            try {
+                $subService = new SubscriptionService($conn);
+                $subService->cleanupExpiredSubscriptions($user["id"]);
+            } catch (Exception $e) {
+                // Log the error but don't block login
+                error_log('Subscription cleanup error during login: ' . $e->getMessage());
+            }
             
             // Handle remember me functionality
             if (isset($_POST['remember_me']) && $_POST['remember_me']) {
@@ -164,5 +174,6 @@ function togglePassword(fieldId) {
 <?php if (!empty($error)): ?>
 <script>showPopup("<?= htmlspecialchars($error) ?>");</script>
 <?php endif; ?>
+<?php ob_end_flush(); // Flush output buffer ?>
 </body>
 </html>
