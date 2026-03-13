@@ -46,15 +46,21 @@ class SubscriptionService
             // Fetch features from the new table
             $planId = intval($subscription['plan_id']);
             $features = [];
-            $featSql = "SELECT feature_text FROM subscription_plan_features WHERE plan_id = ? ORDER BY sort_order ASC";
-            $featStmt = $this->conn->prepare($featSql);
-            $featStmt->bind_param("i", $planId);
-            $featStmt->execute();
-            $featRes = $featStmt->get_result();
-            while($fRow = $featRes->fetch_assoc()) {
-                $features[] = $fRow['feature_text'];
+            try {
+                $featSql = "SELECT feature_text FROM subscription_plan_features WHERE plan_id = ? ORDER BY sort_order ASC";
+                $featStmt = $this->conn->prepare($featSql);
+                $featStmt->bind_param("i", $planId);
+                $featStmt->execute();
+                $featRes = $featStmt->get_result();
+                while($fRow = $featRes->fetch_assoc()) {
+                    $features[] = $fRow['feature_text'];
+                }
+                $featStmt->close();
+            } catch (Exception $e) {
+                // subscription_plan_features table may not exist; use empty features
+                error_log('Features table error: ' . $e->getMessage());
+                $features = [];
             }
-            $featStmt->close();
             
             $subscription['features_list'] = $features;
             return $subscription;
@@ -118,15 +124,21 @@ class SubscriptionService
             // Fetch features from the new table
             $planId = intval($plan['id']);
             $features = [];
-            $featSql = "SELECT feature_text FROM subscription_plan_features WHERE plan_id = ? ORDER BY sort_order ASC";
-            $featStmt = $this->conn->prepare($featSql);
-            $featStmt->bind_param("i", $planId);
-            $featStmt->execute();
-            $featRes = $featStmt->get_result();
-            while($fRow = $featRes->fetch_assoc()) {
-                $features[] = $fRow['feature_text'];
+            try {
+                $featSql = "SELECT feature_text FROM subscription_plan_features WHERE plan_id = ? ORDER BY sort_order ASC";
+                $featStmt = $this->conn->prepare($featSql);
+                $featStmt->bind_param("i", $planId);
+                $featStmt->execute();
+                $featRes = $featStmt->get_result();
+                while($fRow = $featRes->fetch_assoc()) {
+                    $features[] = $fRow['feature_text'];
+                }
+                $featStmt->close();
+            } catch (Exception $e) {
+                // subscription_plan_features table may not exist; use empty features
+                error_log('Features table error: ' . $e->getMessage());
+                $features = [];
             }
-            $featStmt->close();
             
             $plan['features'] = $features;
             $plan['user_id'] = $userId;
@@ -151,15 +163,21 @@ class SubscriptionService
         while ($row = $result->fetch_assoc()) {
             $planId = intval($row['id']);
             $features = [];
-            $featSql = "SELECT feature_text FROM subscription_plan_features WHERE plan_id = ? ORDER BY sort_order ASC";
-            $featStmt = $this->conn->prepare($featSql);
-            $featStmt->bind_param("i", $planId);
-            $featStmt->execute();
-            $featRes = $featStmt->get_result();
-            while($fRow = $featRes->fetch_assoc()) {
-                $features[] = $fRow['feature_text'];
+            try {
+                $featSql = "SELECT feature_text FROM subscription_plan_features WHERE plan_id = ? ORDER BY sort_order ASC";
+                $featStmt = $this->conn->prepare($featSql);
+                $featStmt->bind_param("i", $planId);
+                $featStmt->execute();
+                $featRes = $featStmt->get_result();
+                while($fRow = $featRes->fetch_assoc()) {
+                    $features[] = $fRow['feature_text'];
+                }
+                $featStmt->close();
+            } catch (Exception $e) {
+                // subscription_plan_features table may not exist; use empty features
+                error_log('Features table error: ' . $e->getMessage());
+                $features = [];
             }
-            $featStmt->close();
             
             $row['features'] = $features;
             $plans[] = $row;

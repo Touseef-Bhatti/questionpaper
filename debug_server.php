@@ -74,13 +74,7 @@ require_once 'config/env.php';
             echo '<div class="status ok"><strong>✓ Database Connected Successfully</strong></div>';
             
             // Get database info
-            $result = $conn->query("SELECT VERSION() as version; SELECT DATABASE() as database;");
-            if ($result) {
-                $row = $result->fetch_assoc();
-                echo '<div class="status"><strong>MySQL Version:</strong> ' . $row['version'] . '</div>';
-            }
-            
-            // Check subscription tables
+                $result = $conn->query("SELECT VERSION() as version");
             $tableCheck = $conn->query("SHOW TABLES LIKE 'user_subscriptions'");
             if ($tableCheck && $tableCheck->num_rows > 0) {
                 echo '<div class="status ok"><strong>✓ Subscription tables exist</strong></div>';
