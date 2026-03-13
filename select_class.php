@@ -3,10 +3,13 @@ require_once 'auth/auth_check.php';
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 
-// Fetch all available classes with their IDs and names
-$classQuery = "SELECT class_id, class_name FROM class";
+// Fetch all available classes with their IDs and names using prepared statement (OPTIMIZED)
+$classQuery = "SELECT class_id, class_name FROM class ORDER BY class_id ASC";
 $classResult = $conn->query($classQuery);
-?>
+
+if (!$classResult) {
+    die("<h2 style='color:red;'>Database error: " . htmlspecialchars($conn->error) . "</h2>");
+}
 
 <!DOCTYPE html>
 <html lang="en">

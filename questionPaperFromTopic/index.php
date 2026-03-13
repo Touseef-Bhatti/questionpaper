@@ -3,7 +3,12 @@ require_once __DIR__ . '/../auth/auth_check.php';
 $pageTitle = "Question Paper Generator | Enterprise Edition";
 require_once __DIR__ . '/../header.php';
 require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
+require_once __DIR__ . '/../services/CacheManager.php';
+require_once __DIR__ . '/../services/DatabaseQueryService.php';
 
+// Initialize services
+$cache = new CacheManager();
+$dbService = new DatabaseQueryService($conn, $cache);
 ?>
 
 <!-- Link Professional CSS -->

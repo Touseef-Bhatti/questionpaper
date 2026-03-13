@@ -13,50 +13,28 @@ if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !isset($_GET['book_
 
 // Retrieve and sanitize input
 $classId = intval($_GET['class_id']);
-$book_name = trim($conn->real_escape_string($_GET['book_name']));
+$book_name = trim($_GET['book_name'] ?? '');
 
-// Function to get pattern defaults based on class and book name
-function getPatternDefaults($classId, $book_name) {
-    $book_name_lower = strtolower($book_name);
-    
-    // Check if class is 9 or 10
-    if ($classId == 9 || $classId == 10) {
-        // For physics, chemistry, biology
-        if (in_array($book_name_lower, ['physics', 'chemistry', 'biology'])) {
-            return [
-                'mcqs' => 12,
-                'sq' => 24,
-                'long' => 3
-            ];
-        }
-        // For computer
-        if ($book_name_lower == 'computer') {
-            return [
-                'mcqs' => 10,
-                'sq' => 18,
-                'long' => 3
-            ];
-        }
-    }
-    
-    // Default values if conditions don't match
-    return [
-        'mcqs' => 0,
-        'sq' => 0,
-        'long' => 0
-    ];
+if (empty($book_name)) {
+    header('Location: select_class.php');
+    exit;
 }
 
-// Get pattern defaults
-$patternDefaults = getPatternDefaults($classId, $book_name);
+// Fetch chapters using prepared statement (OPTIMIZED)
+$chapterQuery = "SELECT chapter_id, chapter_name FROM chapter WHERE class_id = ? AND book_name = ? ORDER BY chapter_id ASC";
+$stmt = $conn->prepare($chapterQuery);
 
-// Fetch chapters
-$chapterQuery = "SELECT chapter_id, chapter_name FROM chapter WHERE class_id = $classId AND book_name = '$book_name' ORDER BY chapter_id ASC";
-$result = $conn->query($chapterQuery);
+if (!$stmt) {
+    die("<h2 style='color:red;'>Error: " . htmlspecialchars($conn->error) . "</h2>");
+}
+
+$stmt->bind_param('is', $classId, $book_name);
+$stmt->execute();
+$result = $stmt->get_result();
 
 // Check for errors
 if (!$result) {
-	die("<h2 style='color:red;'>Error fetching data: " . $conn->error . "</h2>");
+	die("<h2 style='color:red;'>Error fetching data: " . htmlspecialchars($conn->error) . "</h2>");
 }
 
 ?>

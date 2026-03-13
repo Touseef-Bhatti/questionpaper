@@ -359,6 +359,84 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS pending_admin_actions (
     INDEX idx_token (token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: pending_admin_actions");
 
+// ========== PERFORMANCE INDEXES - CRITICAL FOR PRODUCTION ==========
+echo "\n\n=== Creating Performance Indexes ===\n";
+
+// Class & Book Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_class_id ON class(class_id);", "Index: class(class_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_book_class ON book(class_id);", "Index: book(class_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_book_id ON book(book_id);", "Index: book(book_id)");
+
+// Chapter Indexes - Most Critical
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_chapter_class_book ON chapter(class_id, book_id);", "Index: chapter(class_id, book_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_chapter_book_name ON chapter(book_name, class_id);", "Index: chapter(book_name, class_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_chapter_id ON chapter(chapter_id);", "Index: chapter(chapter_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_chapter_book_id ON chapter(book_id);", "Index: chapter(book_id)");
+
+// Questions Indexes - MOST CRITICAL FOR PERFORMANCE
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_questions_chapter ON questions(chapter_id);", "Index: questions(chapter_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_questions_book ON questions(book_id);", "Index: questions(book_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_questions_class ON questions(class_id);", "Index: questions(class_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_questions_type_chapter ON questions(question_type, chapter_id);", "Index: questions(question_type, chapter_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_questions_topic_type ON questions(topic, question_type);", "Index: questions(topic, question_type)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_questions_class_book_chapter ON questions(class_id, book_id, chapter_id, question_type);", "Index: questions(class_id, book_id, chapter_id, question_type)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_questions_type_date ON questions(question_type, created_at);", "Index: questions(question_type, created_at)");
+
+// MCQs Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_mcqs_chapter ON mcqs(chapter_id);", "Index: mcqs(chapter_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_mcqs_book ON mcqs(book_id);", "Index: mcqs(book_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_mcqs_class ON mcqs(class_id);", "Index: mcqs(class_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_mcqs_class_book_chapter ON mcqs(class_id, book_id, chapter_id);", "Index: mcqs(class_id, book_id, chapter_id)");
+
+// Question Papers Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_papers_user ON question_papers(user_id);", "Index: question_papers(user_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_papers_user_date ON question_papers(user_id, created_at);", "Index: question_papers(user_id, created_at)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_papers_favourite ON question_papers(is_favourite);", "Index: question_papers(is_favourite)");
+
+// Subscription Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user ON user_subscriptions(user_id);", "Index: user_subscriptions(user_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_user_subscriptions_status ON user_subscriptions(status);", "Index: user_subscriptions(status)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_user_subscriptions_active ON user_subscriptions(user_id, status, expires_at);", "Index: user_subscriptions(user_id, status, expires_at)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_subscription_plans_id ON subscription_plans(id);", "Index: subscription_plans(id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_subscription_plans_name ON subscription_plans(name);", "Index: subscription_plans(name)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_subscription_plan_features_plan ON subscription_plan_features(plan_id);", "Index: subscription_plan_features(plan_id)");
+
+// Quiz Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_quiz_rooms_host ON quiz_rooms(host_id);", "Index: quiz_rooms(host_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_quiz_rooms_code ON quiz_rooms(room_code);", "Index: quiz_rooms(room_code)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_quiz_rooms_status ON quiz_rooms(status);", "Index: quiz_rooms(status)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_quiz_participants_room ON quiz_participants(room_id);", "Index: quiz_participants(room_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_quiz_responses_participant ON quiz_responses(participant_id);", "Index: quiz_responses(participant_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_quiz_responses_room ON quiz_responses(participant_id, question_id);", "Index: quiz_responses(participant_id, question_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_live_quiz_events_room_created ON live_quiz_events(room_id, created_at);", "Index: live_quiz_events(room_id, created_at)");
+
+// Usage Tracking Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_usage_tracking_user_date ON usage_tracking(user_id, created_at DESC);", "Index: usage_tracking(user_id, created_at DESC)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_usage_tracking_action_date ON usage_tracking(action, created_at);", "Index: usage_tracking(action, created_at)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_usage_tracking_user_action_date ON usage_tracking(user_id, action, created_at);", "Index: usage_tracking(user_id, action, created_at)");
+
+// User Generated Papers Log Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_papers_log_user_date ON user_generated_papers_log(user_id, created_at DESC);", "Index: user_generated_papers_log(user_id, created_at DESC)");
+
+// API Keys Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_api_keys_status ON api_keys(status);", "Index: api_keys(status)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_api_keys_provider ON api_keys(provider);", "Index: api_keys(provider)");
+
+// Uploaded Notes Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_notes_chapter ON uploaded_notes(chapter_id);", "Index: uploaded_notes(chapter_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_notes_class_book ON uploaded_notes(class_id, book_id);", "Index: uploaded_notes(class_id, book_id)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_notes_deleted ON uploaded_notes(is_deleted);", "Index: uploaded_notes(is_deleted)");
+
+// Users Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);", "Index: users(email)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);", "Index: users(created_at)");
+
+// Admin Indexes
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_admin_logs_admin_date ON admin_logs(admin_id, created_at);", "Index: admin_logs(admin_id, created_at)");
+runQuery($conn, "CREATE INDEX IF NOT EXISTS idx_pending_admin_token ON pending_admin_actions(token);", "Index: pending_admin_actions(token)");
+
+echo "\n\n=== Performance Indexes Created ===\n";
+
 echo "\nInstallation complete!\n";
 echo "</pre>";
 ?>

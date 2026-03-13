@@ -1,27 +1,30 @@
 <?php
 require_once 'auth/auth_check.php';
-// Require authentication before accessing this page
-// require_once 'auth_check.php';
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 
-
-// Ensure class_id is provided
-if (!isset($_GET['class_id']) || empty($_GET['class_id'])) {
-    // Redirect if no class_id is provided
+// Ensure class_id is provided and is valid integer
+if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !is_numeric($_GET['class_id'])) {
     header('Location: select_class.php');
     exit;
 }
 
+$classId = intval($_GET['class_id']);
 
-$classId = intval($_GET['class_id']); // Sanitize class_id
+// Select all books for this class using prepared statement (OPTIMIZED)
+$bookQuery = "SELECT book_id, book_name FROM book WHERE class_id = ? ORDER BY book_id ASC";
+$stmt = $conn->prepare($bookQuery);
 
-// Select all books for this class
-$bookQuery = "SELECT * FROM book WHERE class_id = $classId";
-$result = $conn->query($bookQuery);
+if (!$stmt) {
+    die("<h2 style='color:red;'>Database error: " . htmlspecialchars($conn->error) . "</h2>");
+}
+
+$stmt->bind_param('i', $classId);
+$stmt->execute();
+$result = $stmt->get_result();
 
 if (!$result) {
-    die("<h2 style='color:red;'>Database error: " . htmlspecialchars($conn->error) . "</h2>");
+    die("<h2 style='color:red;'>Query error: " . htmlspecialchars($conn->error) . "</h2>");
 }
 ?>
 

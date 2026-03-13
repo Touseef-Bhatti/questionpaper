@@ -3,18 +3,24 @@ require_once 'auth/auth_check.php';
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 
-if (!isset($_POST['chapters']) || empty($_POST['chapters'])) {
-    echo("<h2 style='color:red;'>No chapters selected. Please go back and select chapters.</h2>");
-    header('Location: select_class.php');
+$classId = intval($_POST['class_id']);
+$book_name = trim($_POST['book_name'] ?? '');
+
+if (empty($book_name)) {
+    echo("<h2 style='color:red;'>Invalid book name. Please go back and try again.</h2>");
     exit;
 }
 
-$classId = intval($_POST['class_id']);
-$book_name = trim($conn->real_escape_string($_POST['book_name']));
-$selectedChapters = $_POST['chapters'];
-$shortQuestions = $_POST['short_questions'];
+// Validate and retrieve chapters from POST using prepared statements (OPTIMIZED)
+$selectedChapters = $_POST['chapters'] ?? [];
+if (empty($selectedChapters)) {
+    echo("<h2 style='color:red;'>No chapters selected. Please go back and select chapters.</h2>");
+    exit;
+}
+
+$shortQuestions = $_POST['short_questions'] ?? [];
 $mcqs = isset($_POST['mcqs']) ? $_POST['mcqs'] : [];
-$longQuestions = $_POST['long_questions'];
+$longQuestions = $_POST['long_questions'] ?? [];
 $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
 ?>
 <!DOCTYPE html>

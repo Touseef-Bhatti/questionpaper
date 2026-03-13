@@ -126,23 +126,39 @@ if ($isTopicSource) {
         }
     }
     if (!empty($chapterIds)) {
-        $in = implode(',', array_map('intval', $chapterIds));
-        $nums = [];
-        $res = $conn->query("SELECT chapter_id, COALESCE(chapter_no, chapter_id) AS num FROM chapter WHERE chapter_id IN ($in) ORDER BY num ASC");
-        if ($res) {
-            while ($row = $res->fetch_assoc()) {
-                $nums[] = (string)intval($row['num']);
+        // Use prepared statement for better performance and security (OPTIMIZED)
+        $placeholders = str_repeat('?,', count($chapterIds) - 1) . '?';
+        $sql = "SELECT chapter_id, COALESCE(chapter_no, chapter_id) AS num FROM chapter WHERE chapter_id IN ($placeholders) ORDER BY num ASC";
+        $stmt = $conn->prepare($sql);
+        
+        if ($stmt) {
+            $types = str_repeat('i', count($chapterIds));
+            $stmt->bind_param($types, ...$chapterIds);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    $nums[] = (string)intval($row['num']);
+                }
             }
         }
+        
         if (!empty($nums)) {
             $nums = array_values(array_unique($nums));
             $chapterHeaderLabel = 'Chapters: ' . implode(', ', $nums);
         }
     }
     
-    $clsRes = $conn->query("SELECT class_name FROM class WHERE class_id = $classId LIMIT 1");
-    if ($clsRes && ($clsRow = $clsRes->fetch_assoc())) {
-        $classNameHeader = htmlspecialchars($clsRow['class_name']);
+    // Fetch class name using prepared statement (OPTIMIZED)
+    $clsStmt = $conn->prepare("SELECT class_name FROM class WHERE class_id = ? LIMIT 1");
+    if ($clsStmt) {
+        $clsStmt->bind_param('i', $classId);
+        $clsStmt->execute();
+        $clsRes = $clsStmt->get_result();
+        if ($clsRow = $clsRes->fetch_assoc()) {
+            $classNameHeader = htmlspecialchars($clsRow['class_name']);
+        }
     }
     
     if (!empty($_POST['mcqs'])) {
