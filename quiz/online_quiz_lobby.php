@@ -439,7 +439,7 @@ function h($str) {
         }
     </style>
 </head>
-<?php include '../header.php'; ?>
+<?php include_once '../header.php'; ?>
 <body>
     <div class="lobby-wrapper">
         <div class="lobby-container">

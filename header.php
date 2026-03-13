@@ -37,11 +37,13 @@ if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
 
 // Active page detection logic
 $current_page = $_SERVER['SCRIPT_NAME'];
-function is_active($page_name) {
-    global $current_page;
-    // Check if the current page path contains the page name
-    // This handles both root-level and subdirectory pages
-    return (strpos($current_page, $page_name) !== false) ? 'active' : '';
+if (!function_exists('is_active')) {
+    function is_active($page_name) {
+        global $current_page;
+        // Check if the current page path contains the page name
+        // This handles both root-level and subdirectory pages
+        return (strpos($current_page, $page_name) !== false) ? 'active' : '';
+    }
 }
 
 // Special check for Generate Paper dropdown
@@ -63,7 +65,124 @@ foreach ($gen_paper_pages as $p) {
     <?php if (isset($metaDescription)): ?>
     <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
     <?php endif; ?>
-     <style>
+    
+    <!-- Theme initialization script to prevent flash of unstyled content -->
+    <script>
+        (function() {
+            var isDarkMode = localStorage.getItem('darkMode') === 'enabled';
+            var userType = localStorage.getItem('user_type_preference');
+            
+            if (isDarkMode) {
+                document.documentElement.classList.add('dark-mode');
+            }
+            // Add school-mode indicator to HTML for CSS, but store it as user_type_preference
+            if (userType === 'School' || userType === null) {
+                document.documentElement.classList.add('school-mode');
+            }
+        })();
+    </script>
+    
+    <style>
+    /* Dark Mode Overrides */
+    html.dark-mode {
+        --background: #0f172a;
+        --surface: #1e293b;
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --text-tertiary: #94a3b8;
+        --border: #334155;
+        --primary-color: #818cf8;
+        --primary-dark: #a5b4fc;
+        --dark-gray: #f1f5f9;
+        --light-gray: #0f172a;
+        --white: #1e293b;
+        color-scheme: dark;
+    }
+
+    html.dark-mode body {
+        background-color: var(--background);
+        color: var(--text-primary);
+    }
+
+    html.dark-mode .navbar {
+        background: rgba(30, 41, 59, 0.75);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* slight border */
+    }
+    
+    html.dark-mode .nav-menu li a {
+        color: var(--text-primary);
+    }
+
+    html.dark-mode .dropdown-content {
+        background-color: var(--surface);
+        border-color: var(--border);
+    }
+
+    html.dark-mode .dropdown-content a {
+        color: var(--text-primary);
+        border-bottom-color: var(--border);
+    }
+
+    html.dark-mode .dropdown-content a:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: var(--primary-dark);
+    }
+    
+    html.dark-mode .nav-toggle span {
+        background: var(--text-primary);
+    }
+
+    html.dark-mode .card, 
+    html.dark-mode .profile-content, 
+    html.dark-mode .settings-section {
+        background-color: var(--surface);
+        border-color: var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    }
+
+    html.dark-mode h1, 
+    html.dark-mode h2, 
+    html.dark-mode h3, 
+    html.dark-mode h4, 
+    html.dark-mode h5, 
+    html.dark-mode h6 {
+        color: var(--text-primary) !important;
+    }
+
+    html.dark-mode p {
+        color: var(--text-secondary);
+    }
+
+    html.dark-mode .auth-modal-content {
+        background: var(--surface);
+        border-color: var(--border);
+    }
+
+    html.dark-mode .auth-modal-header h2 {
+        color: var(--text-primary);
+    }
+    
+    html.dark-mode .auth-modal-header p {
+        color: var(--text-secondary);
+    }
+    
+    html.dark-mode .setting-item label {
+        color: var(--text-primary);
+    }
+
+    html.dark-mode input.form-control,
+    html.dark-mode select.form-control,
+    html.dark-mode textarea.form-control {
+        background-color: #0f172a;
+        color: #f8fafc;
+        border-color: #334155;
+    }
+
+    /* School Mode Styles */
+    html.school-mode .navbar-container {
+        /* Subtle visual indicator for school mode */
+    }
+
     /* Header / Navbar styles appended below */
 /* header.css - Responsive, professional navbar (uses design system variables) */
 
@@ -178,6 +297,132 @@ foreach ($gen_paper_pages as $p) {
     background-size: 110%; /* Subtle texture shift if possible */
 }
 
+/* ── Quota Badge ─ Dynamic Quota Status ── */
+.quota-badge {
+    background: rgba(15, 23, 42, 0.05);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 30px;
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+html.dark-mode .quota-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.quota-badge i {
+    color: var(--primary);
+    font-size: 0.9rem;
+}
+
+.quota-badge:hover {
+    background: rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+}
+
+/* ── Plan Status Chip ─ Vibrant & Professional ── */
+.plan-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px 6px 9px;
+    border-radius: 50px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-decoration: none;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Shimmer sweep on hover */
+.plan-chip::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -75%;
+    width: 50%; height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.28), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.55s ease;
+    pointer-events: none;
+}
+.plan-chip:hover::before { left: 130%; }
+
+/* ─ PREMIUM ─ Royal Indigo-to-Violet gradient */
+.plan-chip.premium {
+    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+    color: #fff !important;
+    border: none;
+    box-shadow: 0 3px 12px rgba(79,70,229,0.4), 0 1px 3px rgba(0,0,0,0.12);
+}
+.plan-chip.premium:hover {
+    background: linear-gradient(135deg, #4338CA 0%, #6D28D9 100%);
+    box-shadow: 0 6px 20px rgba(109,40,217,0.5), 0 2px 6px rgba(0,0,0,0.15);
+    transform: translateY(-2px) scale(1.02);
+}
+
+/* ─ BASIC ─ Warm Amber-Gold gradient */
+.plan-chip.basic {
+    background: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%);
+    color: #fff !important;
+    border: none;
+    box-shadow: 0 3px 12px rgba(245,158,11,0.35), 0 1px 3px rgba(0,0,0,0.1);
+}
+.plan-chip.basic:hover {
+    background: linear-gradient(135deg, #D97706 0%, #DC2626 100%);
+    box-shadow: 0 6px 20px rgba(239,68,68,0.4), 0 2px 6px rgba(0,0,0,0.12);
+    transform: translateY(-2px) scale(1.02);
+}
+
+/* ─ Dot indicator ─ */
+.plan-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+}
+.plan-chip.premium .plan-dot {
+    background: #c4b5fd;
+    box-shadow: 0 0 0 0 rgba(196,181,253,0.8);
+    animation: plan-pulse 2s infinite;
+}
+.plan-chip.basic .plan-dot {
+    background: #fde68a;
+    box-shadow: 0 0 0 0 rgba(253,230,138,0.8);
+    animation: plan-pulse-warm 2s infinite;
+}
+
+@keyframes plan-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(196,181,253,0.8); }
+    65%  { box-shadow: 0 0 0 6px rgba(196,181,253,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(196,181,253,0);   }
+}
+
+@keyframes plan-pulse-warm {
+    0%   { box-shadow: 0 0 0 0   rgba(253,230,138,0.8); }
+    65%  { box-shadow: 0 0 0 6px rgba(253,230,138,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(253,230,138,0);   }
+}
+
+/* Mobile: collapse to dot circle */
+@media (max-width: 768px) {
+    .plan-chip .plan-label { display: none; }
+    .plan-chip { padding: 9px; border-radius: 50%; gap: 0; }
+    .plan-chip .plan-dot { width: 9px; height: 9px; }
+}
+
 /* Hamburger Icon */
 .nav-toggle {
     display: none; /* Hidden by default on desktop */
@@ -219,14 +464,21 @@ body.menu-open {
     width: 100%;
 }
 
-/* Mobile Styles */
+/* Responsive Adjustments */
+@media (max-width: 1300px) {
+    .nav-menu { gap: 1.2rem; }
+    .nav-menu li a { font-size: 0.95rem; }
+}
+
+@media (max-width: 1150px) {
+    .nav-menu { gap: 0.8rem; }
+    .nav-logo { font-size: 1.2rem; }
+}
+
 @media (max-width: 1024px) {
     .navbar-container {
-        width: 95%;
+        width: 100%;
         padding: 0 1rem;
-    }
-    .nav-menu {
-        gap: 1.8rem;
     }
 }
 
@@ -364,6 +616,10 @@ body.menu-open {
         opacity: 1;
         transform: translateY(0);
     }
+    .profile-dropdown .dropdown-content {
+        left: auto;
+        right: 0;
+    }
 }
 /* Dropdown Styles */
 .dropdown {
@@ -444,6 +700,21 @@ body.menu-open {
         background-color: rgba(0, 0, 0, 0.05); /* Consistent hover background */
         transform: translateX(0); /* No slide effect in mobile */
     }
+}
+
+.user-header-info {
+    display: flex;
+    flex-direction: column;
+    background: #f8fafc;
+}
+
+html.dark-mode .user-header-info {
+    background: #0f172a;
+    border-bottom-color: rgba(255,255,255,0.1) !important;
+}
+
+html.dark-mode .user-header-info .fw-bold {
+    color: #f8fafc !important;
 }
 
 /* Nav Overlay for mobile */
@@ -608,7 +879,7 @@ body.menu-open {
       <li><a href="<?= $assetBase ?>notes/notes.php" class="<?= is_active('notes.php') ?>"><i class="fas fa-book"></i> Notes</a></li>
       <li><a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="btn-join"><i class="fas fa-gamepad" ></i> Join</a></li>
       <li><a href="<?= $assetBase ?>about.php" class="<?= is_active('about.php') ?>"><i class="fas fa-info-circle"></i> About</a></li>
-      <li><a href="<?= $assetBase ?>contact.php" class="<?= is_active('contact.php') ?>"><i class="fas fa-envelope"></i> Contact</a></li>
+      <!-- <li><a href="<?= $assetBase ?>contact.php" class="<?= is_active('contact.php') ?>"><i class="fas fa-envelope"></i> Contact</a></li> -->
 
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <?php
@@ -619,13 +890,25 @@ body.menu-open {
                     }
                     ?>
                     <?php if (isset($subInfo) && $subInfo): ?>
-                        <!-- Subscription plan button hidden -->
-                        <?php /* <li><a href="<?= $assetBase ?>subscription.php" style="background: <?= $subInfo['is_premium'] ? '#28a745' : '#ffc107' ?>; color: <?= $subInfo['is_premium'] ? 'white' : '#856404' ?>; padding: 5px 10px; border-radius: 15px; font-size: 0.9rem; margin-right: 10px;"><?= htmlspecialchars($subInfo['plan_name']) ?></a></li> */ ?>
+                        <li>
+                            <a href="<?= $assetBase ?>subscription.php"
+                               class="plan-chip  <?= $subInfo['is_premium'] ? 'premium' : 'basic' ?>"
+                               title="<?= htmlspecialchars($subInfo['plan_name']) ?> Plan" style="border-radius: 50px;">
+                                <span class="plan-dot"></span>
+                                <span class="plan-label"><?= htmlspecialchars($subInfo['plan_name']) ?></span>
+                            </a>
+                        </li>
                     <?php endif; ?>
-                    <li class="dropdown">
+                    <li class="dropdown profile-dropdown">
                         <a href="<?= $assetBase ?>profile.php" class="dropbtn <?= is_active('profile.php') ?>"><i class="fas fa-user-circle"></i> Profile <i class="fas fa-caret-down"></i></a>
                         <div class="dropdown-content">
+                            <div class="user-header-info px-3 py-2 border-bottom mb-1">
+                                <div class="fw-bold text-dark small"><?= htmlspecialchars($_SESSION['name'] ?? 'User') ?></div>
+                                <div class="text-muted small" style="font-size: 0.75rem;"><?= htmlspecialchars($_SESSION['email'] ?? '') ?></div>
+                            </div>
                             <a href="<?= $assetBase ?>profile.php" class="<?= is_active('profile.php') ?>"><i class="fas fa-user-cog"></i> My Profile</a>
+                            <a href="#" id="headerModeSwitchBtn"><i class="fas fa-exchange-alt"></i> Switch Mode</a>
+                            <a href="<?= $assetBase ?>settings.php" class="<?= is_active('settings.php') ?>"><i class="fas fa-cog"></i> Settings</a>
                             <a href="<?= $assetBase ?>auth/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
                         </div>
                     </li>
@@ -816,5 +1099,69 @@ body.menu-open {
         }
     });
 
+    // Mode Selectors Logic
+    function updateModeUI() {
+        const userType = localStorage.getItem('user_type_preference') || 'School';
+        const isSchoolMode = userType === 'School';
+        
+        // Update document classes based on mode natively
+        if (isSchoolMode) {
+             document.documentElement.classList.add('school-mode');
+        } else {
+             document.documentElement.classList.remove('school-mode');
+        }
+
+        // Update header dynamic mode button text/icon
+        const headerModeBtn = document.getElementById('headerModeSwitchBtn');
+        if (headerModeBtn) {
+            if (isSchoolMode) {
+                headerModeBtn.innerHTML = '<i class="fas fa-laptop-code"></i>  Advance Mode';
+            } else {
+                headerModeBtn.innerHTML = '<i class="fas fa-school"></i> School Mode';
+            }
+        }
+        
+        // Update settings page buttons if it exists
+        const btnSchool = document.getElementById('btnSchoolMode');
+        const btnAdvance = document.getElementById('btnAdvanceMode');
+        if (btnSchool && btnAdvance) {
+            if (isSchoolMode) {
+                btnSchool.classList.add('active');
+                btnAdvance.classList.remove('active');
+            } else {
+                btnSchool.classList.remove('active');
+                btnAdvance.classList.add('active');
+            }
+        }
+    }
+
+    const headerModeSwitchBtn = document.getElementById('headerModeSwitchBtn');
+    if (headerModeSwitchBtn) {
+        headerModeSwitchBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (window.innerWidth > 768) {
+                e.stopPropagation(); // On desktop, keep dropdown open to see change
+            }
+            const currentUserType = localStorage.getItem('user_type_preference') || 'School';
+            const newMode = (currentUserType === 'School') ? 'Other' : 'School';
+            
+            if (typeof selectUserType === 'function') {
+                selectUserType(newMode);
+            } else {
+                localStorage.setItem('user_type_preference', newMode);
+            }
+            updateModeUI();
+        });
+    }
+    
+    // Listen for custom external updates if they happen (e.g. from popup window)
+    window.addEventListener('storage', function(e) {
+        if(e.key === 'user_type_preference') {
+             updateModeUI();
+        }
+    });
+
+    // Initial UI update
+    updateModeUI();
     </script>
   

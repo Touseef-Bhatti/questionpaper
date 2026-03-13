@@ -340,7 +340,27 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
     }
 
     body {
+        margin: 0 !important;
+        padding: 0 !important;
         background-color: #f8fafc;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    .navbar {
+        width: 100% !important;
+        margin: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 2000 !important;
+    }
+
+    .footer {
+        width: 100% !important;
+        margin: 0 !important;
+        box-sizing: border-box;
     }
 
     .main-content {
@@ -515,6 +535,51 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
         border-radius: 2px;
     }
 
+    /* Design Selector Styles */
+    .design-selector {
+        position: fixed;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: white;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        z-index: 1300;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 150px;
+        font-family: 'Inter', sans-serif;
+    }
+    .design-selector h4 {
+        font-size: 14px;
+        margin: 0 0 10px 0;
+        text-align: center;
+        color: #333;
+    }
+    .design-option {
+        cursor: pointer;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 600;
+        transition: all 0.2s;
+        background: #f9fafb;
+        color: #666;
+    }
+    .design-option:hover {
+        border-color: #4f46e5;
+        background: #f3f4f6;
+    }
+    .design-option.active {
+        border-color: #4f46e5;
+        background: #eef2ff;
+        color: #4f46e5;
+    }
+
     .marks-badge {
         font-family: 'Arial', sans-serif;
         font-size: 13px;
@@ -598,18 +663,50 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
         </div>
 
     <?php else: ?>
-        
+        <?php $selectedDesign = intval($_POST['header_design'] ?? 1); ?>
+        <!-- Design Selector UI -->
+        <div class="design-selector">
+            <h4>Header Design</h4>
+            <div class="design-option <?= $selectedDesign == 1 ? 'active' : '' ?>" onclick="changeHeader(1, this)">Design 1 (Formal)</div>
+            <div class="design-option <?= $selectedDesign == 2 ? 'active' : '' ?>" onclick="changeHeader(2, this)">Design 2 (Modern)</div>
+            <div class="design-option <?= $selectedDesign == 3 ? 'active' : '' ?>" onclick="changeHeader(3, this)">Design 3 (Board)</div>
+            <div class="design-option <?= $selectedDesign == 4 ? 'active' : '' ?>" onclick="changeHeader(4, this)">Design 4 (Elegant)</div>
+            <div class="design-option <?= $selectedDesign == 5 ? 'active' : '' ?>" onclick="changeHeader(5, this)">Design 5 (Boxed)</div>
+            <div class="design-option <?= $selectedDesign == 6 ? 'active' : '' ?>" onclick="changeHeader(6, this)">Design 6 (AI Style)</div>
+        </div>
+
+        <?php
+        // Prepare variables for headers
+        $instituteName = "Ahmad Learning Hub";
+        $bookName = htmlspecialchars(implode(', ', array_slice($topics, 0, 3))) . (count($topics) > 3 ? '...' : '');
+        $chapterHeaderLabel = $bookName;
+        $totalMarks = 0;
+        $classNameHeader = "Custom Class";
+        ?>
+
         <!-- Professional Paper Preview -->
         <div class="paper-preview">
-            <div class="paper-header">
-                <div class="institute-name" contenteditable="true">Ahmad Learning Hub</div>
-                <div class="text-uppercase fw-bold mb-2" contenteditable="true">Professional Assessment Test</div>
-                <div class="paper-meta">
-                    <span contenteditable="true"><strong>Subject:</strong> <?= htmlspecialchars(implode(', ', array_slice($topics, 0, 3))) . (count($topics) > 3 ? '...' : '') ?></span>
-                    <span contenteditable="true"><strong>Date:</strong> <?= date('d M, Y') ?></span>
-                    <span><strong>Total Marks:</strong> <span id="total-marks-display" style="font-weight: 900;">0</span></span>
-                </div>
+            <div class="header" id="dynamic-header">
+                <div id="header-container-1" style="<?= $selectedDesign == 1 ? '' : 'display:none;' ?>"><?php include '../questionPapersHeaders/header1.php'; ?></div>
+                <div id="header-container-2" style="<?= $selectedDesign == 2 ? '' : 'display:none;' ?>"><?php include '../questionPapersHeaders/header2.php'; ?></div>
+                <div id="header-container-3" style="<?= $selectedDesign == 3 ? '' : 'display:none;' ?>"><?php include '../questionPapersHeaders/header3.php'; ?></div>
+                <div id="header-container-4" style="<?= $selectedDesign == 4 ? '' : 'display:none;' ?>"><?php include '../questionPapersHeaders/header4.php'; ?></div>
+                <div id="header-container-5" style="<?= $selectedDesign == 5 ? '' : 'display:none;' ?>"><?php include '../questionPapersHeaders/header5.php'; ?></div>
+                <div id="header-container-6" style="<?= $selectedDesign == 6 ? '' : 'display:none;' ?>"><?php include '../questionPapersHeaders/header6.php'; ?></div>
             </div>
+
+            <script>
+            function changeHeader(designId, element) {
+                document.querySelectorAll('.design-option').forEach(opt => opt.classList.remove('active'));
+                element.classList.add('active');
+                for (let i = 1; i <= 6; i++) {
+                    const el = document.getElementById('header-container-' + i);
+                    if (el) el.style.display = 'none';
+                }
+                const target = document.getElementById('header-container-' + designId);
+                if (target) target.style.display = 'block';
+            }
+            </script>
 
             <?php if (!empty($generatedContent['mcqs'])): ?>
                 <div class="section-title" contenteditable="true">Section A: Multiple Choice Questions</div>
@@ -780,6 +877,9 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
                 // Remove contenteditable attributes for the static file
                 const editables = paper.querySelectorAll('[contenteditable]');
                 editables.forEach(el => el.removeAttribute('contenteditable'));
+                
+                // Remove hidden headers and other invisible elements
+                paper.querySelectorAll('[style*="display:none"], [style*="display: none"]').forEach(el => el.remove());
                 
                 contentInput.value = paper.innerHTML;
                 filenameInput.value = 'Assessment_Paper_' + new Date().toISOString().slice(0,10);

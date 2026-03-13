@@ -678,6 +678,11 @@ $csrfToken = generateCSRFToken();
                                 elseif (strcasecmp($coText, $mcq['option_b'] ?? '') === 0) $label = 'B';
                                 elseif (strcasecmp($coText, $mcq['option_c'] ?? '') === 0) $label = 'C';
                                 elseif (strcasecmp($coText, $mcq['option_d'] ?? '') === 0) $label = 'D';
+                                // Handle cases where the text might be just 'A', 'B', 'C', or 'D'
+                                if ($label === '' && strlen($coText) === 1) {
+                                    $possibleLabel = strtoupper($coText);
+                                    if (in_array($possibleLabel, ['A', 'B', 'C', 'D'])) $label = $possibleLabel;
+                                }
                             }
                         ?>
                         <tr>

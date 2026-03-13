@@ -27,21 +27,21 @@ class SubscriptionCheck
     }
     
     /**
-     * Check if user can use unlimited chapters
+     * Check if user can use custom paper templates
      */
-    public static function canUseUnlimitedChapters($userId) 
+    public static function canUseCustomTemplates($userId) 
     {
         self::init();
-        return self::$subscriptionService->canPerformAction($userId, 'unlimited_chapters');
+        return self::$subscriptionService->canPerformAction($userId, 'custom_template');
     }
     
     /**
-     * Check if user can use unlimited questions
+     * Check if user should see ads
      */
-    public static function canUseUnlimitedQuestions($userId) 
+    public static function shouldShowAds($userId) 
     {
         self::init();
-        return self::$subscriptionService->canPerformAction($userId, 'unlimited_questions');
+        return !self::$subscriptionService->canPerformAction($userId, 'no_ads');
     }
     
     /**
@@ -68,8 +68,7 @@ class SubscriptionCheck
     public static function enforcePaperLimit($userId, $redirectUrl = null) 
     {
         if (!self::canGeneratePaper($userId)) {
-            $limits = self::getUserLimits($userId);
-            $message = "You have reached your monthly limit of {$limits['max_papers_per_month']} papers. Please upgrade your subscription to continue.";
+            $message = "Your daily limit reached. Please upgrade to use more.";
             
             if ($redirectUrl) {
                 header("Location: $redirectUrl?error=" . urlencode($message));
@@ -109,11 +108,12 @@ class SubscriptionCheck
             'plan_type' => $subscription['plan_name'],
             'is_premium' => !in_array($subscription['plan_name'], ['free']),
             'expires_at' => $limits['expires_at'],
-            'papers_used' => $limits['papers_used_this_month'],
-            'papers_limit' => $limits['max_papers_per_month'],
-            'papers_remaining' => $limits['papers_remaining'],
-            'chapters_limit' => $limits['max_chapters_per_paper'],
-            'questions_limit' => $limits['max_questions_per_paper'],
+            'papers_used_today' => $limits['papers_used_today'],
+            'papers_limit' => $limits['questionPaperPerDay'],
+            'papers_remaining' => $limits['papers_remaining_today'],
+            'mcq_topics_limit' => $limits['TopicsForOnlineMCQs'],
+            'custom_template' => $limits['CustomPaperTemplate'],
+            'ads' => $limits['Ads'],
             'can_export_docx' => self::canExportToDOCX($userId),
             'features' => $limits['features'],
             'is_expired' => self::$subscriptionService->isSubscriptionExpired($userId)
@@ -135,34 +135,16 @@ class SubscriptionCheck
     }
     
     /**
-     * Check and enforce chapter limits
+     * Check and enforce MCQ topics limit
      */
-    public static function enforceChapterLimit($userId, $chapterCount) 
+    public static function enforceMCQTopicsLimit($userId, $topicsCount) 
     {
         $limits = self::getUserLimits($userId);
         
-        if ($limits['max_chapters_per_paper'] !== -1 && $chapterCount > $limits['max_chapters_per_paper']) {
+        if ($limits['TopicsForOnlineMCQs'] !== -1 && $topicsCount > $limits['TopicsForOnlineMCQs']) {
             return [
-                'error' => "Your plan allows maximum {$limits['max_chapters_per_paper']} chapters per paper. Please upgrade for unlimited chapters.",
-                'limit' => $limits['max_chapters_per_paper'],
-                'upgrade_required' => true
-            ];
-        }
-        
-        return ['success' => true];
-    }
-    
-    /**
-     * Check and enforce question limits
-     */
-    public static function enforceQuestionLimit($userId, $questionCount) 
-    {
-        $limits = self::getUserLimits($userId);
-        
-        if ($limits['max_questions_per_paper'] !== -1 && $questionCount > $limits['max_questions_per_paper']) {
-            return [
-                'error' => "Your plan allows maximum {$limits['max_questions_per_paper']} questions per paper. Please upgrade for unlimited questions.",
-                'limit' => $limits['max_questions_per_paper'],
+                'error' => "Your plan allows maximum {$limits['TopicsForOnlineMCQs']} topics per quiz. Please upgrade for more topics.",
+                'limit' => $limits['TopicsForOnlineMCQs'],
                 'upgrade_required' => true
             ];
         }
@@ -226,10 +208,10 @@ function checkSubscription($action, $userId = null) {
             return SubscriptionCheck::canGeneratePaper($userId);
         case 'can_export':
             return SubscriptionCheck::canExportToDOCX($userId);
-        case 'unlimited_chapters':
-            return SubscriptionCheck::canUseUnlimitedChapters($userId);
-        case 'unlimited_questions':
-            return SubscriptionCheck::canUseUnlimitedQuestions($userId);
+        case 'custom_template':
+            return SubscriptionCheck::canUseCustomTemplates($userId);
+        case 'show_ads':
+            return SubscriptionCheck::shouldShowAds($userId);
         default:
             return false;
     }

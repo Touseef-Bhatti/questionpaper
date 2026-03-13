@@ -1,5 +1,7 @@
 <?php
 // about.php - Professional About page for Ahmad Learning Hub
+if (session_status() === PHP_SESSION_NONE) session_start();
+include 'db_connect.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -54,7 +56,7 @@
             <div class="container">
                 <h2 class="text-center mb-4">Our Powerful Features</h2>
                 <div class="features-grid">
-                    <a href="questionPaperFromTopic/index.php" class="feature-card animate-on-scroll">
+                    <a href="reset_and_go.php?redirect=questionPaperFromTopic/index.php" class="feature-card animate-on-scroll">
                         <div class="feature-icon"><i class="fas fa-robot"></i></div>
                         <h3>AI-Powered Questions</h3>
                         <p>Leverage our advanced AI to generate targeted <strong>questions prep</strong> materials, ensuring you cover every important topic for your board exams.</p>

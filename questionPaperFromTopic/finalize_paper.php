@@ -1,7 +1,10 @@
 <?php
+require_once __DIR__ . '/../auth/auth_check.php';
 $pageTitle = "Finalize Paper | Intelligent Paper Builder";
 $metaDescription = "Configure your paper layout, choose question counts, and generate your PDF assessment.";
 require_once __DIR__ . '/../header.php';
+require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
+
 ?>
 <link rel="stylesheet" href="../css/paper-builder.css?v=<?= time() . rand(11000, 12000) ?>">
 <link rel="stylesheet" href="../css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
@@ -154,6 +157,7 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
                         <input type="hidden" name="class_id" value="0">
                         <input type="hidden" name="book_name" value="Professional Academic Paper">
                         <input type="hidden" name="pattern_mode" value="without">
+                        <input type="hidden" name="header_design" value="<?= htmlspecialchars($_POST['header_design'] ?? '1') ?>">
 
                          <!-- MCQ Section -->
                         <div class="config-section type-mcq animate-fade-up" style="<?= $showMcqs ? '' : 'display:none;' ?>">

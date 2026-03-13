@@ -25,7 +25,7 @@ function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 18000, $timeout =
     $payload = [
         'model' => $model,
         'messages' => [['role' => 'user', 'content' => $prompt]],
-        'temperature' => 0.7,
+        'temperature' => 0.5,
         'max_tokens' => $maxTokens,
     ];
 
@@ -80,6 +80,12 @@ function parseMcqJson($text) {
 function getOrCreateTopicId($conn, $topicName) {
     if (empty($topicName)) return null;
     
+    // Static cache for the duration of the request
+    static $topicIdCache = [];
+    if (isset($topicIdCache[$topicName])) {
+        return $topicIdCache[$topicName];
+    }
+
     // Ensure table exists (just in case)
     static $checked = false;
     if (!$checked) {
@@ -97,8 +103,10 @@ function getOrCreateTopicId($conn, $topicName) {
     $stmt->execute();
     $res = $stmt->get_result();
     if ($row = $res->fetch_assoc()) {
+        $id = $row['id'];
         $stmt->close();
-        return $row['id'];
+        $topicIdCache[$topicName] = $id;
+        return $id;
     }
     $stmt->close();
     
@@ -108,10 +116,79 @@ function getOrCreateTopicId($conn, $topicName) {
     if ($stmt->execute()) {
         $id = $stmt->insert_id;
         $stmt->close();
+        $topicIdCache[$topicName] = $id;
         return $id;
     }
     $stmt->close();
     return null;
+}
+
+/**
+ * Shared helper to rotate AI keys and select model
+ */
+function getAiKeyAndModel($cacheManager) {
+    $rotator = new AIKeyRotator($cacheManager);
+    $keyItem = $rotator->getNextKey();
+    if (!$keyItem) {
+        error_log('AI Generation: No API keys available');
+        return [null, null, null];
+    }
+    $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL');
+    if (!$model) {
+        error_log('AI Generation: No model specified in API key or environment');
+        return [null, null, null];
+    }
+    return [$keyItem, $model, $rotator];
+}
+
+/**
+ * Shared helper to save generated MCQs to DB
+ */
+function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $cacheKey = null) {
+    if (empty($mcqs)) return [];
+
+    $now = date('Y-m-d H:i:s');
+    $stmt = $conn->prepare('INSERT INTO AIGeneratedMCQs (topic_id, topic, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    if (!$stmt) return [];
+
+    $inserted = [];
+    foreach ($mcqs as $mcq) {
+        if (!isset($mcq['question'])) continue;
+
+        $topicVal = isset($mcq['topic']) ? (string) trim($mcq['topic']) : $defaultTopic;
+        $topicId = getOrCreateTopicId($conn, $topicVal);
+        
+        $q = (string) $mcq['question'];
+        $optA = $mcq['option_a'] ?? '';
+        $optB = $mcq['option_b'] ?? '';
+        $optC = $mcq['option_c'] ?? '';
+        $optD = $mcq['option_d'] ?? '';
+        $corr = $mcq['correct_option'] ?? '';
+        
+        $stmt->bind_param('issssssss', $topicId, $topicVal, $q, $optA, $optB, $optC, $optD, $corr, $now);
+        if ($stmt->execute()) {
+            $inserted[] = [
+                'id' => $stmt->insert_id,
+                'topic_id' => $topicId,
+                'topic' => $topicVal,
+                'question' => $q,
+                'option_a' => $optA,
+                'option_b' => $optB,
+                'option_c' => $optC,
+                'option_d' => $optD,
+                'correct_option' => $corr,
+            ];
+        }
+    }
+    $stmt->close();
+
+    if ($cacheManager && $cacheKey && !empty($inserted)) {
+        try {
+            $cacheManager->setex($cacheKey, 86400, json_encode($inserted));
+        } catch (Exception $e) {}
+    }
+
+    return $inserted;
 }
 
 /**
@@ -130,37 +207,27 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '') {
     $topics = array_values(array_filter(array_map('trim', $topics)));
     if (empty($topics)) return [];
 
-    $lvl = is_string($level) ? strtolower(trim($level)) : '';
-    $lvl = in_array($lvl, ['easy', 'medium', 'hard']) ? $lvl : '';
+    $lvl = in_array(strtolower($level), ['easy', 'medium', 'hard']) ? strtolower($level) : '';
     $cacheKey = 'ai_mcqs_bulk_' . md5(implode(',', $topics) . '_' . $count . ($lvl ? '_' . $lvl : ''));
 
     if ($cacheManager) {
-        try {
-            $cached = $cacheManager->get($cacheKey);
-            if ($cached !== false && $cached !== null) {
-                $data = json_decode($cached, true);
-                if (is_array($data) && count($data) >= $count) {
-                    return array_slice($data, 0, $count);
-                }
-            }
-        } catch (Exception $e) {}
+        $cached = $cacheManager->get($cacheKey);
+        if ($cached) {
+            $data = json_decode($cached, true);
+            if (is_array($data) && count($data) >= $count) return array_slice($data, 0, $count);
+        }
     }
 
-    $rotator = new AIKeyRotator($cacheManager);
-    $keyItem = $rotator->getNextKey();
-    if (!$keyItem) {
-        error_log('generateMCQsBulkWithGemini: No API keys available');
-        return [];
-    }
+    list($keyItem, $model, $rotator) = getAiKeyAndModel($cacheManager);
+    if (!$keyItem) return [];
 
-    $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
     $levelHint = $lvl ? "Difficulty: {$lvl}. " : '';
     $topicsStr = implode(', ', $topics);
-    $distHint = count($topics) > 1
-        ? "Distribute across topics: " . $topicsStr . ". Each MCQ must include \"topic\" field with the topic name."
-        : "Topic: {$topicsStr}.";
+    // $distHint = count($topics) > 1
+    //     ? "Distribute across topics: " . $topicsStr . ". Each MCQ must include \"topic\" field with the topic name."
+    //     : "Topic: {$topicsStr}.";
 
-    $prompt = "Generate exactly {$count} MCQs. {$distHint} {$levelHint}Return ONLY a JSON array. Each item: {\"topic\":\"...\", \"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. also recheck correct answer. No extra text.";
+    $prompt = "i have an exam of topics {$topicsStr} and you have to Generate exactly {$count} MCQs.  {$levelHint}Return ONLY a JSON array.generate correct answer for each MCQs.Make sure correct_option exactly matches the correct option.Each item: {\"topic\":\"...\", \"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. No extra text.";
     $maxTokens = min(16000, 500 + $count * 400);
 
     list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, 120);
@@ -172,61 +239,9 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '') {
     if (!$resp) return [];
 
     $rotator->logSuccess($keyItem['key']);
-    $allMcqs = parseMcqJson($resp);
-    $allMcqs = array_filter($allMcqs, function ($m) { return isset($m['question']); });
-    $allMcqs = array_slice($allMcqs, 0, $count);
-
-    if (empty($allMcqs)) return [];
-
-    $now = date('Y-m-d H:i:s');
-    // Updated to include topic_id
-    $stmt = $conn->prepare('INSERT INTO AIGeneratedMCQs (topic_id, topic, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    if (!$stmt) return [];
-
-    $inserted = [];
-    $firstTopic = $topics[0];
-    $topicIdCache = [];
-
-    foreach ($allMcqs as $mcq) {
-        $topicVal = isset($mcq['topic']) ? (string) trim($mcq['topic']) : $firstTopic;
-        
-        // Resolve topic_id
-        if (!isset($topicIdCache[$topicVal])) {
-            $topicIdCache[$topicVal] = getOrCreateTopicId($conn, $topicVal);
-        }
-        $topicId = $topicIdCache[$topicVal];
-
-        $q = (string) ($mcq['question'] ?? '');
-        $optA = $mcq['option_a'] ?? '';
-        $optB = $mcq['option_b'] ?? '';
-        $optC = $mcq['option_c'] ?? '';
-        $optD = $mcq['option_d'] ?? '';
-        $corr = $mcq['correct_option'] ?? '';
-        
-        $stmt->bind_param('issssssss', $topicId, $topicVal, $q, $optA, $optB, $optC, $optD, $corr, $now);
-        if ($stmt->execute()) {
-            $inserted[] = [
-                'id' => $stmt->insert_id,
-                'topic_id' => $topicId,
-                'topic' => $topicVal,
-                'question' => $q,
-                'option_a' => $optA,
-                'option_b' => $optB,
-                'option_c' => $optC,
-                'option_d' => $optD,
-                'correct_option' => $corr,
-            ];
-        }
-    }
-    $stmt->close();
-
-    if ($cacheManager && !empty($inserted)) {
-        try {
-            $cacheManager->setex($cacheKey, 86400, json_encode($inserted));
-        } catch (Exception $e) {}
-    }
-
-    return $inserted;
+    $allMcqs = array_slice(parseMcqJson($resp), 0, $count);
+    
+    return saveGeneratedMcqs($conn, $allMcqs, $topics[0], $cacheManager, $cacheKey);
 }
 
 /**
@@ -236,32 +251,22 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '') {
 function generateMCQsWithGemini($topic, $count = 10, $level = '') {
     global $conn, $cacheManager;
 
-    $lvl = is_string($level) ? strtolower(trim($level)) : '';
-    $lvl = in_array($lvl, ['easy', 'medium', 'hard']) ? $lvl : '';
+    $lvl = in_array(strtolower($level), ['easy', 'medium', 'hard']) ? strtolower($level) : '';
     $cacheKey = 'ai_mcqs_' . md5($topic . '_' . $count . ($lvl ? '_' . $lvl : ''));
 
     if ($cacheManager) {
-        try {
-            $cached = $cacheManager->get($cacheKey);
-            if ($cached !== false && $cached !== null) {
-                $data = json_decode($cached, true);
-                if (is_array($data) && count($data) >= $count) {
-                    return array_slice($data, 0, $count);
-                }
-            }
-        } catch (Exception $e) {}
+        $cached = $cacheManager->get($cacheKey);
+        if ($cached) {
+            $data = json_decode($cached, true);
+            if (is_array($data) && count($data) >= $count) return array_slice($data, 0, $count);
+        }
     }
 
-    $rotator = new AIKeyRotator($cacheManager);
-    $keyItem = $rotator->getNextKey();
-    if (!$keyItem) {
-        error_log('generateMCQsWithGemini: No API keys available');
-        return [];
-    }
+    list($keyItem, $model, $rotator) = getAiKeyAndModel($cacheManager);
+    if (!$keyItem) return [];
 
-    $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
     $levelHint = $lvl ? "Difficulty: {$lvl}. " : '';
-    $prompt = "Generate exactly {$count} MCQs on topic: {$topic}. {$levelHint}Return ONLY a JSON array. Each item: {\"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. Also recheck the correct answer. No extra text.";
+    $prompt = "Generate exactly {$count} MCQs on topic: {$topic}.{$levelHint}Return ONLY a JSON array. Each item: {\"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. Also recheck the correct answer. No extra text.";
     $maxTokens = min(18000, 500 + $count * 400);
 
     list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, 60);
@@ -273,52 +278,9 @@ function generateMCQsWithGemini($topic, $count = 10, $level = '') {
     if (!$resp) return [];
 
     $rotator->logSuccess($keyItem['key']);
-    $allMcqs = parseMcqJson($resp);
-    $allMcqs = array_slice(array_filter($allMcqs, function ($m) { return isset($m['question']); }), 0, $count);
-
-    if (empty($allMcqs)) return [];
-
-    $now = date('Y-m-d H:i:s');
-    // Updated to include topic_id
-    $stmt = $conn->prepare('INSERT INTO AIGeneratedMCQs (topic_id, topic, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    if (!$stmt) return [];
-
-    $inserted = [];
-    $topicVal = (string) $topic;
-    $topicId = getOrCreateTopicId($conn, $topicVal);
-
-    foreach ($allMcqs as $mcq) {
-        $q = (string) ($mcq['question'] ?? '');
-        $optA = $mcq['option_a'] ?? '';
-        $optB = $mcq['option_b'] ?? '';
-        $optC = $mcq['option_c'] ?? '';
-        $optD = $mcq['option_d'] ?? '';
-        $corr = $mcq['correct_option'] ?? '';
-        
-        $stmt->bind_param('issssssss', $topicId, $topicVal, $q, $optA, $optB, $optC, $optD, $corr, $now);
-        if ($stmt->execute()) {
-            $inserted[] = [
-                'id' => $stmt->insert_id,
-                'topic_id' => $topicId,
-                'topic' => $topicVal,
-                'question' => $q,
-                'option_a' => $optA,
-                'option_b' => $optB,
-                'option_c' => $optC,
-                'option_d' => $optD,
-                'correct_option' => $corr,
-            ];
-        }
-    }
-    $stmt->close();
-
-    if ($cacheManager && !empty($inserted)) {
-        try {
-            $cacheManager->setex($cacheKey, 86400, json_encode($inserted));
-        } catch (Exception $e) {}
-    }
-
-    return $inserted;
+    $allMcqs = array_slice(parseMcqJson($resp), 0, $count);
+    
+    return saveGeneratedMcqs($conn, $allMcqs, $topic, $cacheManager, $cacheKey);
 }
 
 /**
@@ -329,32 +291,24 @@ function generateMCQsWithGemini($topic, $count = 10, $level = '') {
 function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questionTypes = [], $forceRefresh = false, $excludeTopics = []) {
     global $cacheManager;
 
+    $cacheKey = 'ai_topic_' . sha1($searchQuery);
     if (!$forceRefresh && $cacheManager) {
-        try {
-            $cached = $cacheManager->get('ai_topic_' . sha1($searchQuery));
-            if ($cached !== false && $cached !== null) {
-                $data = json_decode($cached, true);
-                if (is_array($data) && !empty($data)) {
-                    return $data;
-                }
-            }
-        } catch (Exception $e) {}
+        $cached = $cacheManager->get($cacheKey);
+        if ($cached) {
+            $data = json_decode($cached, true);
+            if (is_array($data) && !empty($data)) return $data;
+        }
     }
 
-    $rotator = new AIKeyRotator($cacheManager);
-    $keyItem = $rotator->getNextKey();
-    if (!$keyItem) {
-        error_log('searchTopicsWithGemini: No API keys available');
-        return [];
-    }
+    list($keyItem, $model, $rotator) = getAiKeyAndModel($cacheManager);
+    if (!$keyItem) return [];
 
-    $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
     $excludeHint = '';
     if (!empty($excludeTopics)) {
         $excludeList = implode(', ', array_slice(array_map('trim', $excludeTopics), 0, 20));
         $excludeHint = " Do NOT include these (already shown): {$excludeList}. Return DIFFERENT topics.";
     }
-    $prompt = "Topic: \"{$searchQuery}\". Return EXACTLY 8 educational subtopics as a JSON array of strings.{$excludeHint} No numbering, no explanations.";
+    $prompt = " i have an exam and it's Topic: \"{$searchQuery}\". Return EXACTLY 8 topics according to \"{$searchQuery}\ that can come in exam  as a JSON array of strings.2-3 topics must closely match the text of {$searchQuery}. {$excludeHint}.";
 
     list($respBody, $code) = callOpenRouter($keyItem['key'], $model, $prompt, 2800, 25);
 
@@ -366,11 +320,7 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questi
 
     if (empty($respBody)) return [];
 
-    $text = preg_replace('/<think>.*?<\/think>/s', '', $respBody);
-    preg_match('/\[.*?\]/s', $text, $m);
-    $jsonText = $m[0] ?? $text;
-    $topics = json_decode($jsonText, true);
-
+    $topics = parseMcqJson($respBody);
     if (!is_array($topics)) return [];
 
     $out = [];
@@ -388,7 +338,7 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questi
 
     if ($cacheManager && !empty($out) && !$forceRefresh && empty($excludeTopics)) {
         try {
-            $cacheManager->setex('ai_topic_' . sha1($searchQuery), 86400, json_encode($out));
+            $cacheManager->setex($cacheKey, 86400, json_encode($out));
         } catch (Exception $e) {}
     }
 

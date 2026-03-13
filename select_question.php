@@ -1,5 +1,7 @@
 <?php
+require_once 'auth/auth_check.php';
 include 'db_connect.php';
+require_once 'middleware/SubscriptionCheck.php';
 
 if (!isset($_POST['chapters']) || empty($_POST['chapters'])) {
     echo("<h2 style='color:red;'>No chapters selected. Please go back and select chapters.</h2>");

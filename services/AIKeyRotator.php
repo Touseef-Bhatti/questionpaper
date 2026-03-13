@@ -13,6 +13,7 @@ class AIKeyRotator {
     private $exhaustedPrefix = 'ai_key_exhausted_';
     private $usagePrefix = 'ai_key_usage_';
     private $dateKey = 'ai_key_rotation_date';
+    private $lastIndexKey = 'ai_last_key_index';
 
     public function __construct($cacheManager = null) {
         $this->cacheManager = $cacheManager;
@@ -132,14 +133,49 @@ class AIKeyRotator {
     }
 
     /**
-     * Get next available API key with model (skips exhausted keys)
+     * Get next available API key with model (Round-robin rotation)
+     * Skips exhausted keys and excludes specific keys if requested
      */
     public function getNextKey($excludeKeys = []) {
+        if (empty($this->keys)) return null;
+
+        // 1. Get last used index from cache
+        $lastIndex = 0;
+        if ($this->cacheManager) {
+            try {
+                $lastIndex = (int) $this->cacheManager->get($this->lastIndexKey);
+            } catch (Exception $e) {
+                $lastIndex = 0;
+            }
+        }
+
+        $totalKeys = count($this->keys);
+        
+        // 2. Start searching from the next key (Round-robin)
+        for ($i = 1; $i <= $totalKeys; $i++) {
+            $currentIndex = ($lastIndex + $i) % $totalKeys;
+            $item = $this->keys[$currentIndex];
+
+            if (in_array($item['key'], $excludeKeys, true)) continue;
+            if ($this->isKeyExhausted($item['key'])) continue;
+
+            // 3. Store the successful index for the next rotation
+            if ($this->cacheManager) {
+                try {
+                    $this->cacheManager->setex($this->lastIndexKey, 86400 * 7, (string) $currentIndex);
+                } catch (Exception $e) {}
+            }
+
+            return $item;
+        }
+
+        // 4. Fallback: If no rotation key found, try the very first available key (standard failover)
         foreach ($this->keys as $item) {
             if (in_array($item['key'], $excludeKeys, true)) continue;
             if ($this->isKeyExhausted($item['key'])) continue;
             return $item;
         }
+
         return null;
     }
 

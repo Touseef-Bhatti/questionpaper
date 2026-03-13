@@ -1,9 +1,28 @@
 <?php
 // mcqs_topic.php - Topic search page for MCQs
+if (session_status() === PHP_SESSION_NONE) session_start();
+
 include '../db_connect.php';
 require_once 'mcq_generator.php';
 require_once 'MongoSearchLogger.php';
-if (session_status() === PHP_SESSION_NONE) session_start();
+require_once '../services/SubscriptionService.php';
+
+// Check user plan status
+$subService = new SubscriptionService($conn);
+$userPlan = 'free';
+$topicLimit = 3; // Default for free
+if (isset($_SESSION['user_id'])) {
+    $currentSub = $subService->getCurrentSubscription($_SESSION['user_id']);
+    $userPlan = $currentSub['plan_name'] ?? 'free';
+    
+    // Check if limit is explicitly defined in features or standard columns
+    if (isset($currentSub['max_topics_per_quiz'])) {
+        $topicLimit = intval($currentSub['max_topics_per_quiz']);
+    } else {
+        $topicLimit = ($userPlan === 'free') ? 3 : -1; // -1 for unlimited
+    }
+}
+$isPremium = ($userPlan !== 'free');
 
 function calculateSimilarity($str1, $str2) {
     $str1 = mb_strtolower(trim($str1)); $str2 = mb_strtolower(trim($str2));
@@ -75,16 +94,21 @@ if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
                 $aiStmt->close();
             }
 
-            // 3. Search in generated_topics
+            // 3. Search in generated_topics (by topic_name OR source_term)
             $genTopics = [];
-            $genStmt = $conn->prepare("SELECT DISTINCT topic_name FROM generated_topics WHERE topic_name IS NOT NULL AND topic_name != ''");
+            $termLike = "%$searchQuery%";
+            $genStmt = $conn->prepare("SELECT DISTINCT topic_name, source_term FROM generated_topics WHERE topic_name LIKE ? OR source_term LIKE ? LIMIT 100");
             if ($genStmt) {
+                $genStmt->bind_param('ss', $termLike, $termLike);
                 $genStmt->execute();
                 $result = $genStmt->get_result();
                 while ($row = $result->fetch_assoc()) {
                     if (!empty($row['topic_name'])) {
-                        $sim = calculateSimilarity($searchQuery, $row['topic_name']);
-                        if ($sim >= 50) {
+                        $simTopic = calculateSimilarity($searchQuery, $row['topic_name']);
+                        $simSource = calculateSimilarity($searchQuery, $row['source_term'] ?? '');
+                        $maxSim = max($simTopic, $simSource);
+
+                        if ($maxSim >= 50) {
                             $exists = false;
                             foreach (array_merge($existingTopics, $aiMcqTopics) as $existing) {
                                 if (strcasecmp($existing['topic'], $row['topic_name']) === 0) {
@@ -92,7 +116,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
                                 }
                             }
                             if (!$exists && !in_array($row['topic_name'], array_column($genTopics, 'topic'))) {
-                                $genTopics[] = ['topic' => $row['topic_name'], 'similarity' => $sim, 'source' => 'generated_topics'];
+                                $genTopics[] = ['topic' => $row['topic_name'], 'similarity' => $maxSim, 'source' => 'generated_topics'];
                             }
                         }
                     }
@@ -204,19 +228,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
             }
             $aiStmt->close();
 
-            // Search in generated_topics
-            $genStmt = $conn->prepare("SELECT DISTINCT topic_name FROM generated_topics WHERE topic_name IS NOT NULL AND topic_name != '' ORDER BY topic_name");
+            // Search in generated_topics (by topic_name OR source_term)
+            $termLike = "%$searchQuery%";
+            $genStmt = $conn->prepare("SELECT DISTINCT topic_name, source_term FROM generated_topics WHERE topic_name LIKE ? OR source_term LIKE ? LIMIT 100");
             if ($genStmt) {
+                $genStmt->bind_param('ss', $termLike, $termLike);
                 $genStmt->execute();
                 $genResult = $genStmt->get_result();
                 while ($row = $genResult->fetch_assoc()) {
-                    $similarity = calculateSimilarity($searchQuery, $row['topic_name']);
-                    if ($similarity >= 50) {
+                    $simTopic = calculateSimilarity($searchQuery, $row['topic_name']);
+                    $simSource = calculateSimilarity($searchQuery, $row['source_term'] ?? '');
+                    $maxSim = max($simTopic, $simSource);
+
+                    if ($maxSim >= 50) {
                         $exists = false;
                         foreach ($searchResults as $existing) {
                             if (strcasecmp($existing['topic'], $row['topic_name']) === 0) { $exists = true; break; }
                         }
-                        if (!$exists) $searchResults[] = ['topic' => $row['topic_name'], 'similarity' => round($similarity, 1), 'source' => 'generated_topics'];
+                        if (!$exists) $searchResults[] = ['topic' => $row['topic_name'], 'similarity' => round($maxSim, 1), 'source' => 'generated_topics'];
                     }
                 }
                 $genStmt->close();
@@ -329,7 +358,7 @@ if (isset($_POST['start_quiz'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search MCQs by Topic - AI Powered discovery - Ahmad Learning Hub</title>
+    <title>Onliine MCQs Test School and College - AI MCQs Generator - Ahmad Learning Hub</title>
     <!-- SEO & AI Optimization Meta Tags -->
     <meta name="description" content="Discover thousands of MCQs by any topic using our advanced AI-driven search. Perfect for 2026 Board Exam preparation, MDCAT, ECAT, and GRE topic-wise study. 100% accurate syllabus-based questions.">
     <meta name="keywords" content="topic wise MCQs, AI question finder, Ahmad Learning Hub search, board exam topics, science MCQs 2026, chemistry MCQs by topic, physics MCQs by topic">
@@ -362,7 +391,7 @@ if (isset($_POST['start_quiz'])) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-<?php include '../header.php'; ?>
+<?php include_once '../header.php'; ?>
 <div class="main-content">
     <div class="topic-search-container">
         <?php
@@ -371,47 +400,52 @@ if (isset($_POST['start_quiz'])) {
         $backLink = ($source === 'host') ? 'online_quiz_host_new.php' : 'quiz_setup.php';
         $backText = ($source === 'host') ? '← Back to Host Quiz' : '← Back to Quiz Setup';
         ?>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-            <a href="<?= $backLink ?>" class="back-btn"><?= $backText ?></a>
-            <a href="quiz_setup.php" class="school-mode-btn">🏫 School Mode (Class/Book)</a>
+        <div class="top-nav">
+            <a href="javascript:void(0)" onclick="ignoreModeAndNavigate('quiz_setup.php')" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Setup
+            </a>
+            <a href="javascript:void(0)" onclick="ignoreModeAndNavigate('quiz_setup.php')" class="school-mode-btn">
+                <i class="fas fa-school"></i> School Mode
+            </a>
         </div>
         
-        <h1>Search MCQs by Topic</h1>
-        <p class="desc">Create custom quizzes by searching and adding multiple topics. Powered by AI topic generation.</p>
+        <h1>Expert MCQ Search</h1>
+        <p class="desc">Discover thousands of expert-verified questions instantly. Add multiple topics to create your perfect personalized quiz.</p>
         
         <?php if (isset($error)): ?>
-            <div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 16px; border-radius: 12px; margin-bottom: 24px; text-align: center; font-weight: 600;">
-                ⚠️ <?= htmlspecialchars($error) ?>
+            <div style="background: rgba(239, 68, 68, 0.1); border: 2px solid var(--danger); color: var(--danger); padding: 20px; border-radius: 16px; margin-bottom: 32px; text-align: center; font-weight: 800; animation: shake 0.5s ease-in-out;">
+                <i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($error) ?>
             </div>
         <?php endif; ?>
         
         <div class="selected-topics-section empty" id="selectedTopicsSection">
             <div class="selected-topics-header">
-                <div class="selected-topics-title">Selected Topics (<span id="selectedCount">0</span>)</div>
-                <button type="button" class="btn btn-secondary" onclick="clearAllTopics()" style="padding: 8px 16px; font-size: 0.875rem;color:var(--primary-dark);border-color:var(--primary-dark);">Clear All</button>
+                <div class="selected-topics-title">Your Selection (<span id="selectedCount">0</span>)</div>
+                <button type="button" class="btn-secondary btn-clear-all" onclick="clearAllTopics()"><i class="fas fa-trash-alt"></i> Clear All</button>
             </div>
             
             <div class="selected-topics-list" id="selectedTopicsList">
-                 <div class="no-selection-hint" style="width: 100%; text-align: center; color: var(--text-muted); font-style: italic; padding: 20px;">
-                    No topics selected yet. Search and add topics below.
+                 <div class="no-selection-hint">
+                    Your list is currently empty. Start by searching modules below.
                 </div>
             </div>
             
             <div class="quiz-config-section">
-                <div class="form-grid" style="margin-bottom: 24px; display: grid; grid-template-columns: 1fr; max-width: 300px; margin-left: auto; margin-right: auto;">
-                    <div class="form-group" style="text-align: center;">
-                        <label for="mcq_count" class="form-label">Number of MCQs (1-50)</label>
+                <div style="margin-bottom: 32px; text-align: center;">
+                    <label for="mcq_count" class="quiz-config-header">Number of Questions</label>
+                    <div class="mcq-count-controls">
+                        <button type="button" onclick="const input = document.getElementById('mcq_count'); input.value = Math.max(1, parseInt(input.value) - 1); input.dispatchEvent(new Event('input'));" class="mcq-count-btn"><i class="fas fa-minus"></i></button>
                         <input 
                             type="number" 
                             id="mcq_count" 
-                            class="form-input"
+                            class="mcq-count-input"
                             min="1" 
                             max="50" 
                             value="<?= htmlspecialchars($_REQUEST['mcq_count'] ?? $_POST['mcq_count'] ?? 10) ?>" 
                             required
-                            style="text-align: center; font-size: 1.25rem; font-weight: 800;"
                             oninput="if(parseInt(this.value) > 50) this.value = 50; if(parseInt(this.value) < 1 && this.value !== '') this.value = 1;"
                         >
+                        <button type="button" onclick="const input = document.getElementById('mcq_count'); input.value = Math.min(50, parseInt(input.value) + 5); input.dispatchEvent(new Event('input'));" class="mcq-count-btn"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
                 
@@ -422,7 +456,7 @@ if (isset($_POST['start_quiz'])) {
                     <input type="hidden" name="study_level" value="<?= htmlspecialchars($studyLevel) ?>">
                     <div id="hidden_topics_inputs"></div>
                     <button type="submit" name="start_quiz" class="start-quiz-btn" id="startQuizBtn" disabled>
-                        🚀 Start Quiz with Selected Topics
+                        <i class="fas fa-bolt"></i> Start Intelligent Quiz
                     </button>
                 </form>
             </div>
@@ -435,15 +469,15 @@ if (isset($_POST['start_quiz'])) {
                 <input type="hidden" name="quiz_duration" value="<?= htmlspecialchars($quizDuration) ?>">
                 <input type="hidden" name="mcq_count" value="<?= htmlspecialchars($_REQUEST['mcq_count'] ?? $_POST['mcq_count'] ?? 10) ?>">
                 
-                <div style="margin-bottom: 24px;">
-                    <label class="form-label">Difficulty Level <span style="color: var(--danger);">*</span></label>
-                    <div style="display: flex; gap: 12px;">
-                        <button type="button" class="level-btn" id="btn-easy" data-level="easy" onclick="selectLevel('easy', this)">Easy</button>
-                        <button type="button" class="level-btn" id="btn-medium" data-level="medium" onclick="selectLevel('medium', this)">Medium</button>
-                        <button type="button" class="level-btn" id="btn-hard" data-level="hard" onclick="selectLevel('hard', this)">Hard</button>
+                <div style="margin-bottom: 32px;">
+                    <label class="level-label">Challenge Level <span style="color: var(--danger);">*</span></label>
+                    <div class="level-container">
+                        <button type="button" class="level-btn" id="btn-easy" data-level="easy" onclick="selectLevel('easy', this)"><i class="fas fa-leaf"></i> Easy</button>
+                        <button type="button" class="level-btn" id="btn-medium" data-level="medium" onclick="selectLevel('medium', this)"><i class="fas fa-balance-scale"></i> Medium</button>
+                        <button type="button" class="level-btn" id="btn-hard" data-level="hard" onclick="selectLevel('hard', this)"><i class="fas fa-fire"></i> Hard</button>
                     </div>
                     <input type="hidden" name="study_level" id="study_level" value="<?= htmlspecialchars($studyLevel) ?>">
-                    <span id="levelError" style="color: var(--danger); font-size: 0.875rem; display: none; margin-top: 8px; font-weight: 600;">Please select a difficulty level</span>
+                    <div id="levelError" class="level-error"><i class="fas fa-info-circle"></i> Please select a difficulty level to continue</div>
                 </div>
                 
                 <div class="search-input-wrapper">
@@ -452,43 +486,43 @@ if (isset($_POST['start_quiz'])) {
                         name="topic_search" 
                         id="topic_search"
                         class="search-input" 
-                        placeholder="Search topics (e.g., Algebra, Atoms, Biology...)" 
+                        placeholder="Type any topic (e.g. Molecular Biology, Calculus...)" 
                         value="<?= htmlspecialchars($searchQuery) ?>"
                         autofocus
                     >
-                    <button type="submit" class="search-btn">🔍 Search</button>
+                    <button type="submit" class="search-btn">Find Items</button>
                 </div>
             </form>
         </div>
 
-        <!-- Advanced AI Loader Modal -->
+        <!-- Professional AI Loader Modal -->
         <div id="aiLoaderModal" class="ai-loader-overlay">
             <div class="ai-loader-card">
                 <div class="ai-icon-container">
                     <div class="ai-icon-glow"></div>
-                    🤖
+                    <i class="fas fa-robot" style="color: white; z-index: 2; position: relative;"></i>
                 </div>
-                <h2 class="ai-loader-title">Crafting Your Quiz</h2>
+                <h2 class="ai-loader-title">Neural Engine Processing</h2>
                 
                 <div class="ai-steps-list">
                     <div class="ai-step" id="step-1">
-                        <div class="ai-step-icon" id="icon-1">⏳</div>
+                        <div class="ai-step-icon" id="icon-1"><i class="fas fa-circle-notch"></i></div>
                         <div class="ai-step-text">Analyzing topics</div>
                     </div>
                     <div class="ai-step" id="step-2">
-                        <div class="ai-step-icon" id="icon-2">⏳</div>
+                        <div class="ai-step-icon" id="icon-2"><i class="fas fa-circle-notch"></i></div>
                         <div class="ai-step-text">Extracting key concepts</div>
                     </div>
                     <div class="ai-step" id="step-3">
-                        <div class="ai-step-icon" id="icon-3">⏳</div>
+                        <div class="ai-step-icon" id="icon-3"><i class="fas fa-circle-notch"></i></div>
                         <div class="ai-step-text">Designing MCQs</div>
                     </div>
                     <div class="ai-step" id="step-4">
-                        <div class="ai-step-icon" id="icon-4">⏳</div>
+                        <div class="ai-step-icon" id="icon-4"><i class="fas fa-circle-notch"></i></div>
                         <div class="ai-step-text">Validating difficulty</div>
                     </div>
                     <div class="ai-step" id="step-5">
-                        <div class="ai-step-icon" id="icon-5">⏳</div>
+                        <div class="ai-step-icon" id="icon-5"><i class="fas fa-circle-notch"></i></div>
                         <div class="ai-step-text">Finalizing paper</div>
                     </div>
                 </div>
@@ -496,27 +530,31 @@ if (isset($_POST['start_quiz'])) {
                 <div class="ai-progress-container">
                     <div class="ai-progress-bar" id="aiProgressBar"></div>
                 </div>
+                
+                <div style="margin-top: 32px; color: rgba(255,255,255,0.4); font-size: 0.9rem; font-style: italic;">
+                    <i class="fas fa-info-circle"></i> Our AI is synthesizing questions based on 2026 board standards...
+                </div>
             </div>
         </div>
 
-        <!-- Keep inline loader for simple searches -->
-        <div id="inlineLoader" style="display:none; padding: 40px 0;">
+        <!-- Simple Search Loader -->
+        <div id="inlineLoader">
             <div class="honeycomb"> 
                <div></div><div></div><div></div><div></div><div></div><div></div><div></div> 
             </div>
             <div class="loader-progress">
                 <div class="loader-progress-bar" id="loaderProgressBar"></div>
             </div>
-            <div id="loaderText" style="text-align: center; color: var(--text-muted); font-weight: 700; font-size: 1.1rem;">Searching Topics...</div>
+            <div id="loaderText">Scanning Database...</div>
         </div>
 
         <?php if ($showResults): ?>
             <div class="results-section" id="resultsSection">
                 <div class="results-header" id="resultsHeader">
                     <?php if (!empty($searchResults)): ?>
-                        ✨ Found <?= count($searchResults) ?> search results
+                        <i class="fas fa-poll-h" style="color: var(--primary);"></i> Top Matches (<?= count($searchResults) ?>)
                     <?php else: ?>
-                        No topics found in database for "<?= htmlspecialchars($searchQuery) ?>"
+                        <i class="fas fa-search-minus" style="color: var(--secondary);"></i> No local matches found
                     <?php endif; ?>
                 </div>
                 
@@ -526,69 +564,124 @@ if (isset($_POST['start_quiz'])) {
                         $topicJson = htmlspecialchars(json_encode($topicData), ENT_QUOTES);
                     ?>
                         <div class="topic-item" data-topic-data="<?= $topicJson ?>" onclick="toggleTopic(this, '<?= $topicJson ?>')">
-                            <div class="topic-info">
-                                <div class="topic-name"><?= htmlspecialchars($result['topic']) ?></div>
-                            </div>
+                            <div class="topic-name"><?= htmlspecialchars($result['topic']) ?></div>
                             <div class="topic-similarity"><?= $result['similarity'] ?>% match</div>
                         </div>
                     <?php endforeach; ?>
                     <?php if (empty($searchResults)): ?>
-                        <div id="noTopicsHint" style="text-align: center; color: var(--text-muted); font-style: italic; padding: 24px;">
-                            Click the button below to load AI-generated related topics.
+                        <div id="noTopicsHint" class="no-topics-hint">
+                            <p style="font-size: 1.1rem; margin-bottom: 15px;">We couldn't find matches in our local library for "<?= htmlspecialchars($searchQuery) ?>".</p>
+                            <p>Try triggering our <strong>AI Expand</strong> feature below to generate relevant topics.</p>
                         </div>
                     <?php endif; ?>
                 </div>
                 
-                <div style="text-align: center; margin-top: 32px;">
-                    <button type="button" id="loadMoreTopicsBtn" class="btn btn-secondary" style="min-width: 280px; border-width: 2px;color:var(--primary-dark);border-color:var(--primary-dark);">
-                        ✨ Load Related Topics (AI)
+                <div class="load-more-btn-container">
+                    <button type="button" id="loadMoreTopicsBtn" class="btn-secondary">
+                        <i class="fas fa-magic"></i> Explore Related Topics (AI)
                     </button>
-                    <div id="loadMoreLoader" style="display:none; width: 100%; max-width: 300px; margin: 20px auto;">
-                         <div class="loader-progress" style="margin: 0 auto;">
-                             <div class="loader-progress-bar" id="loadMoreProgressBar" style="width:0%"></div>
+                    <div id="loadMoreLoader">
+                         <div class="loader-progress">
+                             <div class="loader-progress-bar" id="loadMoreProgressBar"></div>
                          </div>
-                         <div style="text-align:center; margin-top:12px; color:var(--text-muted); font-size:0.95rem; font-weight: 600;">AI is exploring related topics...</div>
+                         <div class="load-more-text">Our AI is exploring the knowledge graph...</div>
                     </div>
                 </div>
             </div>
         <?php endif; ?>
         
+        <article class="seo-article-section">
+            <div class="seo-grid">
+                <div class="seo-card">
+                    <div class="seo-icon"><i class="fas fa-microscope" style="color: var(--primary);"></i></div>
+                    <h2 class="seo-card-title">Micro-Topic Precision</h2>
+                    <p class="seo-card-text">Our proprietary AI engine breaks down curricula into atomic topics. Search specifically for "Electron Transport Chain" or "Kinetic Theory" to get laser-focused practice.</p>
+                </div>
+                <div class="seo-card">
+                    <div class="seo-icon"><i class="fas fa-brain" style="color: #a855f7;"></i></div>
+                    <h2 class="seo-card-title">Cognitive AI Synthesis</h2>
+                    <p class="seo-card-text">Powered by Google Gemini Pro, we don't just find questions—we verify their conceptual integrity against current 2026 board standards across Pakistan.</p>
+                </div>
+                <div class="seo-card">
+                    <div class="seo-icon"><i class="fas fa-chart-line" style="color: var(--success);"></i></div>
+                    <h2 class="seo-card-title">Adaptive Difficulty</h2>
+                    <p class="seo-card-text">Choose your challenge level. From foundational Easy mode to board-crushing Hard mode, tailor your preparation to your current mastery level.</p>
+                </div>
+                <div class="seo-card">
+                    <div class="seo-icon"><i class="fas fa-users" style="color: var(--accent);"></i></div>
+                    <h2 class="seo-card-title">Multi-Platform Ready</h2>
+                    <p class="seo-card-text">Perfect for individual study or classroom hosting. Select your modules and instantly broadcast a live interactive competition to any device.</p>
+                </div>
+            </div>
+            
+            <div class="seo-footer">
+                <p>Pakistan's most sophisticated <strong>Topic-Wise MCQ Generator</strong>. Designed for excellence in <strong>MDCAT, ECAT, NTS,</strong> and High School Board Examinations.</p>
+            </div>
+        </article>
     </div>
-    
-    <!-- Additional SEO Content for Topic Search -->
-    <article class="seo-article-section">
-        <div class="seo-grid">
-            <div class="seo-card">
-                <div class="seo-icon">🧬</div>
-                <h3 class="seo-card-title">Topic-Wise Precision</h3>
-                <p class="seo-card-text">Our AI-driven engine specializes in granular topic extraction. Whether you're searching for "Mitosis in Biology" or "Projectiles in Physics", get questions that hit the mark for <strong>BISE Punjab, Federal Board,</strong> and <strong>KPK Boards</strong>.</p>
+</div>
+
+<!-- Upgrade Plan Modal -->
+<div id="upgradeModal" class="upgrade-modal-overlay">
+    <div class="upgrade-modal-card">
+        <div class="upgrade-modal-icon">
+            <i class="fas fa-crown"></i>
+        </div>
+        <h2 class="upgrade-modal-title">Unlock Unlimited Topics</h2>
+        <p class="upgrade-modal-text"><?= ($userPlan === 'free') ? "Free" : ucfirst($userPlan) ?> users can select up to <strong><?= $topicLimit ?> topics</strong> per quiz. Upgrade to a higher plan to select more topics and unlock all advanced AI features.</p>
+        
+        <div class="upgrade-features-list">
+            <div class="upgrade-feature-item">
+                <i class="fas fa-check-circle"></i>
+                <span>Unlimited topic selection</span>
             </div>
-            <div class="seo-card">
-                <div class="seo-icon">🤖</div>
-                <h3 class="seo-card-title">AI-Powered Generation</h3>
-                <p class="seo-card-text">Leveraging <strong>Google Gemini AI</strong>, we provide dynamic MCQ generation for niche topics. If our database of 50,000+ questions doesn't have it, our AI creates high-standard, conceptually sound questions instantly.</p>
+            <div class="upgrade-feature-item">
+                <i class="fas fa-check-circle"></i>
+                <span>Advanced AI discovery depth</span>
             </div>
-            <div class="seo-card">
-                <div class="seo-icon">📈</div>
-                <h3 class="seo-card-title">Exam-Ready Standards</h3>
-                <p class="seo-card-text">Stay ahead with questions modeled after the <strong>2026 Paper Pattern</strong>. Perfect for <strong>MDCAT, ECAT, NTS,</strong> and board exam preparation for Classes 9, 10, 11, and 12.</p>
-            </div>
-            <div class="seo-card">
-                <div class="seo-icon">⚡</div>
-                <h3 class="seo-card-title">Instant Quiz Hosting</h3>
-                <p class="seo-card-text">Once you've selected your topics, host a live quiz for your students or peers in seconds. Real-time leaderboards and instant results tracking make learning interactive and fun.</p>
+            <div class="upgrade-feature-item">
+                <i class="fas fa-check-circle"></i>
+                <span>Priority question generation</span>
             </div>
         </div>
         
-        <div class="seo-footer">
-            <p>Empowering students across Pakistan with the most advanced <strong>AI MCQ Generator</strong> and <strong>Online Quiz Platform</strong>. Trusted for Matric, Intermediate, and Entrance Test success.</p>
+        <div class="upgrade-modal-actions">
+            <a href="../subscription.php" class="btn-upgrade-now">
+                <i class="fas fa-rocket"></i> Upgrade Now
+            </a>
+            <button type="button" class="btn-maybe-later" onclick="closeUpgradeModal()">
+                Maybe Later
+            </button>
         </div>
-    </article>
+    </div>
 </div>
 
 <script>
 let loaderProgressInterval;
 let selectedTopics = [];
+const isPremium = <?= json_encode($isPremium) ?>;
+const topicLimit = <?= json_encode($topicLimit) ?>;
+
+function ignoreModeAndNavigate(url) {
+    window.location.href = '../reset_and_go.php?redirect=' + encodeURIComponent('quiz/' + url);
+}
+
+function showUpgradeModal() {
+    const modal = document.getElementById('upgradeModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeUpgradeModal() {
+    const modal = document.getElementById('upgradeModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
 <?php if (isset($_SESSION['selected_topics']) && is_array($_SESSION['selected_topics'])) {
     echo "selectedTopics = " . json_encode($_SESSION['selected_topics']) . ";\n";
 } ?>
@@ -628,24 +721,24 @@ function showAILoader() {
     modal.style.display = 'flex';
     
     const steps = [
-        { id: 1, text: 'Analyzing topics', duration: 5500 },
-        { id: 2, text: 'Extracting key concepts', duration: 5500 },
-        { id: 3, text: 'Designing MCQs', duration: 6000 },
-        { id: 4, text: 'Validating difficulty', duration: 5000 },
-        { id: 5, text: 'Finalizing paper', duration: 15000 }
+        { id: 1, text: 'Analyzing topics', duration: 3500 },
+        { id: 2, text: 'Extracting key concepts', duration: 3500 },
+        { id: 3, text: 'Designing MCQs', duration: 3500 },
+        { id: 4, text: 'Validating difficulty', duration: 3500 },
+        { id: 5, text: 'Finalizing paper', duration: 3500 }
     ];
     
     let currentStepIndex = 0;
     let totalDuration = steps.reduce((acc, s) => acc + s.duration, 0);
     let elapsed = 0;
     
-    // Initialize all steps to pending state (hourglass)
+    // Initialize all steps to pending state
     steps.forEach(step => {
         const stepEl = document.getElementById(`step-${step.id}`);
         const iconEl = document.getElementById(`icon-${step.id}`);
         if (stepEl) {
             stepEl.classList.remove('active', 'completed');
-            iconEl.textContent = '⏳';
+            iconEl.innerHTML = '<i class="fas fa-circle-notch"></i>';
         }
     });
     
@@ -664,14 +757,14 @@ function showAILoader() {
             if (prevStepEl) {
                 prevStepEl.classList.add('completed');
                 prevStepEl.classList.remove('active');
-                prevIconEl.textContent = '✔';
+                prevIconEl.innerHTML = '<i class="fas fa-check"></i>';
             }
         }
         
         // Mark current step as active
         if (stepEl) {
             stepEl.classList.add('active');
-            iconEl.textContent = '⏳';
+            iconEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         }
         
         // Move to next step after duration
@@ -716,6 +809,11 @@ function toggleTopic(element, topicJson) {
         selectedTopics.splice(index, 1);
         element.classList.remove('selected');
     } else {
+        // Restriction check based on user plan limit
+        if (topicLimit !== -1 && selectedTopics.length >= topicLimit) {
+            showUpgradeModal();
+            return;
+        }
         selectedTopics.push(topicJson);
         element.classList.add('selected');
     }
@@ -789,7 +887,7 @@ function updateSelectedTopicsUI() {
         });
     } else {
         section.classList.add('empty');
-        list.innerHTML = '<div style="width: 100%; text-align: center; color: var(--text-muted); font-style: italic; padding: 20px;">No topics selected yet. Search and add topics below.</div>';
+        list.innerHTML = '<div class="no-selection-hint" style="width: 100%; text-align: center; color: var(--text-muted); padding: 20px; font-weight: 600;">Your list is currently empty. Start by searching modules below.</div>';
         startBtn.disabled = true;
     }
 }
@@ -896,13 +994,13 @@ document.getElementById('loadMoreTopicsBtn')?.addEventListener('click', function
                 div.className = 'topic-item' + (isSelected ? ' selected' : '');
                 div.setAttribute('data-topic-data', JSON.stringify(tData));
                 div.onclick = () => toggleTopic(div, JSON.stringify(tData));
-                div.innerHTML = '<div class="topic-info"><div class="topic-name">' + topicName + '</div></div><div class="topic-similarity">' + similarity + '% match</div>';
+                div.innerHTML = '<div class="topic-name">' + topicName + '</div><div class="topic-similarity">' + similarity + '% match</div>';
                 topicList.appendChild(div);
                 added++;
             });
             if (resultsHeader) {
                 const total = document.querySelectorAll('.topic-item[data-topic-data]').length;
-                resultsHeader.textContent = '\u2728 Found ' + total + ' search results';
+                resultsHeader.innerHTML = '<i class="fas fa-magic" style="color: var(--primary);"></i> Found ' + total + ' search results';
             }
         }
     })

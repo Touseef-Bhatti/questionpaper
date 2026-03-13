@@ -17,8 +17,12 @@ class SubscriptionService
     public function getCurrentSubscription($userId) 
     {
         $userId = intval($userId);
+        
+        // Auto-cleanup expired subscriptions for this user
+        $this->cleanupExpiredSubscriptions($userId);
+
         $sql = "SELECT us.*, sp.name as plan_name, sp.display_name, sp.features, 
-                       sp.max_papers_per_month, sp.max_chapters_per_paper, sp.max_questions_per_paper,
+                       sp.questionPaperPerDay, sp.TopicsForOnlineMCQs, sp.CustomPaperTemplate, sp.Ads,
                        sp.price, sp.currency
                 FROM user_subscriptions us 
                 JOIN subscription_plans sp ON us.plan_id = sp.id 
@@ -33,7 +37,26 @@ class SubscriptionService
         
         if ($result->num_rows > 0) {
             $subscription = $result->fetch_assoc();
-            $subscription['features'] = json_decode($subscription['features'], true);
+            
+            // Handle missing max_topics_per_quiz column gracefully
+            if (!isset($subscription['max_topics_per_quiz'])) {
+                $subscription['max_topics_per_quiz'] = ($subscription['plan_name'] === 'free') ? 3 : -1;
+            }
+            
+            // Fetch features from the new table
+            $planId = intval($subscription['plan_id']);
+            $features = [];
+            $featSql = "SELECT feature_text FROM subscription_plan_features WHERE plan_id = ? ORDER BY sort_order ASC";
+            $featStmt = $this->conn->prepare($featSql);
+            $featStmt->bind_param("i", $planId);
+            $featStmt->execute();
+            $featRes = $featStmt->get_result();
+            while($fRow = $featRes->fetch_assoc()) {
+                $features[] = $fRow['feature_text'];
+            }
+            $featStmt->close();
+            
+            $subscription['features_list'] = $features;
             return $subscription;
         }
         
@@ -41,6 +64,46 @@ class SubscriptionService
         return $this->getFreeSubscription($userId);
     }
     
+    /**
+     * Cleanup and reset expired subscriptions for a specific user
+     */
+    public function cleanupExpiredSubscriptions($userId) 
+    {
+        $userId = intval($userId);
+        
+        // Find if there's an active but expired subscription
+        $sql = "SELECT us.id, us.plan_id FROM user_subscriptions us 
+                WHERE us.user_id = ? AND us.status = 'active' 
+                AND us.expires_at IS NOT NULL AND us.expires_at <= NOW()";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        
+        if ($res->num_rows > 0) {
+            // Found expired subscriptions, mark them as 'expired'
+            $updateSql = "UPDATE user_subscriptions SET status = 'expired' 
+                         WHERE user_id = ? AND status = 'active' 
+                         AND expires_at IS NOT NULL AND expires_at <= NOW()";
+            $upStmt = $this->conn->prepare($updateSql);
+            $upStmt->bind_param("i", $userId);
+            $upStmt->execute();
+            
+            // Now check if they have any *other* active subscription (e.g. they bought another one before expiry)
+            $activeCheck = "SELECT id FROM user_subscriptions 
+                           WHERE user_id = ? AND status = 'active' 
+                           AND (expires_at IS NULL OR expires_at > NOW())";
+            $acStmt = $this->conn->prepare($activeCheck);
+            $acStmt->bind_param("i", $userId);
+            $acStmt->execute();
+            if ($acStmt->get_result()->num_rows === 0) {
+                // No other active subscription, reset user status to 'free'
+                $this->updateUserSubscriptionStatus($userId, 'free', null);
+            }
+        }
+    }
+
     /**
      * Get free plan details
      */
@@ -51,7 +114,21 @@ class SubscriptionService
         
         if ($result->num_rows > 0) {
             $plan = $result->fetch_assoc();
-            $plan['features'] = json_decode($plan['features'], true);
+            
+            // Fetch features from the new table
+            $planId = intval($plan['id']);
+            $features = [];
+            $featSql = "SELECT feature_text FROM subscription_plan_features WHERE plan_id = ? ORDER BY sort_order ASC";
+            $featStmt = $this->conn->prepare($featSql);
+            $featStmt->bind_param("i", $planId);
+            $featStmt->execute();
+            $featRes = $featStmt->get_result();
+            while($fRow = $featRes->fetch_assoc()) {
+                $features[] = $fRow['feature_text'];
+            }
+            $featStmt->close();
+            
+            $plan['features'] = $features;
             $plan['user_id'] = $userId;
             $plan['status'] = 'active';
             $plan['papers_used_this_month'] = $this->getUsageCount($userId, 'paper_generated');
@@ -72,7 +149,19 @@ class SubscriptionService
         $plans = [];
         
         while ($row = $result->fetch_assoc()) {
-            $row['features'] = json_decode($row['features'], true);
+            $planId = intval($row['id']);
+            $features = [];
+            $featSql = "SELECT feature_text FROM subscription_plan_features WHERE plan_id = ? ORDER BY sort_order ASC";
+            $featStmt = $this->conn->prepare($featSql);
+            $featStmt->bind_param("i", $planId);
+            $featStmt->execute();
+            $featRes = $featStmt->get_result();
+            while($fRow = $featRes->fetch_assoc()) {
+                $features[] = $fRow['feature_text'];
+            }
+            $featStmt->close();
+            
+            $row['features'] = $features;
             $plans[] = $row;
         }
         
@@ -89,15 +178,15 @@ class SubscriptionService
         
         switch ($action) {
             case 'generate_paper':
-                if ($subscription['max_papers_per_month'] == -1) return true;
-                $usageCount = $this->getUsageCount($userId, 'paper_generated');
-                return $usageCount < $subscription['max_papers_per_month'];
+                if ($subscription['questionPaperPerDay'] == -1) return true;
+                $dailyUsage = $this->getDailyUsageCount($userId, 'paper_generated');
+                return $dailyUsage < $subscription['questionPaperPerDay'];
                 
-            case 'unlimited_chapters':
-                return $subscription['max_chapters_per_paper'] == -1;
+            case 'custom_template':
+                return (bool)$subscription['CustomPaperTemplate'];
                 
-            case 'unlimited_questions':
-                return $subscription['max_questions_per_paper'] == -1;
+            case 'no_ads':
+                return !(bool)$subscription['Ads'];
                 
             case 'export_docx':
                 return in_array($subscription['plan_name'], ['premium', 'pro', 'yearly_premium', 'yearly_pro']);
@@ -105,6 +194,25 @@ class SubscriptionService
             default:
                 return true;
         }
+    }
+    
+    /**
+     * Get usage count for today
+     */
+    public function getDailyUsageCount($userId, $action) 
+    {
+        $userId = intval($userId);
+        $sql = "SELECT COUNT(*) as count FROM usage_tracking 
+                WHERE user_id = ? AND action = ? 
+                AND DATE(created_at) = CURDATE()";
+                
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("is", $userId, $action);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        
+        return $row['count'] ?? 0;
     }
     
     /**
@@ -280,12 +388,13 @@ class SubscriptionService
         return [
             'plan_name' => $subscription['plan_name'],
             'display_name' => $subscription['display_name'],
-            'max_papers_per_month' => $subscription['max_papers_per_month'],
-            'max_chapters_per_paper' => $subscription['max_chapters_per_paper'],
-            'max_questions_per_paper' => $subscription['max_questions_per_paper'],
-            'papers_used_this_month' => $this->getUsageCount($userId, 'paper_generated'),
-            'papers_remaining' => $subscription['max_papers_per_month'] == -1 ? -1 : 
-                                max(0, $subscription['max_papers_per_month'] - $this->getUsageCount($userId, 'paper_generated')),
+            'questionPaperPerDay' => $subscription['questionPaperPerDay'],
+            'TopicsForOnlineMCQs' => $subscription['TopicsForOnlineMCQs'],
+            'CustomPaperTemplate' => $subscription['CustomPaperTemplate'],
+            'Ads' => $subscription['Ads'],
+            'papers_used_today' => $this->getDailyUsageCount($userId, 'paper_generated'),
+            'papers_remaining_today' => $subscription['questionPaperPerDay'] == -1 ? -1 : 
+                                max(0, $subscription['questionPaperPerDay'] - $this->getDailyUsageCount($userId, 'paper_generated')),
             'expires_at' => $subscription['expires_at'] ?? null,
             'features' => $subscription['features']
         ];

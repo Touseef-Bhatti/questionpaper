@@ -141,7 +141,7 @@ if (session_status() === PHP_SESSION_NONE) session_start();
     </style>
 </head>
 <body>
-<?php include '../header.php'; ?>
+<?php include_once '../header.php'; ?>
 <div class="main-content">
     <div class="quiz-setup-container">
         <header class="setup-header">

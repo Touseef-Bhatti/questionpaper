@@ -1,0 +1,24 @@
+/* ======================================================
+   PAPER LAYOUT DESIGNS — applied dynamically via JS
+   Each layout targets .paper-layout-N on the paper container
+   ====================================================== */
+
+/* Layout 1: Classic White */
+.pl-1 { background:#fff; font-family:'Times New Roman',Times,serif; color:#111; border:1.5px solid #ccc; border-radius:0; box-shadow:0 4px 24px rgba(0,0,0,0.10); padding:28px 32px !important; }
+.pl-1 .section-title,.pl-1 h3 { background:none !important; border-left:4px solid #000; padding-left:10px; }
+
+/* Layout 2: Lined Notebook */
+.pl-2 { background:repeating-linear-gradient(to bottom, #fff 0px, #fff 27px, #c8d8f0 28px); font-family:'Arial',sans-serif; color:#222; border:2px solid #3b5fa0; border-radius:4px; box-shadow:0 4px 30px rgba(59,95,160,0.10); padding:28px 32px !important; }
+.pl-2 .section-title,.pl-2 h3 { background:rgba(59,95,160,0.08) !important; border-bottom:2px solid #3b5fa0; border-left:none; color:#1a3260; }
+
+/* Layout 3: Aged Parchment */
+.pl-3 { background:#fdf6e3; font-family:'Georgia',serif; color:#3b2700; border:2px double #c8a96e; border-radius:6px; box-shadow:0 4px 24px rgba(150,100,30,0.12); padding:28px 32px !important; }
+.pl-3 .section-title,.pl-3 h3 { background:rgba(200,169,110,0.18) !important; border-bottom:1px solid #c8a96e; color:#5c3a00; border-left:4px solid #c8a96e; }
+
+/* Layout 4: Government Green */
+.pl-4 { background:#f4fff7; font-family:'Times New Roman',Times,serif; color:#0a3020; border:2px solid #2e7d32; border-radius:0; box-shadow:0 4px 24px rgba(46,125,50,0.10); padding:28px 32px !important; }
+.pl-4 .section-title,.pl-4 h3 { background:rgba(46,125,50,0.10) !important; border-left:4px solid #2e7d32; color:#1b5e20; }
+
+/* Layout 5: Modern Dark Accent */
+.pl-5 { background:#fff; font-family:'Arial',sans-serif; color:#1a1a2e; border-top:6px solid #1a1a2e; border:1px solid #e0e0e0; box-shadow:0 8px 30px rgba(26,26,46,0.08); border-radius:4px; padding:28px 32px !important; }
+.pl-5 .section-title,.pl-5 h3 { background:#1a1a2e !important; color:#fff !important; border-left:none !important; padding-left:14px; border-radius:2px; }

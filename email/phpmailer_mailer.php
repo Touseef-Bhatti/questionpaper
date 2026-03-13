@@ -10,15 +10,74 @@ require __DIR__ . '/../PHPMailer-master/src/Exception.php';
 require __DIR__ . '/../PHPMailer-master/src/PHPMailer.php';
 require __DIR__ . '/../PHPMailer-master/src/SMTP.php';
 
-function sendVerificationEmail($to, $token) {
-    // Basic email validation
-    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
-        error_log('Invalid email address: ' . $to);
+/**
+ * Send admin verification email for create/delete actions
+ */
+function sendAdminActionVerificationEmail($to, $actionType, $token, $details) {
+    try {
+        $fromEmail = EnvLoader::get('SMTP_USERNAME', 'paper@bhattichemicalsindustry.com.pk');
+        $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
+        $baseUrl = EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk');
+        
+        if (!preg_match('/^https?:\/\//', $baseUrl)) {
+            $baseUrl = 'https://' . $baseUrl;
+        }
+        
+        $verifyUrl = rtrim($baseUrl, '/') . '/admin/verify_admin_action.php?token=' . urlencode($token);
+        
+        $actionName = ($actionType === 'create') ? 'Create New Admin' : 'Delete Admin Account';
+        $subject = "Verification Required: $actionName - " . $fromName;
+        
+        $htmlMessage = "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .header { background: #1e3c72; color: #fff; padding: 10px 20px; border-radius: 6px 6px 0 0; }
+        .content { padding: 20px; }
+        .footer { font-size: 12px; color: #888; text-align: center; margin-top: 20px; }
+        .btn { display: inline-block; padding: 12px 24px; background: #1e3c72; color: #fff !important; text-decoration: none; border-radius: 6px; font-weight: bold; }
+        .details { background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h2>Verification Required</h2>
+        </div>
+        <div class='content'>
+            <p>Hello,</p>
+            <p>An administrative action requires your verification:</p>
+            <div class='details'>
+                <strong>Action:</strong> $actionName<br>
+                $details
+            </div>
+            <p>If you approve this action, please click the button below to verify and complete it:</p>
+            <p style='text-align: center;'>
+                <a href='$verifyUrl' class='btn'>Verify and Complete Action</a>
+            </p>
+            <p>If you did not authorize this action, please ignore this email.</p>
+        </div>
+        <div class='footer'>
+            &copy; " . date('Y') . " " . htmlspecialchars($fromName) . ". All rights reserved.
+        </div>
+    </div>
+</body>
+</html>";
+
+        $headers = "From: " . $fromName . " <" . $fromEmail . ">\r\n" .
+                  "Reply-To: " . $fromEmail . "\r\n" .
+                  "MIME-Version: 1.0\r\n" .
+                  "Content-Type: text/html; charset=UTF-8\r\n";
+        
+        return mail($to, $subject, $htmlMessage, $headers);
+    } catch (Exception $e) {
+        error_log("Admin verification email error: " . $e->getMessage());
         return false;
     }
-
-    // Use direct HTML email for faster delivery
-    return sendHtmlEmail($to, $token);
 }
 
 /**

@@ -28,14 +28,20 @@ $adminUrl = $baseUrl . 'admin/';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Question Paper Generator</title>
-  
     
+    <!-- Core CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>css/main.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>css/admin.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-header.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-footer.css">
 </head>
 <body>
     <nav class="admin-navbar">
         <div class="admin-navbar-container">
             <div class="admin-nav-left">
-                <a href="<?= $baseUrl ?>index.php" class="admin-nav-logo">
+                <a href="<?= $adminUrl ?>dashboard.php" class="admin-nav-logo">
                     <span class="logo-icon">⚙️</span>
                     <span class="logo-text">Admin Panel</span>
                 </a>
@@ -53,7 +59,7 @@ $adminUrl = $baseUrl . 'admin/';
                 <li><a href="<?= $adminUrl ?>dashboard.php" class="nav-link-dashboard">📊 Dashboard</a></li>
                 <li class="nav-dropdown">
                     <a href="#" class="nav-link-dropdown">📚 Manage Content</a>
-                    <ul class="dropdown-menu">
+                    <ul class="admin-dropdown-menu">
                         <li><a href="<?= $adminUrl ?>manage_classes.php">🏫 Classes</a></li>
                         <li><a href="<?= $adminUrl ?>manage_books.php">📖 Books</a></li>
                         <li><a href="<?= $adminUrl ?>manage_chapters.php">📝 Chapters</a></li>
@@ -62,16 +68,25 @@ $adminUrl = $baseUrl . 'admin/';
                 </li>
                 <li class="nav-dropdown">
                     <a href="#" class="nav-link-dropdown">🤖 AI Content</a>
-                    <ul class="dropdown-menu">
+                    <ul class="admin-dropdown-menu">
                         <li><a href="<?= $adminUrl ?>manage_ai_mcqs.php">☑️ MCQs</a></li>
                         <li><a href="<?= $adminUrl ?>manage_ai_short.php">📝 Short Qs</a></li>
                         <li><a href="<?= $adminUrl ?>manage_ai_long.php">📑 Long Qs</a></li>
                         <li><a href="<?= $adminUrl ?>manage_ai_keys.php">🔑 API Keys</a></li>
                     </ul>
                 </li>
+                <li class="nav-dropdown">
+                    <a href="#" class="nav-link-dropdown">💳 Subscriptions</a>
+                    <ul class="admin-dropdown-menu">
+                        <li><a href="<?= $adminUrl ?>subscriptions/index.php">📋 Plan Settings</a></li>
+                        <li><a href="<?= $adminUrl ?>subscriptions/user_usage.php">📊 User Usage</a></li>
+                        <li><a href="<?= $adminUrl ?>super_admin_payments.php">💰 Payments</a></li>
+                        <li><a href="<?= $adminUrl ?>user.php">👤 User Plans</a></li>
+                    </ul>
+                </li>
                 <li><a href="<?= $adminUrl ?>deleted_questions.php" class="nav-link-deleted">🗑️ Deleted</a></li>
                 <li><a href="<?= $adminUrl ?>contact_messages.php" class="nav-link-contact">💌 Contact Messages</a></li>
-                <li><a href="<?= $adminUrl ?>users.php" class="nav-link-users">👥 Admins</a></li>
+                <li><a href="<?= $adminUrl ?>manage_admins.php" class="nav-link-users">👥 Admins</a></li>
                 <li><a href="<?= $adminUrl ?>settings.php" class="nav-link-settings">⚙️ Settings</a></li>
                 <li class="admin-user-info">
                     <span class="user-name"><?= htmlspecialchars($_SESSION['name'] ?? 'Admin') ?></span>
@@ -129,19 +144,31 @@ $adminUrl = $baseUrl . 'admin/';
     // Dropdown functionality
     document.querySelectorAll('.nav-dropdown').forEach(dropdown => {
         const link = dropdown.querySelector('.nav-link-dropdown');
-        const menu = dropdown.querySelector('.dropdown-menu');
         
         link.addEventListener('click', function(e) {
             e.preventDefault();
-            dropdown.classList.toggle('open');
-        });
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!dropdown.contains(e.target)) {
+            e.stopPropagation();
+            
+            const isOpen = dropdown.classList.contains('open');
+            
+            // Close other dropdowns
+            document.querySelectorAll('.nav-dropdown').forEach(other => {
+                if (other !== dropdown) other.classList.remove('open');
+            });
+            
+            if (isOpen) {
                 dropdown.classList.remove('open');
+            } else {
+                dropdown.classList.add('open');
             }
         });
+    });
+    
+    // Close dropdown when clicking outside (mobile)
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.nav-dropdown')) {
+            document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
+        }
     });
     
     // Highlight current page
@@ -284,7 +311,7 @@ $adminUrl = $baseUrl . 'admin/';
     transform: rotate(180deg);
 }
 
-.dropdown-menu {
+.admin-dropdown-menu {
     position: absolute;
     top: 100%;
     left: 0;
@@ -298,23 +325,27 @@ $adminUrl = $baseUrl . 'admin/';
     transition: all 0.3s ease;
     z-index: 1001;
     border: 1px solid #e1e5e9;
+    padding: 0;
+    margin: 0;
+    list-style: none;
 }
 
-.nav-dropdown.open .dropdown-menu {
+.nav-dropdown.open .admin-dropdown-menu,
+.nav-dropdown:hover .admin-dropdown-menu {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
 }
 
-.dropdown-menu li {
+.admin-dropdown-menu li {
     border-bottom: 1px solid #f1f3f4;
 }
 
-.dropdown-menu li:last-child {
+.admin-dropdown-menu li:last-child {
     border-bottom: none;
 }
 
-.dropdown-menu a {
+.admin-dropdown-menu a {
     color: #2c3e50;
     padding: 12px 20px;
     border-bottom: none;
@@ -322,7 +353,7 @@ $adminUrl = $baseUrl . 'admin/';
     transition: all 0.2s ease;
 }
 
-.dropdown-menu a:hover {
+.admin-dropdown-menu a:hover {
     background: #f8f9fa;
     color: #1e3c72;
     transform: none;
@@ -470,17 +501,25 @@ $adminUrl = $baseUrl . 'admin/';
         background: rgba(255,255,255,0.1);
     }
     
-    .dropdown-menu {
+    .admin-dropdown-menu {
         position: static;
         background: rgba(255,255,255,0.05);
         box-shadow: none;
         border: none;
         border-radius: 0;
-        opacity: 1;
-        visibility: visible;
+        opacity: 0;
+        visibility: hidden;
+        display: none;
         transform: none;
         margin-left: 20px;
         min-width: auto;
+        transition: none;
+    }
+    
+    .nav-dropdown.open .admin-dropdown-menu {
+        opacity: 1;
+        visibility: visible;
+        display: block;
     }
     
     .dropdown-menu a {

@@ -15,7 +15,10 @@ if (!in_array($status_filter, $valid_status, true)) { $status_filter = ''; }
 function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
 // Helper: get join URL
-function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code); }
+function join_url($code){ 
+    $baseUrl = rtrim(EnvLoader::get('BASE_URL', 'https://paper.bhattichemicalsindustry.com.pk'), '/');
+    return $baseUrl . '/quiz/online_quiz_join.php?room=' . urlencode($code); 
+}
 
 ?>
 <!DOCTYPE html>
@@ -76,7 +79,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
   </style>
 </head>
 <body>
-<?php include '../header.php'; ?>
+<?php include_once '../header.php'; ?>
 <div class="main-content">
   <div class="container-narrow">
   <?php if ($room_code === ''): ?>
@@ -233,7 +236,7 @@ function join_url($code){ return 'online_quiz_join.php?room=' . urlencode($code)
         <?php endif; ?>
         <a class="btn secondary" href="online_quiz_rehost.php?room=<?= h($room['room_code']) ?>" onclick="return confirm('Create a new room with the same questions?');">Rehost</a>
         <a class="btn secondary" href="online_quiz_room_questions.php?room=<?= h($room['room_code']) ?>">View/Edit Questions</a>
-        <a class="btn secondary" href="online_quiz_export.php?room=<?= h($room['room_code']) ?>">Export CSV</a>
+        <a class="btn secondary" href="online_quiz_export.php?room=<?= h($room['room_code']) ?>">Download Results</a>
       </div>
     </div>
 

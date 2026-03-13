@@ -2,9 +2,10 @@
 // Authentication will be checked only when user wants to download or print
 // require_once 'auth_check.php';
 include 'db_connect.php';
+$pageTitle = "Generated Question Paper";
+include 'header.php';
 require_once 'services/CacheManager.php';
 require_once 'services/QuestionService.php';
-session_start();
 
 // Initialize cache and question service
 $cache = new CacheManager();
@@ -325,13 +326,8 @@ if ($patternMode === 'with') {
 $patternQCount = max($patternQCount, $maxNewQNumGenerated);
 ?>
 <!-- All your HTML output code starts here -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Generated Question Paper</title>
     <link rel="stylesheet" href="css/QPaper.css">
     <link rel="stylesheet" href="css/buttons.css">
-    <link rel="stylesheet" href="css/main.css">
 
         <style>
             /* Minimal page-scoped CSS to keep this page self-contained and avoid
@@ -343,6 +339,40 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
                 --dark-gray: #343a40;
                 --radius-lg: 12px;
                 --transition-normal: 0.3s;
+            }
+
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background-color: #f8f9fa;
+                width: 100%;
+                overflow-x: hidden;
+            }
+
+            .navbar {
+                width: 100% !important;
+                margin: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 2000 !important;
+            }
+
+            .footer {
+                width: 100% !important;
+                margin: 0 !important;
+                box-sizing: border-box;
+            }
+
+            .paper-container {
+                margin: 40px auto !important;
+                max-width: 900px !important;
+                width: 95% !important;
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0px 0px 15px rgba(0,0,0,0.1);
             }
 
             /* Neutralize any global .btn dark theming while keeping button layout
@@ -405,36 +435,95 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
                 padding: 0 14px;
             }
 
+            /* Design Selector Styles */
+            .design-selector {
+                position: fixed;
+                right: 20px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: white;
+                padding: 15px;
+                border-radius: 12px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                z-index: 1300;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                width: 150px;
+            }
+            .design-selector h4 {
+                font-size: 14px;
+                margin: 0 0 10px 0;
+                text-align: center;
+                color: #333;
+            }
+            .design-option {
+                cursor: pointer;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 8px;
+                text-align: center;
+                font-size: 12px;
+                font-weight: 600;
+                transition: all 0.2s;
+                background: #f9fafb;
+            }
+            .design-option:hover {
+                border-color: #4f46e5;
+                background: #f3f4f6;
+            }
+            .design-option.active {
+                border-color: #4f46e5;
+                background: #eef2ff;
+                color: #4f46e5;
+            }
+
             @media print {
-                .print-buttons { display: none; }
+                .print-buttons, .design-selector, .navbar, footer, .alert { display: none !important; }
             }
 
         </style>
-   
-</head>
-<body>
+
+    <?php 
+    $instituteName = "OPF SCHOOL SKP"; // Default institute name
+    ?>
+
+    <div class="design-selector">
+        <h4>Header Design</h4>
+        <div class="design-option active" onclick="changeHeader(1, this)">Design 1 (Formal)</div>
+        <div class="design-option" onclick="changeHeader(2, this)">Design 2 (Modern)</div>
+        <div class="design-option" onclick="changeHeader(3, this)">Design 3 (Board)</div>
+        <div class="design-option" onclick="changeHeader(4, this)">Design 4 (Elegant)</div>
+        <div class="design-option" onclick="changeHeader(5, this)">Design 5 (Boxed)</div>
+        <div class="design-option" onclick="changeHeader(6, this)">Design 6 (AI Style)</div>
+    </div>
 
     <div class="paper-container" id="paper"> 
-        <!-- HEADER OMITTED FOR BREVITY - SAME AS YOURS --> 
-        <div class="header"> 
-            <table class="header-table" border="1" cellspacing="0" cellpadding="10" style="width: 100%; text-align: center; border-collapse: collapse;"> 
-                <tr> 
-                    <td><input style="border: none;" type="text" placeholder="Book Name" value="<?php echo $bookName; ?>"></td> 
-                    <td><input style="border: none; font-weight: bold; font-size: 18px; text-align: center; width: 100%; background: transparent;" type="text" value="OPF SCHOOL SKP"></td> 
-                    <td><label>ROLL#:</label><input type="text" placeholder="...................." style="width: 80%; text-align: center; border: none;"></td> 
-                </tr> 
-                <tr> 
-                    <td><input type="text" placeholder="Chapters" value="<?php echo htmlspecialchars($chapterHeaderLabel ?: 'Chapters'); ?>" style="width: 80%; text-align: center; border: none;"></td> 
-                    <td><input type="text" placeholder="First Term" value="First Term" style="border: none; text-align: center; width: 100%; background: transparent;"></td> 
-                    <td><label>Time Allowed:</label><input type="text" placeholder="20 Min" style="width: 80%; text-align: center; border: none;"></td> 
-                </tr> 
-                <tr> 
-                    <td><label>Paper Code:</label><input type="text" placeholder="2354 (Objective)" style="width: 80%; text-align: center; border: none;"></td> 
-                    <td><label></label><input type="text" value="<?php echo $classNameHeader ?: 'Class'; ?>" style="width: 80%; text-align: center; border: none;"></td> 
-                    <td><label>Total Marks:</label><input type="text" value="<?php echo $totalMarks; ?>" style="width: 80%; text-align: center; border: none;"></td> 
-                </tr> 
-            </table> 
+        <div class="header" id="dynamic-header"> 
+            <div id="header-container-1"><?php include 'questionPapersHeaders/header1.php'; ?></div>
+            <div id="header-container-2" style="display:none;"><?php include 'questionPapersHeaders/header2.php'; ?></div>
+            <div id="header-container-3" style="display:none;"><?php include 'questionPapersHeaders/header3.php'; ?></div>
+            <div id="header-container-4" style="display:none;"><?php include 'questionPapersHeaders/header4.php'; ?></div>
+            <div id="header-container-5" style="display:none;"><?php include 'questionPapersHeaders/header5.php'; ?></div>
+            <div id="header-container-6" style="display:none;"><?php include 'questionPapersHeaders/header6.php'; ?></div>
         </div>
+
+        <script>
+        function changeHeader(designId, element) {
+            // Update active state in selector
+            document.querySelectorAll('.design-option').forEach(opt => opt.classList.remove('active'));
+            element.classList.add('active');
+            
+            // Hide all headers
+            for (let i = 1; i <= 6; i++) {
+                const el = document.getElementById('header-container-' + i);
+                if (el) el.style.display = 'none';
+            }
+            // Show selected header
+            const target = document.getElementById('header-container-' + designId);
+            if (target) target.style.display = 'block';
+        }
+        </script>
 
         <!-- <label><strong>Instructions / Notes:</strong></label> 
         <textarea  id="note" rows="3" placeholder="Write any important note about this paper here..."></textarea>  -->
@@ -780,11 +869,58 @@ function createTempContainer(html) {
     return tempDiv.firstElementChild;
 }
 
+// Inline all computed styles on header elements in the LIVE DOM before export.
+// Must be called on the live document (before cloneNode) so getComputedStyle works.
+function inlineHeaderStyles() {
+    const header = document.getElementById('dynamic-header');
+    if (!header) return;
+
+    const propsToInline = [
+        'font-family','font-size','font-weight','font-style','color',
+        'background-color','text-align','text-transform','letter-spacing',
+        'line-height','border','border-top','border-bottom','border-left','border-right',
+        'border-collapse','padding','padding-top','padding-bottom','padding-left','padding-right',
+        'margin-top','margin-bottom','margin-left','margin-right',
+        'width','min-width','max-width','vertical-align',
+        'text-decoration','white-space'
+    ];
+
+    header.querySelectorAll('*').forEach(el => {
+        const computed = window.getComputedStyle(el);
+        let existing = el.getAttribute('style') || '';
+        const alreadyInlined = {};
+        // Parse existing inline styles so we don't duplicate
+        existing.split(';').forEach(part => {
+            const [k] = part.split(':');
+            if (k) alreadyInlined[k.trim()] = true;
+        });
+        let additions = '';
+        propsToInline.forEach(prop => {
+            if (alreadyInlined[prop]) return; // don't override explicit inline styles
+            const val = computed.getPropertyValue(prop);
+            if (val && val.trim() !== '' && val !== 'initial' && val !== 'inherit') {
+                additions += `${prop}:${val};`;
+            }
+        });
+        if (additions) el.setAttribute('style', existing + additions);
+    });
+}
+
 function buildCleanPaperHTML(sourceEl) {
     const clone = sourceEl.cloneNode(true);
     
+    // Remove hidden elements (like unselected headers)
+    clone.querySelectorAll('[style*="display:none"], [style*="display: none"]').forEach(el => el.remove());
+    
     // Remove action buttons
     clone.querySelectorAll('.action-buttons').forEach(el => el.remove());
+    
+    // Explicitly remove borders from sections/questions for a clean export, but exclude the header
+    clone.style.border = 'none';
+    clone.style.boxShadow = 'none';
+    clone.querySelectorAll('.mcq-item, .section').forEach(el => {
+        el.style.border = 'none';
+    });
     
     // Convert inputs to spans
     clone.querySelectorAll('input').forEach(input => {
@@ -852,9 +988,10 @@ function buildCleanPaperHTML(sourceEl) {
         
         // Create a table for grid layout in DOCX
         const table = document.createElement('table');
+        table.setAttribute('border', '0');
         table.style.width = '100%';
         table.style.borderCollapse = 'collapse';
-        table.style.border = '1px solid #ddd';
+        table.style.border = 'none';
         
         // Determine number of columns (2 for Word doc)
         const columns = 2;
@@ -870,7 +1007,7 @@ function buildCleanPaperHTML(sourceEl) {
                     const cell = document.createElement('td');
                     cell.style.width = (100 / columns) + '%';
                     cell.style.padding = '8px';
-                    cell.style.border = '1px solid #ddd';
+                    cell.style.border = 'none';
                     cell.style.verticalAlign = 'top';
                     
                     // Ensure proper formatting of MCQ content
@@ -889,7 +1026,7 @@ function buildCleanPaperHTML(sourceEl) {
                     // Empty cell to maintain table structure
                     const cell = document.createElement('td');
                     cell.style.width = (100 / columns) + '%';
-                    cell.style.border = '1px solid #ddd';
+                    // cell.style.border = 'none'; // Removed border
                     row.appendChild(cell);
                 }
             }
@@ -901,38 +1038,115 @@ function buildCleanPaperHTML(sourceEl) {
         grid.replaceWith(mcqDiv);
     });
     
-    // Fix question-row layout for DOCX - ensure marks stay inline
+    // TABLIFY FLEX/GRID HEADERS for Word compatibility
+    // Target common flex/grid patterns in headers
+    const flexGridSelectors = '.h2-meta, .h2-student-row, .h3-main, .h3-meta-row, .h4-body, .h5-header-bar, .h5-body, .h5-field-row, .h6-meta, .h6-divider, .h3-top-bar';
+    clone.querySelectorAll(flexGridSelectors).forEach(flexEl => {
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.setAttribute('border', '0');
+        table.style.margin = '0';
+        table.style.padding = '0';
+        
+        // Preserve bg color and borders for bars (like h5-header-bar)
+        if (flexEl.classList.contains('h5-header-bar') || flexEl.classList.contains('h3-top-bar')) {
+            table.style.backgroundColor = window.getComputedStyle(flexEl).backgroundColor || '#000000';
+            table.style.color = window.getComputedStyle(flexEl).color || '#ffffff';
+            table.style.borderBottom = window.getComputedStyle(flexEl).borderBottom || 'none';
+        }
+
+        const tr = document.createElement('tr');
+        const children = Array.from(flexEl.children);
+        
+        children.forEach((child, idx) => {
+            const td = document.createElement('td');
+            td.style.verticalAlign = 'top';
+            td.style.padding = '5px';
+            td.style.border = 'none';
+            td.style.margin = '0';
+
+            // Specific width handling for different header types
+            if (flexEl.classList.contains('h4-body')) {
+                td.style.width = '50%'; // 2-column grid
+            } else if (flexEl.classList.contains('h5-body')) {
+                // Header 5 has a 2:1 split (flex: 2 and flex: 1)
+                td.style.width = (idx === 0) ? '66%' : '33%';
+                if (idx === 0) td.style.borderRight = '1.5px solid #000';
+            } else if (flexEl.classList.contains('h5-header-bar')) {
+                td.style.width = '50%';
+                if (idx === 1) td.style.textAlign = 'right';
+            } else if (flexEl.classList.contains('h6-meta') || flexEl.classList.contains('h2-meta') || flexEl.classList.contains('h3-meta-row')) {
+                td.style.width = (100 / children.length) + '%';
+                td.style.textAlign = 'center';
+            } else if (flexEl.classList.contains('h6-divider')) {
+                td.style.width = (idx === 1) ? 'auto' : '45%';
+                td.style.textAlign = 'center';
+                if (idx !== 1) td.style.borderBottom = '1px solid #000';
+            } else if (flexEl.classList.contains('h3-main')) {
+                // h3-main has 3 columns, first and last are fixed width, middle is auto
+                if (idx === 0) td.style.width = '90px'; // Logo
+                else if (idx === 2) td.style.width = '90px'; // Stamp
+                else td.style.width = 'auto'; // Title
+                td.style.textAlign = 'center';
+            } else if (flexEl.classList.contains('h3-top-bar')) {
+                td.style.width = (100 / children.length) + '%';
+                td.style.textAlign = 'center';
+            }
+            
+            td.innerHTML = child.innerHTML;
+            tr.appendChild(td);
+        });
+        
+        table.appendChild(tr);
+        flexEl.replaceWith(table);
+    });
+
+    // Special fix for h3-logo and h3-stamp width in the tabified main row
+    clone.querySelectorAll('.h3-logo, .h3-stamp').forEach(el => {
+       if (el.tagName === 'TD') el.style.width = '90px';
+    });
+
+    // Fix question-row layout for DOCX - ensure marks stay inline using a table
     clone.querySelectorAll('.question-row').forEach(row => {
         const content = row.querySelector('.question-content');
         const marks = row.querySelector('.marks-container');
         
         if (content && marks) {
-            const inlineDiv = document.createElement('div');
-            inlineDiv.style.display = 'flex';
-            inlineDiv.style.justifyContent = 'space-between';
-            inlineDiv.style.alignItems = 'flex-start';
+            // Create a table to force alignment in Word
+            const table = document.createElement('table');
+            table.setAttribute('border', '0');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.border = 'none';
             
-            const contentSpan = document.createElement('span');
-            contentSpan.innerHTML = content.innerHTML;
-            contentSpan.style.flex = '1';
+            const tr = document.createElement('tr');
             
-            const marksSpan = document.createElement('span');
-            marksSpan.innerHTML = marks.innerHTML;
-            marksSpan.style.marginLeft = '20px';
-            marksSpan.style.minWidth = '60px';
-            marksSpan.style.textAlign = 'right';
+            const tdContent = document.createElement('td');
+            tdContent.style.verticalAlign = 'top';
+            tdContent.style.textAlign = 'left';
+            tdContent.style.border = 'none';
+            tdContent.innerHTML = content.innerHTML;
             
-            inlineDiv.appendChild(contentSpan);
-            inlineDiv.appendChild(marksSpan);
+            const tdMarks = document.createElement('td');
+            tdMarks.style.verticalAlign = 'top';
+            tdMarks.style.textAlign = 'right';
+            tdMarks.style.border = 'none';
+            tdMarks.style.width = '100px'; // Give enough space for marks
+            tdMarks.innerHTML = marks.innerHTML;
             
-            row.replaceWith(inlineDiv);
+            tr.appendChild(tdContent);
+            tr.appendChild(tdMarks);
+            table.appendChild(tr);
+            
+            row.replaceWith(table);
         }
     });
     
     return { cleanHtml: clone.outerHTML, plainText: clone.innerText.trim() };
 }
 
-function postDoc(html, fileName) {
+function postDoc(html, fileName, extraStyles) {
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = 'download_doc.php';
@@ -948,6 +1162,14 @@ function postDoc(html, fileName) {
     nameField.name = 'file_name';
     nameField.value = fileName || 'Question_Paper';
     form.appendChild(nameField);
+
+    // Pass extra page styles so Word can use them
+    if (extraStyles) {
+        const stylesField = document.createElement('textarea');
+        stylesField.name = 'extra_styles';
+        stylesField.value = extraStyles;
+        form.appendChild(stylesField);
+    }
 
     document.body.appendChild(form);
     form.submit();
@@ -974,8 +1196,16 @@ function finalizeEdits() {
 }
 
 async function downloadDOCX() {
-    // First, finalize all edits so the HTML has actual text
+    // Step 1: Inline computed styles on header BEFORE any cloning
+    // Must happen on live DOM so getComputedStyle works
+    inlineHeaderStyles();
+
+    // Step 2: Finalize any inline edits
     finalizeEdits();
+
+    // Step 3: Collect all <style> tags from the page for embedding in the Word doc
+    let pageStyles = '';
+    document.querySelectorAll('style').forEach(s => { pageStyles += s.innerHTML + '\n'; });
 
     const paperContainer = document.getElementById('paper');
     if (!paperContainer) {
@@ -991,21 +1221,20 @@ async function downloadDOCX() {
 
     if (mcqSection && mcqSection.innerHTML.trim() !== '') {
         const { cleanHtml: mcqCleanHtml } = buildCleanPaperHTML(createTempContainer(mcqPaperHTML));
-        postDoc(mcqCleanHtml, 'Question_Paper_MCQs');
-        
+        postDoc(mcqCleanHtml, 'Question_Paper_MCQs', pageStyles);
+
         setTimeout(() => {
             if (shortLongSection && shortLongSection.innerHTML.trim() !== '') {
                 const { cleanHtml: shortLongCleanHtml } = buildCleanPaperHTML(createTempContainer(shortLongPaperHTML));
-                postDoc(shortLongCleanHtml, 'Question_Paper_Short_Long');
+                postDoc(shortLongCleanHtml, 'Question_Paper_Short_Long', pageStyles);
             }
         }, 500);
     } else if (shortLongSection && shortLongSection.innerHTML.trim() !== '') {
         const { cleanHtml: shortLongCleanHtml } = buildCleanPaperHTML(createTempContainer(shortLongPaperHTML));
-        postDoc(shortLongCleanHtml, 'Question_Paper_Short_Long');
+        postDoc(shortLongCleanHtml, 'Question_Paper_Short_Long', pageStyles);
     }
 }
 
 
 </script>
-</body> 
-</html>
+<?php include 'footer.php'; ?>

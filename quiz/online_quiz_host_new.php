@@ -43,7 +43,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
     <link rel="stylesheet" href="../css/online_quiz_host_new.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
    
-     <?php include '../header.php'; ?>
+     <?php include_once '../header.php'; ?>
 </head>
 
 <body>

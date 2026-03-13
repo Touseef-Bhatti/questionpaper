@@ -28,12 +28,15 @@ if (!$participant) {
 
 $room_code = $participant['room_code'];
 
-// Load responses with questions
+// Load responses with questions (subquery ensures only one response per question is joined, avoiding duplicates and fixing ONLY_FULL_GROUP_BY error)
 $q = $conn->prepare("SELECT qrq.id as question_id, qrq.question, qrq.option_a, qrq.option_b, qrq.option_c, qrq.option_d, qrq.correct_option,
                             r.selected_option, r.is_correct, r.time_spent_sec
                      FROM quiz_room_questions qrq
-                     LEFT JOIN quiz_responses r ON r.question_id = qrq.id AND r.participant_id = ?
                      JOIN quiz_participants p ON p.room_id = qrq.room_id AND p.id = ?
+                     LEFT JOIN quiz_responses r ON r.id = (
+                         SELECT MAX(id) FROM quiz_responses 
+                         WHERE question_id = qrq.id AND participant_id = ?
+                     )
                      ORDER BY qrq.id ASC");
 $q->bind_param('ii', $pid, $pid);
 $q->execute();
@@ -64,7 +67,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Participant Details | Ahmad Learning Hub</title>
-    <?php include '../header.php'; ?>
+
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -403,7 +406,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
     </style>
 </head>
 <body>
-<?php include '../header.php'; ?>
+<?php include_once '../header.php'; ?>
 
 <main class="main-content">
     <div class="details-wrapper">

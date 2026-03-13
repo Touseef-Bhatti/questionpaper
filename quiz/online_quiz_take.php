@@ -68,16 +68,69 @@ if ($participant_id > 0) {
     $stmt->close();
 }
 
-// Fetch questions snapshot - SHUFFLED for each participant
+// Fetch questions snapshot — use the locked question set if available
+// This ensures ALL participants see the same questions, in the same seeded order,
+// and host edits to quiz_room_questions after quiz start have NO effect.
 $questions = [];
-$stmt = $conn->prepare("SELECT id as qrq_id, question, option_a, option_b, option_c, option_d, correct_option FROM quiz_room_questions WHERE room_id = ? ORDER BY RAND()");
-$stmt->bind_param('i', $room_id);
-$stmt->execute();
-$res = $stmt->get_result();
-while ($row = $res->fetch_assoc()) {
-    $questions[] = $row;
+
+// Re-fetch room to get active_question_ids (column added at start time)
+$room_ext = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'active_question_ids'")->num_rows > 0;
+
+if ($room_ext) {
+    $aq_stmt = $conn->prepare("SELECT active_question_ids FROM quiz_rooms WHERE id = ?");
+    $aq_stmt->bind_param('i', $room_id);
+    $aq_stmt->execute();
+    $aq_row = $aq_stmt->get_result()->fetch_assoc();
+    $aq_stmt->close();
+    $active_ids = json_decode($aq_row['active_question_ids'] ?? 'null', true);
+} else {
+    $active_ids = null;
 }
-$stmt->close();
+
+if (!empty($active_ids) && is_array($active_ids)) {
+    // Locked set: fetch questions by their exact IDs and preserve the stored order
+    $placeholders = implode(',', array_fill(0, count($active_ids), '?'));
+    $types = str_repeat('i', count($active_ids));
+    $stmt = $conn->prepare(
+        "SELECT id as qrq_id, question, option_a, option_b, option_c, option_d, correct_option
+         FROM quiz_room_questions
+         WHERE room_id = ? AND id IN ($placeholders)"
+    );
+    $params = array_merge([$room_id], $active_ids);
+    $types = 'i' . $types;
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $by_id = [];
+    while ($row = $res->fetch_assoc()) {
+        $by_id[(int)$row['qrq_id']] = $row;
+    }
+    $stmt->close();
+
+    // Re-order according to the locked order (same for every participant)
+    foreach ($active_ids as $qid) {
+        if (isset($by_id[$qid])) {
+            $questions[] = $by_id[$qid];
+        }
+    }
+} else {
+    // Fallback: quiz not started yet or legacy room — use seeded shuffle
+    // RAND(room_id) keeps order consistent for all participants in the same room
+    $stmt = $conn->prepare(
+        "SELECT id as qrq_id, question, option_a, option_b, option_c, option_d, correct_option
+         FROM quiz_room_questions
+         WHERE room_id = ?
+         ORDER BY RAND(?)"
+    );
+    $stmt->bind_param('ii', $room_id, $room_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $questions[] = $row;
+    }
+    $stmt->close();
+}
+
 
 if (empty($questions)) {
     die('<h2 style="color:red;">This room has no questions configured.</h2>');
@@ -122,81 +175,379 @@ $stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz - <?php echo htmlspecialchars($book_name); ?> | Ahmad Learning Hub</title>
-    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
-        .quiz-container { max-width: 800px; margin: 20px auto; background: #fff; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); overflow: hidden; }
-        .quiz-header { background: linear-gradient(135deg, #4f6ef7, #6366f1); color: white; padding: 20px 24px; text-align: center; }
-        .quiz-header h1 { margin: 0 0 8px; font-size: 24px; }
-        .quiz-info { font-size: 14px; opacity: 0.9; }
-        .progress-bar { height: 4px; background: #e5e7eb; position: relative; }
-        .progress-fill { height: 100%; background: #10b981; transition: width 0.3s ease; width: 0%; }
-        .quiz-body { padding: 32px 24px; }
-        .question-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
-        .question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .question-number { background: #4f6ef7; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 14px; }
-        .question-text { font-size: 18px; font-weight: 500; color: #1f2937; line-height: 1.5; margin-bottom: 20px; }
-        .options { display: flex; flex-direction: column; gap: 12px; }
-        .option { background: white; border: 2px solid #e5e7eb; border-radius: 8px; padding: 16px 20px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 12px; }
-        .option:hover { background: #f0f9ff; border-color: #3b82f6; }
-        .option.selected { background: #dbeafe; border-color: #3b82f6; }
-        .option.correct { background: #dcfce7; border-color: #16a34a; }
-        .option.incorrect { background: #fee2e2; border-color: #dc2626; }
-        .option-label { background: #6b7280; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
-        .option.selected .option-label { background: #3b82f6; }
-        .option.correct .option-label { background: #16a34a; }
-        .option.incorrect .option-label { background: #dc2626; }
-        .quiz-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
-        .btn.primary { background: #4f6ef7; color: white; }
-        .btn.primary:hover { background: #3b5bd1; }
-        .btn.primary:disabled { background: #9ca3af; cursor: not-allowed; }
-        .btn.secondary { background: #f3f4f6; color: #374151; }
-        .timer { font-size: 18px; font-weight: 600; color: #1f2937; }
-        .timer.warning { color: #f59e0b; }
-        .timer.danger { color: #ef4444; }
-        .results-card { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 2px solid #0ea5e9; border-radius: 12px; padding: 32px; text-align: center; margin-top: 24px; }
-        .results-card h2 { color: #0c4a6e; margin-bottom: 16px; }
-        .score-display { font-size: 48px; font-weight: 700; color: #0284c7; margin-bottom: 16px; }
-        .score-breakdown { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0; }
-        .score-item { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .score-item .value { font-size: 24px; font-weight: 600; color: #1f2937; }
-        .score-item .label { font-size: 14px; color: #6b7280; margin-top: 4px; }
-        @media (max-width: 768px) { .quiz-container { margin: 10px; } .quiz-body { padding: 20px 16px; } .question-text { font-size: 16px; } .score-breakdown { grid-template-columns: 1fr; } }
+        /* ─── Copy Protection ─────────────────────────────────── */
+        * { -webkit-user-select: none; -moz-user-select: none; user-select: none; box-sizing: border-box; }
+
+        /* ─── Base ────────────────────────────────────────────── */
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; margin: 0; padding: 0; min-height: 100vh; }
+
+        .main-content { padding: 40px 16px 80px; }
+
+        /* ─── Quiz Wrapper ────────────────────────────────────── */
+        .quiz-container {
+            max-width: 820px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 28px;
+            box-shadow: 0 20px 60px -10px rgba(79,70,229,0.15);
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* ─── Header ──────────────────────────────────────────── */
+        .quiz-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 28px 32px 24px;
+        }
+        .quiz-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 20px; }
+        .quiz-title-wrapper { flex: 1; }
+        .quiz-title { font-size: 1.5rem; font-weight: 900; margin: 0; line-height: 1.2; display: flex; align-items: center; gap: 10px; }
+        .quiz-subtitle { font-size: 0.9rem; opacity: 0.85; margin-top: 4px; }
+        .quiz-timer-badge {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 10px 18px;
+            border-radius: 50px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            border: 1px solid rgba(255,255,255,0.2);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quiz-timer-badge.warning { background: rgba(245,158,11,0.25); color: #fef3c7; border-color: rgba(245,158,11,0.4); }
+        .quiz-timer-badge.danger { background: rgba(239,68,68,0.25); color: #fee2e2; border-color: rgba(239,68,68,0.4); animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); opacity: 0.9; } }
+
+        /* ─── Progress ────────────────────────────────────────── */
+        .progress-track { height: 6px; background: rgba(255,255,255,0.2); position: relative; overflow: hidden; }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #34d399, #10b981);
+            transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+            width: 0%;
+            box-shadow: 0 0 8px rgba(52,211,153,0.5);
+        }
+        .progress-text {
+            font-size: 0.8rem;
+            opacity: 0.85;
+            margin-top: 8px;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* ─── Body ────────────────────────────────────────────── */
+        .quiz-body { padding: 36px 32px; }
+
+        /* ─── Question Card ───────────────────────────────────── */
+        .question-card {
+            animation: slideIn 0.4s cubic-bezier(0.16,1,0.3,1);
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .question-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .q-badge {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 800;
+            padding: 6px 16px;
+            border-radius: 50px;
+            letter-spacing: 0.04em;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.6;
+            margin-bottom: 28px;
+            padding: 20px 24px;
+            background: #f8fafc;
+            border-radius: 18px;
+            border-left: 5px solid #4f46e5;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        /* ─── Options ─────────────────────────────────────────── */
+        .options { display: flex; flex-direction: column; gap: 14px; }
+        .option {
+            background: #fff;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 18px 22px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .option:hover:not(.disabled) {
+            border-color: #818cf8;
+            background: #f5f3ff;
+            transform: translateX(6px);
+            box-shadow: 0 4px 12px rgba(79,70,229,0.1);
+        }
+
+        .option-label {
+            width: 38px; height: 38px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: #64748b;
+            flex-shrink: 0;
+            transition: all 0.25s ease;
+        }
+        .option-text { font-size: 1.05rem; font-weight: 600; color: #1e293b; line-height: 1.4; flex: 1; }
+
+        /* Selected State */
+        .option.selected { 
+            border-color: #4f46e5; 
+            background: #eef2ff; 
+            box-shadow: 0 0 0 1px #4f46e5, 0 4px 12px rgba(79,70,229,0.15);
+        }
+        .option.selected .option-label { 
+            background: #4f46e5; 
+            border-color: #4f46e5; 
+            color: white;
+            box-shadow: 0 0 10px rgba(79,70,229,0.4);
+        }
+        .option.selected .option-text { color: #312e81; }
+
+        .option.disabled { cursor: not-allowed; pointer-events: none; opacity: 0.8; }
+
+        /* ─── Actions ─────────────────────────────────────────── */
+        .quiz-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #f1f5f9;
+        }
+        .btn-quiz {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+        .btn-quiz.primary {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            box-shadow: 0 6px 16px rgba(79,70,229,0.3);
+        }
+        .btn-quiz.primary:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 24px rgba(79,70,229,0.4);
+        }
+        .btn-quiz.primary:active:not(:disabled) { transform: translateY(-1px); }
+        .btn-quiz.primary:disabled { background: #94a3b8; box-shadow: none; cursor: not-allowed; opacity: 0.7; }
+        
+        .btn-quiz.secondary {
+            background: #f8fafc;
+            color: #1e293b;
+            border: 2px solid #e2e8f0;
+        }
+        .btn-quiz.secondary:hover { border-color: #94a3b8; background: #f1f5f9; }
+
+        /* ─── Results Screen ──────────────────────────────────── */
+        .results-hero {
+            text-align: center;
+            padding: 56px 32px 40px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .result-emoji { font-size: 5rem; margin-bottom: 20px; display: block; animation: bounceIn 0.8s cubic-bezier(0.175,0.885,0.32,1.275); }
+        @keyframes bounceIn {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .results-title { font-size: 2.25rem; font-weight: 900; color: #0f172a; margin: 0 0 12px; }
+        .results-subtitle { color: #64748b; font-size: 1.1rem; margin: 0; font-weight: 500; }
+
+        .result-score-ring {
+            width: 160px; height: 160px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 36px auto;
+            position: relative;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+            border: 8px solid white;
+        }
+        .score-display {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #4f46e5;
+            z-index: 1;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            padding: 36px 32px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 24px 20px;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+            transition: transform 0.3s ease;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card.correct-stat { border-color: #86efac; background: #f0fdf4; }
+        .stat-card.incorrect-stat { border-color: #fca5a5; background: #fff5f5; }
+        .stat-card.time-stat { border-color: #bfdbfe; background: #eff6ff; }
+        
+        .stat-value { font-size: 2.5rem; font-weight: 900; line-height: 1; margin-bottom: 8px; }
+        .correct-stat .stat-value { color: #16a34a; }
+        .incorrect-stat .stat-value { color: #dc2626; }
+        .time-stat .stat-value { color: #2563eb; }
+        
+        .stat-label { font-size: 0.8rem; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+        .results-actions {
+            padding: 32px;
+            display: flex;
+            justify-content: center;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        /* ─── Responsive ──────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .quiz-container { border-radius: 0; border: none; }
+            .quiz-header { padding: 32px 20px 24px; }
+            .quiz-body { padding: 32px 20px; }
+            .stats-grid { grid-template-columns: 1fr; padding: 24px 20px; }
+            .results-hero { padding: 48px 20px 32px; }
+            .results-title { font-size: 1.75rem; }
+            .score-display { font-size: 2.5rem; }
+            .quiz-timer-badge { font-size: 0.95rem; padding: 8px 14px; }
+        }
+
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
-<?php include '../header.php'; ?>
+<?php include_once '../header.php'; ?>
 <div class="main-content">
   <div class="quiz-container">
-    <div class="quiz-header">
-      <h1><?php echo htmlspecialchars($book_name); ?> Quiz</h1>
-      <div class="quiz-info"><?php echo htmlspecialchars($class_name); ?> • <?php echo count($questions); ?> Questions</div>
-    </div>
-    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="quiz-body">
-      <div id="questionContainer"></div>
-      <div class="quiz-actions">
-        <div class="timer" id="timer">Time: 00:00</div>
-        <button type="button" class="btn primary" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
-      </div>
-      <div class="results-card hidden" id="resultsCard">
-        <h2>🎉 Quiz Completed!</h2>
-        <div class="score-display" id="scoreDisplay">0%</div>
-        <div class="score-breakdown">
-          <div class="score-item"><div class="value" id="correctCount">0</div><div class="label">Correct</div></div>
-          <div class="score-item"><div class="value" id="incorrectCount">0</div><div class="label">Incorrect</div></div>
-          <div class="score-item"><div class="value" id="totalTime">0:00</div><div class="label">Time Taken</div></div>
+    <!-- Header with Progress -->
+    <div class="quiz-header" id="quizHeader">
+      <div class="quiz-header-top">
+        <div class="quiz-title-wrapper">
+          <div class="quiz-title">
+            <i class="fas fa-bolt" style="color: #fbbf24;"></i>
+            <span><?php echo htmlspecialchars($book_name); ?></span>
+          </div>
+          <div class="quiz-subtitle"><?php echo htmlspecialchars($class_name); ?> &nbsp;•&nbsp; Room: <?php echo htmlspecialchars($room_code); ?></div>
         </div>
-        <div style="margin-top: 20px;">
-          <button type="button" class="btn secondary" onclick="window.location.href='online_quiz_join.php?room=<?php echo urlencode($room_code); ?>'">Finish</button>
+        <div class="quiz-timer-badge" id="timer">
+          <i class="fas fa-clock"></i> 00:00
+        </div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text">
+        Question <span id="currentQNum">1</span> of <?php echo count($questions); ?>
+      </div>
+    </div>
+
+    <div class="quiz-body">
+      <!-- Question Container -->
+      <div id="questionContainer"></div>
+
+      <!-- Actions -->
+      <div class="quiz-actions" id="quizActions">
+        <div style="font-size: 0.9rem; color: #64748b; font-weight: 600;">
+          Roll: <span style="color: #4f46e5;"><?php echo htmlspecialchars($participant_roll); ?></span>
+        </div>
+        <button type="button" class="btn-quiz primary" id="nextBtn" onclick="nextQuestion()" disabled>
+          <span>Next Question</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+
+      <!-- Results screen wrapper -->
+      <div class="hidden" id="resultsCard">
+        <div class="results-hero">
+            <span class="result-emoji">🎉</span>
+            <h2 class="results-title">Quiz Completed!</h2>
+            <p class="results-subtitle">Excellent effort! Here is your performance summary.</p>
+            
+            <div class="result-score-ring">
+                <div class="score-display" id="scoreDisplay">0%</div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card correct-stat">
+            <div class="stat-value" id="correctCount">0</div>
+            <div class="stat-label"><i class="fas fa-check-circle"></i> Correct</div>
+          </div>
+          <div class="stat-card incorrect-stat">
+            <div class="stat-value" id="incorrectCount">0</div>
+            <div class="stat-label"><i class="fas fa-times-circle"></i> Errors</div>
+          </div>
+          <div class="stat-card time-stat">
+            <div class="stat-value" id="totalTime">0:00</div>
+            <div class="stat-label"><i class="fas fa-hourglass-half"></i> Total Time</div>
+          </div>
+        </div>
+
+        <div class="results-actions">
+          <button type="button" class="btn-quiz secondary" onclick="window.location.href='online_quiz_join.php?room=<?php echo urlencode($room_code); ?>'">
+            <i class="fas fa-door-open"></i> Return to Join Page
+          </button>
         </div>
       </div>
     </div>
   </div>
 </div>
+
 <script>
+
+    // Original functions will be defined below, we'll let them initialize and then we can override if needed, 
+    // but better to just replace them in place to avoid confusion.
+
 const participantId = <?php echo json_encode($participant_id, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 const roomCode = <?php echo json_encode($room_code, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 const participantRoll = <?php echo json_encode($participant_roll ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
@@ -285,17 +636,22 @@ function renderQuestion() {
   const savedAnswer = answers[currentQuestion];
   const isAnswered = !!savedAnswer;
   
+  // Update header question number
+  const qNumDisplay = document.getElementById('currentQNum');
+  if (qNumDisplay) qNumDisplay.textContent = currentQuestion + 1;
+
   container.innerHTML = `
     <div class="question-card">
-      <div class="question-header">
-        <span class="question-number">Question ${currentQuestion + 1} of ${questions.length}</span>
+      <div class="question-meta">
+        <div class="q-badge">TOPIC: ROOM QUIZ</div>
+        <div style="font-size: 0.85rem; color: #94a3b8; font-weight: 700;">PROCTORING ACTIVE</div>
       </div>
       <div class="question-text">${q.question}</div>
       <div class="options">
-        <div class="option" data-option="A" onclick="selectOption('A')"><div class="option-label">A</div><div>${q.option_a}</div></div>
-        <div class="option" data-option="B" onclick="selectOption('B')"><div class="option-label">B</div><div>${q.option_b}</div></div>
-        <div class="option" data-option="C" onclick="selectOption('C')"><div class="option-label">C</div><div>${q.option_c}</div></div>
-        <div class="option" data-option="D" onclick="selectOption('D')"><div class="option-label">D</div><div>${q.option_d}</div></div>
+        <div class="option" data-option="A" onclick="selectOption('A')"><div class="option-label">A</div><div class="option-text">${q.option_a}</div></div>
+        <div class="option" data-option="B" onclick="selectOption('B')"><div class="option-label">B</div><div class="option-text">${q.option_b}</div></div>
+        <div class="option" data-option="C" onclick="selectOption('C')"><div class="option-label">C</div><div class="option-text">${q.option_c}</div></div>
+        <div class="option" data-option="D" onclick="selectOption('D')"><div class="option-label">D</div><div class="option-text">${q.option_d}</div></div>
       </div>
     </div>`;
   const progress = ((currentQuestion) / questions.length) * 100;
@@ -384,8 +740,12 @@ async function showResults() {
   if (typeof statusInterval !== 'undefined') clearInterval(statusInterval);
   const totalTime = Math.floor((Date.now() - startTime) / 1000);
   const percentage = Math.round((score / questions.length) * 100);
-  document.getElementById('questionContainer').innerHTML = '';
-  document.querySelector('.quiz-actions').style.display = 'none';
+  
+  // UI Changes for Results
+  document.getElementById('quizHeader').classList.add('hidden');
+  document.getElementById('quizActions').classList.add('hidden');
+  document.getElementById('questionContainer').classList.add('hidden');
+  
   document.getElementById('resultsCard').classList.remove('hidden');
   document.getElementById('scoreDisplay').textContent = percentage + '%';
   document.getElementById('correctCount').textContent = score;
@@ -393,7 +753,6 @@ async function showResults() {
   const minutes = Math.floor(totalTime / 60);
   const seconds = totalTime % 60;
   document.getElementById('totalTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  document.getElementById('progressFill').style.width = '100%';
 
   // Submit results to server
   try {
@@ -416,20 +775,30 @@ function restoreProgress() {
     questions.forEach((q, index) => {
         const savedOption = existingResponses[q.qrq_id];
         if (savedOption) {
+            const q_co = String(q.correct_option || '').trim();
+            const q_oa = String(q.option_a || '').trim();
+            const q_ob = String(q.option_b || '').trim();
+            const q_oc = String(q.option_c || '').trim();
+            const q_od = String(q.option_d || '').trim();
+
             let correctOptionLetter = '';
-            if (q.correct_option === q.option_a) correctOptionLetter = 'A';
-            else if (q.correct_option === q.option_b) correctOptionLetter = 'B';
-            else if (q.correct_option === q.option_c) correctOptionLetter = 'C';
-            else if (q.correct_option === q.option_d) correctOptionLetter = 'D';
+            if (['A','B','C','D'].includes(q_co)) {
+                correctOptionLetter = q_co;
+            } else {
+                if (q_co === q_oa) correctOptionLetter = 'A';
+                else if (q_co === q_ob) correctOptionLetter = 'B';
+                else if (q_co === q_oc) correctOptionLetter = 'C';
+                else if (q_co === q_od) correctOptionLetter = 'D';
+            }
 
             const isCorrect = (savedOption === correctOptionLetter);
             if (isCorrect) score++;
 
             let selectedText = '';
             if (savedOption === 'A') selectedText = q.option_a;
-            if (savedOption === 'B') selectedText = q.option_b;
-            if (savedOption === 'C') selectedText = q.option_c;
-            if (savedOption === 'D') selectedText = q.option_d;
+            else if (savedOption === 'B') selectedText = q.option_b;
+            else if (savedOption === 'C') selectedText = q.option_c;
+            else if (savedOption === 'D') selectedText = q.option_d;
 
             answers[index] = {
                 question_id: q.qrq_id,

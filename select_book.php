@@ -1,7 +1,9 @@
 <?php
+require_once 'auth/auth_check.php';
 // Require authentication before accessing this page
 // require_once 'auth_check.php';
 include 'db_connect.php';
+require_once 'middleware/SubscriptionCheck.php';
 
 
 // Ensure class_id is provided

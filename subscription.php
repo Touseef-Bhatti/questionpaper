@@ -24,6 +24,7 @@ $userLimits = $subscriptionService->getUserLimits($userId);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subscription Plans - Ahmad Learning Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/all.min.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/header.css">
     <style>
@@ -183,7 +184,44 @@ $userLimits = $subscriptionService->getUserLimits($userId);
         .plan-card.current .plan-period {
             color: rgba(255, 255, 255, 0.8);
         }
-        
+
+        .plan-limits {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+            border: 1px solid #e9ecef;
+        }
+
+        .plan-card.current .plan-limits {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .limit-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .limit-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .limit-item i {
+            width: 20px;
+            text-align: center;
+            color: #007bff;
+        }
+
+        .plan-card.current .limit-item i {
+            color: white;
+        }
+
         .plan-features {
             list-style: none;
             text-align: left;
@@ -280,6 +318,13 @@ $userLimits = $subscriptionService->getUserLimits($userId);
         <div class="container">
         <a href="profile.php" class="back-link">← Back to Profile</a>
         
+        <?php if (isset($_GET['error'])): ?>
+        <div class="alert alert-danger" style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #f5c6cb; text-align: center; font-weight: bold;">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <?= htmlspecialchars($_GET['error']) ?>
+        </div>
+        <?php endif; ?>
+        
         <div class="header">
             <h1>Subscription Plans</h1>
             <p>Choose the perfect plan for your question paper generation needs</p>
@@ -290,22 +335,28 @@ $userLimits = $subscriptionService->getUserLimits($userId);
             <h2>Your Current Plan: <?= htmlspecialchars($currentSubscription['display_name']) ?></h2>
             <div class="plan-status">
                 <div class="status-card">
-                    <h3>Papers Used</h3>
+                    <h3>Papers Today</h3>
                     <div class="status-value">
-                        <?= $userLimits['papers_used_this_month'] ?> / 
-                        <?= $userLimits['max_papers_per_month'] == -1 ? '∞' : $userLimits['max_papers_per_month'] ?>
+                        <?= $userLimits['papers_used_today'] ?> / 
+                        <?= $userLimits['questionPaperPerDay'] == -1 ? '∞' : $userLimits['questionPaperPerDay'] ?>
                     </div>
                 </div>
                 <div class="status-card">
-                    <h3>Chapters Limit</h3>
+                    <h3>MCQ Topics</h3>
                     <div class="status-value">
-                        <?= $userLimits['max_chapters_per_paper'] == -1 ? 'Unlimited' : $userLimits['max_chapters_per_paper'] ?>
+                        <?= $userLimits['TopicsForOnlineMCQs'] == -1 ? 'Unlimited' : $userLimits['TopicsForOnlineMCQs'] ?>
                     </div>
                 </div>
                 <div class="status-card">
-                    <h3>Questions Limit</h3>
+                    <h3>Custom Template</h3>
                     <div class="status-value">
-                        <?= $userLimits['max_questions_per_paper'] == -1 ? 'Unlimited' : $userLimits['max_questions_per_paper'] ?>
+                        <?= $userLimits['CustomPaperTemplate'] ? 'Yes' : 'No' ?>
+                    </div>
+                </div>
+                <div class="status-card">
+                    <h3>Ads</h3>
+                    <div class="status-value">
+                        <?= $userLimits['Ads'] ? 'Enabled' : 'No Ads' ?>
                     </div>
                 </div>
                 <?php if ($userLimits['expires_at']): ?>
@@ -334,6 +385,25 @@ $userLimits = $subscriptionService->getUserLimits($userId);
                 </div>
                 <div class="plan-period">
                     <?= $plan['duration_days'] == 365 ? 'per year' : 'per month' ?>
+                </div>
+
+                <div class="plan-limits">
+                    <div class="limit-item">
+                        <i class="fas fa-file-alt"></i>
+                        <span>Papers: <strong><?= $plan['questionPaperPerDay'] == -1 ? 'Unlimited' : $plan['questionPaperPerDay'] . ' / day' ?></strong></span>
+                    </div>
+                    <div class="limit-item">
+                        <i class="fas fa-tags"></i>
+                        <span>MCQ Topics: <strong><?= $plan['TopicsForOnlineMCQs'] == -1 ? 'Unlimited' : $plan['TopicsForOnlineMCQs'] ?></strong></span>
+                    </div>
+                    <div class="limit-item">
+                        <i class="fas fa-palette"></i>
+                        <span>Custom Template: <strong><?= $plan['CustomPaperTemplate'] ? 'Yes' : 'No' ?></strong></span>
+                    </div>
+                    <div class="limit-item">
+                        <i class="fas fa-ad"></i>
+                        <span>Ads: <strong><?= $plan['Ads'] ? 'Enabled' : 'No Ads' ?></strong></span>
+                    </div>
                 </div>
                 
                 <ul class="plan-features">

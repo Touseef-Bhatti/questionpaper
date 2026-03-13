@@ -3,6 +3,7 @@ session_start();
 
 include '../db_connect.php'; // mysqli $conn
 require_once '../config/google_oauth.php';
+require_once '../services/SubscriptionService.php';
 
 
 // Handle error messages from OAuth callback
@@ -34,6 +35,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_SESSION["email"] = $user["email"];
             // Normal site users don't use role; set a default
             $_SESSION["role"] = $_SESSION["role"] ?? 'user';
+            
+            // Auto-cleanup expired subscriptions on login
+            $subService = new SubscriptionService($conn);
+            $subService->cleanupExpiredSubscriptions($user["id"]);
             
             // Handle remember me functionality
             if (isset($_POST['remember_me']) && $_POST['remember_me']) {

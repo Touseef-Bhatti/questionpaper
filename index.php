@@ -29,9 +29,9 @@ include 'db_connect.php';
                     <p class="subtitle">Prepare for 9th & 10th Punjab Board exams with adaptive tests, chapter-wise practice, instant analytics and printable papers — all in one modern platform.</p>
 
                     <div class="hero-actions">
-                        <a href="select_class.php" class="button primary">Generate Paper</a>
-                        <a href="quiz/quiz_setup.php" class="button secondary">Take a Test</a>
-                        <a href="notes/notes.php" class="button ghost" style="color: white;">Notes & Guides</a>
+                        <a href="select_class.php" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                        <a href="quiz/quiz_setup.php" class="button secondary"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
+                        <a href="notes/notes.php" class="button ghost"><i class="fas fa-book-reader"></i> Notes & Guides</a>
                     </div>
 
                     <div class="hero-stats">
@@ -106,8 +106,8 @@ include 'db_connect.php';
                     <p>Join thousands of students and educators who trust Ahmad Learning Hub for smarter, faster, and future-ready <span class="keyword">online quizzes</span>, <span class="keyword">practice tests</span>, and <span class="keyword">question paper generation</span>. Unlock adaptive tests, generate custom <span class="keyword">study materials</span>, and host engaging quizzes with ease.</p>
                     <p>Whether you're a student aiming for top grades or a teacher looking to streamline assessment, Ahmad Learning Hub provides the tools you need to succeed. Get started today and transform your learning and teaching experience with our comprehensive <span class="keyword">exam preparation platform</span>!</p>
                     <div class="cta-actions">
-                        <a href="select_class.php" class="button primary">Generate Paper</a>
-                        <a href="quiz/quiz_setup.php" class="button ghost">Start Test</a>
+                        <a href="select_class.php" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                        <a href="quiz/quiz_setup.php" class="button ghost"><i class="fas fa-laptop-code"></i> Start Test</a>
                     </div>
                 </div>
             </div>

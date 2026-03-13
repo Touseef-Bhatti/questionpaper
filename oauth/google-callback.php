@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../config/google_oauth.php';
+require_once __DIR__ . '/../services/SubscriptionService.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -55,6 +56,10 @@ try {
         $_SESSION['email'] = $user['email'];
         $_SESSION['role'] = 'user';
         
+        // Auto-cleanup expired subscriptions on login
+        $subService = new SubscriptionService($conn);
+        $subService->cleanupExpiredSubscriptions($user['id']);
+        
         header('Location: /index.php');
         exit;
     }
@@ -79,6 +84,10 @@ try {
         $_SESSION['name'] = $existingUser['name'];
         $_SESSION['email'] = $existingUser['email'];
         $_SESSION['role'] = 'user';
+        
+        // Auto-cleanup expired subscriptions on login
+        $subService = new SubscriptionService($conn);
+        $subService->cleanupExpiredSubscriptions($existingUser['id']);
         
         header('Location: /index.php');
         exit;

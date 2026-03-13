@@ -1,13 +1,15 @@
 <?php
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../email/phpmailer_mailer.php';
 requireSuperAdmin();
 
 $message = '';
-$error = ''; // Add error variable
+$error = '';
+
+$verificationEmail = 'touseef12345bhatti@gmail.com';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CSRF Check
     if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
         $message = 'Invalid CSRF token.';
     } else {
@@ -22,7 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($name !== '' && $email !== '' && $password !== '' && in_array($role, ['admin', 'superadmin', 'super_admin'])) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 
-                // Check if admin already exists
                 $stmt = $conn->prepare("SELECT id FROM admins WHERE email = ?");
                 $stmt->bind_param("s", $email);
                 $stmt->execute();
@@ -32,14 +33,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Admin with this email already exists.';
                 } else {
                     $stmt->close();
-                    // Insert new admin
-                    $stmt = $conn->prepare("INSERT INTO admins (name, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())");
-                    $stmt->bind_param("ssss", $name, $email, $hash, $role);
+                    
+                    // Create pending action
+                    $token = bin2hex(random_bytes(32));
+                    $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+                    
+                    $stmt = $conn->prepare("INSERT INTO pending_admin_actions (action_type, name, email, password_hash, role, token, expires_at) VALUES ('create', ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param("ssssss", $name, $email, $hash, $role, $token, $expires);
                     
                     if ($stmt->execute()) {
-                        $message = 'Admin created successfully.';
+                        $details = "<strong>Name:</strong> $name<br><strong>Email:</strong> $email<br><strong>Role:</strong> " . ucfirst($role);
+                        if (sendAdminActionVerificationEmail($verificationEmail, 'create', $token, $details)) {
+                            $message = 'A verification email has been sent to ' . $verificationEmail . '. Please verify to complete admin creation.';
+                        } else {
+                            $message = 'Pending action created, but failed to send verification email.';
+                        }
                     } else {
-                        $message = 'Error creating admin: ' . $stmt->error;
+                        $message = 'Error creating pending action.';
                     }
                 }
                 $stmt->close();
@@ -49,19 +59,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'delete') {
             $id = intval($_POST['id'] ?? 0);
             if ($id > 0) {
-                // Prevent deleting the current admin
                 $currentAdminId = $_SESSION['id'] ?? $_SESSION['admin_id'] ?? null;
                 if ($id === $currentAdminId) {
                     $message = 'You cannot delete your own account.';
                 } else {
-                    $stmt = $conn->prepare("DELETE FROM admins WHERE id = ?");
+                    // Fetch admin details for the email
+                    $stmt = $conn->prepare("SELECT name, email FROM admins WHERE id = ?");
                     $stmt->bind_param("i", $id);
-                    if ($stmt->execute()) {
-                        $message = 'Admin deleted successfully.';
-                    } else {
-                        $message = 'Error deleting admin.';
-                    }
+                    $stmt->execute();
+                    $res = $stmt->get_result();
+                    $adminToDelete = $res->fetch_assoc();
                     $stmt->close();
+
+                    if ($adminToDelete) {
+                        $token = bin2hex(random_bytes(32));
+                        $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+                        
+                        $stmt = $conn->prepare("INSERT INTO pending_admin_actions (action_type, admin_id, token, expires_at) VALUES ('delete', ?, ?, ?)");
+                        $stmt->bind_param("iss", $id, $token, $expires);
+                        
+                        if ($stmt->execute()) {
+                            $details = "<strong>Admin to Delete:</strong> " . htmlspecialchars($adminToDelete['name']) . " (" . htmlspecialchars($adminToDelete['email']) . ")";
+                            if (sendAdminActionVerificationEmail($verificationEmail, 'delete', $token, $details)) {
+                                $message = 'A verification email has been sent to ' . $verificationEmail . '. Please verify to complete admin deletion.';
+                            } else {
+                                $message = 'Pending deletion created, but failed to send verification email.';
+                            }
+                        } else {
+                            $message = 'Error creating pending deletion action.';
+                        }
+                    } else {
+                        $message = 'Admin not found.';
+                    }
                 }
             }
         }
@@ -69,6 +98,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $admins = $conn->query("SELECT id, name, email, role, created_at FROM admins ORDER BY created_at DESC");
+
+// Fetch pending actions
+$pendingActions = $conn->query("SELECT id, action_type, name, email, role, created_at FROM pending_admin_actions ORDER BY created_at DESC");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -126,6 +158,43 @@ $admins = $conn->query("SELECT id, name, email, role, created_at FROM admins ORD
         <h1>👨‍💼 Manage Admins</h1>
         <?php if ($message): ?>
             <p class="msg"><?= htmlspecialchars($message) ?></p>
+        <?php endif; ?>
+
+        <!-- Pending Actions Section -->
+        <?php if ($pendingActions && $pendingActions->num_rows > 0): ?>
+            <div class="form-section" style="border-left: 5px solid #f59e0b;">
+                <h2 style="color: #d97706;">⏳ Pending Verifications</h2>
+                <p style="color: #6b7280; margin-bottom: 15px;">These actions have been initiated and are waiting for verification from <strong><?= htmlspecialchars($verificationEmail) ?></strong>.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Target</th>
+                            <th>Role</th>
+                            <th>Initiated</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while ($pending = $pendingActions->fetch_assoc()): ?>
+                        <tr>
+                            <td>
+                                <span class="badge" style="background: <?= $pending['action_type'] === 'create' ? '#dcfce7' : '#fee2e2' ?>; color: <?= $pending['action_type'] === 'create' ? '#166534' : '#991b1b' ?>;">
+                                    <?= strtoupper($pending['action_type']) ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?= htmlspecialchars($pending['name'] ?: 'Admin ID: ' . $pending['admin_id']) ?>
+                                <?php if ($pending['email']): ?><br><small><?= htmlspecialchars($pending['email']) ?></small><?php endif; ?>
+                            </td>
+                            <td><?= $pending['role'] ? ucfirst($pending['role']) : '-' ?></td>
+                            <td><?= date('M d, H:i', strtotime($pending['created_at'])) ?></td>
+                            <td style="color: #f59e0b; font-weight: 600;">Waiting for Verification</td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
         <?php endif; ?>
 
         <!-- Create New Admin Form -->

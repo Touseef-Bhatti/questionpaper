@@ -383,7 +383,8 @@ if (!empty($selectedQuestions)) {
     $ins->close();
 }
 
-$joinUrl = 'online_quiz_join.php?room=' . urlencode($room_code);
+$baseUrl = rtrim(EnvLoader::get('BASE_URL', 'https://paper.bhattichemicalsindustry.com.pk'), '/');
+$joinUrl = $baseUrl . '/quiz/online_quiz_join.php?room=' . urlencode($room_code);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -404,7 +405,7 @@ $joinUrl = 'online_quiz_join.php?room=' . urlencode($room_code);
     </style>
 </head>
 <body>
-<?php include '../header.php'; ?>
+<?php include_once '../header.php'; ?>
 <div class="main-content">
   <div class="card">
     <h1>Room Created</h1>

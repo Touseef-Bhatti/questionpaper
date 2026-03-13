@@ -1,6 +1,9 @@
 <?php
+require_once __DIR__ . '/../auth/auth_check.php';
 $pageTitle = "Question Paper Generator | Enterprise Edition";
 require_once __DIR__ . '/../header.php';
+require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
+
 ?>
 
 <!-- Link Professional CSS -->
@@ -74,6 +77,7 @@ require_once __DIR__ . '/../header.php';
                     </div>
                 </div>
 
+
                 <!-- Generate Section - shown when topics are selected -->
                 <div id="generateSection" class="generate-section d-none mt-4">
                     <div class="generate-card">
@@ -109,6 +113,7 @@ require_once __DIR__ . '/../header.php';
 <script>
     // State
     let currentMode = 'mcqs';
+    let selectedDesign = 1;
     const selectionMatrix = {
         mcqs: new Set(),
         short: new Set(),
@@ -303,6 +308,7 @@ require_once __DIR__ . '/../header.php';
         }
     }
 
+
     window.finalizePaper = () => {
         const allTopics = new Set([
             ...selectionMatrix.mcqs,
@@ -342,6 +348,12 @@ require_once __DIR__ . '/../header.php';
                 form.appendChild(typeInp);
             }
         });
+
+        const designInp = document.createElement('input');
+        designInp.type = 'hidden';
+        designInp.name = 'header_design';
+        designInp.value = selectedDesign;
+        form.appendChild(designInp);
 
         document.body.appendChild(form);
         form.submit();

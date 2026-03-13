@@ -62,29 +62,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($needed > 0 && !empty($topic)) {
             $added_count = 0;
             
-            // 1. Try DB first (mcqs table)
-            // We can reuse logic from create_room or QuestionService if it supports exact topic match
-            // For simplicity, let's use a direct query similar to create_room fallback
-            
-            // Get existing question IDs to avoid duplicates (optional but good)
+            // Log related topics from generated_topics for wider search
+            $related_topics = [$topic];
+            $topic_search = "%$topic%";
+            $gt_stmt = $conn->prepare("SELECT DISTINCT topic_name FROM generated_topics WHERE source_term LIKE ? OR topic_name LIKE ?");
+            $gt_stmt->bind_param("ss", $topic_search, $topic_search);
+            $gt_stmt->execute();
+            $gt_res = $gt_stmt->get_result();
+            while ($row = $gt_res->fetch_assoc()) {
+                if (!empty($row['topic_name']) && !in_array($row['topic_name'], $related_topics)) {
+                    $related_topics[] = $row['topic_name'];
+                }
+            }
+            $gt_stmt->close();
+
+            // Prepare for uniqueness check
             $existing_q = [];
             $e_stmt = $conn->prepare("SELECT question FROM quiz_room_questions WHERE room_id = ?");
             $e_stmt->bind_param("i", $room_id);
             $e_stmt->execute();
             $e_res = $e_stmt->get_result();
             while ($row = $e_res->fetch_assoc()) {
-                $existing_q[] = $row['question']; // Use question text for uniqueness check
+                $existing_q[] = $row['question'];
             }
             $e_stmt->close();
             
             $new_questions = [];
+            $fetch_limit = $needed * 2;
             
-            // Search DB
-            $db_stmt = $conn->prepare("SELECT question, option_a, option_b, option_c, option_d, correct_option FROM mcqs WHERE topic LIKE ? ORDER BY RAND() LIMIT ?");
-            $topic_search = "%$topic%";
-            // Fetch more than needed to filter duplicates
-            $fetch_limit = $needed * 2; 
-            $db_stmt->bind_param("si", $topic_search, $fetch_limit);
+            // 1. Search in mcqs table
+            $placeholders = implode(',', array_fill(0, count($related_topics), '?'));
+            $db_sql = "SELECT question, option_a, option_b, option_c, option_d, correct_option FROM mcqs WHERE topic IN ($placeholders) OR topic LIKE ? ORDER BY RAND() LIMIT ?";
+            $db_stmt = $conn->prepare($db_sql);
+            
+            $types = str_repeat('s', count($related_topics)) . 'si';
+            $params = array_merge($related_topics, [$topic_search, $fetch_limit]);
+            $db_stmt->bind_param($types, ...$params);
             $db_stmt->execute();
             $db_res = $db_stmt->get_result();
             
@@ -98,11 +111,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $db_stmt->close();
             
-            // 2. Search AIGeneratedMCQs
+            // 2. Search AIGeneratedMCQs table
             if ($added_count < $needed) {
                 $rem = $needed - $added_count;
-                $ai_stmt = $conn->prepare("SELECT question, option_a, option_b, option_c, option_d, correct_option FROM AIGeneratedMCQs WHERE topic LIKE ? ORDER BY RAND() LIMIT ?");
-                $ai_stmt->bind_param("si", $topic_search, $rem); // Simple limit here
+                $ai_sql = "SELECT question_text AS question, option_a, option_b, option_c, option_d, correct_option FROM AIGeneratedMCQs WHERE topic IN ($placeholders) OR topic LIKE ? ORDER BY RAND() LIMIT ?";
+                $ai_stmt = $conn->prepare($ai_sql);
+                
+                $ai_params = array_merge($related_topics, [$topic_search, $rem]);
+                $ai_stmt->bind_param($types, ...$ai_params);
                 $ai_stmt->execute();
                 $ai_res = $ai_stmt->get_result();
                 while ($row = $ai_res->fetch_assoc()) {
@@ -205,8 +221,37 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
+// Fetch quiz status & locked question set
+$quiz_is_started = false;
+$active_id_set = [];
+
+// Ensure column exists to avoid fatal errors (compatible way)
+$check_col = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'active_question_ids'");
+if ($check_col->num_rows == 0) {
+    $conn->query("ALTER TABLE quiz_rooms ADD active_question_ids TEXT DEFAULT NULL");
+}
+
+$qstatus_stmt = $conn->prepare("SELECT quiz_started, active_question_ids FROM quiz_rooms WHERE id = ?");
+$qstatus_stmt->bind_param("i", $room_id);
+$qstatus_stmt->execute();
+$qstatus_row = $qstatus_stmt->get_result()->fetch_assoc();
+$qstatus_stmt->close();
+
+if ($qstatus_row) {
+    $quiz_is_started = (bool)($qstatus_row['quiz_started'] ?? false);
+    $active_ids_json = $qstatus_row['active_question_ids'] ?? null;
+    if ($active_ids_json) {
+        $decoded = json_decode($active_ids_json, true);
+        if (is_array($decoded)) {
+            $active_id_set = array_flip($decoded); // for O(1) lookup
+        }
+    }
+}
+
+
 $current_count = count($all_questions);
 $missing_count = max(0, $target_count - $current_count);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -390,7 +435,7 @@ $missing_count = max(0, $target_count - $current_count);
     </style>
 </head>
 <body>
-    <?php include '../header.php'; ?>
+    <?php include_once '../header.php'; ?>
     <div class="main-content">
         <div class="container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -414,7 +459,7 @@ $missing_count = max(0, $target_count - $current_count);
                 <div>
                     <strong>Status:</strong> <?= $current_count ?> / <?= $target_count ?> Questions
                 </div>
-                <?php if ($missing_count > 0): ?>
+            <?php if ($missing_count > 0): ?>
                     <div style="color: #c2410c; font-weight: bold;">
                         ⚠️ Missing <?= $missing_count ?> questions
                     </div>
@@ -424,6 +469,23 @@ $missing_count = max(0, $target_count - $current_count);
                     </div>
                 <?php endif; ?>
             </div>
+
+            <?php if ($quiz_is_started && !empty($active_id_set)): ?>
+            <div style="background: #eff6ff; border: 2px solid #3b82f6; border-radius: 12px; padding: 18px 22px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 14px;">
+                <span style="font-size: 1.6rem; flex-shrink: 0;">🔒</span>
+                <div>
+                    <strong style="color: #1d4ed8; font-size: 1rem;">Quiz is Live — Edits Here Don't Affect Students</strong>
+                    <p style="margin: 6px 0 0; color: #1e40af; font-size: 0.9rem;">
+                        When the quiz started, <strong><?= count($active_id_set) ?></strong> questions were locked into the active quiz set.
+                        Any edits or deletions you make here <em>do not</em> change what participants are currently seeing.
+                        Questions marked <span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:20px;font-size:0.8rem;font-weight:700;">IN ACTIVE QUIZ</span>
+                        are the ones students are answering. Questions marked
+                        <span style="background:#f3f4f6;color:#6b7280;padding:1px 7px;border-radius:20px;font-size:0.8rem;font-weight:700;">EXTRA POOL</span>
+                        were added as alternates but are not part of this session.
+                    </p>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <?php if ($missing_count > 0): ?>
             <div class="refill-box">
@@ -439,19 +501,30 @@ $missing_count = max(0, $target_count - $current_count);
                     </div>
                     
                     <button type="submit" class="btn" style="background: #ea580c; color: white;">
-                        ✨ Add <?= $missing_count ?> Questions via DB/AI
+                        ✨ Add <?= $missing_count ?> Questions 
                     </button>
                 </form>
             </div>
             <?php endif; ?>
 
-            <?php foreach ($all_questions as $q): ?>
-                <form method="POST" class="question-card">
+            <?php foreach ($all_questions as $q):
+                $is_active = $quiz_is_started && isset($active_id_set[$q['id']]);
+                $is_extra  = $quiz_is_started && !$is_active;
+                $card_border = $is_extra ? 'border-color: #d1d5db; opacity: 0.75;' : '';
+            ?>
+                <form method="POST" class="question-card" style="<?= $card_border ?>">
                     <input type="hidden" name="question_id" value="<?= $q['id'] ?>">
                     
                     <div class="form-group">
                         <div class="question-header">
-                            <label class="form-label" style="margin-bottom: 0;">Question</label>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <label class="form-label" style="margin-bottom: 0;">Question</label>
+                                <?php if ($is_active): ?>
+                                    <span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;letter-spacing:0.04em;">✅ IN ACTIVE QUIZ</span>
+                                <?php elseif ($is_extra): ?>
+                                    <span style="background:#f3f4f6;color:#6b7280;padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;letter-spacing:0.04em;">〇 EXTRA POOL</span>
+                                <?php endif; ?>
+                            </div>
                             <button type="submit" name="action" value="delete" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this question?');" style="padding: 6px 12px; font-size: 0.8em;">
                                 🗑️ Delete
                             </button>
@@ -482,10 +555,19 @@ $missing_count = max(0, $target_count - $current_count);
                         <label class="form-label">Correct Option</label>
                         <select name="correct_option_letter" class="form-input" required>
                             <?php
+                            $co = trim($q['correct_option'] ?? '');
                             $current_letter = 'A';
-                            if ($q['correct_option'] == $q['option_b']) $current_letter = 'B';
-                            if ($q['correct_option'] == $q['option_c']) $current_letter = 'C';
-                            if ($q['correct_option'] == $q['option_d']) $current_letter = 'D';
+                            
+                            // Check if stored as letter
+                            if (in_array(strtoupper($co), ['A','B','C','D'])) {
+                                $current_letter = strtoupper($co);
+                            } else {
+                                // Match by text if stored as full option
+                                if ($co === trim($q['option_b'])) $current_letter = 'B';
+                                elseif ($co === trim($q['option_c'])) $current_letter = 'C';
+                                elseif ($co === trim($q['option_d'])) $current_letter = 'D';
+                                elseif ($co === trim($q['option_a'])) $current_letter = 'A';
+                            }
                             ?>
                             <option value="A" <?= $current_letter == 'A' ? 'selected' : '' ?>>Option A</option>
                             <option value="B" <?= $current_letter == 'B' ? 'selected' : '' ?>>Option B</option>
