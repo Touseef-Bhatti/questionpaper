@@ -13,12 +13,42 @@ if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !isset($_GET['book_
 
 // Retrieve and sanitize input
 $classId = intval($_GET['class_id']);
-$book_name = trim($_GET['book_name'] ?? '');
+$book_name = trim($conn->real_escape_string($_GET['book_name']));
 
-if (empty($book_name)) {
-    header('Location: select_class.php');
-    exit;
+// Function to get pattern defaults based on class and book name
+function getPatternDefaults($classId, $book_name) {
+    $book_name_lower = strtolower($book_name);
+    
+    // Check if class is 9 or 10
+    if ($classId == 9 || $classId == 10) {
+        // For physics, chemistry, biology
+        if (in_array($book_name_lower, ['physics', 'chemistry', 'biology'])) {
+            return [
+                'mcqs' => 12,
+                'sq' => 24,
+                'long' => 3
+            ];
+        }
+        // For computer
+        if ($book_name_lower == 'computer') {
+            return [
+                'mcqs' => 10,
+                'sq' => 18,
+                'long' => 3
+            ];
+        }
+    }
+    
+    // Default values if conditions don't match
+    return [
+        'mcqs' => 0,
+        'sq' => 0,
+        'long' => 0
+    ];
 }
+
+// Get pattern defaults
+$patternDefaults = getPatternDefaults($classId, $book_name);
 
 // Fetch chapters using prepared statement (OPTIMIZED)
 $chapterQuery = "SELECT chapter_id, chapter_name FROM chapter WHERE class_id = ? AND book_name = ? ORDER BY chapter_id ASC";
