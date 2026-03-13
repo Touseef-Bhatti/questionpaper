@@ -172,6 +172,17 @@ try {
     echo "Error updating subscription_plans: " . $e->getMessage() . "\n";
 }
 
+// 5.2 Subscription Plan Features Table
+runQuery($conn, "CREATE TABLE IF NOT EXISTS subscription_plan_features (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    plan_id INT NOT NULL,
+    feature_text VARCHAR(255) NOT NULL,
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE,
+    KEY (plan_id, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", "Table: subscription_plan_features");
+
 // 6. Admin Questions (manage_questions.php)
 runQuery($conn, "CREATE TABLE IF NOT EXISTS `mcqs` (
     `mcq_id` int(11) NOT NULL AUTO_INCREMENT,
