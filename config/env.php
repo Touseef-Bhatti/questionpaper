@@ -32,18 +32,43 @@ class EnvLoader
         
         // If no specific env file provided, detect environment automatically
         if ($envFile === null) {
-            // Default to the main .env file
-            $envFile = __DIR__ . '/.env';
-
-            // for local host
-            // Optionally, you can still have environment-specific files if needed
-            // For example:
-            $serverName = $_SERVER['SERVER_NAME'] ?? 'production';
-            $isLocal = in_array($serverName, ['localhost', '127.0.0.1', '::1']);
-            if ($isLocal && file_exists(__DIR__ . '/.env.local')) {
-                $envFile = __DIR__ . '/.env.local';
-            } elseif (file_exists(__DIR__ . '/.env.production')) {
-                $envFile = __DIR__ . '/.env.production';
+            // Check for local development
+            $serverName = strtolower($_SERVER['SERVER_NAME'] ?? 'unknown');
+            $isLocal = in_array($serverName, ['localhost', '127.0.0.1', '::1', 'db']);
+            
+            // For Docker environments
+            if (getenv('DOCKER_ENV')) {
+                $isLocal = true;
+            }
+            
+            // Determine which env file to load (in order of priority)
+            $candidates = [];
+            if ($isLocal) {
+                // Local: try .env.local first, then .env
+                $candidates = [
+                    __DIR__ . '/.env.local',
+                    __DIR__ . '/.env'
+                ];
+            } else {
+                // Production: try .env.production first, then .env
+                $candidates = [
+                    __DIR__ . '/.env.production',
+                    __DIR__ . '/.env'
+                ];
+            }
+            
+            // Use the first existing file
+            $envFile = null;
+            foreach ($candidates as $candidate) {
+                if (file_exists($candidate)) {
+                    $envFile = $candidate;
+                    break;
+                }
+            }
+            
+            // If none found, default to .env
+            if (!$envFile) {
+                $envFile = __DIR__ . '/.env';
             }
         }
         
