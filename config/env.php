@@ -32,30 +32,36 @@ class EnvLoader
         
         // If no specific env file provided, detect environment automatically
         if ($envFile === null) {
-            // Check for local development
-            $serverName = strtolower($_SERVER['SERVER_NAME'] ?? 'unknown');
-            $isLocal = in_array($serverName, ['localhost', '127.0.0.1', '::1', 'db']);
-            
-            // For Docker environments
-            if (getenv('DOCKER_ENV')) {
-                $isLocal = true;
+            // Strategy 1: Check APP_ENV environment variable first (for Docker/CI-CD)
+            $appEnv = getenv('APP_ENV');
+            if (!$appEnv && isset($_ENV['APP_ENV'])) {
+                $appEnv = $_ENV['APP_ENV'];
             }
             
-            // Determine which env file to load (in order of priority)
+            // Strategy 2: Check server hostname
+            $serverName = strtolower($_SERVER['SERVER_NAME'] ?? getenv('HOSTNAME') ?? 'production');
+            $isDocker = !empty(getenv('DOCKER_ENV')) || getenv('HOSTNAME') === 'docker-host' || file_exists('/.dockerenv');
+            $isLocal = in_array($serverName, ['localhost', '127.0.0.1', '::1', 'db', 'docker']);
+            
+            // Strategy 3: Build priority list
             $candidates = [];
-            if ($isLocal) {
-                // Local: try .env.local first, then .env
-                $candidates = [
-                    __DIR__ . '/.env.local',
-                    __DIR__ . '/.env'
-                ];
-            } else {
-                // Production: try .env.production first, then .env
-                $candidates = [
-                    __DIR__ . '/.env.production',
-                    __DIR__ . '/.env'
-                ];
+            
+            // If APP_ENV is explicitly set, prefer matching file
+            if ($appEnv && strtolower($appEnv) === 'production') {
+                $candidates[] = __DIR__ . '/.env.production';
+            } elseif ($appEnv && strtolower($appEnv) === 'development') {
+                $candidates[] = __DIR__ . '/.env.local';
             }
+            
+            // If local/docker in early stage, prefer local
+            if ($isLocal && !$appEnv) {
+                $candidates[] = __DIR__ . '/.env.local';
+            }
+            
+            // Add standard files
+            $candidates[] = __DIR__ . '/.env.production';
+            $candidates[] = __DIR__ . '/.env.local';
+            $candidates[] = __DIR__ . '/.env';
             
             // Use the first existing file
             $envFile = null;
@@ -66,7 +72,7 @@ class EnvLoader
                 }
             }
             
-            // If none found, default to .env
+            // If absolutely nothing found, default to .env
             if (!$envFile) {
                 $envFile = __DIR__ . '/.env';
             }

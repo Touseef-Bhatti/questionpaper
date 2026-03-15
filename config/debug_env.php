@@ -1,0 +1,147 @@
+<?php
+/**
+ * Debug Environment Configuration
+ * Helps diagnose which .env file is being loaded
+ */
+
+echo "<h1>🔍 Environment Configuration Diagnostics</h1>";
+echo "<pre style='background: #f5f5f5; padding: 20px; border-radius: 5px;'>";
+
+// Show server info
+echo "=== SERVER INFORMATION ===\n";
+echo "Server Name: " . ($_SERVER['SERVER_NAME'] ?? 'N/A') . "\n";
+echo "Hostname: " . gethostname() . "\n";
+echo "PHP Version: " . PHP_VERSION . "\n";
+echo "Current Directory: " . getcwd() . "\n";
+echo "Docker Environment: " . (file_exists('/.dockerenv') ? "YES ✅" : "NO ❌") . "\n";
+echo "APP_ENV Variable: " . (getenv('APP_ENV') ?: 'Not set') . "\n";
+echo "\n";
+
+// Show available .env files
+echo "=== AVAILABLE ENV FILES ===\n";
+$envDir = __DIR__;
+$files = [
+    '.env',
+    '.env.local',
+    '.env.production'
+];
+
+foreach ($files as $file) {
+    $path = $envDir . '/' . $file;
+    $exists = file_exists($path);
+    $status = $exists ? "✅ EXISTS" : "❌ MISSING";
+    echo "$file: $status\n";
+    if ($exists) {
+        $mtime = filemtime($path);
+        echo "  Modified: " . date('Y-m-d H:i:s', $mtime) . "\n";
+        $size = filesize($path);
+        echo "  Size: " . number_format($size) . " bytes\n";
+    }
+}
+echo "\n";
+
+// Load and show which file is being used
+require_once __DIR__ . '/env.php';
+EnvLoader::load();
+
+echo "=== LOADED CONFIGURATION ===\n";
+$config = [
+    'APP_ENV' => 'APP_ENV',
+    'APP_NAME' => 'APP_NAME',
+    'APP_URL' => 'APP_URL',
+    'DB_HOST' => 'DB_HOST',
+    'DB_USER' => 'DB_USER',
+    'DB_NAME' => 'DB_NAME',
+    'MEILISEARCH_HOST' => 'MEILISEARCH_HOST',
+    'MEILISEARCH_API_KEY' => 'MEILISEARCH_API_KEY (masked)',
+    'SAFEPAY_ENVIRONMENT' => 'SAFEPAY_ENVIRONMENT',
+];
+
+foreach ($config as $label => $key) {
+    $value = EnvLoader::get(str_replace(' (masked)', '', $key), 'NOT SET');
+    if (strpos($label, 'masked') !== false) {
+        $value = $value ? substr($value, 0, 10) . '...' : 'NOT SET';
+    }
+    echo "$label: $value\n";
+}
+echo "\n";
+
+// Test Meilisearch connection
+echo "=== MEILISEARCH TEST ===\n";
+require_once __DIR__ . '/../services/MeilisearchService.php';
+
+$meili = new MeilisearchService();
+if ($meili->isAvailable()) {
+    echo "✅ Meilisearch is CONFIGURED\n";
+    echo "Host: " . EnvLoader::get('MEILISEARCH_HOST') . "\n";
+    echo "Connection: Testing...\n";
+    
+    // Try a simple request
+    $testResult = $meili->ensureIndex();
+    if ($testResult) {
+        echo "✅ Connection SUCCESSFUL\n";
+    } else {
+        echo "⚠️ Connection failed (index creation failed)\n";
+    }
+} else {
+    echo "❌ Meilisearch is NOT CONFIGURED\n";
+    echo "Missing: ";
+    if (!EnvLoader::get('MEILISEARCH_HOST')) echo "MEILISEARCH_HOST ";
+    if (!EnvLoader::get('MEILISEARCH_API_KEY')) echo "MEILISEARCH_API_KEY ";
+    echo "\n";
+}
+echo "\n";
+
+// Debug environment precedence
+echo "=== ENVIRONMENT LOADING PRECEDENCE ===\n";
+echo "1. Check APP_ENV environment variable\n";
+echo "2. Check server hostname\n";
+echo "3. Check for Docker (/.dockerenv)\n";
+echo "4. Load priority: .env.production > .env.local > .env\n";
+echo "\n";
+
+// Show $_ENV and $_SERVER keys related to config
+echo "=== PHP ENVIRONMENT VARIABLES ===\n";
+echo "MEILISEARCH_HOST in \$_ENV: " . (isset($_ENV['MEILISEARCH_HOST']) ? 'YES' : 'NO') . "\n";
+echo "MEILISEARCH_HOST in \$_SERVER: " . (isset($_SERVER['MEILISEARCH_HOST']) ? 'YES' : 'NO') . "\n";
+echo "MEILISEARCH_API_KEY in \$_ENV: " . (isset($_ENV['MEILISEARCH_API_KEY']) ? 'YES' : 'NO') . "\n";
+
+echo "</pre>";
+
+// Provide actionable recommendations
+echo "<div style='background: #e3f2fd; padding: 20px; border-left: 4px solid #2196F3; margin-top: 20px;'>";
+echo "<h3>📋 Recommendations:</h3>";
+echo "<ul>";
+
+if (!$meili->isAvailable()) {
+    echo "<li><strong>ACTION REQUIRED:</strong> Meilisearch is not configured!</li>";
+    echo "<li>Check that .env.production has MEILISEARCH_HOST and MEILISEARCH_API_KEY</li>";
+    echo "<li>Restart PHP/web server to reload configuration</li>";
+}
+
+if (file_exists('/.dockerenv') && !getenv('APP_ENV')) {
+    echo "<li>Docker detected but APP_ENV not set. On Docker, ensure:</li>";
+    echo "<li style='margin-left: 30px;'>1. Use .env.local with production values, OR</li>";
+    echo "<li style='margin-left: 30px;'>2. Set: docker-compose environment: APP_ENV=production</li>";
+}
+
+echo "<li>Always keep sensitive keys in .env.production (not in version control)</li>";
+echo "</ul>";
+echo "</div>";
+?>
+
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 20px;
+    background: #f9f9f9;
+}
+h1 { color: #2196F3; }
+h3 { color: #1976D2; }
+pre {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+ul { line-height: 1.8; }
+</style>
