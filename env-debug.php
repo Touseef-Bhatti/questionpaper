@@ -3,24 +3,31 @@
  * Environment Configuration Diagnostic
  * Access: https://paper.bhattichemicalsindustry.com.pk/env-debug.php?token=YOUR_TOKEN
  * 
- * Set a secure token to access this page
- * Or disable the token check for internal testing only
+ * Token is: b955114cbf6c7c12ec8de00a8a008e53
  */
 
-// Security: Simple token check (change this to your secret)
+// Security: Simple token check
 $expectedToken = md5('meilisearch_debug_2026');
 $providedToken = $_GET['token'] ?? '';
 $isTokenValid = ($providedToken === $expectedToken);
 
-// Allow if IP is localhost or token is valid
+// Allow if IP is localhost or from same server
 $isLocalhost = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1', 'localhost']);
-$isAllowed = $isLocalhost || $isTokenValid;
+$isSameServer = ($_SERVER['REMOTE_ADDR'] ?? '') === ($_SERVER['SERVER_ADDR'] ?? '');
+
+// Also allow if APP_ENV is development
+$isDevelopment = getenv('APP_ENV') === 'development' || getenv('APP_ENV') === 'local';
+
+$isAllowed = $isLocalhost || $isSameServer || $isTokenValid || $isDevelopment;
 
 if (!$isAllowed && getenv('APP_ENV') !== 'local') {
     http_response_code(403);
     echo '<h2>403 Forbidden</h2>';
     echo '<p>Access denied. This tool is for debugging only.</p>';
-    echo '<p>If you are the administrator, use: ?token=' . substr($expectedToken, 0, 8) . '...</p>';
+    echo '<p style="background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;">';
+    echo '<strong>To access, use the token in the URL:</strong><br>';
+    echo 'https://paper.bhattichemicalsindustry.com.pk/env-debug.php?token=<strong>b955114cbf6c7c12ec8de00a8a008e53</strong>';
+    echo '</p>';
     exit;
 }
 
