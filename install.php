@@ -375,6 +375,21 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS pending_admin_actions (
     INDEX idx_token (token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: pending_admin_actions");
 
+// ========== MIGRATE MISSING COLUMNS (For old installations) ==========
+echo "\n\n=== Migrating Schema (Adding missing columns) ===\n";
+
+// Check if questions table has created_at column
+$result = $conn->query("SHOW COLUMNS FROM questions LIKE 'created_at'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE questions ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", "Column: questions.created_at");
+}
+
+// Check if quiz_rooms table has host_id column
+$result = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'host_id'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN host_id INT NOT NULL DEFAULT 1", "Column: quiz_rooms.host_id");
+}
+
 // ========== PERFORMANCE INDEXES - CRITICAL FOR PRODUCTION ==========
 echo "\n\n=== Creating Performance Indexes ===\n";
 
