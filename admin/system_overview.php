@@ -581,6 +581,6 @@ if (safeCountTable($conn, 'user_subscriptions') > 0) {
         });
     </script>
     
-    <?php include __DIR__ . '/../footer.php'; ?>
+ 
 </body>
 </html>

@@ -1,7 +1,16 @@
 <?php
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../services/MeilisearchService.php';
 requireAdminAuth();
+
+function indexTopicInMeilisearch($topic, $source, $type) {
+    if (trim($topic) === '') return;
+    try {
+        $meili = new MeilisearchService();
+        $meili->addTopic(trim($topic), $source, $type);
+    } catch (Throwable $e) { /* ignore */ }
+}
 
 $hasBookName = false;
 // Detect whether questions.book_name column exists for compatibility with older databases
@@ -75,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $correctOptionEsc = $conn->real_escape_string($correctOptionText);
                     if ($conn->query("INSERT INTO mcqs (class_id, book_id, chapter_id, topic, question, option_a, option_b, option_c, option_d, correct_option) VALUES ($classId, $bookId, $chapterId, '$topicEsc', '$textEsc', '$optionAEsc', '$optionBEsc', '$optionCEsc', '$optionDEsc', '$correctOptionEsc')")) {
                         $inserted++;
+                        indexTopicInMeilisearch($topic, 'mcqs', 'mcq');
                     }
                 } else {
                     try {
@@ -90,11 +100,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $topicEsc = $conn->real_escape_string($topic);
                             if ($conn->query("INSERT INTO questions (class_id, book_name, book_id, chapter_id, $typeCol, $textCol, topic) VALUES ($classId, '$bookEsc', $bookId, $chapterId, '$typeEsc', '$textEsc', '$topicEsc')")) {
                                 $inserted++;
+                                indexTopicInMeilisearch($topic, 'questions', $type);
                             }
                         } else {
                             $topicEsc = $conn->real_escape_string($topic);
                             if ($conn->query("INSERT INTO questions (class_id, book_id, chapter_id, $typeCol, $textCol, topic) VALUES ($classId, $bookId, $chapterId, '$typeEsc', '$textEsc', '$topicEsc')")) {
                                 $inserted++;
+                                indexTopicInMeilisearch($topic, 'questions', $type);
                             }
                         }
                     } catch (mysqli_sql_exception $e) {
@@ -157,6 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     // Insert new MCQ record
                     if ($conn->query("INSERT INTO mcqs (class_id, book_id, chapter_id, topic, question, option_a, option_b, option_c, option_d, correct_option) VALUES ($classId, $bookId, $chapterId, '$topicEsc', '$textEsc', '$optionAEsc', '$optionBEsc', '$optionCEsc', '$optionDEsc', '$correctOptionEsc')")) {
+                        indexTopicInMeilisearch($topic, 'mcqs', 'mcq');
                         // Delete the original question if it exists
                         $conn->query("DELETE FROM questions WHERE id=$id");
                         header('Location: manage_questions.php?msg=updated');

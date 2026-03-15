@@ -1,5 +1,6 @@
 <?php
-require_once __DIR__ . '/../auth/auth_check.php';
+session_start();
+// require_once __DIR__ . '/../auth/auth_check.php';
 $pageTitle = "Question Paper Generator | Enterprise Edition";
 require_once __DIR__ . '/../header.php';
 require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
@@ -9,11 +10,23 @@ require_once __DIR__ . '/../services/DatabaseQueryService.php';
 // Initialize services
 $cache = new CacheManager();
 $dbService = new DatabaseQueryService($conn, $cache);
+
+// Subscription Info
+$subscriptionStatus = getSubscriptionInfo();
+$isPremium = $subscriptionStatus && $subscriptionStatus['is_premium'];
+$userPlan = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
 ?>
 
 <!-- Link Professional CSS -->
 <link rel="stylesheet" href="../css/paper-builder.css?v=<?= time() . rand(7000, 8000) ?>">
 <link rel="stylesheet" href="../css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
+
+<!-- SIDE SKYSCRAPER ADS (Right Only) -->
+<?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 15%;') ?>
+
+
+<!-- TOP AD BANNER -->
+<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
 <main class="animate-fade-up">
     <!-- Hero Section -->
@@ -46,7 +59,10 @@ $dbService = new DatabaseQueryService($conn, $cache);
     <div class="container py-5 px-4 px-xl-5">
         <div class="row justify-content-center">
             <!-- Main Application Content -->
-            <div class="col-lg-10">
+            <div class="col-lg-10 paper-builder-main-content">
+                <!-- MIDDLE TOP AD -->
+                <?= renderAd('banner', 'Search Top Banner') ?>
+                <br>
 
                 <!-- Search Bar -->
                 <div class="search-wrapper mb-4">
@@ -76,11 +92,17 @@ $dbService = new DatabaseQueryService($conn, $cache);
                     </div>
                     
                     <div id="aiControl" class="text-center mt-3 d-none">
-                        <button class="btn btn-light border shadow-sm px-4 py-2 fw-medium text-primary" onclick="fetchAiTopics()">
-                            <i class="fas fa-robot me-2"></i> Load More Results
+                        <button class="btn-ai-discovery" onclick="fetchAiTopics()">
+                            <span class="shimmer"></span>
+                            <i class="fas fa-robot"></i> Load More Results
                         </button>
                     </div>
                 </div>
+
+                <!-- MIDDLE AD BANNER -->
+                <br>
+                <?= renderAd('banner', 'Results Mid Banner') ?>
+                <br>
 
 
                 <!-- Generate Section - shown when topics are selected -->
@@ -137,6 +159,14 @@ $dbService = new DatabaseQueryService($conn, $cache);
             short: document.getElementById('badge-short'),
             long: document.getElementById('badge-long')
         }
+    };
+
+    // State Constants
+    const isPremium = <?= json_encode($isPremium) ?>;
+    const topicLimits = {
+        mcqs: 7,
+        short: 5,
+        long: 3
     };
 
     // Mode Switching
@@ -282,6 +312,13 @@ $dbService = new DatabaseQueryService($conn, $cache);
             const rmBtn = card.querySelector('.btn-remove-lite');
             if (rmBtn) rmBtn.remove();
         } else {
+            // Check limits for free users
+            if (!isPremium) {
+                if (set.size >= topicLimits[currentMode]) {
+                    showUpgradeModal();
+                    return;
+                }
+            }
             set.add(topic);
             card.classList.add('selected');
             // Add remove-lite button
@@ -364,8 +401,18 @@ $dbService = new DatabaseQueryService($conn, $cache);
         form.submit();
     };
 
+    function showUpgradeModal() {
+        if (typeof showGlobalUpgradeModal === 'function') {
+            showGlobalUpgradeModal('topics');
+        } else {
+            alert("Limit reached! Please upgrade your plan.");
+        }
+    }
+
     // Init
     updateCounts();
+</script>
+
 </script>
 
 <?php require_once __DIR__ . '/../footer.php'; ?>

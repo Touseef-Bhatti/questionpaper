@@ -1,7 +1,6 @@
  .select-class-content {
-            max-width: 1000px;
-            width: 95%;
-            margin: 0 auto;
+            max-width: 60%;
+            margin: 5% auto 5% 5%;
             padding: 2rem 1rem;
             text-align: center;
             background: var(--white);
@@ -230,7 +229,7 @@
         /* Mobile responsiveness for description */
         @media (max-width: 768px) {
             .select-class-content {
-                width: 95%;
+                min-width:  95%;
                 padding: 1rem;
             }
             

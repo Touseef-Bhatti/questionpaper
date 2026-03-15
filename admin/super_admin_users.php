@@ -5,9 +5,8 @@
  */
 
 require_once '../includes/admin_auth.php';
-
-// Require super admin access
-$user = adminPageHeader('All Users Management', 'super_admin');
+require_once '../email/phpmailer_mailer.php';
+require_once 'security.php';
 
 // Handle AJAX actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
@@ -78,11 +77,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
                 echo json_encode(['error' => 'Failed to reset password']);
             }
             exit;
+ 
+         case 'change_subscription':
+             $newPlanId = intval($_POST['plan_id'] ?? 0);
+             $days = intval($_POST['days'] ?? 30);
+             
+             if ($newPlanId < 0) {
+                 echo json_encode(['error' => 'Invalid plan']);
+                 exit;
+             }
+             
+             // Start transaction
+            $conn->begin_transaction();
+            
+            try {
+                // Get user details for email
+                $userSql = "SELECT name, email FROM users WHERE id = ?";
+                $uStmt = $conn->prepare($userSql);
+                $uStmt->bind_param("i", $userId);
+                $uStmt->execute();
+                $userData = $uStmt->get_result()->fetch_assoc();
+                
+                if (!$userData) {
+                    throw new Exception("User not found");
+                }
+
+                // 1. Deactivate current active subscriptions
+                $sql = "UPDATE user_subscriptions SET status = 'expired' WHERE user_id = ? AND status = 'active'";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("i", $userId);
+                $stmt->execute();
+                
+                if ($newPlanId > 0) {
+                    // 2. Insert new subscription
+                    $startedAt = date('Y-m-d H:i:s');
+                    $expiresAt = date('Y-m-d H:i:s', strtotime("+$days days"));
+                    
+                    $sql = "INSERT INTO user_subscriptions (user_id, plan_id, status, started_at, expires_at) VALUES (?, ?, 'active', ?, ?)";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bind_param("iiss", $userId, $newPlanId, $startedAt, $expiresAt);
+                    $stmt->execute();
+                    
+                    // 3. Update users table status
+                    $planSql = "SELECT name, display_name FROM subscription_plans WHERE id = ?";
+                    $pStmt = $conn->prepare($planSql);
+                    $pStmt->bind_param("i", $newPlanId);
+                    $pStmt->execute();
+                    $planData = $pStmt->get_result()->fetch_assoc();
+                    $planName = $planData['name'] ?? 'premium';
+                    $planDisplayName = $planData['display_name'] ?? 'Premium';
+                    
+                    $sql = "UPDATE users SET subscription_status = ? WHERE id = ?";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bind_param("si", $planName, $userId);
+                    $stmt->execute();
+
+                    // Send activation email
+                    sendSubscriptionUpdateEmail($userData['email'], $userData['name'], $planDisplayName, $expiresAt);
+                } else {
+                    // Reset to free
+                    $sql = "UPDATE users SET subscription_status = 'free' WHERE id = ?";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bind_param("i", $userId);
+                    $stmt->execute();
+
+                    // Send expiration email
+                    sendSubscriptionUpdateEmail($userData['email'], $userData['name'], 'Free Plan');
+                }
+                
+                $conn->commit();
+                echo json_encode(['success' => true, 'message' => 'Subscription updated successfully']);
+            } catch (Exception $e) {
+                 $conn->rollback();
+                 echo json_encode(['error' => 'Failed to update subscription: ' . $e->getMessage()]);
+             }
+             exit;
     }
     
     echo json_encode(['error' => 'Unknown action']);
     exit;
 }
+
+// Require super admin access
+$user = requireAdminRole('super_admin');
 
 // Get filter parameters
 $role = $_GET['role'] ?? 'all';
@@ -178,14 +255,60 @@ $userStatsQuery = "SELECT
                    FROM users";
 $userStats = $conn->query($userStatsQuery)->fetch_assoc();
 
-adminNavigation();
+// Get available plans for the subscription change modal
+$plansResult = $conn->query("SELECT id, display_name, name, price FROM subscription_plans ORDER BY price ASC");
+$availablePlans = $plansResult->fetch_all(MYSQLI_ASSOC);
+
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Users Management - Super Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f6; }
+        .welcome-header {
+            background: #fff;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-bottom: 1px solid #eee;
+        }
+        .welcome-header h1 { font-size: 24px; margin-bottom: 5px; color: #333; }
+        .welcome-header p { margin: 0; color: #666; font-size: 15px; }
+        .card { border: none; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.05); }
+        .card-header { background-color: #fff; border-bottom: 1px solid #f1f1f1; padding: 15px 20px; }
+        .card-header h5 { margin: 0; font-weight: 600; color: #333; }
+        .table thead th { background-color: #343a40; color: #fff; border: none; font-weight: 500; }
+        .badge { font-weight: 500; padding: 6px 10px; border-radius: 6px; }
+        .btn-group .btn { margin: 0 2px; }
+    </style>
+</head>
+<body>
+
+<div class="welcome-header">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1>All Users Management</h1>
+                <p>Welcome, touseef <span class="badge bg-danger">Super Admin</span></p>
+            </div>
+            <div>
+                <a href="dashboard.php" class="btn btn-outline-primary btn-sm me-2"><i class="fas fa-arrow-left"></i> Dashboard</a>
+                <a href="../logout.php" class="btn btn-outline-danger btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="container-fluid">
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card bg-primary text-white shadow-sm">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -201,7 +324,7 @@ adminNavigation();
         </div>
         
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card bg-success text-white shadow-sm">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -217,7 +340,7 @@ adminNavigation();
         </div>
         
         <div class="col-md-3">
-            <div class="card bg-warning text-white">
+            <div class="card bg-warning text-white shadow-sm">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -233,7 +356,7 @@ adminNavigation();
         </div>
         
         <div class="col-md-3">
-            <div class="card bg-info text-white">
+            <div class="card bg-info text-white shadow-sm">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -378,23 +501,33 @@ adminNavigation();
                             <td>
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn btn-sm btn-outline-primary" 
-                                            onclick="showUserDetails(<?= $userRecord['id'] ?>)">
+                                            onclick="showUserDetails(<?= $userRecord['id'] ?>)"
+                                            title="View User Details">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                     
                                     <?php if ($userRecord['id'] != $_SESSION['user_id']): ?>
                                     <button type="button" class="btn btn-sm btn-outline-warning"
-                                            onclick="changeUserRole(<?= $userRecord['id'] ?>, '<?= $userRecord['role'] ?>')">
+                                            onclick="changeUserRole(<?= $userRecord['id'] ?>, '<?= $userRecord['role'] ?>')"
+                                            title="Change User Role">
                                         <i class="fas fa-user-tag"></i>
                                     </button>
                                     
+                                    <button type="button" class="btn btn-sm btn-outline-success"
+                                            onclick="changeSubscription(<?= $userRecord['id'] ?>, <?= $userRecord['plan_id'] ?? 0 ?>)"
+                                            title="Manage Subscription">
+                                        <i class="fas fa-crown"></i>
+                                    </button>
+                                    
                                     <button type="button" class="btn btn-sm btn-outline-info"
-                                            onclick="toggleVerification(<?= $userRecord['id'] ?>, <?= $userRecord['verified'] ? 'true' : 'false' ?>)">
+                                            onclick="toggleVerification(<?= $userRecord['id'] ?>, <?= $userRecord['verified'] ? 'true' : 'false' ?>)"
+                                            title="<?= $userRecord['verified'] ? 'Unverify User' : 'Verify User' ?>">
                                         <i class="fas fa-<?= $userRecord['verified'] ? 'times' : 'check' ?>"></i>
                                     </button>
                                     
                                     <button type="button" class="btn btn-sm btn-outline-danger"
-                                            onclick="resetUserPassword(<?= $userRecord['id'] ?>)">
+                                            onclick="resetUserPassword(<?= $userRecord['id'] ?>)"
+                                            title="Reset Password">
                                         <i class="fas fa-key"></i>
                                     </button>
                                     <?php endif; ?>
@@ -478,7 +611,6 @@ adminNavigation();
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 let currentAction = null;
 
@@ -521,6 +653,37 @@ function changeUserRole(userId, currentRole) {
          </div>
          <div class="alert alert-warning">
              <i class="fas fa-exclamation-triangle"></i> This will immediately change user permissions.
+         </div>`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('actionModal'));
+    modal.show();
+}
+
+function changeSubscription(userId, currentPlanId) {
+    currentAction = { type: 'change_subscription', userId: userId };
+    
+    const plans = <?= json_encode($availablePlans) ?>;
+    let planOptions = '<option value="0">Free Plan (No active subscription)</option>';
+    
+    plans.forEach(plan => {
+        planOptions += `<option value="${plan.id}" ${plan.id == currentPlanId ? 'selected' : ''}>${plan.display_name} (PKR ${plan.price})</option>`;
+    });
+
+    document.getElementById('actionModalTitle').textContent = 'Change Subscription';
+    document.getElementById('actionModalBody').innerHTML = 
+        `<p>Update subscription for user ID <strong>${userId}</strong>?</p>
+         <div class="mb-3">
+             <label class="form-label">Select Plan</label>
+             <select class="form-select" id="newPlanId">
+                 ${planOptions}
+             </select>
+         </div>
+         <div class="mb-3">
+             <label class="form-label">Duration (Days)</label>
+             <input type="number" class="form-control" id="subscriptionDays" value="30" min="1" max="3650">
+         </div>
+         <div class="alert alert-info">
+             <i class="fas fa-info-circle"></i> This will deactivate current active subscriptions and create a new one.
          </div>`;
     
     const modal = new bootstrap.Modal(document.getElementById('actionModal'));
@@ -572,6 +735,11 @@ document.getElementById('confirmActionBtn').addEventListener('click', function()
         case 'change_role':
             endpoint = 'super_admin_users.php?action=change_role';
             formData.append('new_role', document.getElementById('newRole').value);
+            break;
+        case 'change_subscription':
+            endpoint = 'super_admin_users.php?action=change_subscription';
+            formData.append('plan_id', document.getElementById('newPlanId').value);
+            formData.append('days', document.getElementById('subscriptionDays').value);
             break;
         case 'toggle_verification':
             endpoint = 'super_admin_users.php?action=toggle_verification';

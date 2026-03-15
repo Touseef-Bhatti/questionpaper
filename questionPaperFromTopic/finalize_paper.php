@@ -1,10 +1,15 @@
 <?php
-require_once __DIR__ . '/../auth/auth_check.php';
+session_start();
+// require_once __DIR__ . '/../auth/auth_check.php';
 $pageTitle = "Finalize Paper | Intelligent Paper Builder";
 $metaDescription = "Configure your paper layout, choose question counts, and generate your PDF assessment.";
 require_once __DIR__ . '/../header.php';
 require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
 
+// Subscription Info
+$subscriptionStatus = getSubscriptionInfo();
+$isPremium = $subscriptionStatus && $subscriptionStatus['is_premium'];
+$userPlan = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
 ?>
 <link rel="stylesheet" href="../css/paper-builder.css?v=<?= time() . rand(11000, 12000) ?>">
 <link rel="stylesheet" href="../css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
@@ -45,10 +50,19 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
     </div>
 </div>
 
+<!-- SIDE SKYSCRAPER ADS (Right Only) -->
+<?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 40%;') ?>
+
+<!-- TOP AD BANNER -->
+<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
 <div class="container pb-5">
     <div class="row justify-content-center">
         <!-- Main Column -->
-        <div class="col-lg-12">
+        <div class="col-lg-12 paper-builder-main-content">
+            <!-- MIDDLE TOP AD -->
+            <?= renderAd('banner', 'Finalize Top Banner') ?>
+            <br>
             <div class="row g-4 justify-content-center">
         
         <!-- Left Column: Selected Topics Summary -->
@@ -236,7 +250,7 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
 
                         <hr class="my-5" style="border-color: #e2e8f0;">
 
-                        <div class="btn-wrapper" onclick="document.getElementById('configForm').submit();" style="cursor: pointer; transform: scale(0.9); display: flex; justify-content: center; margin: 0 auto;">
+                        <div class="btn-wrapper" onclick="handleGeneratePaper()" style="cursor: pointer; transform: scale(0.9); display: flex; justify-content: center; margin: 0 auto;">
                           <button type="button" class="btn">
                             <svg class="btn-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"></path>
@@ -274,17 +288,75 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
 </div>
 
 <script>
+    const isPremium = <?= json_encode($isPremium) ?>;
+    const questionLimits = {
+        inputMcqs: 10,
+        inputShort: 10,
+        inputLong: 3
+    };
+
     function updateQuantity(inputId, change) {
         const input = document.getElementById(inputId);
         let val = parseInt(input.value) || 0;
         const min = parseInt(input.min) || 0;
         const max = parseInt(input.max) || 100;
         
-        val += change;
-        if (val < min) val = min;
-        if (val > max) val = max;
+        const newVal = val + change;
         
-        input.value = val;
+        // Check limits for free users
+        if (!isPremium && change > 0) {
+            if (newVal > questionLimits[inputId]) {
+                showUpgradeModal();
+                return;
+            }
+        }
+
+        if (newVal < min) {
+            input.value = min;
+        } else if (newVal > max) {
+            input.value = max;
+        } else {
+            input.value = newVal;
+        }
+    }
+
+    function handleGeneratePaper() {
+        const mcqs = parseInt(document.getElementById('inputMcqs').value) || 0;
+        const shorts = parseInt(document.getElementById('inputShort').value) || 0;
+        const longs = parseInt(document.getElementById('inputLong').value) || 0;
+
+        if (!isPremium) {
+            if (mcqs > questionLimits.inputMcqs || shorts > questionLimits.inputShort || longs > questionLimits.inputLong) {
+                showUpgradeModal();
+                return;
+            }
+        }
+
+        document.getElementById('configForm').submit();
+    }
+
+    function showUpgradeModal() {
+        if (typeof showGlobalUpgradeModal === 'function') {
+            showGlobalUpgradeModal('questions');
+        } else {
+            alert("Limit reached! Please upgrade your plan for more questions.");
+        }
+    }
+
+    // Live check for manual input
+    if (!isPremium) {
+        ['inputMcqs', 'inputShort', 'inputLong'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', function() {
+                    let val = parseInt(this.value) || 0;
+                    if (val > questionLimits[id]) {
+                        this.value = questionLimits[id];
+                        showUpgradeModal();
+                    }
+                });
+            }
+        });
     }
 </script>
 

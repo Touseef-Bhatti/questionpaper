@@ -1,25 +1,36 @@
 <?php
 // admin/security.php - Security helper functions for admin panel
 
-if (session_status() === PHP_SESSION_NONE) session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start([
+        'cookie_httponly' => true,
+        'cookie_secure' => isset($_SERVER['HTTPS']),
+        'use_only_cookies' => true,
+        'cookie_samesite' => 'Lax',
+    ]);
+}
 
 /**
  * Check if user is authenticated as admin
  */
-function requireAdminAuth() {
-    if (empty($_SESSION['role']) || !in_array($_SESSION['role'], ['admin','superadmin'])) {
-        header('Location: login.php');
-        exit;
+if (!function_exists('requireAdminAuth')) {
+    function requireAdminAuth() {
+        if (empty($_SESSION['role']) || !in_array($_SESSION['role'], ['admin','superadmin'])) {
+            header('Location: login.php');
+            exit;
+        }
     }
 }
 
 /**
  * Check if user is super admin
  */
-function requireSuperAdmin() {
-    if (empty($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
-        header('Location: dashboard.php');
-        exit;
+if (!function_exists('requireSuperAdmin')) {
+    function requireSuperAdmin() {
+        if (empty($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
+            header('Location: dashboard.php');
+            exit;
+        }
     }
 }
 

@@ -54,11 +54,20 @@ if ($row = $res->fetch_assoc()) {
         case 'C': $selectedText = $row['option_c']; break;
         case 'D': $selectedText = $row['option_d']; break;
     }
-    
-    // Check if correct_option matches selectedText
-    // Note: correct_option in DB is the text of the correct answer
-    if (trim($selectedText) === trim($row['correct_option'])) {
-        $is_correct = 1;
+
+    $correctRaw = isset($row['correct_option']) ? trim($row['correct_option']) : '';
+    $correctUpper = strtoupper($correctRaw);
+
+    if (in_array($correctUpper, ['A', 'B', 'C', 'D'], true)) {
+        // correct_option stored as a letter
+        if (strtoupper($selected_option) === $correctUpper) {
+            $is_correct = 1;
+        }
+    } else {
+        // correct_option stored as full answer text
+        if (strtolower(trim($selectedText)) === strtolower($correctRaw)) {
+            $is_correct = 1;
+        }
     }
 }
 $stmt->close();

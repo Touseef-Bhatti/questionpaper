@@ -1,5 +1,9 @@
 <link rel="stylesheet" href="<?= $assetBase ?>css/footer.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+<!-- GLOBAL PRE-FOOTER AD BANNER -->
+<?= renderAd('banner', 'Place Pre-Footer Banner Here', '', 'margin-top: 40px; margin-bottom: 0;') ?>
+
 <footer class="footer">
     <div class="footer-container">
         <div class="footer-section footer-brand">

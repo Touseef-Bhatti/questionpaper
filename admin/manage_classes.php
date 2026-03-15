@@ -133,7 +133,7 @@ $classes = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_i
             </tbody>
         </table>
     </div>
-    <?php include __DIR__ . '/../footer.php'; ?>
+   
 </body>
 </html>
 

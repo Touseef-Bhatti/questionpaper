@@ -49,7 +49,9 @@ $stmt->close();
 
 // Optionally store responses (best effort)
 if (is_array($answers) && !empty($answers)) {
-    $ins = $conn->prepare("INSERT INTO quiz_responses (participant_id, question_id, selected_option, is_correct, time_spent_sec) VALUES (?, ?, ?, ?, ?)");
+    $ins = $conn->prepare("INSERT INTO quiz_responses (participant_id, question_id, selected_option, is_correct, time_spent_sec) 
+                           VALUES (?, ?, ?, ?, ?) 
+                           ON DUPLICATE KEY UPDATE selected_option = VALUES(selected_option), is_correct = VALUES(is_correct), time_spent_sec = VALUES(time_spent_sec)");
     foreach ($answers as $ans) {
         $qid = intval($ans['question_id'] ?? 0);
         $sel = substr(strtoupper(trim($ans['selected'] ?? '')), 0, 1);

@@ -1,10 +1,12 @@
 <?php
+session_start();
 $pageTitle = "Generated Paper | Intelligent Paper Builder";
 $metaDescription = "View and print your AI-generated assessment paper.";
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../header.php';
-require_once __DIR__ . '/../quiz/mcq_generator.php'; 
+require_once __DIR__ . '/../quiz/mcq_generator.php';
+require_once __DIR__ . '/../services/MeilisearchService.php';
 require_once __DIR__ . '/../includes/APIKeyManager.php';
 ?>
 <link rel="stylesheet" href="../css/paper-builder.css?v=<?= time() . rand(6000, 7000) ?>">
@@ -299,7 +301,11 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
             $stmt = $conn->prepare("INSERT INTO AIGeneratedMCQs (topic_id, topic, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('issssssss', $topicId, $topicVal, $q['question'], $q['option_a'], $q['option_b'], $q['option_c'], $q['option_d'], $q['correct_option'], $today);
             $stmt->execute();
-            
+            try {
+                $meili = new MeilisearchService();
+                $meili->addTopic($topicVal, 'ai_mcqs', 'mcq');
+            } catch (Throwable $e) { /* ignore */ }
+
             // Update MCQ Count
             $countStmt = $conn->prepare("INSERT INTO TopicQuestionCounts (topic_name, question_count) VALUES (?, 1) ON DUPLICATE KEY UPDATE question_count = question_count + 1");
             $countStmt->bind_param("s", $topicVal);
@@ -624,7 +630,9 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
     }
 </style>
 
-<div class="container main-content">
+
+
+<div class="container main-content paper-builder-main-content">
     <?php if ($error): ?>
         <div class="alert alert-danger shadow-sm border-0 rounded-4 p-4 mt-5 d-flex align-items-center gap-3">
             <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
@@ -707,6 +715,8 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
                 if (target) target.style.display = 'block';
             }
             </script>
+
+
 
             <?php if (!empty($generatedContent['mcqs'])): ?>
                 <div class="section-title" contenteditable="true">Section A: Multiple Choice Questions</div>

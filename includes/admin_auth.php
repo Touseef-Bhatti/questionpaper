@@ -7,7 +7,7 @@
  * Check if user is logged in and has required admin role
  */
 function requireAdminRole($requiredRole = 'admin') {
-    session_start();
+    if (session_status() === PHP_SESSION_NONE) session_start();
     
     if (!isset($_SESSION['user_id'])) {
         http_response_code(401);

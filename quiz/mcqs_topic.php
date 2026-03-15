@@ -6,6 +6,7 @@ include '../db_connect.php';
 require_once 'mcq_generator.php';
 require_once 'MongoSearchLogger.php';
 require_once '../services/SubscriptionService.php';
+require_once __DIR__ . '/../services/MeilisearchService.php';
 
 // Check user plan status
 $subService = new SubscriptionService($conn);
@@ -25,10 +26,22 @@ if (isset($_SESSION['user_id'])) {
 $isPremium = ($userPlan !== 'free');
 
 function calculateSimilarity($str1, $str2) {
-    $str1 = mb_strtolower(trim($str1)); $str2 = mb_strtolower(trim($str2));
-    if (empty($str1) || empty($str2)) return 0;
-    similar_text($str1, $str2, $percent);
-    if (strpos($str1, $str2) !== false || strpos($str2, $str1) !== false) $percent = max($percent, 70);
+    // Remove spaces and convert to lowercase for comparison "ignore spaces" requirement
+    $s1 = str_replace(' ', '', mb_strtolower(trim($str1)));
+    $s2 = str_replace(' ', '', mb_strtolower(trim($str2)));
+    if (empty($s1) || empty($s2)) return 0;
+    
+    similar_text($s1, $s2, $percent);
+    
+    // Check if one contains the other (ignoring spaces)
+    if (strpos($s1, $s2) !== false || strpos($s2, $s1) !== false) {
+        $percent = max($percent, 80); // Increased from 70
+        
+        // If the query perfectly matches the START of the topic, give it very high score
+        if (strpos($s2, $s1) === 0) {
+            $percent = max($percent, 90);
+        }
+    }
     return $percent;
 }
 
@@ -36,133 +49,131 @@ function calculateSimilarity($str1, $str2) {
 if (isset($_POST['action']) && $_POST['action'] === 'load_more_topics') {
     if (ob_get_length()) ob_clean();
     header('Content-Type: application/json');
-    $searchQuery = $_POST['search_query'] ?? '';
-    
+    $searchQuery = trim($_POST['search_query'] ?? '');
+    $excludeTopics = [];
+    if (!empty($_POST['exclude_topics'])) {
+        $decoded = json_decode($_POST['exclude_topics'], true);
+        if (is_array($decoded)) {
+            $excludeTopics = array_map('trim', array_slice($decoded, 0, 30));
+        }
+    }
+
     if (!empty($searchQuery)) {
         try {
             $mongoLogger = new MongoSearchLogger();
             $mongoLogger->logSearch($searchQuery, 'ajax_load_more');
 
-            $existingTopics = [];
-            
-            // 1. Search in mcqs (Fetch all and filter by similarity)
-            $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic IS NOT NULL AND topic != ''");
-            if ($stmt) {
-                $stmt->execute();
-                $result = $stmt->get_result();
-                while ($row = $result->fetch_assoc()) {
-                    if (!empty($row['topic'])) {
-                        $sim = calculateSimilarity($searchQuery, $row['topic']);
-                        if ($sim >= 50) {
-                            $isDuplicate = false;
-                            foreach ($existingTopics as $existing) {
-                                if (strcasecmp($existing['topic'], $row['topic']) === 0) {
-                                    $isDuplicate = true; break;
-                                }
-                            }
-                            if (!$isDuplicate) {
+            $meili = new MeilisearchService();
+            $uniqueTopics = [];
+
+            if ($meili->isAvailable()) {
+                $res = $meili->searchTopics($searchQuery, ['limit' => 50, 'with_scores' => true]);
+                if ($res['success'] && !empty($res['topics'])) {
+                    $excludeLower = array_map('strtolower', $excludeTopics);
+                    foreach ($res['topics'] as $t) {
+                        $topicLower = strtolower(trim($t['topic']));
+                        if (!in_array($topicLower, $excludeLower)) {
+                            $uniqueTopics[] = $t;
+                        }
+                    }
+                }
+            }
+
+            // Fallback: SQL + AI when Meilisearch unavailable or returned no/insufficient results
+            if (empty($uniqueTopics)) {
+                $existingTopics = [];
+                $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic IS NOT NULL AND topic != ''");
+                if ($stmt) {
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    while ($row = $result->fetch_assoc()) {
+                        if (!empty($row['topic'])) {
+                            $sim = calculateSimilarity($searchQuery, $row['topic']);
+                            if ($sim >= 40) {
                                 $existingTopics[] = ['topic' => $row['topic'], 'similarity' => $sim, 'source' => 'mcqs'];
                             }
                         }
                     }
+                    $stmt->close();
                 }
-                $stmt->close();
-            }
-
-            // 2. Search in AIGeneratedMCQs
-            $aiMcqTopics = [];
-            $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic IS NOT NULL AND topic != ''");
-            if ($aiStmt) {
-                $aiStmt->execute();
-                $result = $aiStmt->get_result();
-                while ($row = $result->fetch_assoc()) {
-                    if (!empty($row['topic'])) {
-                        $sim = calculateSimilarity($searchQuery, $row['topic']);
-                        if ($sim >= 50) {
-                            $exists = false;
-                            foreach ($existingTopics as $existing) {
-                                if (strcasecmp($existing['topic'], $row['topic']) === 0) {
-                                    $exists = true; break;
+                $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic IS NOT NULL AND topic != ''");
+                if ($aiStmt) {
+                    $aiStmt->execute();
+                    $result = $aiStmt->get_result();
+                    while ($row = $result->fetch_assoc()) {
+                        if (!empty($row['topic'])) {
+                            $sim = calculateSimilarity($searchQuery, $row['topic']);
+                            if ($sim >= 40) {
+                                $exists = false;
+                                foreach ($existingTopics as $existing) {
+                                    if (strcasecmp($existing['topic'], $row['topic']) === 0) { $exists = true; break; }
                                 }
-                            }
-                            if (!$exists && !in_array($row['topic'], array_column($aiMcqTopics, 'topic'))) {
-                                $aiMcqTopics[] = ['topic' => $row['topic'], 'similarity' => $sim, 'source' => 'ai_generated_mcqs'];
+                                if (!$exists) {
+                                    $existingTopics[] = ['topic' => $row['topic'], 'similarity' => $sim, 'source' => 'ai_generated_mcqs'];
+                                }
                             }
                         }
                     }
+                    $aiStmt->close();
                 }
-                $aiStmt->close();
-            }
-
-            // 3. Search in generated_topics (by topic_name OR source_term)
-            $genTopics = [];
-            $termLike = "%$searchQuery%";
-            $genStmt = $conn->prepare("SELECT DISTINCT topic_name, source_term FROM generated_topics WHERE topic_name LIKE ? OR source_term LIKE ? LIMIT 100");
-            if ($genStmt) {
-                $genStmt->bind_param('ss', $termLike, $termLike);
-                $genStmt->execute();
-                $result = $genStmt->get_result();
-                while ($row = $result->fetch_assoc()) {
-                    if (!empty($row['topic_name'])) {
-                        $simTopic = calculateSimilarity($searchQuery, $row['topic_name']);
-                        $simSource = calculateSimilarity($searchQuery, $row['source_term'] ?? '');
-                        $maxSim = max($simTopic, $simSource);
-
-                        if ($maxSim >= 50) {
-                            $exists = false;
-                            foreach (array_merge($existingTopics, $aiMcqTopics) as $existing) {
-                                if (strcasecmp($existing['topic'], $row['topic_name']) === 0) {
-                                    $exists = true; break;
+                $termLike = "%$searchQuery%";
+                $genStmt = $conn->prepare("SELECT DISTINCT topic_name, source_term FROM generated_topics WHERE topic_name LIKE ? OR source_term LIKE ? LIMIT 100");
+                if ($genStmt) {
+                    $genStmt->bind_param('ss', $termLike, $termLike);
+                    $genStmt->execute();
+                    $result = $genStmt->get_result();
+                    while ($row = $result->fetch_assoc()) {
+                        if (!empty($row['topic_name'])) {
+                            $maxSim = max(
+                                calculateSimilarity($searchQuery, $row['topic_name']),
+                                calculateSimilarity($searchQuery, $row['source_term'] ?? '')
+                            );
+                            if ($maxSim >= 40) {
+                                $exists = false;
+                                foreach ($existingTopics as $existing) {
+                                    if (strcasecmp($existing['topic'], $row['topic_name']) === 0) { $exists = true; break; }
                                 }
-                            }
-                            if (!$exists && !in_array($row['topic_name'], array_column($genTopics, 'topic'))) {
-                                $genTopics[] = ['topic' => $row['topic_name'], 'similarity' => $maxSim, 'source' => 'generated_topics'];
+                                if (!$exists) {
+                                    $existingTopics[] = ['topic' => $row['topic_name'], 'similarity' => $maxSim, 'source' => 'generated_topics'];
+                                }
                             }
                         }
                     }
+                    $genStmt->close();
                 }
-                $genStmt->close();
-            }
-
-            // Fetch fresh AI topics (bypass cache) for "load more" - get different topics each time
-            $excludeTopics = [];
-            if (!empty($_POST['exclude_topics'])) {
-                $decoded = json_decode($_POST['exclude_topics'], true);
-                if (is_array($decoded)) {
-                    $excludeTopics = array_map('trim', array_slice($decoded, 0, 30));
-                }
-            }
-            $aiTopics = searchTopicsWithGemini($searchQuery, 0, 0, [], true, $excludeTopics);
-            
-            // Store AI topics in generated_topics
-            if (!empty($aiTopics)) {
-                $insertStmt = $conn->prepare("INSERT IGNORE INTO generated_topics (topic_name, source_term, question_types) VALUES (?, ?, 'mcq')");
-                if ($insertStmt) {
-                    foreach ($aiTopics as $aiTopic) {
-                        $topicName = $aiTopic['topic']; // searchTopicsWithGemini returns array of ['topic' => ..., 'similarity' => ...]
-                        $insertStmt->bind_param('ss', $topicName, $searchQuery);
-                        $insertStmt->execute();
+                $aiTopics = searchTopicsWithGemini($searchQuery, 0, 0, [], true, $excludeTopics);
+                if (!empty($aiTopics)) {
+                    $insertStmt = $conn->prepare("INSERT IGNORE INTO generated_topics (topic_name, source_term, question_types) VALUES (?, ?, 'mcq')");
+                    if ($insertStmt) {
+                        $meili = new MeilisearchService();
+                        foreach ($aiTopics as $aiTopic) {
+                            $topicName = $aiTopic['topic'];
+                            $insertStmt->bind_param('ss', $topicName, $searchQuery);
+                            $insertStmt->execute();
+                            try {
+                                $meili->addTopic($topicName, 'generated_topics', 'mcq');
+                            } catch (Throwable $e) { /* ignore */ }
+                        }
+                        $insertStmt->close();
                     }
-                    $insertStmt->close();
                 }
+                $combinedTopics = array_merge($existingTopics, $aiTopics);
+                $excludeLower = array_map('strtolower', $excludeTopics);
+                $seenTopics = [];
+                foreach ($combinedTopics as $topic) {
+                    $topicLower = strtolower(trim($topic['topic']));
+                    if (in_array($topicLower, $excludeLower)) continue;
+                    if (!in_array($topicLower, $seenTopics)) {
+                        $uniqueTopics[] = $topic;
+                        $seenTopics[] = $topicLower;
+                    }
+                }
+                usort($uniqueTopics, function($a, $b) {
+                    return ($b['similarity'] ?? 0) <=> ($a['similarity'] ?? 0);
+                });
+                $uniqueTopics = array_slice($uniqueTopics, 0, 50);
             }
 
-            $combinedTopics = array_merge($existingTopics, $aiMcqTopics, $genTopics, $aiTopics);
-            $excludeLower = array_map('strtolower', $excludeTopics);
-            $uniqueTopics = [];
-            $seenTopics = [];
-            foreach ($combinedTopics as $topic) {
-                $topicLower = strtolower(trim($topic['topic']));
-                if (in_array($topicLower, $excludeLower)) continue;
-                if (!in_array($topicLower, $seenTopics)) {
-                    $uniqueTopics[] = $topic;
-                    $seenTopics[] = $topicLower;
-                }
-            }
-            usort($uniqueTopics, function($a, $b) {
-                return ($b['similarity'] ?? 0) <=> ($a['similarity'] ?? 0);
-            });
-            $uniqueTopics = array_slice($uniqueTopics, 0, 50);
             echo json_encode(['success' => true, 'topics' => $uniqueTopics]);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -188,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
 
         $cacheKey = null; $usedCache = false;
         if (isset($cacheManager) && $cacheManager) {
-            $cacheKey = "topic_search_" . md5($searchQuery);
+            $cacheKey = "topic_search_v2_" . md5($searchQuery);
             $cached = $cacheManager->get($cacheKey);
             if ($cached !== false) {
                 $cachedData = json_decode($cached, true);
@@ -199,61 +210,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
         }
         
         if (!$usedCache) {
-            $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic IS NOT NULL AND topic != '' ORDER BY topic");
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $allTopics = [];
-            while ($row = $result->fetch_assoc()) $allTopics[] = $row;
-            $stmt->close();
-            
-            foreach ($allTopics as $topicRow) {
-                $similarity = calculateSimilarity($searchQuery, $topicRow['topic']);
-                if ($similarity >= 50) {
-                    $searchResults[] = ['topic' => $topicRow['topic'], 'similarity' => round($similarity, 1)];
+            // Prefer Meilisearch for ranked topic search when available
+            $meili = new MeilisearchService();
+            if ($meili->isAvailable()) {
+                $res = $meili->searchTopics($searchQuery, ['limit' => 50, 'with_scores' => true]);
+                if ($res['success'] && !empty($res['topics'])) {
+                    $searchResults = $res['topics'];
+                    $showResults = true;
                 }
             }
-            
-            $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic IS NOT NULL AND topic != ''");
-            $aiStmt->execute();
-            $aiResult = $aiStmt->get_result();
-            while ($row = $aiResult->fetch_assoc()) {
-                $similarity = calculateSimilarity($searchQuery, $row['topic']);
-                if ($similarity >= 50) {
-                    $exists = false;
-                    foreach ($searchResults as $existing) {
-                        if (strcasecmp($existing['topic'], $row['topic']) === 0) { $exists = true; break; }
+
+            // Fallback to SQL + AI when Meilisearch not configured or returned no results
+            if (empty($searchResults)) {
+                $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic IS NOT NULL AND topic != '' ORDER BY topic");
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $allTopics = [];
+                while ($row = $result->fetch_assoc()) $allTopics[] = $row;
+                $stmt->close();
+
+                foreach ($allTopics as $topicRow) {
+                    $similarity = calculateSimilarity($searchQuery, $topicRow['topic']);
+                    if ($similarity >= 40) {
+                        $searchResults[] = ['topic' => $topicRow['topic'], 'similarity' => round($similarity, 1)];
                     }
-                    if (!$exists) $searchResults[] = ['topic' => $row['topic'], 'similarity' => round($similarity, 1), 'source' => 'ai_generated'];
                 }
-            }
-            $aiStmt->close();
 
-            // Search in generated_topics (by topic_name OR source_term)
-            $termLike = "%$searchQuery%";
-            $genStmt = $conn->prepare("SELECT DISTINCT topic_name, source_term FROM generated_topics WHERE topic_name LIKE ? OR source_term LIKE ? LIMIT 100");
-            if ($genStmt) {
-                $genStmt->bind_param('ss', $termLike, $termLike);
-                $genStmt->execute();
-                $genResult = $genStmt->get_result();
-                while ($row = $genResult->fetch_assoc()) {
-                    $simTopic = calculateSimilarity($searchQuery, $row['topic_name']);
-                    $simSource = calculateSimilarity($searchQuery, $row['source_term'] ?? '');
-                    $maxSim = max($simTopic, $simSource);
-
-                    if ($maxSim >= 50) {
+                $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic IS NOT NULL AND topic != ''");
+                $aiStmt->execute();
+                $aiResult = $aiStmt->get_result();
+                while ($row = $aiResult->fetch_assoc()) {
+                    $similarity = calculateSimilarity($searchQuery, $row['topic']);
+                    if ($similarity >= 40) {
                         $exists = false;
                         foreach ($searchResults as $existing) {
-                            if (strcasecmp($existing['topic'], $row['topic_name']) === 0) { $exists = true; break; }
+                            if (strcasecmp($existing['topic'], $row['topic']) === 0) { $exists = true; break; }
                         }
-                        if (!$exists) $searchResults[] = ['topic' => $row['topic_name'], 'similarity' => round($maxSim, 1), 'source' => 'generated_topics'];
+                        if (!$exists) $searchResults[] = ['topic' => $row['topic'], 'similarity' => round($similarity, 1), 'source' => 'ai_generated'];
                     }
                 }
-                $genStmt->close();
+                $aiStmt->close();
+
+                $termLike = "%$searchQuery%";
+                $genStmt = $conn->prepare("SELECT DISTINCT topic_name, source_term FROM generated_topics WHERE topic_name LIKE ? OR source_term LIKE ? LIMIT 100");
+                if ($genStmt) {
+                    $genStmt->bind_param('ss', $termLike, $termLike);
+                    $genStmt->execute();
+                    $genResult = $genStmt->get_result();
+                    while ($row = $genResult->fetch_assoc()) {
+                        $simTopic = calculateSimilarity($searchQuery, $row['topic_name']);
+                        $simSource = calculateSimilarity($searchQuery, $row['source_term'] ?? '');
+                        $maxSim = max($simTopic, $simSource);
+                        if ($maxSim >= 40) {
+                            $exists = false;
+                            foreach ($searchResults as $existing) {
+                                if (strcasecmp($existing['topic'], $row['topic_name']) === 0) { $exists = true; break; }
+                            }
+                            if (!$exists) $searchResults[] = ['topic' => $row['topic_name'], 'similarity' => round($maxSim, 1), 'source' => 'generated_topics'];
+                        }
+                    }
+                    $genStmt->close();
+                }
+
+                usort($searchResults, function($a, $b) { return $b['similarity'] <=> $a['similarity']; });
+                $showResults = true;
             }
 
-            usort($searchResults, function($a, $b) { return $b['similarity'] <=> $a['similarity']; });
-            $showResults = true;
-            
             if (empty($searchResults)) {
                 // Use AI to search for topics
                 $aiTopics = searchTopicsWithGemini($searchQuery);
@@ -262,14 +284,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
                     // Store AI topics
                     $insertStmt = $conn->prepare("INSERT IGNORE INTO generated_topics (topic_name, source_term, question_types) VALUES (?, ?, 'mcq')");
                     if ($insertStmt) {
+                        $meili = new MeilisearchService();
                         foreach ($aiTopics as $aiTopic) {
                             $topicName = $aiTopic['topic'];
                             $insertStmt->bind_param('ss', $topicName, $searchQuery);
                             $insertStmt->execute();
+                            try {
+                                $meili->addTopic($topicName, 'generated_topics', 'mcq');
+                            } catch (Throwable $e) { /* ignore */ }
                         }
                         $insertStmt->close();
                     }
-                    
+
                     // Add to results
                     foreach ($aiTopics as $aiTopic) {
                         $searchResults[] = $aiTopic;
@@ -298,7 +324,7 @@ if (isset($_POST['selected_topics_json']) && !empty($_POST['selected_topics_json
 if (isset($_POST['start_quiz'])) {
     $selectedTopics = $_POST['selected_topics'] ?? [];
     $mcqCount = intval($_POST['mcq_count'] ?? 10);
-    if ($mcqCount > 50) $mcqCount = 50;
+    if ($mcqCount > 10) $mcqCount = 10;
     unset($_SESSION['selected_topics']);
     
     if (!empty($selectedTopics) && $mcqCount > 0) {
@@ -346,10 +372,10 @@ if (isset($_POST['start_quiz'])) {
             header('Location: quiz.php?class_id=0&book_id=0&topics=' . $topicsParam . '&mcq_count=' . $mcqCount . '&study_level=' . urlencode($studyLevel));
             exit;
         } else {
-            $error = empty($topicsArray) ? "Please select at least one topic." : "Please specify the number of MCQs (1-50).";
+            $error = empty($topicsArray) ? "Please select at least one topic." : "Please specify the number of MCQs (1-10).";
         }
     } else {
-        $error = "Please select at least one topic and specify the number of MCQs (1-50).";
+        $error = "Please select at least one topic and specify the number of MCQs (1-10).";
     }
 }
 ?>
@@ -392,6 +418,13 @@ if (isset($_POST['start_quiz'])) {
 </head>
 <body>
 <?php include_once '../header.php'; ?>
+
+<!-- SIDE SKYSCRAPER ADS (Right Only) -->
+<?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
+
+<!-- TOP AD BANNER -->
+<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
 <div class="main-content">
     <div class="topic-search-container">
         <?php
@@ -440,12 +473,12 @@ if (isset($_POST['start_quiz'])) {
                             id="mcq_count" 
                             class="mcq-count-input"
                             min="1" 
-                            max="50" 
+                            max="10" 
                             value="<?= htmlspecialchars($_REQUEST['mcq_count'] ?? $_POST['mcq_count'] ?? 10) ?>" 
                             required
-                            oninput="if(parseInt(this.value) > 50) this.value = 50; if(parseInt(this.value) < 1 && this.value !== '') this.value = 1;"
+                            oninput="if(parseInt(this.value) > 10) this.value = 10; if(parseInt(this.value) < 1 && this.value !== '') this.value = 1;"
                         >
-                        <button type="button" onclick="const input = document.getElementById('mcq_count'); input.value = Math.min(50, parseInt(input.value) + 5); input.dispatchEvent(new Event('input'));" class="mcq-count-btn"><i class="fas fa-plus"></i></button>
+                        <button type="button" onclick="const input = document.getElementById('mcq_count'); input.value = Math.min(10, parseInt(input.value) + 1); input.dispatchEvent(new Event('input'));" class="mcq-count-btn"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
                 

@@ -1,5 +1,4 @@
-version: '3.8'
-
+# Run: .\docker-up.ps1   OR   docker compose --env-file config/.env.local up -d
 services:
   app:
     build:
@@ -10,19 +9,20 @@ services:
     ports:
       - "8000:80"
     env_file:
-      - .env
+      - config/.env.local
     volumes:
       - ./:/var/www/html:cached
     depends_on:
       - db
       - redis
+      - meilisearch
     restart: unless-stopped
 
   db:
     image: mysql:8.0
     container_name: paper_mysql
     env_file:
-      - .env
+      - config/.env.local
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_DATABASE}
@@ -47,6 +47,23 @@ services:
     volumes:
       - redis_data:/data
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    container_name: paper_meilisearch
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY:-}
+      MEILI_ENV: production
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: paper_phpmyadmin
@@ -63,3 +80,4 @@ services:
 volumes:
   db_data:
   redis_data:
+  meilisearch_data:

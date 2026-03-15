@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/ads.php';
+include 'db_connect.php';
 // Start session only if not already active and headers are not yet sent.
 if (session_status() === PHP_SESSION_NONE) {
     if (!headers_sent()) {
@@ -181,6 +183,137 @@ foreach ($gen_paper_pages as $p) {
     /* School Mode Styles */
     html.school-mode .navbar-container {
         /* Subtle visual indicator for school mode */
+    }
+
+    /* --- Global Upgrade Plan Modal Styles --- */
+    .upgrade-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(12px);
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        animation: fadeInGlobal 0.3s ease;
+    }
+
+    .upgrade-modal-card {
+        background: white;
+        padding: 32px 40px;
+        border-radius: 32px;
+        max-width: 500px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+        overflow: hidden;
+        animation: modalSlideUpGlobal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes modalSlideUpGlobal {
+        from { transform: translateY(50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes fadeInGlobal {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .upgrade-modal-icon {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        margin: 0 auto 16px;
+        box-shadow: 0 10px 20px rgba(245, 158, 11, 0.3);
+    }
+
+    .upgrade-modal-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #1e293b !important;
+        margin-bottom: 12px;
+        letter-spacing: -0.025em;
+    }
+
+    .upgrade-modal-text {
+        color: #64748b;
+        font-size: 1rem;
+        line-height: 1.5;
+        margin-bottom: 20px;
+    }
+
+    .upgrade-features-list {
+        text-align: left;
+        background: #f8fafc;
+        padding: 16px 20px;
+        border-radius: 20px;
+        margin-bottom: 24px;
+    }
+
+    .upgrade-feature-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        color: #334155;
+        font-weight: 600;
+    }
+
+    .upgrade-feature-item i {
+        color: #10b981;
+        font-size: 1.2rem;
+    }
+
+    .upgrade-modal-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .btn-upgrade-now {
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        color: white !important;
+        padding: 14px;
+        border-radius: 16px;
+        font-weight: 800;
+        font-size: 1.1rem;
+        text-decoration: none !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: all 0.3s;
+    }
+
+    .btn-upgrade-now:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-maybe-later {
+        background: transparent;
+        color: #64748b;
+        border: none;
+        padding: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+    .btn-maybe-later:hover {
+        color: #1e293b;
     }
 
     /* Header / Navbar styles appended below */
@@ -849,6 +982,7 @@ html.dark-mode .user-header-info .fw-bold {
     color: #94a3b8;
 }
    </style>
+   <link rel="stylesheet" href="<?= $assetBase ?>css/ads.css">
 </head>
 <body>
 
@@ -856,7 +990,6 @@ html.dark-mode .user-header-info .fw-bold {
 <link rel="stylesheet" href="../css/index.css">
 <link rel="stylesheet" href="../css/main.css">
 
-    
 <nav class="navbar">
   <div class="navbar-container">
     <a href="<?= $assetBase ?>index.php" class="nav-logo">AhmadLearningHub</a>
@@ -891,7 +1024,8 @@ html.dark-mode .user-header-info .fw-bold {
                     ?>
                     <?php if (isset($subInfo) && $subInfo): ?>
                         <li>
-                            <a href="<?= $assetBase ?>subscription.php"
+                            <a href="<?= $subInfo['is_premium'] ? ($assetBase . 'subscription.php') : 'javascript:void(0)' ?>"
+                               onclick="<?= $subInfo['is_premium'] ? '' : 'showGlobalUpgradeModal(\'general\')' ?>"
                                class="plan-chip  <?= $subInfo['is_premium'] ? 'premium' : 'basic' ?>"
                                title="<?= htmlspecialchars($subInfo['plan_name']) ?> Plan" style="border-radius: 50px;">
                                 <span class="plan-dot"></span>
@@ -941,6 +1075,81 @@ html.dark-mode .user-header-info .fw-bold {
         </div>
     </div>
 </div>
+
+<!-- Global Upgrade Plan Modal -->
+<div id="globalUpgradeModal" class="upgrade-modal-overlay">
+    <div class="upgrade-modal-card">
+        <div class="upgrade-modal-icon">
+            <i class="fas fa-crown"></i>
+        </div>
+        <h2 class="upgrade-modal-title" id="globalUpgradeTitle">Unlock Full Access</h2>
+        <p class="upgrade-modal-text" id="globalUpgradeText">Upgrade to a premium plan to unlock unlimited features and removal of all ads.</p>
+        
+        <div class="upgrade-features-list">
+            <div class="upgrade-feature-item">
+                <i class="fas fa-check-circle"></i>
+                <span>Unlimited paper generation</span>
+            </div>
+            <div class="upgrade-feature-item">
+                <i class="fas fa-check-circle"></i>
+                <span>No platform-wide advertisements</span>
+            </div>
+            <div class="upgrade-feature-item">
+                <i class="fas fa-check-circle"></i>
+                <span>Advanced AI paper builder</span>
+            </div>
+        </div>
+        
+        <div class="upgrade-modal-actions">
+            <a href="<?= $assetBase ?>subscription.php" class="btn-upgrade-now">
+                <i class="fas fa-rocket"></i> Upgrade Now
+            </a>
+            <button type="button" class="btn-maybe-later" onclick="closeGlobalUpgradeModal()">
+                Maybe Later
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showGlobalUpgradeModal(type = 'general') {
+        const modal = document.getElementById('globalUpgradeModal');
+        const title = document.getElementById('globalUpgradeTitle');
+        const text = document.getElementById('globalUpgradeText');
+        
+        if (type === 'topics') {
+            title.textContent = 'Unlock Unlimited Topics';
+            text.innerHTML = 'Free users have a limit on topic selection. Upgrade to select <strong>unlimited topics</strong> per assessment.';
+        } else if (type === 'questions') {
+            title.textContent = 'Maximum Questions Reached';
+            text.innerHTML = 'Free users are limited to 10 MCQs, 10 Shorts, and 3 Long questions. <strong>Upgrade for unlimited counts.</strong>';
+        } else {
+            title.textContent = 'Unlock Premium Features';
+            text.textContent = 'Experience the full power of Ahmad Learning Hub with unlimited paper generation and ad-free browsing.';
+        }
+
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeGlobalUpgradeModal() {
+        const modal = document.getElementById('globalUpgradeModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    // Close on click outside
+    window.addEventListener('click', function(e) {
+        const modal = document.getElementById('globalUpgradeModal');
+        if (e.target === modal) {
+            closeGlobalUpgradeModal();
+        }
+    });
+</script>
 
 </body>
 </html>

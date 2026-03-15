@@ -80,6 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <a class="back" href="../index.php">← Back to site</a>
         <a class="back" href="../login.php">User Login</a>
     </div>
-    <?php include __DIR__ . '/../footer.php'; ?>
+    
 </body>
 </html>

@@ -164,6 +164,6 @@ $deletedQuestions = $conn->query("SELECT id, question_id, class_id, book_name, c
             <p style="text-align: center; color: #666; margin: 40px 0;">No deleted questions found.</p>
         <?php endif; ?>
     </div>
-    <?php include __DIR__ . '/../footer.php'; ?>
+    
 </body>
 </html>

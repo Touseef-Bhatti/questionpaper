@@ -247,3 +247,115 @@ $verifyUrl = rtrim($baseUrl, '/') . '/email/verify_email.php?token=' . urlencode
         return false;
     }
 }
+
+/**
+ * Send subscription update email (activation or expiration)
+ */
+function sendSubscriptionUpdateEmail($to, $userName, $planName, $expiresAt = null) {
+    try {
+        $fromEmail = EnvLoader::get('SMTP_USERNAME', 'paper@bhattichemicalsindustry.com.pk');
+        $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
+        $baseUrl = EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk');
+        
+        if (!preg_match('/^https?:\/\//', $baseUrl)) {
+            $baseUrl = 'https://' . $baseUrl;
+        }
+        
+        $isExpiration = ($planName === 'Free Plan' || $planName === 'free');
+        $subject = $isExpiration ? "Subscription Expired - $fromName" : "Subscription Activated: $planName - $fromName";
+        
+        $title = $isExpiration ? "Subscription Expired" : "Subscription Activated!";
+        $color = $isExpiration ? "#dc3545" : "#28a745"; // Red for expired, Green for active
+        
+        $expiryInfo = "";
+        if (!$isExpiration && $expiresAt) {
+            $expiryDate = date('M d, Y', strtotime($expiresAt));
+            $expiryInfo = "<p style='color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;'>Your premium features are now active and will remain available until <strong>$expiryDate</strong>.</p>";
+        }
+
+        $messageText = $isExpiration 
+            ? "Your premium subscription has expired, and your account has been moved to the Free Plan. We hope you enjoyed our premium features!" 
+            : "Congratulations! Your <strong>$planName</strong> subscription has been successfully activated. You now have full access to all premium features included in this plan.";
+
+        $ctaText = $isExpiration ? "RENEW SUBSCRIPTION" : "GO TO DASHBOARD";
+        $ctaUrl = $isExpiration ? rtrim($baseUrl, '/') . "/subscription.php" : rtrim($baseUrl, '/') . "/admin/dashboard.php";
+
+        $htmlMessage = "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>$title</title>
+</head>
+<body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <table width='100%' cellspacing='0' cellpadding='0' border='0' style='background-color: #f4f4f4; padding: 20px;'>
+        <tr>
+            <td align='center'>
+                <table width='600' cellspacing='0' cellpadding='0' border='0' style='background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;'>
+                    <!-- Header -->
+                    <tr>
+                        <td style='background: linear-gradient(135deg, $color, " . ($isExpiration ? "#a71d2a" : "#1e7e34") . "); padding: 40px 20px; text-align: center;'>
+                            <h1 style='color: white; margin: 0; font-size: 28px; font-weight: bold;'>$fromName</h1>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style='padding: 40px 30px;'>
+                            <h2 style='color: $color; margin: 0 0 20px 0; font-size: 24px;'>$title</h2>
+                            <p style='color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;'>Dear " . htmlspecialchars($userName) . ",</p>
+                            <p style='color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;'>$messageText</p>
+                            $expiryInfo
+                            
+                            <!-- Action Button -->
+                            <table width='100%' cellspacing='0' cellpadding='0' border='0' style='margin: 30px 0;'>
+                                <tr>
+                                    <td align='center'>
+                                        <table cellspacing='0' cellpadding='0' border='0' style='margin: 0 auto;'>
+                                            <tr>
+                                                <td align='center' style='background-color: $color; border-radius: 8px; text-align: center;'>
+                                                    <a href='$ctaUrl' target='_blank' rel='noopener noreferrer' style='
+                                                        background-color: $color;
+                                                        border: 18px solid $color;
+                                                        color: #ffffff !important;
+                                                        display: inline-block;
+                                                        font-family: Arial, Helvetica, sans-serif;
+                                                        font-size: 16px;
+                                                        font-weight: bold;
+                                                        line-height: 1.2;
+                                                        text-align: center;
+                                                        text-decoration: none !important;
+                                                        border-radius: 8px;
+                                                    '>$ctaText</a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style='color: #666; font-size: 14px; line-height: 1.5; margin: 30px 0 10px 0;'>If you have any questions, please feel free to contact our support team.</p>
+                            
+                            <hr style='border: none; height: 1px; background: #eee; margin: 30px 0;'>
+                            <p style='color: #888; font-size: 12px; margin: 0;'>Best regards,<br><strong>The $fromName Team</strong></p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
+        
+        $headers = "From: " . $fromName . " <" . $fromEmail . ">\r\n" .
+                  "Reply-To: " . $fromEmail . "\r\n" .
+                  "X-Mailer: PHP/" . phpversion() . "\r\n" .
+                  "MIME-Version: 1.0\r\n" .
+                  "Content-Type: text/html; charset=UTF-8\r\n";
+        
+        return mail($to, $subject, $htmlMessage, $headers);
+    } catch (Exception $e) {
+        error_log("Subscription update email error: " . $e->getMessage());
+        return false;
+    }
+}

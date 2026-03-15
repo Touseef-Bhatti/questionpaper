@@ -81,7 +81,7 @@ $adminUrl = $baseUrl . 'admin/';
                         <li><a href="<?= $adminUrl ?>subscriptions/index.php">📋 Plan Settings</a></li>
                         <li><a href="<?= $adminUrl ?>subscriptions/user_usage.php">📊 User Usage</a></li>
                         <li><a href="<?= $adminUrl ?>super_admin_payments.php">💰 Payments</a></li>
-                        <li><a href="<?= $adminUrl ?>user.php">👤 User Plans</a></li>
+                        <li><a href="<?= $adminUrl ?>super_admin_users.php">👤 User Plans</a></li>
                     </ul>
                 </li>
                 <li><a href="<?= $adminUrl ?>deleted_questions.php" class="nav-link-deleted">🗑️ Deleted</a></li>

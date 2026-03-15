@@ -507,6 +507,100 @@ $csrfToken = generateCSRFToken();
         .status-verified { background: #d4edda; color: #155724; }
         .status-corrected { background: #cce5ff; color: #004085; }
         .status-flagged { background: #f8d7da; color: #721c24; }
+ 
+        .ai-loader-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        .ai-loader-box {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .ai-loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .ai-progress-container {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+        .ai-progress-bar {
+            height: 100%;
+            background: #007bff;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .ai-loader-details {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 1rem;
+        }
+        .ai-stat-item {
+            font-size: 0.8rem;
+        }
+        .ai-stat-item strong {
+            display: block;
+            font-size: 1.1rem;
+        }
+        .btn-check-ai {
+            background: #28a745;
+            color: #fff;
+            padding: 4px 10px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-check-ai:hover {
+            background: #218838;
+            color: #fff;
+        }
+        .btn-check-ai.loading {
+            background: #6c757d;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .spinner-sm {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+        .btn-check-ai.loading .spinner-sm {
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -716,6 +810,12 @@ $csrfToken = generateCSRFToken();
                             </td>
                             <td>
                                 <?= $mcq['last_checked_at'] ? htmlspecialchars($mcq['last_checked_at']) : '-' ?>
+                                <div style="margin-top: 8px;">
+                                    <button onclick="checkSingleMCQ(<?= (int)$mcq['id'] ?>, this)" class="btn-check-ai" id="check-btn-<?= (int)$mcq['id'] ?>">
+                                        <span class="spinner-sm"></span>
+                                        <span class="btn-text"><?= $mcq['last_checked_at'] ? 'Recheck' : 'Check' ?></span>
+                                    </button>
+                                </div>
                             </td>
                             <td><?= htmlspecialchars($mcq['generated_at']) ?></td>
                             <td>
@@ -844,7 +944,7 @@ $csrfToken = generateCSRFToken();
         </div>
     </div>
 
-    <?php include __DIR__ . '/../footer.php'; ?>
+    
     <script>
     (function() {
         var input = document.getElementById('topicSearchInput');
@@ -868,6 +968,63 @@ $csrfToken = generateCSRFToken();
             });
         }
     })();
+
+    function checkSingleMCQ(id, btn) {
+        if (!confirm('Run AI check for this MCQ?')) return;
+
+        const loader = document.getElementById('aiLoader');
+        const status = document.getElementById('aiLoaderStatus');
+        const bar = document.getElementById('aiProgressBar');
+        
+        // Disable button and show inner loader
+        btn.classList.add('loading');
+        btn.querySelector('.btn-text').textContent = 'Checking...';
+
+        loader.style.display = 'flex';
+        status.textContent = 'Preparing check for MCQ #' + id + '...';
+        bar.style.width = '20%';
+
+        const formData = new FormData();
+        formData.append('action', 'check_ai_mcqs');
+        formData.append('source_table', 'AIGeneratedMCQs');
+        formData.append('ids', JSON.stringify([id]));
+        formData.append('csrf_token', '<?= $csrfToken ?>');
+
+        fetch('verify_ai_mcqs.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.stats && data.stats.checked > 0) {
+                bar.style.width = '100%';
+                status.textContent = 'Check completed successfully!';
+                
+                // Update stats
+                document.getElementById('statChecked').textContent = data.stats.checked;
+                document.getElementById('statVerified').textContent = data.stats.verified;
+                document.getElementById('statCorrected').textContent = data.stats.corrected;
+                document.getElementById('statFlagged').textContent = data.stats.flagged;
+                
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                    location.reload(); 
+                }, 800);
+            } else {
+                loader.style.display = 'none';
+                btn.classList.remove('loading');
+                btn.querySelector('.btn-text').textContent = 'Retry';
+                alert('Error: ' + (data.message || 'Unknown error occurred.'));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            loader.style.display = 'none';
+            btn.classList.remove('loading');
+            btn.querySelector('.btn-text').textContent = 'Retry';
+            alert('Network error occurred.');
+        });
+    }
     </script>
 </body>
 </html>

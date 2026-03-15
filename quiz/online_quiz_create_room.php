@@ -100,7 +100,10 @@ if ($mcq_count <= 0 && !$hasAnyCustom && empty($topics) && empty($selected_mcq_i
 // Calculate if we need to generate random questions
 $custom_count = count($custom_mcqs);
 $selected_count = count($selected_mcq_ids);
-$random_needed = max(0, $mcq_count - $custom_count - $selected_count);
+// Always prepare a small buffer of 2 extra random questions for the teacher
+// so they can delete/replace questions before the quiz starts.
+$buffer_extra = 2;
+$random_needed = max(0, $mcq_count + $buffer_extra - $custom_count - $selected_count);
 
 if ($random_needed > 0 && (!$class_id || !$book_id) && empty($topics)) {
     respond_error('Class and Book are required when selecting Random MCQs.');
@@ -152,8 +155,8 @@ if (!empty($selected_mcq_ids)) {
     $stmt->close();
 }
 
-// 2. Fill remainder if needed
-$remaining_needed = $mcq_count - count($selectedQuestions) - count($custom_mcqs);
+// 2. Fill remainder if needed (including buffer extras)
+$remaining_needed = $mcq_count + $buffer_extra - count($selectedQuestions) - count($custom_mcqs);
 
 if ($remaining_needed > 0) {
     // Exclude already selected IDs
@@ -199,7 +202,8 @@ if ($remaining_needed > 0) {
         }
     
         // Check AIGeneratedMCQs if needed
-        $target_db_count = $mcq_count - count($custom_mcqs);
+        // Target total from DB/AI (including the 2-buffer)
+        $target_db_count = $mcq_count + $buffer_extra - count($custom_mcqs);
         if (count($selectedQuestions) < $target_db_count) {
             $needed = $target_db_count - count($selectedQuestions);
             
@@ -244,7 +248,7 @@ if ($remaining_needed > 0) {
     
         // Generate if still needed - 1 request for all MCQs
         if (count($selectedQuestions) < $target_db_count) {
-            $neededCount = $target_db_count - count($selectedQuestions) + 2;
+            $neededCount = $target_db_count - count($selectedQuestions);
             if (function_exists('generateMCQsBulkWithGemini')) {
                 $generatedMCQs = generateMCQsBulkWithGemini($topics, $neededCount);
                 if (!empty($generatedMCQs)) {

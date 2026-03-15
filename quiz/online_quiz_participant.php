@@ -468,11 +468,19 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
                 $qIdx = 1;
                 while ($row = $responses->fetch_assoc()):
                     $selectedLetter = $row['selected_option'];
+                    $clean_correct_raw = trim((string)$row['correct_option']);
+                    $clean_correct = strtolower($clean_correct_raw);
                     $correctLetter = '';
-                    if ($row['correct_option'] === $row['option_a']) $correctLetter = 'A';
-                    else if ($row['correct_option'] === $row['option_b']) $correctLetter = 'B';
-                    else if ($row['correct_option'] === $row['option_c']) $correctLetter = 'C';
-                    else if ($row['correct_option'] === $row['option_d']) $correctLetter = 'D';
+
+                    // correct_option may be stored as a letter OR as full text
+                    if (in_array(strtoupper($clean_correct_raw), ['A','B','C','D'], true)) {
+                        $correctLetter = strtoupper($clean_correct_raw);
+                    } else {
+                        if ($clean_correct === strtolower(trim((string)$row['option_a']))) $correctLetter = 'A';
+                        else if ($clean_correct === strtolower(trim((string)$row['option_b']))) $correctLetter = 'B';
+                        else if ($clean_correct === strtolower(trim((string)$row['option_c']))) $correctLetter = 'C';
+                        else if ($clean_correct === strtolower(trim((string)$row['option_d']))) $correctLetter = 'D';
+                    }
                     
                     $isCorrect = !is_null($row['is_correct']) ? (int)$row['is_correct'] === 1 : null;
                     

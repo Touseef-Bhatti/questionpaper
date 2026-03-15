@@ -1,5 +1,6 @@
 <?php
-require_once 'auth/auth_check.php';
+session_start();
+// require_once 'auth/auth_check.php';
 // Require authentication before accessing this page
 // require_once 'auth_check.php';
 include 'db_connect.php';
@@ -78,7 +79,7 @@ if (!$result) {
 
 
 
-	<?php include 'header.php'; ?>
+
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Select chapters for 9th or 10th Class books to generate custom question papers and online tests. Tailored for Punjab Board new syllabus and up-to-date papers.">
@@ -720,14 +721,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-</head>
-<body>
+<?php include 'header.php'; ?>
+
+	<!-- SIDE SKYSCRAPER ADS (Double Vertical) -->
+	<?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 15%;') ?>
+	<?= renderAd('skyscraper', 'Right Skyscraper 2', 'right', 'margin-top: 90%;') ?>
+
+	<!-- TOP AD BANNER -->
+	<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
 	<h1>Select Chapters from "<?= htmlspecialchars($book_name) ?> (Class <?= htmlspecialchars($classId) ?>)"</h1>
 	
-	<div class="container">
+	<div class="chapter-container">
 		<form action="select_question.php" method="POST">
 			<input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">
 			<input type="hidden" name="book_name" value="<?= htmlspecialchars($book_name) ?>">
+
+			<!-- MIDDLE AD BANNER -->
+			<?= renderAd('banner', 'Place Middle Banner Here', 'ad-placement-top') ?>
 
 			<!-- MERGED: Totals + Pattern setup -->
 

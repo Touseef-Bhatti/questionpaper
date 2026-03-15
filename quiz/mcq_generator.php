@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../services/AIKeyRotator.php';
+require_once __DIR__ . '/../services/MeilisearchService.php';
 
 $cacheManager = null;
 if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
@@ -117,6 +118,12 @@ function getOrCreateTopicId($conn, $topicName) {
         $id = $stmt->insert_id;
         $stmt->close();
         $topicIdCache[$topicName] = $id;
+        try {
+            $meili = new MeilisearchService();
+            $meili->addTopic(trim($topicName), 'ai_questions_topic', 'mcq');
+        } catch (Throwable $e) {
+            /* ignore */
+        }
         return $id;
     }
     $stmt->close();
@@ -167,6 +174,12 @@ function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $c
         
         $stmt->bind_param('issssssss', $topicId, $topicVal, $q, $optA, $optB, $optC, $optD, $corr, $now);
         if ($stmt->execute()) {
+            try {
+                $meili = new MeilisearchService();
+                $meili->addTopic($topicVal, 'ai_mcqs', 'mcq');
+            } catch (Throwable $e) {
+                /* ignore */
+            }
             $inserted[] = [
                 'id' => $stmt->insert_id,
                 'topic_id' => $topicId,
@@ -346,8 +359,175 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questi
 }
 
 /**
- * Check MCQs with AI - stub
+ * Check MCQs with AI - implementation
  */
 function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTable = 'AIGeneratedMCQs', $specificIds = null) {
-    return ['success' => false, 'message' => 'AI verification currently disabled'];
+    global $conn, $cacheManager;
+
+    if ($sourceTable === 'mcqs') {
+        $mainTable = 'mcqs';
+        $verifyTable = 'MCQsVerification';
+        $pk = 'mcq_id';
+        $fk = 'mcq_id';
+        $qCol = 'question';
+    } else {
+        $mainTable = 'AIGeneratedMCQs';
+        $verifyTable = 'AIMCQsVerification';
+        $pk = 'id';
+        $fk = 'mcq_id';
+        $qCol = 'question_text';
+    }
+
+    // Ensure verification table exists
+    if ($sourceTable === 'mcqs') {
+        $conn->query("CREATE TABLE IF NOT EXISTS MCQsVerification (
+            mcq_id INT PRIMARY KEY,
+            verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
+            last_checked_at DATETIME,
+            suggested_correct_option TEXT,
+            original_correct_option TEXT,
+            ai_notes TEXT,
+            FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE
+        )");
+    } else {
+        $conn->query("CREATE TABLE IF NOT EXISTS AIMCQsVerification (
+            mcq_id INT PRIMARY KEY,
+            verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
+            last_checked_at DATETIME,
+            suggested_correct_option TEXT,
+            original_correct_option TEXT,
+            ai_notes TEXT,
+            FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
+        )");
+    }
+
+    // Fetch MCQs to check
+    $where = [];
+    $params = [];
+    $types = "";
+
+    if ($specificIds !== null && is_array($specificIds) && !empty($specificIds)) {
+        $placeholders = implode(',', array_fill(0, count($specificIds), '?'));
+        $where[] = "m.$pk IN ($placeholders)";
+        foreach ($specificIds as $id) {
+            $params[] = intval($id);
+            $types .= "i";
+        }
+    } elseif ($startId !== null && $endId !== null) {
+        $where[] = "m.$pk BETWEEN ? AND ?";
+        $params[] = intval($startId);
+        $params[] = intval($endId);
+        $types .= "ii";
+    } else {
+        // Pending only
+        $where[] = "(v.verification_status IS NULL OR v.verification_status = 'pending')";
+    }
+
+    $whereSql = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
+    $sql = "SELECT m.*, v.verification_status 
+            FROM $mainTable m 
+            LEFT JOIN $verifyTable v ON m.$pk = v.$fk 
+            $whereSql 
+            ORDER BY m.$pk ASC 
+            LIMIT ?";
+    
+    $params[] = intval($limit);
+    $types .= "i";
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) return ['success' => false, 'message' => 'Prepare failed: ' . $conn->error];
+    
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $mcqs = [];
+    while ($row = $res->fetch_assoc()) {
+        $mcqs[] = $row;
+    }
+    $stmt->close();
+
+    if (empty($mcqs)) {
+        return ['success' => true, 'stats' => ['checked' => 0, 'verified' => 0, 'corrected' => 0, 'flagged' => 0, 'processed_ids' => []]];
+    }
+
+    list($keyItem, $model, $rotator) = getAiKeyAndModel($cacheManager);
+    if (!$keyItem) return ['success' => false, 'message' => 'No AI keys available'];
+
+    $prompt = "You are an expert examiner. Verify the following MCQs for factual accuracy and correct answers. 
+    For each MCQ, determine if the 'correct_option' (which contains the text of the correct answer) is actually correct.
+    If it's correct, status is 'verified'.
+    If another option is correct, status is 'corrected' and provide the correct option text in 'suggested_correct_option'.
+    If the question or options are nonsensical or broken, status is 'flagged'.
+    Return ONLY a JSON array of objects, one for each ID.
+    Format: [{\"id\": 1, \"status\": \"verified\"|\"corrected\"|\"flagged\", \"suggested\": \"text of correct option if corrected\", \"notes\": \"brief reason if corrected or flagged\"}]
+    
+    MCQs to verify:\n";
+
+    foreach ($mcqs as $m) {
+        $prompt .= "ID: {$m[$pk]}, Topic: {$m['topic']}, Q: {$m[$qCol]}, A: {$m['option_a']}, B: {$m['option_b']}, C: {$m['option_c']}, D: {$m['option_d']}, Correct: {$m['correct_option']}\n";
+    }
+
+    list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, 10000, 120);
+
+    if ($code !== 200 || !$resp) {
+        return ['success' => false, 'message' => 'AI call failed with code ' . $code];
+    }
+
+    $results = parseMcqJson($resp);
+    if (!is_array($results)) return ['success' => false, 'message' => 'Failed to parse AI response'];
+
+    $stats = ['checked' => 0, 'verified' => 0, 'corrected' => 0, 'flagged' => 0, 'processed_ids' => []];
+    $now = date('Y-m-d H:i:s');
+
+    foreach ($results as $res) {
+        $id = intval($res['id'] ?? 0);
+        $status = $res['status'] ?? 'pending';
+        $suggested = $res['suggested'] ?? '';
+        $notes = $res['notes'] ?? '';
+
+        if ($id <= 0) continue;
+
+        // Find original MCQ data
+        $original = null;
+        foreach ($mcqs as $m) {
+            if (intval($m[$pk]) === $id) {
+                $original = $m;
+                break;
+            }
+        }
+        if (!$original) continue;
+
+        $stats['checked']++;
+        if ($status === 'verified') $stats['verified']++;
+        elseif ($status === 'corrected') $stats['corrected']++;
+        elseif ($status === 'flagged') $stats['flagged']++;
+        $stats['processed_ids'][] = $id;
+
+        // Update verification table
+        $upsertSql = "INSERT INTO $verifyTable (mcq_id, verification_status, last_checked_at, suggested_correct_option, original_correct_option, ai_notes) 
+                      VALUES (?, ?, ?, ?, ?, ?) 
+                      ON DUPLICATE KEY UPDATE 
+                      verification_status = VALUES(verification_status), 
+                      last_checked_at = VALUES(last_checked_at), 
+                      suggested_correct_option = VALUES(suggested_correct_option), 
+                      original_correct_option = VALUES(original_correct_option), 
+                      ai_notes = VALUES(ai_notes)";
+        
+        $originalCorrect = $original['correct_option'];
+        $stmt = $conn->prepare($upsertSql);
+        $stmt->bind_param('isssss', $id, $status, $now, $suggested, $originalCorrect, $notes);
+        $stmt->execute();
+        $stmt->close();
+
+        // If corrected, also update the main table
+        if ($status === 'corrected' && !empty($suggested)) {
+            $updateMainSql = "UPDATE $mainTable SET correct_option = ? WHERE $pk = ?";
+            $stmt = $conn->prepare($updateMainSql);
+            $stmt->bind_param('si', $suggested, $id);
+            $stmt->execute();
+            $stmt->close();
+        }
+    }
+
+    return ['success' => true, 'stats' => $stats];
 }

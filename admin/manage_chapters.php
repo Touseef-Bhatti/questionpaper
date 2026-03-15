@@ -314,7 +314,7 @@ $chapters = $conn->query("SELECT ch.chapter_id, ch.chapter_name, ch.class_id, ch
             </tbody>
         </table>
     </div>
-    <?php include __DIR__ . '/../footer.php'; ?>
+   
     
     <script>
         // Book data from PHP

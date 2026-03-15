@@ -132,6 +132,6 @@ $result = $conn->query($sql);
             </table>
         </div>
     </div>
-    <?php include __DIR__ . '/../footer.php'; ?>
+    
 </body>
 </html>

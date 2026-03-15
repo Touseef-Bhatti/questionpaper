@@ -127,7 +127,7 @@ $users = $conn->query("SELECT id, name, email, role, verified, created_at FROM u
             </div>
         <?php endif; ?>
     </div>
-    <?php include __DIR__ . '/../footer.php'; ?>
+  
 </body>
 </html>
 

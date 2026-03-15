@@ -297,6 +297,6 @@ $pendingActions = $conn->query("SELECT id, action_type, name, email, role, creat
         </div>
     </div>
     
-    <?php include __DIR__ . '/../footer.php'; ?>
+    
 </body>
 </html>

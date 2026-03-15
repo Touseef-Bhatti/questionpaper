@@ -1,8 +1,7 @@
 <?php
-// require_once 'auth_check.php';
+session_start();
 // quiz_setup.php - Public quiz setup page
 include '../db_connect.php';
-if (session_status() === PHP_SESSION_NONE) session_start();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -142,6 +141,13 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 </head>
 <body>
 <?php include_once '../header.php'; ?>
+
+<!-- SIDE SKYSCRAPER ADS -->
+<?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 10%;') ?>
+
+<!-- TOP AD BANNER -->
+<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
 <div class="main-content">
     <div class="quiz-setup-container">
         <header class="setup-header">
@@ -150,6 +156,9 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         </header>
 
         <form id="quizForm" method="POST" action="quiz.php">
+            <!-- SELECTION TOP AD -->
+            <?= renderAd('banner', 'Selection Top Banner') ?>
+            <br>
             <div class="grid">
                 <div>
                     <label for="class_id">Class</label>
@@ -203,6 +212,10 @@ if (session_status() === PHP_SESSION_NONE) session_start();
                 <button type="button" class="btn secondary" id="resetBtn">Reset</button>
                 <button type="submit" class="btn primary">Start Quiz</button>
             </div>
+
+            <!-- MIDDLE AD BANNER -->
+            <br>
+            <?= renderAd('banner', 'Place Middle Banner Here') ?>
         </form>
     </div>
 
@@ -233,13 +246,12 @@ if (session_status() === PHP_SESSION_NONE) session_start();
             </div>
         </div>
 
-        <div class="seo-footer">
-            <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 15px;">Why Practice with Ahmad Learning Hub Online Quizzes?</h2>
-            <p style="color: #4b5563; line-height: 1.8; margin-bottom: 0;">
-                Join thousands of students across Pakistan using the most advanced <strong>AI MCQ Generator</strong>. Whether you are a student preparing for board exams or a teacher looking for quick assessment tools, our platform is designed for your success.
-            </p>
         </div>
     </article>
+
+    <!-- BOTTOM AD BANNER -->
+    <br>
+    <?= renderAd('banner', 'Place Bottom Banner Here') ?>
 </div>
 
 <!-- Loader Overlay -->

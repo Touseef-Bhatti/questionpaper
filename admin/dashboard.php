@@ -23,7 +23,7 @@ $stats = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="../css/admin.css">
-    <link rel="stylesheet" href="../css/footer.css">
+    
     <link rel="stylesheet" href="../css/main.css">
 
 </head>
@@ -82,7 +82,7 @@ $stats = [
             <a href="api_keys/index.php" class="btn btn-primary">🔑 Manage API Keys</a>
         </div>
     </div>
-    <?php include __DIR__ . '/../footer.php'; ?>
+    
 </body>
 </html>
 

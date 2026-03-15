@@ -2,8 +2,8 @@
 // fetch_more_topics.php
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../config/env.php';
-// Include mcq_generator for the AI search function
-require_once __DIR__ . '/../quiz/mcq_generator.php'; 
+require_once __DIR__ . '/../quiz/mcq_generator.php';
+require_once __DIR__ . '/../services/MeilisearchService.php';
 
 header('Content-Type: application/json');
 
@@ -47,6 +47,12 @@ try {
             $stmt->execute();
             if ($stmt->affected_rows > 0 || $stmt->errno == 0) {
                 $newTopics[] = $topicName;
+                try {
+                    $meili = new MeilisearchService();
+                    $meili->addTopic($topicName, 'generated_topics', 'mcq');
+                } catch (Throwable $e) {
+                    /* ignore */
+                }
             }
         }
     }

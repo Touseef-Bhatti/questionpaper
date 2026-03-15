@@ -35,7 +35,7 @@ body {
 
 .topic-search-container {
     max-width: 60%;
-    margin: 40px auto;
+    margin: 10%;
     background: var(--card-bg);
     padding: 48px;
     border-radius: var(--radius-lg);
@@ -92,7 +92,8 @@ body {
 
 @media (max-width: 768px) {
     .topic-search-container {
-        margin: 20px;
+        margin-left: auto;
+        margin-right: auto;
         padding: 24px;
         max-width: 90%;
     }
@@ -1081,5 +1082,45 @@ h1 {
     }
     .seo-article-section {
         margin: 60px auto;
+    }
+
+    /* Mobile AI Loader Fix */
+    .ai-loader-card {
+        padding: 30px 20px;
+        width: 95%;
+        border-radius: 24px;
+    }
+
+    .ai-icon-container {
+        width: 80px;
+        height: 80px;
+        font-size: 3rem;
+        margin-bottom: 20px;
+    }
+
+    .ai-loader-title {
+        font-size: 1.5rem;
+        margin-bottom: 24px;
+    }
+
+    .ai-steps-list {
+        gap: 8px;
+        margin-bottom: 24px;
+    }
+
+    .ai-step {
+        padding: 10px 15px;
+        gap: 12px;
+        border-radius: 12px;
+    }
+
+    .ai-step-text {
+        font-size: 0.95rem;
+    }
+
+    .ai-step-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 0.8rem;
     }
 }

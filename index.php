@@ -15,16 +15,21 @@ include 'db_connect.php';
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/index.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
 <body>
     <?php include 'header.php'; ?>
+
+
 
     <div class="main-content" style="margin-top: -10%;">
 
         <!-- HERO: Futuristic & Clean -->
         <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover;">
             <div class="container hero-grid">
+                
                 <div class="hero-content">
                     <div class="eyebrow">Intelligent Exam Preparation</div>
+                    <?= renderAd('banner', 'Place Header Banner Here', '', 'position: relative; z-index: 100;') ?>
                     <h1 class="hero-title">Ahmad Learning Hub — Smarter, Faster, Future-Ready</h1>
                     <p class="subtitle">Prepare for 9th & 10th Punjab Board exams with adaptive tests, chapter-wise practice, instant analytics and printable papers — all in one modern platform.</p>
 
@@ -45,7 +50,7 @@ include 'db_connect.php';
             </div>
         </section>
 
-       
+        <?= renderAd('banner', 'Place Top Banner Here') ?>
 
         <!-- HOW IT WORKS -->
         <section class="how-section">
@@ -70,7 +75,9 @@ include 'db_connect.php';
                 </div>
             </div>
         </section>
-    <br><br>
+        
+        <?= renderAd('banner', 'Place Middle Banner Here') ?>
+        <br>
         <!-- TEACHERS & TOOLS -->
         <section class="teachers-section">
             <div class="container">
@@ -97,8 +104,11 @@ include 'db_connect.php';
                 </div>
             </div>
         </section>
-<br><br>
+
+        <?= renderAd('banner', 'Place Bottom Banner Here') ?>
+
         <!-- CTA -->
+         <br>
         <section class="cta-section">
             <div class="container">
                 <div class="cta-card">

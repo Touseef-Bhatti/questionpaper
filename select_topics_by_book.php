@@ -1,4 +1,5 @@
 <?php
+session_start();
 include 'db_connect.php';
 if (!isset($_GET['class_id']) || !isset($_GET['book_id'])) { header('Location: select_class.php'); exit; }
 $classId = intval($_GET['class_id']);
@@ -69,10 +70,33 @@ if (!$viewHasChapterCol) {
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/buttons.css">
     <?php include 'header.php'; ?>
+    <style>
+        @media (min-width: 1100px) {
+            .select-topics-main-content {
+                max-width: 65% !important;
+                margin: 5% auto 5% 5% !important;
+            }
+        }
+        @media (max-width: 768px) {
+            .select-topics-main-content {
+                max-width: 95% !important;
+                margin: 20px auto !important;
+            }
+        }
+    </style>
 </head>
 <body>
+<!-- SIDE SKYSCRAPER ADS (Right Only) -->
+<?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 15%;') ?>
+
+<!-- TOP AD BANNER -->
+<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
 <div class="main-content">
-    <div class="container" style="max-width:980px;margin:20px auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.08);padding:20px;">
+    <div class="container select-topics-main-content" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.08);padding:20px;">
+        <!-- MIDDLE AD BANNER -->
+        <?= renderAd('banner', 'Topics Middle Banner') ?>
+        <br>
         <h3>Select Topics for <?= htmlspecialchars($bookName) ?> (Class <?= htmlspecialchars((string)$classId) ?>)</h3>
         <div style="display:flex;gap:8px;align-items:center;margin:10px 0;">
             <input type="text" id="topicSearch" placeholder="Search topics..." style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:8px;">

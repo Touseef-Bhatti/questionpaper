@@ -27,7 +27,8 @@ body {
 
 .quiz-setup-container {
   max-width: 60%;
-  margin: 0 auto;
+  margin:10% ;
+  
   background: var(--white);
   padding: 40px;
   border-radius: var(--radius-lg);

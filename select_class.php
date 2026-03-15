@@ -1,5 +1,6 @@
 <?php
-require_once 'auth/auth_check.php';
+session_start();
+// require_once 'auth/auth_check.php';
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 
@@ -10,7 +11,7 @@ $classResult = $conn->query($classQuery);
 if (!$classResult) {
     die("<h2 style='color:red;'>Database error: " . htmlspecialchars($conn->error) . "</h2>");
 }
-
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,6 +27,12 @@ if (!$classResult) {
 
 <body>
     <?php include 'header.php'; ?>
+
+    <!-- SIDE SKYSCRAPER ADS (Auto-responsive) -->
+    <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 20%;') ?>
+
+    <!-- TOP AD BANNER -->
+    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
     <div class="main-content">
 
@@ -45,7 +52,8 @@ if (!$classResult) {
           
         </div>
         
-       
+        <!-- MIDDLE AD BANNER -->
+        <?= renderAd('banner', 'Place Middle Banner Here', 'ad-placement-middle') ?>
     
     <div class="classes-container">
         <h2>📋 Select Your Class to Continue</h2>

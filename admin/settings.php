@@ -75,7 +75,7 @@ if ($stmt) {
             <button type="submit">Save Settings</button>
         </form>
     </div>
-    <?php include __DIR__ . '/../footer.php'; ?>
+   
 </body>
 </html>
 

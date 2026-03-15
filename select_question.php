@@ -1,5 +1,6 @@
 <?php
-require_once 'auth/auth_check.php';
+session_start();
+// require_once 'auth/auth_check.php';
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 
@@ -36,18 +37,27 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
     <meta name="description" content="Configure question paper details for 9th and 10th Class. Choose MCQs, Short, and Long questions. Support for New Syllabus Punjab Board.">
     <meta name="keywords" content="9th class, 10th class, question paper generator, online mcqs, quiz, test paper, new syllabus punjab board, pakistan board up to date papers, online tests, notes">
     <title>9th & 10th Class Question Papers Generator, Online Tests & Notes | Ahmad Learning Hub</title>
-    <?php include 'header.php'; ?>
 </head>
 <body>
+    <?php include 'header.php'; ?>
+
+    <!-- SIDE SKYSCRAPER ADS -->
+    <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
+
+    <!-- TOP AD BANNER -->
+    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
     
 
-<div class="container">
+<div class="question-container">
     <h3>Generate Question Paper for Book: <?= htmlspecialchars($book_name) ?> (Class <?= htmlspecialchars($classId) ?>)</h3>
 
     <form method="POST" action="select_topics.php">
         <input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">
         <input type="hidden" name="book_name" value="<?= htmlspecialchars($book_name) ?>">
         <input type="hidden" name="chapters" value="<?= $chaptersSerialized ?>">
+
+        <!-- MIDDLE AD BANNER -->
+        <?= renderAd('banner', 'Place Middle Banner Here', 'ad-placement-top') ?>
 
         <h4>Specify the total number of questions for each chapter:</h4>
         <?php
@@ -191,16 +201,22 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
 </body>
 </html>
 <style>
-    .container {
-        
-        width: 90%;
-        max-width: 800px;
-        margin: 10% auto;
+    .question-container {
+        max-width: 65%;
+        width: 95%;
+        margin: 5% auto 5% 5%;
         padding: 20px;
         background: white;
         border-radius: 8px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        
+    }
+
+    @media (max-width: 768px) {
+        .question-container {
+            width: 95%;
+            min-width: 95%;
+            padding: 15px;
+        }
     }
     .topic_btn {
         display: inline-block;

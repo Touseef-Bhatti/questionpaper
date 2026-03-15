@@ -88,7 +88,7 @@ if ($room_ext) {
 }
 
 if (!empty($active_ids) && is_array($active_ids)) {
-    // Locked set: fetch questions by their exact IDs and preserve the stored order
+    // Locked set: fetch questions by their exact IDs
     $placeholders = implode(',', array_fill(0, count($active_ids), '?'));
     $types = str_repeat('i', count($active_ids));
     $stmt = $conn->prepare(
@@ -107,11 +107,21 @@ if (!empty($active_ids) && is_array($active_ids)) {
     }
     $stmt->close();
 
-    // Re-order according to the locked order (same for every participant)
+    // Re-order according to a per-participant deterministic shuffle
+    // so each student sees a different order, but stable on refresh.
     foreach ($active_ids as $qid) {
         if (isset($by_id[$qid])) {
             $questions[] = $by_id[$qid];
         }
+    }
+
+    if (!empty($questions) && $participant_id > 0) {
+        usort($questions, function($a, $b) use ($participant_id) {
+            $ka = crc32($participant_id . '-' . $a['qrq_id']);
+            $kb = crc32($participant_id . '-' . $b['qrq_id']);
+            if ($ka === $kb) return 0;
+            return ($ka < $kb) ? -1 : 1;
+        });
     }
 } else {
     // Fallback: quiz not started yet or legacy room — use seeded shuffle
@@ -679,24 +689,48 @@ function renderQuestion() {
 function selectOption(option) {
   const q = questions[currentQuestion];
   let selectedOptionText = '';
-  let correctOptionLetter = '';
   switch(option) {
     case 'A': selectedOptionText = q.option_a; break;
     case 'B': selectedOptionText = q.option_b; break;
     case 'C': selectedOptionText = q.option_c; break;
     case 'D': selectedOptionText = q.option_d; break;
   }
-  if (q.correct_option === q.option_a) correctOptionLetter = 'A';
-  else if (q.correct_option === q.option_b) correctOptionLetter = 'B';
-  else if (q.correct_option === q.option_c) correctOptionLetter = 'C';
-  else if (q.correct_option === q.option_d) correctOptionLetter = 'D';
-  const isCorrect = selectedOptionText === q.correct_option;
+
+  // Determine correct option letter. correct_option may be either:
+  // - the letter 'A'/'B'/'C'/'D'
+  // - or the full text of the correct answer.
+  let correctOptionLetter = '';
+  const coRaw = String(q.correct_option || '').trim();
+  const coUpper = coRaw.toUpperCase();
+
+  if (['A', 'B', 'C', 'D'].includes(coUpper)) {
+    correctOptionLetter = coUpper;
+  } else {
+    const optAText = String(q.option_a || '').trim();
+    const optBText = String(q.option_b || '').trim();
+    const optCText = String(q.option_c || '').trim();
+    const optDText = String(q.option_d || '').trim();
+
+    if (coRaw.toLowerCase() === optAText.toLowerCase()) correctOptionLetter = 'A';
+    else if (coRaw.toLowerCase() === optBText.toLowerCase()) correctOptionLetter = 'B';
+    else if (coRaw.toLowerCase() === optCText.toLowerCase()) correctOptionLetter = 'C';
+    else if (coRaw.toLowerCase() === optDText.toLowerCase()) correctOptionLetter = 'D';
+  }
+
+  const isCorrect = option === correctOptionLetter;
+
+  let correctText = '';
+  if (correctOptionLetter === 'A') correctText = q.option_a;
+  else if (correctOptionLetter === 'B') correctText = q.option_b;
+  else if (correctOptionLetter === 'C') correctText = q.option_c;
+  else if (correctOptionLetter === 'D') correctText = q.option_d;
+
   answers[currentQuestion] = {
     question_id: q.qrq_id,
     selected: option,
     selectedText: selectedOptionText,
     correct: correctOptionLetter,
-    correctText: q.correct_option,
+    correctText: correctText || q.correct_option,
     isCorrect: isCorrect,
     timeSpent: Math.floor((Date.now() - questionStartTime) / 1000)
   };
@@ -782,16 +816,16 @@ function restoreProgress() {
             const q_od = String(q.option_d || '').trim();
 
             let correctOptionLetter = '';
-            if (['A','B','C','D'].includes(q_co)) {
-                correctOptionLetter = q_co;
+            if (['A','B','C','D'].includes(q_co.toUpperCase())) {
+                correctOptionLetter = q_co.toUpperCase();
             } else {
-                if (q_co === q_oa) correctOptionLetter = 'A';
-                else if (q_co === q_ob) correctOptionLetter = 'B';
-                else if (q_co === q_oc) correctOptionLetter = 'C';
-                else if (q_co === q_od) correctOptionLetter = 'D';
+                if (q_co.toLowerCase() === q_oa.toLowerCase()) correctOptionLetter = 'A';
+                else if (q_co.toLowerCase() === q_ob.toLowerCase()) correctOptionLetter = 'B';
+                else if (q_co.toLowerCase() === q_oc.toLowerCase()) correctOptionLetter = 'C';
+                else if (q_co.toLowerCase() === q_od.toLowerCase()) correctOptionLetter = 'D';
             }
 
-            const isCorrect = (savedOption === correctOptionLetter);
+            const isCorrect = (savedOption.toUpperCase() === correctOptionLetter);
             if (isCorrect) score++;
 
             let selectedText = '';

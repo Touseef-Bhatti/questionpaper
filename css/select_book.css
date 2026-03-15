@@ -15,10 +15,15 @@ body {
 
 }
 .main-container {
-   width: 70%;
-    margin: 0 auto;
+    width: 70%;
+    margin: 5% auto 5% 5%;
     padding: 2rem;
    background-color: --white;
+}
+@media (max-width: 768px) {
+    .main-container {
+        width: 90%;
+    }
 }
 #books-grid {
   display: grid;

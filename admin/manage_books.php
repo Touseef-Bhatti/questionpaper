@@ -171,7 +171,7 @@ $books = $conn->query("SELECT b.book_id, b.book_name, c.class_id, c.class_name F
             </tbody>
         </table>
     </div>
-    <?php include __DIR__ . '/../footer.php'; ?>
+   
 </body>
 </html>
 

@@ -387,4 +387,4 @@ include 'header.php';
 }
 </style>
 
-<?php include '../footer.php'; ?>
+
