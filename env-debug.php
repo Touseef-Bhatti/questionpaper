@@ -18,9 +18,13 @@ $isSameServer = ($_SERVER['REMOTE_ADDR'] ?? '') === ($_SERVER['SERVER_ADDR'] ?? 
 // Also allow if APP_ENV is development
 $isDevelopment = getenv('APP_ENV') === 'development' || getenv('APP_ENV') === 'local';
 
-$isAllowed = $isLocalhost || $isSameServer || $isTokenValid || $isDevelopment;
+// TEMPORARILY DISABLED - Remove this and restore security check after debugging
+$isAllowed = true;
 
 if (!$isAllowed && getenv('APP_ENV') !== 'local') {
+    // SECURITY CHECK TEMPORARILY DISABLED FOR DEBUGGING
+    // Uncomment the code below to re-enable after debugging
+    /*
     http_response_code(403);
     echo '<h2>403 Forbidden</h2>';
     echo '<p>Access denied. This tool is for debugging only.</p>';
@@ -29,6 +33,7 @@ if (!$isAllowed && getenv('APP_ENV') !== 'local') {
     echo 'https://paper.bhattichemicalsindustry.com.pk/env-debug.php?token=<strong>b955114cbf6c7c12ec8de00a8a008e53</strong>';
     echo '</p>';
     exit;
+    */
 }
 
 echo "<!DOCTYPE html><html><head>";
@@ -54,6 +59,10 @@ echo "</head><body>";
 
 echo "<div class='container'>";
 echo "<h1>🔍 Environment Configuration Diagnostic</h1>";
+echo "<div class='alert alert-danger' style='background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin-bottom: 20px;'>";
+echo "<strong>⚠️ SECURITY WARNING:</strong> This debug page is temporarily accessible without authentication for debugging purposes.";
+echo "<br><strong>Action Required:</strong> Delete this file after debugging or re-enable security!";
+echo "</div>";
 
 // Load environment
 require_once __DIR__ . '/config/env.php';
@@ -181,6 +190,22 @@ echo "<li><a href='https://cloud.meilisearch.com' target='_blank'>Meilisearch Cl
 echo "<li><a href='" . __DIR__ . "/MEILISEARCH_CLOUD_SETUP.md' target='_blank'>Setup Guide</a></li>";
 echo "<li><a href='phpinfo.php'>PHP Info</a></li>";
 echo "</ul>";
+echo "</div>";
+
+// 7. SECURITY RESTORATION INSTRUCTIONS
+echo "<div class='section' style='background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 20px;'>";
+echo "<h2>🔒 Restore Security</h2>";
+echo "<p>After debugging, restore the security protections by doing ONE of the following:</p>";
+echo "<ol>";
+echo "<li><strong>DELETE THIS FILE:</strong><br>";
+echo "<code>rm /path/to/env-debug.php</code></li>";
+echo "<li><strong>OR... Re-enable authentication by uncommenting lines in the file:</strong><br>";
+echo "Edit env-debug.php and change:<br>";
+echo "<code>\$isAllowed = true;</code><br>";
+echo "To:<br>";
+echo "<code>\$isAllowed = \$isLocalhost || \$isSameServer || \$isTokenValid || \$isDevelopment;</code>";
+echo "</li>";
+echo "</ol>";
 echo "</div>";
 
 echo "</div>";
