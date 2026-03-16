@@ -199,7 +199,6 @@ if ($row = $result->fetch_assoc()) {
     $class_name = $row['class_name'];
 }
 $stmt->close();
-
 $stmt = $conn->prepare("SELECT book_name FROM book WHERE book_id = ?");
 $stmt->bind_param('i', $book_id);
 $stmt->execute();
@@ -208,6 +207,31 @@ if ($row = $result->fetch_assoc()) {
     $book_name = $row['book_name'];
 }
 $stmt->close();
+
+// Scan funny sounds directories
+$correctSounds = [];
+$incorrectSounds = [];
+
+$correctDir = __DIR__ . '/funny_sounds/correct';
+$incorrectDir = __DIR__ . '/funny_sounds/incorrect';
+
+if (is_dir($correctDir)) {
+    $files = scandir($correctDir);
+    foreach ($files as $file) {
+        if ($file !== '.' && $file !== '..' && (str_ends_with($file, '.mp3') || str_ends_with($file, '.wav'))) {
+            $correctSounds[] = $file;
+        }
+    }
+}
+
+if (is_dir($incorrectDir)) {
+    $files = scandir($incorrectDir);
+    foreach ($files as $file) {
+        if ($file !== '.' && $file !== '..' && (str_ends_with($file, '.mp3') || str_ends_with($file, '.wav'))) {
+            $incorrectSounds[] = $file;
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -629,6 +653,44 @@ $stmt->close();
             border-top: 1px solid #e2e8f0;
         }
 
+        /* ─── Funny Mode ─────────────────────────────────────── */
+        .funny-mode-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 10px 22px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            transform: translateY(-2px);
+        }
+        .funny-mode-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.3);
+        }
+        .funny-mode-btn.active {
+            background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+            color: #1e1b4b;
+            border-color: #fef08a;
+            box-shadow: 0 0 25px rgba(250, 204, 21, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        .funny-mode-btn.active i {
+            animation: bounce 0.5s infinite alternate;
+        }
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-2px); }
+        }
+
         /* ─── Responsive ──────────────────────────────────────── */
         @media (max-width: 640px) {
             .quiz-body, .quiz-actions, .review-section, .stats-grid { padding: 20px 16px; }
@@ -654,6 +716,9 @@ $stmt->close();
                 <div>
                     <div class="quiz-title"><i class="fas fa-brain" style="opacity:0.8;"></i> <?= htmlspecialchars($book_name) ?> Quiz</div>
                     <div class="quiz-subtitle"><?= htmlspecialchars($class_name) ?> &nbsp;•&nbsp; <?= count($questions) ?> Questions</div>
+                    <button id="funnyModeBtn" class="funny-mode-btn" onclick="toggleFunnyMode()">
+                        <i class="fas fa-face-laugh-wink"></i> Funny Mode: OFF
+                    </button>
                 </div>
                 <div class="quiz-timer-badge" id="timerBadge"><i class="fas fa-stopwatch"></i> 00:00</div>
             </div>
@@ -722,6 +787,7 @@ $stmt->close();
     </div>
 </div>
 
+<script src="funny_sounds/funny_audio_manager.js"></script>
 <script>
 // ─── Data ──────────────────────────────────────────────────────────
 const questions = <?= json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
@@ -732,6 +798,13 @@ let startTime = Date.now();
 let questionStartTime = Date.now();
 let quizStarted = false;
 let quizCompleted = false;
+
+// Funny Mode Sounds
+const funnySounds = {
+    correct: <?= json_encode($correctSounds) ?>,
+    incorrect: <?= json_encode($incorrectSounds) ?>
+};
+let lastPlayedSound = { correct: null, incorrect: null };
 
 // ─── Audio (Web Audio API) ─────────────────────────────────────────
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -841,9 +914,72 @@ function soundWrong_3() {
 
 /** Active dispatcher — swap function names above to switch effect */
 function playSound(type) {
-    if (type === 'correct') soundCorrect_1();
-    else                    soundWrong_1();
+    const funnyList = type === 'correct' ? funnySounds.correct : funnySounds.incorrect;
+    
+    if (window.funnyModeActive && funnyList && funnyList.length > 0) {
+        // Play funny sound if mode is active AND sounds exist in that folder
+        playFunnySound(type);
+    } else {
+        // Otherwise play default oscillator sounds
+        if (type === 'correct') soundCorrect_1();
+        else                    soundWrong_1();
+    }
 }
+
+/** Funny Mode Logic */
+window.funnyModeActive = localStorage.getItem('funnyMode') === 'true';
+function updateFunnyModeUI() {
+    const btn = document.getElementById('funnyModeBtn');
+    if (btn) {
+        if (window.funnyModeActive) {
+            btn.classList.add('active');
+            btn.innerHTML = '<i class="fas fa-face-laugh-wink"></i> Funny Mode: ON';
+        } else {
+            btn.classList.remove('active');
+            btn.innerHTML = '<i class="fas fa-face-laugh-wink"></i> Funny Mode: OFF';
+        }
+    }
+}
+
+function toggleFunnyMode() {
+    window.funnyModeActive = !window.funnyModeActive;
+    localStorage.setItem('funnyMode', window.funnyModeActive);
+    updateFunnyModeUI();
+    
+    // Play activation sound
+    if (window.funnyModeActive) {
+        const audio = new Audio('funny_sounds/onSwitchMode.mp3');
+        audio.play().catch(e => {
+            console.warn('Funny mode activation sound failed:', e);
+            playSound('correct'); // Fallback
+        });
+    }
+}
+
+function playFunnySound(type) {
+    const list = type === 'correct' ? funnySounds.correct : funnySounds.incorrect;
+    if (!list || list.length === 0) return;
+
+    let soundFile;
+    if (list.length === 1) {
+        soundFile = list[0];
+    } else {
+        // Try to pick a different sound than the last one played if possible
+        do {
+            soundFile = list[Math.floor(Math.random() * list.length)];
+        } while (soundFile === lastPlayedSound[type] && list.length > 1);
+    }
+    
+    lastPlayedSound[type] = soundFile;
+    const folder = type === 'correct' ? 'correct' : 'incorrect';
+    const audio = new Audio(`funny_sounds/${folder}/${soundFile}`);
+    audio.play().catch(e => {
+        console.warn('Funny sound playback failed:', e);
+    });
+}
+
+// Initialize UI on load
+document.addEventListener('DOMContentLoaded', updateFunnyModeUI);
 
 // ─── Timer ─────────────────────────────────────────────────────────
 let timerInterval = setInterval(updateTimer, 1000);
@@ -1031,8 +1167,8 @@ function showResults() {
     const mins = Math.floor(totalTime / 60), secs = totalTime % 60;
     document.getElementById('totalTime').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
 
-    // Play fanfare or fail sound
-    setTimeout(() => playSound(pct >= 60 ? 'correct' : 'wrong'), 300);
+    // Play specific result sounds via FunnyAudioManager
+    setTimeout(() => FunnyAudioManager.playResultSound(pct), 300);
 
     // Detailed review
     const reviewList = document.getElementById('reviewList');
@@ -1107,6 +1243,7 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 
 // ─── Start ─────────────────────────────────────────────────────────
 quizStarted = true;
+FunnyAudioManager.playStartSound();
 renderQuestion();
 </script>
 

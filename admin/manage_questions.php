@@ -67,34 +67,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $textEsc = $conn->real_escape_string($text);
                 $typeEsc = $conn->real_escape_string($type);
                 if ($type === 'mcq' && $optionA !== '' && $optionB !== '' && $optionC !== '' && $optionD !== '') {
-                    $optionAEsc = $conn->real_escape_string($optionA);
-                    $optionBEsc = $conn->real_escape_string($optionB);
-                    $optionCEsc = $conn->real_escape_string($optionC);
-                    $optionDEsc = $conn->real_escape_string($optionD);
-                    $topicEsc = $conn->real_escape_string($topic);
-                    $correctOptionEsc = $conn->real_escape_string($correctOptionText);
-                    if ($conn->query("INSERT INTO mcqs (class_id, book_id, chapter_id, topic, question, option_a, option_b, option_c, option_d, correct_option) VALUES ($classId, $bookId, $chapterId, '$topicEsc', '$textEsc', '$optionAEsc', '$optionBEsc', '$optionCEsc', '$optionDEsc', '$correctOptionEsc')")) {
-                        $inserted++;
+                    $mcqStmt = $conn->prepare("INSERT INTO mcqs (class_id, book_id, chapter_id, topic, question, option_a, option_b, option_c, option_d, correct_option) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    if ($mcqStmt) {
+                        $mcqStmt->bind_param('iiiississs', $classId, $bookId, $chapterId, $topic, $text, $optionA, $optionB, $optionC, $optionD, $correctOptionText);
+                        if ($mcqStmt->execute()) {
+                            $inserted++;
+                        }
+                        $mcqStmt->close();
                     }
                 } else {
                     try {
                         if ($hasBookName) {
                             if ($bookId > 0) {
-                                $bnRes = $conn->query("SELECT book_name FROM book WHERE book_id=$bookId LIMIT 1");
-                                if ($bnRes && ($bnRow = $bnRes->fetch_assoc())) { $bookEsc = $conn->real_escape_string($bnRow['book_name']); }
+                                $bnStmt = $conn->prepare("SELECT book_name FROM book WHERE book_id=? LIMIT 1");
+                                if ($bnStmt) {
+                                    $bnStmt->bind_param('i', $bookId);
+                                    $bnStmt->execute();
+                                    $bnRes = $bnStmt->get_result();
+                                    if ($bnRes && ($bnRow = $bnRes->fetch_assoc())) { $bookEsc = $bnRow['book_name']; }
+                                    $bnStmt->close();
+                                }
                             }
                             if ($bookEsc === '') {
-                                $bnRes = $conn->query("SELECT book_name FROM chapter WHERE chapter_id=$chapterId LIMIT 1");
-                                if ($bnRes && ($bnRow = $bnRes->fetch_assoc())) { $bookEsc = $conn->real_escape_string($bnRow['book_name']); }
+                                $bnStmt = $conn->prepare("SELECT book_name FROM chapter WHERE chapter_id=? LIMIT 1");
+                                if ($bnStmt) {
+                                    $bnStmt->bind_param('i', $chapterId);
+                                    $bnStmt->execute();
+                                    $bnRes = $bnStmt->get_result();
+                                    if ($bnRes && ($bnRow = $bnRes->fetch_assoc())) { $bookEsc = $bnRow['book_name']; }
+                                    $bnStmt->close();
+                                }
                             }
-                            $topicEsc = $conn->real_escape_string($topic);
-                            if ($conn->query("INSERT INTO questions (class_id, book_name, book_id, chapter_id, $typeCol, $textCol, topic) VALUES ($classId, '$bookEsc', $bookId, $chapterId, '$typeEsc', '$textEsc', '$topicEsc')")) {
-                                $inserted++;
+                            $qStmt = $conn->prepare("INSERT INTO questions (class_id, book_name, book_id, chapter_id, $typeCol, $textCol, topic) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                            if ($qStmt) {
+                                $qStmt->bind_param('isiiiss', $classId, $bookEsc, $bookId, $chapterId, $type, $text, $topic);
+                                if ($qStmt->execute()) {
+                                    $inserted++;
+                                }
+                                $qStmt->close();
                             }
                         } else {
-                            $topicEsc = $conn->real_escape_string($topic);
-                            if ($conn->query("INSERT INTO questions (class_id, book_id, chapter_id, $typeCol, $textCol, topic) VALUES ($classId, $bookId, $chapterId, '$typeEsc', '$textEsc', '$topicEsc')")) {
-                                $inserted++;
+                            $qStmt = $conn->prepare("INSERT INTO questions (class_id, book_id, chapter_id, $typeCol, $textCol, topic) VALUES (?, ?, ?, ?, ?, ?)");
+                            if ($qStmt) {
+                                $qStmt->bind_param('iiiss', $classId, $bookId, $chapterId, $type, $text, $topic);
+                                if ($qStmt->execute()) {
+                                    $inserted++;
+                                }
+                                $qStmt->close();
                             }
                         }
                     } catch (mysqli_sql_exception $e) {
@@ -140,53 +159,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id > 0 && $classId > 0 && $chapterId > 0 && $text !== '') {
             // If type is mcq and we have options
             if ($type === 'mcq' && $optionA !== '' && $optionB !== '' && $optionC !== '' && $optionD !== '') {
-                $optionAEsc = $conn->real_escape_string($optionA);
-                $optionBEsc = $conn->real_escape_string($optionB);
-                $optionCEsc = $conn->real_escape_string($optionC);
-                $optionDEsc = $conn->real_escape_string($optionD);
-                $textEsc = $conn->real_escape_string($text);
-                $topicEsc = $conn->real_escape_string($topic);
-                $correctOptionEsc = $conn->real_escape_string($correctOptionText);
-                
                 // If mcq_id exists, update the mcq record
                 if ($mcqId > 0) {
-                    if ($conn->query("UPDATE mcqs SET class_id=$classId, book_id=$bookId, chapter_id=$chapterId, topic='$topicEsc', question='$textEsc', option_a='$optionAEsc', option_b='$optionBEsc', option_c='$optionCEsc', option_d='$optionDEsc', correct_option='$correctOptionEsc' WHERE mcq_id=$mcqId")) {
-                        header('Location: manage_questions.php?msg=updated');
-                        exit;
+                    $updateStmt = $conn->prepare("UPDATE mcqs SET class_id=?, book_id=?, chapter_id=?, topic=?, question=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=? WHERE mcq_id=?");
+                    if ($updateStmt) {
+                        $updateStmt->bind_param('iiiisssssi', $classId, $bookId, $chapterId, $topic, $text, $optionA, $optionB, $optionC, $optionD, $correctOptionText, $mcqId);
+                        if ($updateStmt->execute()) {
+                            $updateStmt->close();
+                            header('Location: manage_questions.php?msg=updated');
+                            exit;
+                        }
+                        $updateStmt->close();
                     }
                 } else {
                     // Insert new MCQ record
-                    if ($conn->query("INSERT INTO mcqs (class_id, book_id, chapter_id, topic, question, option_a, option_b, option_c, option_d, correct_option) VALUES ($classId, $bookId, $chapterId, '$topicEsc', '$textEsc', '$optionAEsc', '$optionBEsc', '$optionCEsc', '$optionDEsc', '$correctOptionEsc')")) {
-                        // Delete the original question if it exists
-                        $conn->query("DELETE FROM questions WHERE id=$id");
-                        header('Location: manage_questions.php?msg=updated');
-                        exit;
+                    $insertStmt = $conn->prepare("INSERT INTO mcqs (class_id, book_id, chapter_id, topic, question, option_a, option_b, option_c, option_d, correct_option) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    if ($insertStmt) {
+                        $insertStmt->bind_param('iiiississs', $classId, $bookId, $chapterId, $topic, $text, $optionA, $optionB, $optionC, $optionD, $correctOptionText);
+                        if ($insertStmt->execute()) {
+                            // Delete the original question if it exists
+                            $delStmt = $conn->prepare("DELETE FROM questions WHERE id=?");
+                            if ($delStmt) {
+                                $delStmt->bind_param('i', $id);
+                                $delStmt->execute();
+                                $delStmt->close();
+                            }
+                            $insertStmt->close();
+                            header('Location: manage_questions.php?msg=updated');
+                            exit;
+                        }
+                        $insertStmt->close();
                     }
                 }
             } else {
                 // Regular question update
-                $typeEsc = $conn->real_escape_string($type);
-                $textEsc = $conn->real_escape_string($text);
                 if ($hasBookName) {
                     $bookNameUpd = '';
                     if ($bookId > 0) {
-                        $bnRes = $conn->query("SELECT book_name FROM book WHERE book_id=$bookId LIMIT 1");
-                        if ($bnRes && ($bnRow = $bnRes->fetch_assoc())) { $bookNameUpd = $conn->real_escape_string($bnRow['book_name']); }
+                        $bnStmt = $conn->prepare("SELECT book_name FROM book WHERE book_id=? LIMIT 1");
+                        if ($bnStmt) {
+                            $bnStmt->bind_param('i', $bookId);
+                            $bnStmt->execute();
+                            $bnRes = $bnStmt->get_result();
+                            if ($bnRes && ($bnRow = $bnRes->fetch_assoc())) { $bookNameUpd = $bnRow['book_name']; }
+                            $bnStmt->close();
+                        }
                     }
                     if ($bookNameUpd === '') {
-                        $bnRes = $conn->query("SELECT book_name FROM chapter WHERE chapter_id=$chapterId LIMIT 1");
-                        if ($bnRes && ($bnRow = $bnRes->fetch_assoc())) { $bookNameUpd = $conn->real_escape_string($bnRow['book_name']); }
+                        $bnStmt = $conn->prepare("SELECT book_name FROM chapter WHERE chapter_id=? LIMIT 1");
+                        if ($bnStmt) {
+                            $bnStmt->bind_param('i', $chapterId);
+                            $bnStmt->execute();
+                            $bnRes = $bnStmt->get_result();
+                            if ($bnRes && ($bnRow = $bnRes->fetch_assoc())) { $bookNameUpd = $bnRow['book_name']; }
+                            $bnStmt->close();
+                        }
                     }
-                    $topicEsc = $conn->real_escape_string($topic);
-                    if ($conn->query("UPDATE questions SET class_id=$classId, book_name='$bookNameUpd', book_id=$bookId, chapter_id=$chapterId, $typeCol='$typeEsc', $textCol='$textEsc', topic='$topicEsc' WHERE id=$id")) {
-                        header('Location: manage_questions.php?msg=updated');
-                        exit;
+                    $updateStmt = $conn->prepare("UPDATE questions SET class_id=?, book_name=?, book_id=?, chapter_id=?, $typeCol=?, $textCol=?, topic=? WHERE id=?");
+                    if ($updateStmt) {
+                        $updateStmt->bind_param('iiiisssi', $classId, $bookNameUpd, $bookId, $chapterId, $type, $text, $topic, $id);
+                        if ($updateStmt->execute()) {
+                            $updateStmt->close();
+                            header('Location: manage_questions.php?msg=updated');
+                            exit;
+                        }
+                        $updateStmt->close();
                     }
                 } else {
-                    $topicEsc = $conn->real_escape_string($topic);
-                    if ($conn->query("UPDATE questions SET class_id=$classId, book_id=$bookId, chapter_id=$chapterId, $typeCol='$typeEsc', $textCol='$textEsc', topic='$topicEsc' WHERE id=$id")) {
-                        header('Location: manage_questions.php?msg=updated');
-                        exit;
+                    $updateStmt = $conn->prepare("UPDATE questions SET class_id=?, book_id=?, chapter_id=?, $typeCol=?, $textCol=?, topic=? WHERE id=?");
+                    if ($updateStmt) {
+                        $updateStmt->bind_param('iiisssi', $classId, $bookId, $chapterId, $type, $text, $topic, $id);
+                        if ($updateStmt->execute()) {
+                            $updateStmt->close();
+                            header('Location: manage_questions.php?msg=updated');
+                            exit;
+                        }
+                        $updateStmt->close();
                     }
                 }
             }
@@ -202,23 +250,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $qid = (int)$rowQ['id'];
                 $cid = (int)$rowQ['class_id'];
                 $chap = (int)$rowQ['chapter_id'];
-                $bname = $conn->real_escape_string($rowQ['book_name'] ?? '');
-                $qtype = $conn->real_escape_string($rowQ['qtype']);
-                $qtext = $conn->real_escape_string($rowQ['qtext']);
-                $conn->query("INSERT INTO deleted_questions (question_id, class_id, book_name, chapter_id, question_type, question_text) VALUES ($qid, $cid, " . ($bname!==''?"'$bname'":"NULL") . ", $chap, '$qtype', '$qtext')");
+                $bname = $rowQ['book_name'] ?? '';
+                $qtype = $rowQ['qtype'];
+                $qtext = $rowQ['qtext'];
+                
+                $archStmt = $conn->prepare("INSERT INTO deleted_questions (question_id, class_id, book_name, chapter_id, question_type, question_text) VALUES (?, ?, ?, ?, ?, ?)");
+                if ($archStmt) {
+                    $archStmt->bind_param('iisiss', $qid, $cid, $bname, $chap, $qtype, $qtext);
+                    $archStmt->execute();
+                    $archStmt->close();
+                }
             }
             // then delete original
-            if ($conn->query("DELETE FROM questions WHERE id=$id")) {
-                header('Location: manage_questions.php?msg=deleted');
-                exit;
+            $delStmt = $conn->prepare("DELETE FROM questions WHERE id=?");
+            if ($delStmt) {
+                $delStmt->bind_param('i', $id);
+                if ($delStmt->execute()) {
+                    $delStmt->close();
+                    header('Location: manage_questions.php?msg=deleted');
+                    exit;
+                }
+                $delStmt->close();
             }
         }
     } elseif ($action === 'delete_mcq') {
         $mcqId = intval($_POST['mcq_id'] ?? 0);
         if ($mcqId > 0) {
-            if ($conn->query("DELETE FROM mcqs WHERE mcq_id=$mcqId")) {
-                header('Location: manage_questions.php?msg=mcq_deleted');
-                exit;
+            $delStmt = $conn->prepare("DELETE FROM mcqs WHERE mcq_id=?");
+            if ($delStmt) {
+                $delStmt->bind_param('i', $mcqId);
+                if ($delStmt->execute()) {
+                    $delStmt->close();
+                    header('Location: manage_questions.php?msg=mcq_deleted');
+                    exit;
+                }
+                $delStmt->close();
             }
         }
     } elseif ($action === 'update_mcq') {
@@ -243,17 +309,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         if ($mcqId > 0 && $classId > 0 && $chapterId > 0 && $question !== '' && $optionA !== '' && $optionB !== '' && $optionC !== '' && $optionD !== '') {
-            $optionAEsc = $conn->real_escape_string($optionA);
-            $optionBEsc = $conn->real_escape_string($optionB);
-            $optionCEsc = $conn->real_escape_string($optionC);
-            $optionDEsc = $conn->real_escape_string($optionD);
-            $textEsc = $conn->real_escape_string($question);
-            $topicEsc = $conn->real_escape_string($topic);
-            $correctOptionEsc = $conn->real_escape_string($correctOptionText);
-            
-            if ($conn->query("UPDATE mcqs SET class_id=$classId, book_id=$bookId, chapter_id=$chapterId, topic='$topicEsc', question='$textEsc', option_a='$optionAEsc', option_b='$optionBEsc', option_c='$optionCEsc', option_d='$optionDEsc', correct_option='$correctOptionEsc' WHERE mcq_id=$mcqId")) {
-                header('Location: manage_questions.php?msg=mcq_updated');
-                exit;
+            $updateStmt = $conn->prepare("UPDATE mcqs SET class_id=?, book_id=?, chapter_id=?, topic=?, question=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=? WHERE mcq_id=?");
+            if ($updateStmt) {
+                $updateStmt->bind_param('iiiisssssi', $classId, $bookId, $chapterId, $topic, $question, $optionA, $optionB, $optionC, $optionD, $correctOptionText, $mcqId);
+                if ($updateStmt->execute()) {
+                    $updateStmt->close();
+                    header('Location: manage_questions.php?msg=mcq_updated');
+                    exit;
+                }
+                $updateStmt->close();
             }
         }
     }

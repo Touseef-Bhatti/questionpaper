@@ -18,31 +18,6 @@
  */
 
 require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/../services/AIKeyManager.php';
-require_once __DIR__ . '/../services/AILoggingService.php';
-
-
-<?php
-/**
- * ============================================================================
- * Daily Reset & Maintenance Cron Job
- * ============================================================================
- * 
- * Executes daily maintenance tasks:
- * - Reset used_today counters for all keys
- * - Reset active keys from blocked status (if block expired)
- * - Display daily quota snapshots
- * - Clean up old logs (optional)
- * 
- * CRON SCHEDULE:
- * 0 0 * * * /usr/bin/php /path/to/cron/ai_daily_reset.php
- * (Runs at midnight every day)
- * 
- * ============================================================================
- */
-
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/../services/AIKeysSystem.php';
 
 try {
     // Ensure we're running in CLI mode
@@ -76,28 +51,7 @@ try {
     } else {
         throw new Exception("Failed to reset quotas: " . $conn->error);
     }
-    try {
-        // Ensure we're running in CLI mode
-        if (php_sapi_name() !== 'cli') {
-            die("This script must be run from the command line\n");
-        }
-    
-        $startTime = microtime(true);
-        $timestamp = date('Y-m-d H:i:s');
-    
-        echo "[$timestamp] Starting daily AI Key reset job...\n";
-    
-        $aiKeys = new AIKeysSystem($conn);
-    
-        // ========================================================================
-        // 1. RESET DAILY QUOTAS
-        // ========================================================================
-    
-        echo "[$timestamp] Step 1: Resetting daily quotas...\n";
-    
-        $aiKeys->resetDailyCounters();
-        echo "[$timestamp] ✓ Reset daily counters for all keys\n";
-    
+
     // ========================================================================
     // 2. AUTO-UNBLOCK TEMPORARILY BLOCKED KEYS
     // ========================================================================
@@ -121,16 +75,8 @@ try {
         $unblocked = $conn->affected_rows;
         echo "[$timestamp] ✓ Unblocked $unblocked temporarily blocked keys\n";
     } else {
-        throw new Exception("Failed to unblock keys: " . $conn->error->error);
+        throw new Exception("Failed to unblock keys: " . $conn->error);
     }
-        // ========================================================================
-        // 2. AUTO-UNBLOCK TEMPORARILY BLOCKED KEYS
-        // ========================================================================
-    
-        echo "[$timestamp] Step 2: Auto-unblocking expired temporary blocks...\n";
-    
-        $aiKeys->unblockExpiredKeys();
-        echo "[$timestamp] ✓ Unblocked expired temporary blocks\n";
     
     // ========================================================================
     // 3. RESET EXHAUSTED KEYS (IF QUOTA WAS RESET)
@@ -153,24 +99,12 @@ try {
     } else {
         throw new Exception("Failed to reset exhausted keys: " . $conn->error);
     }
-        // ========================================================================
-        // 3. DISPLAY KEY STATUS
-        // ========================================================================
-    
-        echo "[$timestamp] Step 3: Key status report\n";
-    
-        $healthReport = $aiKeys->getSystemHealth();
-        echo "[$timestamp] ✓ Total Keys: {$healthReport['total_keys']}\n";
-        echo "[$timestamp] ✓ Active Keys: {$healthReport['active_keys']}\n";
-        echo "[$timestamp] ✓ Disabled Keys: {$healthReport['disabled_keys']}\n";
-    
+
     // ========================================================================
     // 4. CREATE DAILY QUOTA SNAPSHOTS FOR ALL ACCOUNTS
     // ========================================================================
     
     echo "[$timestamp] Step 4: Creating daily quota snapshots...\n";
-    
-    $logger = new AILoggingService($conn);
     
     // Get all active accounts
     $accountsQuery = "SELECT account_id, daily_quota FROM ai_accounts WHERE status = 'active'";
@@ -237,36 +171,35 @@ try {
         $activeKeys = (int)($keys['active_keys'] ?? 0);
         $blockedKeys = (int)($keys['blocked_keys'] ?? 0);
         
-        // Create snapshot
-        $logger->createDailySnapshot(
-            $accountId,
-            $totalRequests,
-            $totalTokens,
-            $totalCost,
-            $remainingQuota,
-            $activeKeys,
-            $blockedKeys
-        );
+        // Create snapshot via direct SQL (AILoggingService not available)
+        $snapshotQuery = "
+            INSERT INTO ai_daily_snapshots 
+            (account_id, snapshot_date, total_requests, total_tokens, total_cost, remaining_quota, active_keys, blocked_keys, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE 
+            total_requests = VALUES(total_requests),
+            total_tokens = VALUES(total_tokens),
+            total_cost = VALUES(total_cost),
+            remaining_quota = VALUES(remaining_quota),
+            active_keys = VALUES(active_keys),
+            blocked_keys = VALUES(blocked_keys)
+        ";
         
-        $snapshotCount++;
+        $snapshotStmt = $conn->prepare($snapshotQuery);
+        if (!$snapshotStmt) {
+            echo "[$timestamp] ⚠ Snapshot table not configured (non-critical): " . $conn->error . "\n";
+        } else {
+            $snapshotStmt->bind_param('isiiidii', $accountId, $today, $totalRequests, $totalTokens, $totalCost, $remainingQuota, $activeKeys, $blockedKeys);
+            $snapshotStmt->execute();
+            $snapshotStmt->close();
+            $snapshotCount++;
+        }
+        
         echo "[$timestamp] ✓ Account $accountId: $totalRequests requests, $totalTokens tokens, \$$totalCost cost\n";
     }
     
     echo "[$timestamp] ✓ Created $snapshotCount daily snapshots\n";
-        // ========================================================================
-        // 4. DISPLAY ACCOUNT QUOTAS
-        // ========================================================================
-    
-        echo "[$timestamp] Step 4: Account quota report\n";
-    
-        $accounts = $aiKeys->getAllAccounts();
-        foreach ($accounts as $account) {
-            $name = $account['account_name'];
-            $active = $account['active_keys'] ?? 0;
-            $remaining = $account['remaining_quota'] ?? 0;
-            echo "[$timestamp] ✓ {$name}: {$active} active keys, {$remaining} quota remaining\n";
-        }
-    
+
     // ========================================================================
     // 5. CLEANUP OLD LOGS (OPTIONAL - Keep last 90 days)
     // ========================================================================
@@ -286,26 +219,7 @@ try {
         // Don't fail if cleanup fails
         echo "[$timestamp] ⚠ Cleanup failed (non-critical): " . $conn->error . "\n";
     }
-        // ========================================================================
-        // 5. CLEANUP OLD LOGS (OPTIONAL - Keep last 90 days)
-        // ========================================================================
-    
-        echo "[$timestamp] Step 5: Cleaning up old logs...\n";
-    
-        $cleanupQuery = "
-            DELETE FROM ai_request_logs
-            WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)
-            LIMIT 1000
-        ";
-    
-        if (@$conn->query($cleanupQuery)) {
-            $deleted = $conn->affected_rows;
-            echo "[$timestamp] ✓ Deleted $deleted old log entries\n";
-        } else {
-            // Don't fail if cleanup fails (table may not exist)
-            echo "[$timestamp] ℹ Cleanup skipped (non-critical)\n";
-        }
-    
+
     // ========================================================================
     // COMPLETION
     // ========================================================================
