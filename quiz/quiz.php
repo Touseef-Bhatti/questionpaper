@@ -946,14 +946,8 @@ function toggleFunnyMode() {
     localStorage.setItem('funnyMode', window.funnyModeActive);
     updateFunnyModeUI();
     
-    // Play activation sound
-    if (window.funnyModeActive) {
-        const audio = new Audio('funny_sounds/onSwitchMode.mp3');
-        audio.play().catch(e => {
-            console.warn('Funny mode activation sound failed:', e);
-            playSound('correct'); // Fallback
-        });
-    }
+    // Play activation sound via manager (handles 3s limit & cache)
+    FunnyAudioManager.toggleModeSound();
 }
 
 function playFunnySound(type) {
@@ -964,19 +958,24 @@ function playFunnySound(type) {
     if (list.length === 1) {
         soundFile = list[0];
     } else {
-        // Try to pick a different sound than the last one played if possible
         do {
             soundFile = list[Math.floor(Math.random() * list.length)];
         } while (soundFile === lastPlayedSound[type] && list.length > 1);
     }
     
     lastPlayedSound[type] = soundFile;
-    const folder = type === 'correct' ? 'correct' : 'incorrect';
-    const audio = new Audio(`funny_sounds/${folder}/${soundFile}`);
-    audio.play().catch(e => {
-        console.warn('Funny sound playback failed:', e);
-    });
+    // Use manager for caching and 3s duration limit
+    FunnyAudioManager.playAnswerSound(type, soundFile);
 }
+
+// ─── Pre-cache Funny Sounds ────────────────────────────────────────
+if (funnySounds.correct) {
+    funnySounds.correct.forEach(s => FunnyAudioManager._getAudio(`funny_sounds/correct/${s}`));
+}
+if (funnySounds.incorrect) {
+    funnySounds.incorrect.forEach(s => FunnyAudioManager._getAudio(`funny_sounds/incorrect/${s}`));
+}
+
 
 // Initialize UI on load
 document.addEventListener('DOMContentLoaded', updateFunnyModeUI);
