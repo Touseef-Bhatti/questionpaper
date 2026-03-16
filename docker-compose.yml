@@ -15,7 +15,6 @@ services:
     depends_on:
       - db
       - redis
-      - meilisearch
     restart: unless-stopped
 
   db:
@@ -47,23 +46,6 @@ services:
     volumes:
       - redis_data:/data
 
-  meilisearch:
-    image: getmeili/meilisearch:v1.11
-    container_name: paper_meilisearch
-    environment:
-      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY:-}
-      MEILI_ENV: production
-    ports:
-      - "7700:7700"
-    volumes:
-      - meilisearch_data:/meili_data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: paper_phpmyadmin
@@ -80,4 +62,3 @@ services:
 volumes:
   db_data:
   redis_data:
-  meilisearch_data:

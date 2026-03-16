@@ -52,8 +52,6 @@ $config = [
     'DB_HOST' => 'DB_HOST',
     'DB_USER' => 'DB_USER',
     'DB_NAME' => 'DB_NAME',
-    'MEILISEARCH_HOST' => 'MEILISEARCH_HOST',
-    'MEILISEARCH_API_KEY' => 'MEILISEARCH_API_KEY (masked)',
     'SAFEPAY_ENVIRONMENT' => 'SAFEPAY_ENVIRONMENT',
 ];
 
@@ -66,32 +64,6 @@ foreach ($config as $label => $key) {
 }
 echo "\n";
 
-// Test Meilisearch connection
-echo "=== MEILISEARCH TEST ===\n";
-require_once __DIR__ . '/../services/MeilisearchService.php';
-
-$meili = new MeilisearchService();
-if ($meili->isAvailable()) {
-    echo "✅ Meilisearch is CONFIGURED\n";
-    echo "Host: " . EnvLoader::get('MEILISEARCH_HOST') . "\n";
-    echo "Connection: Testing...\n";
-    
-    // Try a simple request
-    $testResult = $meili->ensureIndex();
-    if ($testResult) {
-        echo "✅ Connection SUCCESSFUL\n";
-    } else {
-        echo "⚠️ Connection failed (index creation failed)\n";
-    }
-} else {
-    echo "❌ Meilisearch is NOT CONFIGURED\n";
-    echo "Missing: ";
-    if (!EnvLoader::get('MEILISEARCH_HOST')) echo "MEILISEARCH_HOST ";
-    if (!EnvLoader::get('MEILISEARCH_API_KEY')) echo "MEILISEARCH_API_KEY ";
-    echo "\n";
-}
-echo "\n";
-
 // Debug environment precedence
 echo "=== ENVIRONMENT LOADING PRECEDENCE ===\n";
 echo "1. Check APP_ENV environment variable\n";
@@ -100,24 +72,12 @@ echo "3. Check for Docker (/.dockerenv)\n";
 echo "4. Load priority: .env.production > .env.local > .env\n";
 echo "\n";
 
-// Show $_ENV and $_SERVER keys related to config
-echo "=== PHP ENVIRONMENT VARIABLES ===\n";
-echo "MEILISEARCH_HOST in \$_ENV: " . (isset($_ENV['MEILISEARCH_HOST']) ? 'YES' : 'NO') . "\n";
-echo "MEILISEARCH_HOST in \$_SERVER: " . (isset($_SERVER['MEILISEARCH_HOST']) ? 'YES' : 'NO') . "\n";
-echo "MEILISEARCH_API_KEY in \$_ENV: " . (isset($_ENV['MEILISEARCH_API_KEY']) ? 'YES' : 'NO') . "\n";
-
 echo "</pre>";
 
 // Provide actionable recommendations
 echo "<div style='background: #e3f2fd; padding: 20px; border-left: 4px solid #2196F3; margin-top: 20px;'>";
 echo "<h3>📋 Recommendations:</h3>";
 echo "<ul>";
-
-if (!$meili->isAvailable()) {
-    echo "<li><strong>ACTION REQUIRED:</strong> Meilisearch is not configured!</li>";
-    echo "<li>Check that .env.production has MEILISEARCH_HOST and MEILISEARCH_API_KEY</li>";
-    echo "<li>Restart PHP/web server to reload configuration</li>";
-}
 
 if (file_exists('/.dockerenv') && !getenv('APP_ENV')) {
     echo "<li>Docker detected but APP_ENV not set. On Docker, ensure:</li>";

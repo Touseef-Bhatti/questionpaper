@@ -7,7 +7,7 @@
  */
 
 // Security: Simple token check
-$expectedToken = md5('meilisearch_debug_2026');
+$expectedToken = md5('debug_2026');
 $providedToken = $_GET['token'] ?? '';
 $isTokenValid = ($providedToken === $expectedToken);
 
@@ -110,8 +110,6 @@ echo "<h2>⚙️ Loaded Configuration</h2>";
 $config = [
     'APP_ENV' => 'Environment',
     'APP_NAME' => 'App Name',
-    'MEILISEARCH_HOST' => 'Meilisearch Host',
-    'MEILISEARCH_API_KEY' => 'Meilisearch API Key',
     'DB_HOST' => 'Database Host',
     'DB_USER' => 'Database User',
     'SAFEPAY_ENVIRONMENT' => 'SafePay Environment',
@@ -130,52 +128,13 @@ foreach ($config as $env => $label) {
 echo "</table>";
 echo "</div>";
 
-// 4. MEILISEARCH CONNECTION TEST
-echo "<div class='section'>";
-echo "<h2>🔗 Meilisearch Connection Test</h2>";
-
-require_once __DIR__ . '/services/MeilisearchService.php';
-$meili = new MeilisearchService();
-
-if ($meili->isAvailable()) {
-    echo "<div class='alert alert-success'>";
-    echo "✅ <strong>Meilisearch is CONFIGURED</strong>";
-    echo "<pre>";
-    echo "Host: " . EnvLoader::get('MEILISEARCH_HOST') . "\n";
-    echo "API Key: " . substr(EnvLoader::get('MEILISEARCH_API_KEY', ''), 0, 10) . "...\n";
-    echo "Timeout: " . EnvLoader::get('MEILISEARCH_TIMEOUT', '10') . "s";
-    echo "</pre>";
-    
-    echo "<strong>Testing connection...</strong><br>";
-    try {
-        $testResult = $meili->ensureIndex();
-        if ($testResult) {
-            echo "<div class='alert alert-success'>✅ Connection SUCCESSFUL</div>";
-        } else {
-            echo "<div class='alert alert-danger'>⚠️ Connection failed - could not ensure index</div>";
-        }
-    } catch (Throwable $e) {
-        echo "<div class='alert alert-danger'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</div>";
-    }
-} else {
-    echo "<div class='alert alert-danger'>";
-    echo "❌ <strong>Meilisearch is NOT CONFIGURED</strong>";
-    echo "<p>Missing values:</p>";
-    echo "<ul>";
-    if (!EnvLoader::get('MEILISEARCH_HOST')) echo "<li>MEILISEARCH_HOST</li>";
-    if (!EnvLoader::get('MEILISEARCH_API_KEY')) echo "<li>MEILISEARCH_API_KEY</li>";
-    echo "</ul>";
-    echo "</div>";
-}
-echo "</div>";
-
 // 5. ACTIONS
 echo "<div class='section'>";
 echo "<h2>🔧 Troubleshooting Actions</h2>";
 echo "<div class='alert alert-info'>";
-echo "<strong>If Meilisearch shows as NOT CONFIGURED:</strong><br>";
-echo "1. Verify .env.production has the correct MEILISEARCH_HOST and MEILISEARCH_API_KEY<br>";
-echo "2. Check that APP_ENV environment variable is set to 'production'<br>";
+echo "<strong>Environment Configuration Tips:</strong><br>";
+echo "1. Verify all required .env files are present<br>";
+echo "2. Check that APP_ENV environment variable is set correctly<br>";
 echo "3. For Docker, ensure the .env file is mounted correctly<br>";
 echo "4. After making changes, restart PHP/web server<br>";
 echo "5. Refresh this page to confirm changes";
@@ -186,8 +145,6 @@ echo "</div>";
 echo "<div class='section'>";
 echo "<h2>📚 Resources</h2>";
 echo "<ul>";
-echo "<li><a href='https://cloud.meilisearch.com' target='_blank'>Meilisearch Cloud Dashboard</a></li>";
-echo "<li><a href='" . __DIR__ . "/MEILISEARCH_CLOUD_SETUP.md' target='_blank'>Setup Guide</a></li>";
 echo "<li><a href='phpinfo.php'>PHP Info</a></li>";
 echo "</ul>";
 echo "</div>";

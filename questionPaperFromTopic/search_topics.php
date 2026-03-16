@@ -1,13 +1,11 @@
 <?php
 /**
  * AJAX endpoint to search topics.
- * Uses Meilisearch when configured for ranked results; falls back to SQL.
  */
 
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/../services/MeilisearchService.php';
 
 $search = trim($_GET['search'] ?? '');
 $types = $_GET['type'] ?? [];
@@ -21,31 +19,8 @@ if ($search === '') {
 }
 
 $topics = [];
-$meili = new MeilisearchService();
 
-if ($meili->isAvailable()) {
-    $filterTypes = [];
-    if (in_array('mcqs', $types) || in_array('all', $types)) {
-        $filterTypes[] = 'mcq';
-    }
-    if (in_array('short', $types) || in_array('all', $types)) {
-        $filterTypes[] = 'short';
-    }
-    if (in_array('long', $types) || in_array('all', $types)) {
-        $filterTypes[] = 'long';
-    }
-    $res = $meili->searchTopics($search, [
-        'limit' => 50,
-        'types' => empty($filterTypes) ? null : $filterTypes,
-    ]);
-    if ($res['success'] && !empty($res['topics'])) {
-        $topics = $res['topics'];
-    }
-}
-
-// Fallback to SQL when Meilisearch not configured or returned no results
-if (empty($topics)) {
-    $term = "%$search%";
+// SQL search for topics
 
     if (in_array('mcqs', $types) || in_array('all', $types)) {
         $stmt = $conn->prepare("SELECT DISTINCT topic FROM mcqs WHERE topic LIKE ? LIMIT 50");
@@ -130,8 +105,7 @@ if (empty($topics)) {
         $topics[] = $row['topic_name'];
     }
 
-    $topics = array_values(array_unique($topics));
-}
+$topics = array_values(array_unique($topics));
 
 echo json_encode([
     'success' => !empty($topics),

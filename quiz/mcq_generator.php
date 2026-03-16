@@ -7,7 +7,6 @@
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../services/AIKeyRotator.php';
-require_once __DIR__ . '/../services/MeilisearchService.php';
 
 $cacheManager = null;
 if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
@@ -118,12 +117,6 @@ function getOrCreateTopicId($conn, $topicName) {
         $id = $stmt->insert_id;
         $stmt->close();
         $topicIdCache[$topicName] = $id;
-        try {
-            $meili = new MeilisearchService();
-            $meili->addTopic(trim($topicName), 'ai_questions_topic', 'mcq');
-        } catch (Throwable $e) {
-            /* ignore */
-        }
         return $id;
     }
     $stmt->close();
@@ -174,12 +167,6 @@ function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $c
         
         $stmt->bind_param('issssssss', $topicId, $topicVal, $q, $optA, $optB, $optC, $optD, $corr, $now);
         if ($stmt->execute()) {
-            try {
-                $meili = new MeilisearchService();
-                $meili->addTopic($topicVal, 'ai_mcqs', 'mcq');
-            } catch (Throwable $e) {
-                /* ignore */
-            }
             $inserted[] = [
                 'id' => $stmt->insert_id,
                 'topic_id' => $topicId,

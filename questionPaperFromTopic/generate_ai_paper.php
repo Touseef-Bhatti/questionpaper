@@ -6,7 +6,6 @@ require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../header.php';
 require_once __DIR__ . '/../quiz/mcq_generator.php';
-require_once __DIR__ . '/../services/MeilisearchService.php';
 require_once __DIR__ . '/../includes/APIKeyManager.php';
 ?>
 <link rel="stylesheet" href="../css/paper-builder.css?v=<?= time() . rand(6000, 7000) ?>">
@@ -301,10 +300,6 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
             $stmt = $conn->prepare("INSERT INTO AIGeneratedMCQs (topic_id, topic, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('issssssss', $topicId, $topicVal, $q['question'], $q['option_a'], $q['option_b'], $q['option_c'], $q['option_d'], $q['correct_option'], $today);
             $stmt->execute();
-            try {
-                $meili = new MeilisearchService();
-                $meili->addTopic($topicVal, 'ai_mcqs', 'mcq');
-            } catch (Throwable $e) { /* ignore */ }
 
             // Update MCQ Count
             $countStmt = $conn->prepare("INSERT INTO TopicQuestionCounts (topic_name, question_count) VALUES (?, 1) ON DUPLICATE KEY UPDATE question_count = question_count + 1");
