@@ -121,6 +121,7 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS generated_topics (
     topic_name VARCHAR(255) UNIQUE, 
     source_term VARCHAR(255),
     question_types VARCHAR(255),
+    keywords TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: generated_topics");
 

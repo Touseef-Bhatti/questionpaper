@@ -252,6 +252,15 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS AIQuestionsTopic (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIQuestionsTopic");
 
+// 8.2 Generated Topics (Topic Search Cache)
+runQuery($conn, "CREATE TABLE IF NOT EXISTS generated_topics (
+    id INT AUTO_INCREMENT PRIMARY KEY, 
+    topic_name VARCHAR(255) UNIQUE, 
+    source_term VARCHAR(255),
+    question_types VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: generated_topics");
+
 // 18. Quiz Rooms
 runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_rooms (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -388,6 +397,12 @@ if (!$result || $result->num_rows == 0) {
 $result = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'host_id'");
 if (!$result || $result->num_rows == 0) {
     runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN host_id INT NOT NULL DEFAULT 1", "Column: quiz_rooms.host_id");
+}
+
+// Check if generated_topics has keywords column
+$result = $conn->query("SHOW COLUMNS FROM generated_topics LIKE 'keywords'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE generated_topics ADD COLUMN keywords TEXT AFTER topic_name", "Column: generated_topics.keywords");
 }
 
 // ========== PERFORMANCE INDEXES - CRITICAL FOR PRODUCTION ==========
