@@ -62,12 +62,19 @@ class GoogleOAuthConfig
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        // Prevent the callback request from hanging indefinitely.
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 12);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/x-www-form-urlencoded'
         ]);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($response === false) {
+            $curlErr = curl_error($ch);
+            error_log('Google OAuth token exchange curl error: ' . $curlErr);
+        }
         curl_close($ch);
         
         if ($httpCode === 200) {
@@ -81,12 +88,19 @@ class GoogleOAuthConfig
     {
         $ch = curl_init('https://www.googleapis.com/oauth2/v2/userinfo');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        // Prevent the callback request from hanging indefinitely.
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 12);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $accessToken
         ]);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($response === false) {
+            $curlErr = curl_error($ch);
+            error_log('Google OAuth userinfo curl error: ' . $curlErr);
+        }
         curl_close($ch);
         
         if ($httpCode === 200) {
