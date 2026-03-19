@@ -4,7 +4,7 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 
 include '../db_connect.php';
 require_once 'mcq_generator.php';
-require_once 'MongoSearchLogger.php';
+// require_once 'MongoSearchLogger.php';
 require_once '../services/SubscriptionService.php';
 
 // Check user plan status
@@ -63,17 +63,36 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 1) {
             $uniqueTopics = [];
             $existingTopics = [];
             
-            // SQL search logic here...
-            // ... (Your existing SQL search logic can be placed here)
+            // 1. Search existing topics in the database (including keywords)
+            $termLike = "%$searchQuery%";
+            $sql = "SELECT DISTINCT topic_name, keywords FROM generated_topics 
+                    WHERE topic_name LIKE ? OR source_term LIKE ? OR keywords LIKE ? 
+                    LIMIT 20";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param('sss', $termLike, $termLike, $termLike);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $existingTopics[] = [
+                        'topic' => $row['topic_name'],
+                        'keywords' => $row['keywords'] ?? '',
+                        'similarity' => calculateSimilarity($searchQuery, $row['topic_name']),
+                        'source' => 'database'
+                    ];
+                }
+                $stmt->close();
+            }
 
-            // AI Search
+            // 2. AI Search (if needed or to supplement)
             $aiTopics = searchTopicsWithGemini($searchQuery, 0, 0, [], true, $excludeTopics);
             if (!empty($aiTopics)) {
-                $insertStmt = $conn->prepare("INSERT IGNORE INTO generated_topics (topic_name, source_term, question_types) VALUES (?, ?, 'mcq')");
+                $insertStmt = $conn->prepare("INSERT INTO generated_topics (topic_name, source_term, question_types, keywords) VALUES (?, ?, 'mcq', ?) ON DUPLICATE KEY UPDATE keywords = VALUES(keywords)");
                 if ($insertStmt) {
                     foreach ($aiTopics as $aiTopic) {
                         $topicName = $aiTopic['topic'];
-                        $insertStmt->bind_param('ss', $topicName, $searchQuery);
+                        $keywords = $aiTopic['keywords'] ?? '';
+                        $insertStmt->bind_param('sss', $topicName, $searchQuery, $keywords);
                         $insertStmt->execute();
                     }
                     $insertStmt->close();
@@ -114,9 +133,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
     $studyLevel = $_POST['study_level'] ?? '';
     
     if (!empty($searchQuery)) {
-        $mongoLogger = new MongoSearchLogger();
-        $mongoLogger->logSearch($searchQuery, 'post_search');
-
         $cacheKey = null; $usedCache = false;
         if (isset($cacheManager) && $cacheManager) {
             $cacheKey = "topic_search_v2_" . md5($searchQuery);
@@ -292,7 +308,10 @@ if (isset($_POST['start_quiz'])) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Onliine MCQs Test School and College - AI MCQs Generator - Ahmad Learning Hub</title>
     <!-- SEO & AI Optimization Meta Tags -->
@@ -324,7 +343,9 @@ if (isset($_POST['start_quiz'])) {
 
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/mcqs_topic.css">
+    <link rel="stylesheet" href="../css/ai_loader.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="../js/ai_loader.js" defer></script>
 </head>
 <body>
 <?php include_once '../header.php'; ?>
@@ -438,47 +459,7 @@ if (isset($_POST['start_quiz'])) {
             </form>
         </div>
 
-        <!-- Professional AI Loader Modal -->
-        <div id="aiLoaderModal" class="ai-loader-overlay">
-            <div class="ai-loader-card">
-                <div class="ai-icon-container">
-                    <div class="ai-icon-glow"></div>
-                    <i class="fas fa-robot" style="color: white; z-index: 2; position: relative;"></i>
-                </div>
-                <h2 class="ai-loader-title">Neural Engine Processing</h2>
-                
-                <div class="ai-steps-list">
-                    <div class="ai-step" id="step-1">
-                        <div class="ai-step-icon" id="icon-1"><i class="fas fa-circle-notch"></i></div>
-                        <div class="ai-step-text">Analyzing topics</div>
-                    </div>
-                    <div class="ai-step" id="step-2">
-                        <div class="ai-step-icon" id="icon-2"><i class="fas fa-circle-notch"></i></div>
-                        <div class="ai-step-text">Extracting key concepts</div>
-                    </div>
-                    <div class="ai-step" id="step-3">
-                        <div class="ai-step-icon" id="icon-3"><i class="fas fa-circle-notch"></i></div>
-                        <div class="ai-step-text">Designing MCQs</div>
-                    </div>
-                    <div class="ai-step" id="step-4">
-                        <div class="ai-step-icon" id="icon-4"><i class="fas fa-circle-notch"></i></div>
-                        <div class="ai-step-text">Validating difficulty</div>
-                    </div>
-                    <div class="ai-step" id="step-5">
-                        <div class="ai-step-icon" id="icon-5"><i class="fas fa-circle-notch"></i></div>
-                        <div class="ai-step-text">Finalizing paper</div>
-                    </div>
-                </div>
-
-                <div class="ai-progress-container">
-                    <div class="ai-progress-bar" id="aiProgressBar"></div>
-                </div>
-                
-                <div style="margin-top: 32px; color: rgba(255,255,255,0.4); font-size: 0.9rem; font-style: italic;">
-                    <i class="fas fa-info-circle"></i> Our AI is synthesizing questions based on 2026 board standards...
-                </div>
-            </div>
-        </div>
+        <?php include __DIR__ . '/../includes/ai_loader.php'; ?>
 
         <!-- Simple Search Loader -->
         <div id="inlineLoader">
@@ -650,82 +631,16 @@ function showLoader(title = 'Processing...', subtitle = '') {
 }
 
 function showAILoader() {
-    const modal = document.getElementById('aiLoaderModal');
-    const progressBar = document.getElementById('aiProgressBar');
-    
-    // Disable scrolling while loader is active
-    document.body.style.overflow = 'hidden';
-    
-    // Ensure modal occupies full screen and is visible
-    modal.style.display = 'flex';
-    
-    const steps = [
-        { id: 1, text: 'Analyzing topics', duration: 3500 },
-        { id: 2, text: 'Extracting key concepts', duration: 3500 },
-        { id: 3, text: 'Designing MCQs', duration: 3500 },
-        { id: 4, text: 'Validating difficulty', duration: 3500 },
-        { id: 5, text: 'Finalizing paper', duration: 3500 }
-    ];
-    
-    let currentStepIndex = 0;
-    let totalDuration = steps.reduce((acc, s) => acc + s.duration, 0);
-    let elapsed = 0;
-    
-    // Initialize all steps to pending state
-    steps.forEach(step => {
-        const stepEl = document.getElementById(`step-${step.id}`);
-        const iconEl = document.getElementById(`icon-${step.id}`);
-        if (stepEl) {
-            stepEl.classList.remove('active', 'completed');
-            iconEl.innerHTML = '<i class="fas fa-circle-notch"></i>';
-        }
-    });
-    
-    function updateStep() {
-        if (currentStepIndex >= steps.length) return;
-        
-        const step = steps[currentStepIndex];
-        const stepEl = document.getElementById(`step-${step.id}`);
-        const iconEl = document.getElementById(`icon-${step.id}`);
-        
-        // Mark previous steps as completed
-        for (let i = 0; i < currentStepIndex; i++) {
-            const prevStep = steps[i];
-            const prevStepEl = document.getElementById(`step-${prevStep.id}`);
-            const prevIconEl = document.getElementById(`icon-${prevStep.id}`);
-            if (prevStepEl) {
-                prevStepEl.classList.add('completed');
-                prevStepEl.classList.remove('active');
-                prevIconEl.innerHTML = '<i class="fas fa-check"></i>';
-            }
-        }
-        
-        // Mark current step as active
-        if (stepEl) {
-            stepEl.classList.add('active');
-            iconEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        }
-        
-        // Move to next step after duration
-        setTimeout(() => {
-            currentStepIndex++;
-            updateStep();
-        }, step.duration);
-    }
-    
-    // Higher interval for fewer DOM updates, CSS transition handles the smoothness
-    const progressUpdateFreq = 250; 
-    const progressInterval = setInterval(() => {
-        elapsed += progressUpdateFreq;
-        let progress = (elapsed / totalDuration) * 100;
-        if (progress >= 99) {
-            progress = 99;
-            clearInterval(progressInterval);
-        }
-        if (progressBar) progressBar.style.width = progress + '%';
-    }, progressUpdateFreq);
-    
-    updateStep();
+    showAILoader(
+        [
+            { label: 'Analyzing topics',        duration: 3500 },
+            { label: 'Extracting key concepts',  duration: 3500 },
+            { label: 'Designing MCQs',           duration: 3500 },
+            { label: 'Validating difficulty',    duration: 3500 },
+            { label: 'Finalizing paper',         duration: 3500 }
+        ],
+        'Our AI is synthesizing questions based on 2026 board standards…'
+    );
 }
 
 function selectLevel(level, button) {
@@ -855,7 +770,16 @@ document.getElementById('startQuizForm')?.addEventListener('submit', function(e)
         alert('Selection internal error.');
         return;
     }
-    showAILoader();
+    showAILoader(
+        [
+            { label: 'Analyzing topics',       duration: 3500 },
+            { label: 'Extracting key concepts', duration: 3500 },
+            { label: 'Designing MCQs',          duration: 3500 },
+            { label: 'Validating difficulty',   duration: 3500 },
+            { label: 'Finalizing paper',        duration: 3500 }
+        ],
+        'Our AI is synthesizing questions based on 2026 board standards\u2026'
+    );
 });
 
 document.addEventListener('DOMContentLoaded', () => {

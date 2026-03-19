@@ -36,7 +36,7 @@ try {
         $stmt->close();
         
         // 2. Get from AI Generated MCQs table
-        $aiSql = "SELECT 'ai' as source, id as mcq_id, question, option_a, option_b, option_c, option_d, correct_option 
+        $aiSql = "SELECT 'ai' as source, id as mcq_id, question_text as question, option_a, option_b, option_c, option_d, correct_option 
                   FROM AIGeneratedMCQs 
                   WHERE topic IN ($placeholders) 
                   ORDER BY id DESC LIMIT 50";

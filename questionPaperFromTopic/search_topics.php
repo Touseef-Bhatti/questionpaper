@@ -97,8 +97,8 @@ $topics = [];
         $topics[] = $row['topic_name'];
     }
 
-    $stmt = $conn->prepare("SELECT DISTINCT topic_name FROM generated_topics WHERE topic_name LIKE ? OR source_term LIKE ? LIMIT 100");
-    $stmt->bind_param('ss', $term, $term);
+    $stmt = $conn->prepare("SELECT DISTINCT topic_name FROM generated_topics WHERE topic_name LIKE ? OR source_term LIKE ? OR keywords LIKE ? LIMIT 100");
+    $stmt->bind_param('sss', $term, $term, $term);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {

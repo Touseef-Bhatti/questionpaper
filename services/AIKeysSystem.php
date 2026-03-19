@@ -21,6 +21,8 @@
  * ============================================================================
  */
 
+require_once __DIR__ . '/../config/AIKeyConfigManager.php';
+
 class AIKeysSystem {
     
     private $conn;
@@ -30,30 +32,12 @@ class AIKeysSystem {
     public function __construct($conn, $envPath = null) {
         $this->conn = $conn;
         
-        if ($envPath === null) {
-            // Determine which environment file to use
-            $envPath = __DIR__ . '/../config/.env.local';
-            
-            // Check if in production environment
-            if ((defined('ENVIRONMENT') && ENVIRONMENT === 'production') || getenv('APP_ENV') === 'production') {
-                $envPath = __DIR__ . '/../config/.env.production';
-            }
-            
-            // Use .env.production if it exists and .env.local doesn't
-            if (!file_exists($envPath)) {
-                $alternativePath = (strpos($envPath, '.env.production') !== false) ? 
-                    __DIR__ . '/../config/.env.local' : 
-                    __DIR__ . '/../config/.env.production';
-                if (file_exists($alternativePath)) {
-                    $envPath = $alternativePath;
-                }
-            }
-        }
-        
         try {
+            // AIKeyConfigManager handles its own environment file detection if $envPath is null
             $this->configManager = new AIKeyConfigManager($envPath);
             $this->encryptionKey = $this->configManager->getEncryptionKey();
         } catch (Exception $e) {
+            error_log("Failed to initialize AIKeysSystem: " . $e->getMessage());
             throw new Exception("Failed to initialize AIKeysSystem: " . $e->getMessage());
         }
     }
@@ -70,16 +54,21 @@ class AIKeysSystem {
                 a.priority,
                 a.status,
                 COUNT(k.key_id) as active_keys,
-                SUM(k.daily_limit) as total_daily_limit,
-                SUM(k.used_today) as total_used_today,
-                SUM(k.daily_limit) - SUM(k.used_today) as remaining_quota
+                COALESCE(SUM(k.daily_limit), 0) as total_daily_limit,
+                COALESCE(SUM(k.used_today), 0) as total_used_today,
+                COALESCE(SUM(k.daily_limit) - SUM(k.used_today), 0) as remaining_quota
             FROM ai_accounts a
             LEFT JOIN ai_api_keys k ON a.account_id = k.account_id AND k.status = 'active'
-            GROUP BY a.account_id
+            GROUP BY a.account_id, a.account_name, a.provider_name, a.priority, a.status
             ORDER BY a.priority ASC
         ";
         
         $result = $this->conn->query($query);
+        if (!$result) {
+            error_log("Database query failed in getAllAccounts: " . $this->conn->error);
+            return [];
+        }
+        
         $accounts = [];
         
         while ($row = $result->fetch_assoc()) {
@@ -102,15 +91,20 @@ class AIKeysSystem {
                 a.status,
                 COUNT(CASE WHEN k.status = 'active' THEN 1 END) as active_keys,
                 COUNT(k.key_id) as total_keys,
-                SUM(k.daily_limit) as total_daily_limit,
-                SUM(k.used_today) as total_used_today
+                COALESCE(SUM(k.daily_limit), 0) as total_daily_limit,
+                COALESCE(SUM(k.used_today), 0) as total_used_today
             FROM ai_accounts a
             LEFT JOIN ai_api_keys k ON a.account_id = k.account_id
             WHERE a.account_id = ?
-            GROUP BY a.account_id
+            GROUP BY a.account_id, a.account_name, a.provider_name, a.priority, a.status
         ";
         
         $stmt = $this->conn->prepare($query);
+        if (!$stmt) {
+            error_log("Database prepare failed in getAccountStats: " . $this->conn->error);
+            return null;
+        }
+        
         $stmt->bind_param('i', $accountId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -139,9 +133,18 @@ class AIKeysSystem {
         $query .= " ORDER BY last_used_at ASC, key_id ASC";
         
         $stmt = $this->conn->prepare($query);
+        if (!$stmt) {
+            error_log("Database prepare failed in getAccountKeys: " . $this->conn->error);
+            return [];
+        }
+        
         $stmt->bind_param('i', $accountId);
         $stmt->execute();
         $result = $stmt->get_result();
+        if (!$result) {
+            error_log("Database execute failed in getAccountKeys: " . $this->conn->error);
+            return [];
+        }
         $keys = [];
         
         while ($row = $result->fetch_assoc()) {
@@ -163,6 +166,11 @@ class AIKeysSystem {
         $accounts = $this->getAllAccounts();
         
         foreach ($accounts as $account) {
+            // Filter by provider if specified
+            if ($provider !== null && strtolower($account['provider_name']) !== strtolower($provider)) {
+                continue;
+            }
+            
             if ($account['status'] !== 'active') continue;
             if ($account['active_keys'] <= 0) continue;
             
@@ -202,9 +210,18 @@ class AIKeysSystem {
         $query = "SELECT * FROM ai_api_keys WHERE key_id = ?";
         
         $stmt = $this->conn->prepare($query);
+        if (!$stmt) {
+            error_log("Database prepare failed in getKeyById: " . $this->conn->error);
+            return null;
+        }
+        
         $stmt->bind_param('i', $keyId);
         $stmt->execute();
         $result = $stmt->get_result();
+        if (!$result) {
+            error_log("Database execute failed in getKeyById: " . $this->conn->error);
+            return null;
+        }
         
         if ($row = $result->fetch_assoc()) {
             // Decrypt key
@@ -264,7 +281,11 @@ class AIKeysSystem {
             AND temporary_block_until < NOW()
         ";
         
-        return $this->conn->query($query);
+        $result = $this->conn->query($query);
+        if (!$result) {
+            error_log("Database query failed in unblockExpiredKeys: " . $this->conn->error);
+        }
+        return $result;
     }
     
     /**
@@ -281,11 +302,24 @@ class AIKeysSystem {
         $stmt->bind_param('i', $keyId);
         $result = $stmt->execute();
         
+        if (!$result) {
+            error_log("Failed to update failure count for key ID: $keyId. Error: " . $this->conn->error);
+            return false;
+        }
+        
         // Check if should disable key due to too many failures
         $key = $this->getKeyById($keyId);
-        $threshold = intval(getenv('AI_CIRCUIT_BREAKER_THRESHOLD') ?? 3);
+        if (!$key) return $result;
         
-        if ($key['consecutive_failures'] >= $threshold) {
+        // Use EnvLoader if available for consistent threshold retrieval
+        $threshold = 3;
+        if (class_exists('EnvLoader')) {
+            $threshold = intval(EnvLoader::get('AI_CIRCUIT_BREAKER_THRESHOLD', 3));
+        } else {
+            $threshold = intval(getenv('AI_CIRCUIT_BREAKER_THRESHOLD') ?: 3);
+        }
+        
+        if (intval($key['consecutive_failures']) >= $threshold) {
             $this->disableKey($keyId, "Exceeded failure threshold ({$key['consecutive_failures']} failures)");
         }
         
@@ -319,7 +353,11 @@ class AIKeysSystem {
             WHERE status = 'active'
         ";
         
-        return $this->conn->query($query);
+        $result = $this->conn->query($query);
+        if (!$result) {
+            error_log("Database query failed in resetDailyCounters: " . $this->conn->error);
+        }
+        return $result;
     }
     
     /**

@@ -27,6 +27,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS generated_topics (
     topic_name VARCHAR(255) UNIQUE, 
     source_term VARCHAR(255),
     question_types VARCHAR(255),
+    keywords TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )");
 
@@ -39,10 +40,11 @@ try {
     foreach ($results as $res) {
         if (!empty($res['topic'])) {
             $topicName = trim($res['topic']);
+            $keywords = $res['keywords'] ?? '';
             // Store in DB
-            $stmt = $conn->prepare("INSERT IGNORE INTO generated_topics (topic_name, source_term, question_types) VALUES (?, ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO generated_topics (topic_name, source_term, question_types, keywords) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE keywords = VALUES(keywords)");
             $typesJson = json_encode($types);
-            $stmt->bind_param("sss", $topicName, $search, $typesJson);
+            $stmt->bind_param("ssss", $topicName, $search, $typesJson, $keywords);
             $stmt->execute();
             if ($stmt->affected_rows > 0 || $stmt->errno == 0) {
                 $newTopics[] = $topicName;

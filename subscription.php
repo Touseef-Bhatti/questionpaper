@@ -21,7 +21,10 @@ $userLimits = $subscriptionService->getUserLimits($userId);
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subscription Plans - Ahmad Learning Hub</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/all.min.css">

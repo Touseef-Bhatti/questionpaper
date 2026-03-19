@@ -73,6 +73,8 @@ if (!$result) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_chapter.css">
     <link rel="stylesheet" href="css/buttons.css">

@@ -2,7 +2,8 @@
 /**
  * AI Key Health Check Cron Job
  * Runs from CLI, prints system health and account status.
- * Schedule: */15 * * * * /usr/bin/php /path/to/cron/ai_health_check.php
+ * Schedule: Every 15 minutes
+ * Example: * / 15 * * * * /usr/bin/php /path/to/cron/ai_health_check.php
  */
 
 require_once __DIR__ . '/../db_connect.php';
@@ -39,7 +40,7 @@ try {
     }
 
     $duration = round((microtime(true) - $startTime) * 1000);
-    echo "[$timestamp] Health check complete in ${duration}ms\n";
+    echo "[$timestamp] Health check complete in {$duration}ms\n";
     exit(0);
 
 } catch (Exception $e) {

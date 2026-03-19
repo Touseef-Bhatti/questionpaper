@@ -6,7 +6,10 @@ include '../db_connect.php';
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Take a Free Online Quiz - AI MCQ Generator - Ahmad Learning Hub</title>
     <!-- Enhanced SEO Meta Tags -->
@@ -56,88 +59,9 @@ include '../db_connect.php';
 
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/quiz_setup.css">
+    <link rel="stylesheet" href="../css/ai_loader.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        /* Loader Styles */
-        .loader-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.9);
-            z-index: 9999;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(5px);
-        }
-        
-        .loader-spinner {
-            width: 60px;
-            height: 60px;
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .loader-spinner:before, .loader-spinner:after {
-            content: "";
-            position: absolute;
-            border-radius: 50%;
-            border: 4px solid transparent;
-            border-top-color: var(--primary-color, #4f6ef7);
-        }
-        
-        .loader-spinner:before {
-            top: 0; left: 0; right: 0; bottom: 0;
-            animation: spin 1.5s linear infinite;
-        }
-        
-        .loader-spinner:after {
-            top: 10px; left: 10px; right: 10px; bottom: 10px;
-            border-top-color: #ec4899; /* Secondary color */
-            animation: spin 2s linear infinite reverse;
-        }
-
-        .loader-progress-container {
-            width: 300px;
-            height: 6px;
-            background: #e2e8f0;
-            border-radius: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .loader-progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary-color, #4f6ef7), #ec4899);
-            width: 0%;
-            transition: width 0.2s ease;
-            border-radius: 10px;
-        }
-        
-        .loader-text {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-main, #1f2937);
-            text-align: center;
-            margin-bottom: 8px;
-        }
-        
-        .loader-subtext {
-            font-size: 1rem;
-            color: var(--text-muted, #6b7280);
-            text-align: center;
-            max-width: 400px;
-            line-height: 1.5;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+    <script src="../js/ai_loader.js" defer></script>
 </head>
 <body>
 <?php include_once '../header.php'; ?>
@@ -254,13 +178,45 @@ include '../db_connect.php';
     <?= renderAd('banner', 'Place Bottom Banner Here') ?>
 </div>
 
-<!-- Loader Overlay -->
-<div class="loader-overlay" id="loaderOverlay">
-    <div class="loader-spinner"></div>
-    <div class="loader-text" id="loaderText">Generating Quiz...</div>
-    <div class="loader-subtext" id="loaderSubtext">We are preparing your questions. This may take a moment.</div>
-    <div class="loader-progress-container">
-        <div class="loader-progress-bar" id="loaderProgressBar"></div>
+<!-- AI Loader Overlay -->
+<div class="ai-loader-overlay" id="aiLoaderModal">
+    <div class="ai-loader-card">
+        <div class="ai-icon-container">
+            <div class="ai-icon-glow"></div>
+            <i class="fas fa-graduation-cap" style="color: white; z-index: 2; position: relative;"></i>
+        </div>
+        <h2 class="ai-loader-title">Preparing Your Quiz</h2>
+
+        <div class="ai-steps-list">
+            <div class="ai-step" id="step-1">
+                <div class="ai-step-icon" id="icon-1"><i class="fas fa-circle-notch"></i></div>
+                <div class="ai-step-text">Selecting questions</div>
+            </div>
+            <div class="ai-step" id="step-2">
+                <div class="ai-step-icon" id="icon-2"><i class="fas fa-circle-notch"></i></div>
+                <div class="ai-step-text">Loading content</div>
+            </div>
+            <div class="ai-step" id="step-3">
+                <div class="ai-step-icon" id="icon-3"><i class="fas fa-circle-notch"></i></div>
+                <div class="ai-step-text">Applying difficulty settings</div>
+            </div>
+            <div class="ai-step" id="step-4">
+                <div class="ai-step-icon" id="icon-4"><i class="fas fa-circle-notch"></i></div>
+                <div class="ai-step-text">Arranging paper</div>
+            </div>
+            <div class="ai-step" id="step-5">
+                <div class="ai-step-icon" id="icon-5"><i class="fas fa-circle-notch"></i></div>
+                <div class="ai-step-text">Starting quiz</div>
+            </div>
+        </div>
+
+        <div class="ai-progress-container">
+            <div class="ai-progress-bar" id="aiProgressBar"></div>
+        </div>
+
+        <div class="ai-loader-note">
+            <i class="fas fa-info-circle"></i> Preparing your personalized quiz session...
+        </div>
     </div>
 </div>
 
@@ -427,10 +383,87 @@ resetBtn.addEventListener('click', () => {
   clearChapters();
 });
 
-// Show loader on form submit
+// Show AI loader on form submit (timestamp-based, mobile-reliable)
 document.getElementById('quizForm').addEventListener('submit', function() {
-    document.getElementById('loaderOverlay').style.display = 'flex';
-    startLoaderProgress();
+    const modal = document.getElementById('aiLoaderModal');
+    const progressBar = document.getElementById('aiProgressBar');
+
+    document.body.style.overflow = 'hidden';
+    modal.style.display = 'flex';
+
+    const steps = [
+        { id: 1, duration: 2500 },
+        { id: 2, duration: 2500 },
+        { id: 3, duration: 2500 },
+        { id: 4, duration: 2500 },
+        { id: 5, duration: 2500 }
+    ];
+
+    const totalDuration = steps.reduce(function(acc, s) { return acc + s.duration; }, 0);
+
+    steps.forEach(function(step) {
+        const stepEl = document.getElementById('step-' + step.id);
+        const iconEl = document.getElementById('icon-' + step.id);
+        if (stepEl) {
+            stepEl.classList.remove('active', 'completed');
+            iconEl.innerHTML = '<i class="fas fa-circle-notch"></i>';
+        }
+    });
+
+    const startTime = Date.now();
+    let lastStepIndex = -1;
+
+    const loaderInterval = setInterval(function() {
+        const elapsed = Date.now() - startTime;
+
+        let progress = Math.min((elapsed / totalDuration) * 100, 99);
+        if (progressBar) progressBar.style.width = progress + '%';
+
+        let cumulativeTime = 0;
+        let activeStepIndex = steps.length - 1;
+        for (let i = 0; i < steps.length; i++) {
+            cumulativeTime += steps[i].duration;
+            if (elapsed < cumulativeTime) {
+                activeStepIndex = i;
+                break;
+            }
+        }
+
+        if (activeStepIndex !== lastStepIndex) {
+            lastStepIndex = activeStepIndex;
+            steps.forEach(function(step, idx) {
+                const stepEl = document.getElementById('step-' + step.id);
+                const iconEl = document.getElementById('icon-' + step.id);
+                if (!stepEl) return;
+                if (idx < activeStepIndex) {
+                    stepEl.classList.add('completed');
+                    stepEl.classList.remove('active');
+                    iconEl.innerHTML = '<i class="fas fa-check"></i>';
+                } else if (idx === activeStepIndex) {
+                    stepEl.classList.add('active');
+                    stepEl.classList.remove('completed');
+                    iconEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                } else {
+                    stepEl.classList.remove('active', 'completed');
+                    iconEl.innerHTML = '<i class="fas fa-circle-notch"></i>';
+                }
+            });
+        }
+
+        if (elapsed >= totalDuration) {
+            clearInterval(loaderInterval);
+            steps.forEach(function(step) {
+                const stepEl = document.getElementById('step-' + step.id);
+                const iconEl = document.getElementById('icon-' + step.id);
+                if (stepEl) {
+                    stepEl.classList.add('completed');
+                    stepEl.classList.remove('active');
+                    iconEl.innerHTML = '<i class="fas fa-check"></i>';
+                }
+            });
+            if (progressBar) progressBar.style.width = '99%';
+        }
+    }, 250);
 });
 </script>
 </body>

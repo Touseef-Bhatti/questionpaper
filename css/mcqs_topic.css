@@ -34,8 +34,9 @@ body {
 }
 
 .topic-search-container {
-    max-width: 60%;
-    margin: 10%;
+    max-width: 860px;
+    width: 90%;
+    margin: 60px auto;
     background: var(--card-bg);
     padding: 48px;
     border-radius: var(--radius-lg);
@@ -92,10 +93,59 @@ body {
 
 @media (max-width: 768px) {
     .topic-search-container {
-        margin-left: auto;
-        margin-right: auto;
-        padding: 24px;
-        max-width: 90%;
+        width: 100%;
+        margin: 0;
+        padding: 20px 16px;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    h1 {
+        font-size: 1.75rem;
+    }
+
+    .desc {
+        font-size: 1rem;
+        margin-bottom: 28px;
+    }
+
+    .top-nav {
+        margin-bottom: 20px;
+    }
+
+    .back-btn, .school-mode-btn {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+    }
+
+    .search-input {
+        padding: 14px 16px;
+        padding-right: 58px;
+        font-size: 1rem;
+    }
+
+    .search-btn {
+        padding: 10px 14px;
+        right: 6px;
+        font-size: 0.85rem;
+    }
+
+    .level-container {
+        gap: 8px;
+    }
+
+    .level-btn {
+        padding: 10px 8px;
+        font-size: 0.85rem;
+        gap: 5px;
+    }
+
+    .selected-topics-section {
+        padding: 20px 16px;
+    }
+
+    .mcq-count-controls {
+        gap: 10px;
     }
 }
 
@@ -1081,46 +1131,65 @@ h1 {
         grid-template-columns: 1fr;
     }
     .seo-article-section {
-        margin: 60px auto;
+        margin: 40px auto 80px;
+        padding: 0 12px;
     }
 
     /* Mobile AI Loader Fix */
+    .ai-loader-overlay {
+        align-items: flex-start;
+        padding-top: 20px;
+        overflow-y: auto;
+    }
+
     .ai-loader-card {
-        padding: 30px 20px;
-        width: 95%;
-        border-radius: 24px;
+        padding: 28px 18px;
+        width: 96%;
+        border-radius: 20px;
+        margin: 10px auto;
     }
 
     .ai-icon-container {
-        width: 80px;
-        height: 80px;
-        font-size: 3rem;
-        margin-bottom: 20px;
+        width: 72px;
+        height: 72px;
+        font-size: 2.5rem;
+        margin-bottom: 16px;
+        border-radius: 20px;
     }
 
     .ai-loader-title {
-        font-size: 1.5rem;
-        margin-bottom: 24px;
+        font-size: 1.35rem;
+        margin-bottom: 20px;
     }
 
     .ai-steps-list {
         gap: 8px;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
 
     .ai-step {
-        padding: 10px 15px;
+        padding: 10px 14px;
         gap: 12px;
         border-radius: 12px;
     }
 
+    .ai-step.active {
+        transform: scale(1.01) translateX(4px);
+    }
+
     .ai-step-text {
-        font-size: 0.95rem;
+        font-size: 0.92rem;
     }
 
     .ai-step-icon {
-        width: 24px;
-        height: 24px;
-        font-size: 0.8rem;
+        width: 28px;
+        height: 28px;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
+
+    #loadMoreTopicsBtn.btn-secondary {
+        min-width: unset !important;
+        width: 100%;
     }
 }

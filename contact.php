@@ -5,7 +5,10 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Have questions about 9th or 10th class exam preparation? Contact Ahmad Learning Hub, the best AI exam preparation website in Pakistan for MCQs, online tests, and notes.">
     <meta name="keywords" content="contact Ahmad Learning Hub, 9th class help, 10th class support, AI exam prep assistance, hosting online quiz support, questions prep feedback">

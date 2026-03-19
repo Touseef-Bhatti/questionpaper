@@ -4,7 +4,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <?php
+
     $assetBase = ""; // Adjusted if needed
     ?>
     <meta charset="UTF-8">

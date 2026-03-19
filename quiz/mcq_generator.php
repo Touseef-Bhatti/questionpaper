@@ -308,7 +308,12 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questi
         $excludeList = implode(', ', array_slice(array_map('trim', $excludeTopics), 0, 20));
         $excludeHint = " Do NOT include these (already shown): {$excludeList}. Return DIFFERENT topics.";
     }
-    $prompt = " i have an exam and it's Topic: \"{$searchQuery}\". Return EXACTLY 8 topics according to \"{$searchQuery}\ that can come in exam  as a JSON array of strings.2-3 topics must closely match the text of {$searchQuery}. {$excludeHint}.";
+    $prompt = "i have an exam and it's Topic: \"{$searchQuery}\". Return EXACTLY 8 topics related to \"{$searchQuery}\" that can come in the exam as a JSON array of objects. 
+    Each object must have: 
+    - \"topic\": (string) The topic name. 
+    - \"keywords\": (string) A comma-separated list of 3-5 keywords related to this topic (e.g., key concepts, related terms). 
+    2-3 topics must closely match the text of \"{$searchQuery}\". {$excludeHint}. 
+    Return ONLY the JSON array. No extra text.";
 
     list($respBody, $code) = callOpenRouter($keyItem['key'], $model, $prompt, 2800, 25);
 
@@ -325,9 +330,13 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questi
 
     $out = [];
     foreach ($topics as $t) {
-        if (is_string($t) && !empty(trim($t))) {
+        $topicName = is_array($t) ? ($t['topic'] ?? '') : (is_string($t) ? $t : '');
+        $keywords = is_array($t) ? ($t['keywords'] ?? '') : '';
+        
+        if (!empty(trim($topicName))) {
             $out[] = [
-                'topic' => trim($t),
+                'topic' => trim($topicName),
+                'keywords' => trim($keywords),
                 'class_id' => $classId,
                 'book_id' => $bookId,
                 'similarity' => 85.0,

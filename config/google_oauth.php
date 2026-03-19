@@ -25,7 +25,9 @@ class GoogleOAuthConfig
         // Construct redirect URI based on current domain
         $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        return $protocol . '://' . $host . '/oauth/google-callback.php';
+        // Use a less-restricted callback path.
+        // Some hosts block requests to /oauth/* when Google adds the long `code` query param.
+        return $protocol . '://' . $host . '/auth/google_callback.php';
     }
     
     public static function getAuthUrl($state = null) 
