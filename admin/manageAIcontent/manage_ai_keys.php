@@ -13,30 +13,30 @@
  * - Configuration verification
  */
 
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/../config/AIKeyConfigManager.php';
-require_once __DIR__ . '/header.php';
+require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../../config/AIKeyConfigManager.php';
+require_once __DIR__ . '/../header.php';
 
 // Check admin access
 if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit;
 }
 
 try {
     // Determine which environment file to use
-    $envFile = __DIR__ . '/../config/.env.local';
+    $envFile = __DIR__ . '/../../config/.env.local';
     
     // Check if in production environment
     if (defined('ENVIRONMENT') && ENVIRONMENT === 'production') {
-        $envFile = __DIR__ . '/../config/.env.production';
+        $envFile = __DIR__ . '/../../config/.env.production';
     } elseif (getenv('APP_ENV') === 'production') {
-        $envFile = __DIR__ . '/../config/.env.production';
+        $envFile = __DIR__ . '/../../config/.env.production';
     }
     
     // Use .env.production if it exists and .env.local doesn't
-    $productionFile = __DIR__ . '/../config/.env.production';
-    $localFile = __DIR__ . '/../config/.env.local';
+    $productionFile = __DIR__ . '/../../config/.env.production';
+    $localFile = __DIR__ . '/../../config/.env.local';
     
     if (!file_exists($localFile) && file_exists($productionFile)) {
         $envFile = $productionFile;
@@ -55,6 +55,7 @@ try {
 <div class="container mt-5">
     <div class="row">
         <div class="col-md-12">
+            <a href="../dashboard.php" class="btn btn-outline-secondary mb-3">← Back to Dashboard</a>
             <h1>🔑 AI API Keys Management</h1>
             <p class="text-muted">Manage and monitor your API keys for AI services</p>
             <hr>

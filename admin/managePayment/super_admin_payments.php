@@ -4,8 +4,8 @@
  * Comprehensive payment management interface for super administrators
  */
 
-require_once '../includes/admin_auth.php';
-require_once '../services/PaymentService.php';
+require_once '../../includes/admin_auth.php';
+require_once '../../services/PaymentService.php';
 
 // Require super admin access
 $user = adminPageHeader('All Payments Management', 'super_admin');

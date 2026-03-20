@@ -729,12 +729,12 @@ document.addEventListener('DOMContentLoaded', function() {
 	<?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 15%;') ?>
 	<?= renderAd('skyscraper', 'Right Skyscraper 2', 'right', 'margin-top: 90%;') ?>
 
-	<!-- TOP AD BANNER -->
-	<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
-
 	<h1>Select Chapters from "<?= htmlspecialchars($book_name) ?> (Class <?= htmlspecialchars($classId) ?>)"</h1>
 	
 	<div class="chapter-container">
+        <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
+        <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
 		<form action="select_question.php" method="POST">
 			<input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">
 			<input type="hidden" name="book_name" value="<?= htmlspecialchars($book_name) ?>">

@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../security.php';
 requireAdminAuth();
 
 // Auto-fix schema for missing columns (Self-healing)
@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 
 // Handle AJAX Request for Verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'check_ai_mcqs') {
-    require_once __DIR__ . '/../quiz/mcq_generator.php';
+    require_once __DIR__ . '/../../quiz/mcq_generator.php';
     
     $sourceTable = isset($_POST['source_table']) ? $_POST['source_table'] : 'AIGeneratedMCQs';
     if (!in_array($sourceTable, ['AIGeneratedMCQs', 'mcqs'])) {
@@ -198,6 +198,7 @@ if ($sourceTable === 'mcqs') {
         verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
         last_checked_at DATETIME,
         suggested_correct_option TEXT,
+        original_correct_option TEXT,
         ai_notes TEXT,
         FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE
     )";
@@ -207,11 +208,18 @@ if ($sourceTable === 'mcqs') {
         verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
         last_checked_at DATETIME,
         suggested_correct_option TEXT,
+        original_correct_option TEXT,
         ai_notes TEXT,
         FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
     )";
 }
 $conn->query($createTableSql);
+
+// Self-healing: Add missing original_correct_option if it doesn't exist
+$colCheck = $conn->query("SHOW COLUMNS FROM $verifyTable LIKE 'original_correct_option'");
+if ($colCheck && $colCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE $verifyTable ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option");
+}
 
 // Pagination
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -293,15 +301,8 @@ if (isset($_GET['filter']) || isset($_GET['page'])) {
     $activeTab = 'report';
 }
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI MCQ Verification Center</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
+<?php include_once __DIR__ . '/../header.php'; ?>
+<style>
         :root {
             --primary-color: #4e73df;
             --success-color: #1cc88a;

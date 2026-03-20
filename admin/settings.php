@@ -40,27 +40,19 @@ if ($stmt) {
     }
     $stmt->close();
 }
+include_once __DIR__ . '/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings</title>
-    <style>
-        .wrap { max-width: 700px; margin: 24px auto; padding: 0 12px; }
-        label { display:block; margin: 12px 0 6px; font-weight:600; }
-        input[type=text] { width:100%; padding:8px; }
-        button { margin-top:12px; padding: 10px 14px; }
-        .nav { margin-bottom: 12px; }
-        .nav a { margin-right: 8px; }
-        .msg { color: green; }
-        .err { color: red; }
-    </style>
-    <?php include __DIR__ . '/header.php'; ?>
-    <div class="main-content">
-</head>
-<body>
+<style>
+    .wrap { max-width: 700px; margin: 24px auto; padding: 0 12px; }
+    label { display:block; margin: 12px 0 6px; font-weight:600; }
+    input[type=text] { width:100%; padding:8px; }
+    button { margin-top:12px; padding: 10px 14px; }
+    .nav { margin-bottom: 12px; }
+    .nav a { margin-right: 8px; }
+    .msg { color: green; }
+    .err { color: red; }
+</style>
+
     <div class="wrap">
         <div class="nav">
             <a href="dashboard.php">← Back to Dashboard</a>
@@ -76,7 +68,4 @@ if ($stmt) {
         </form>
     </div>
    
-</body>
-</html>
-
-
+    </div>

@@ -313,9 +313,9 @@ if (isset($_POST['start_quiz'])) {
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Onliine MCQs Test School and College - AI MCQs Generator - Ahmad Learning Hub</title>
+    <title>Free Online MCQs Test Preparation for Competitive Exams | Ahmad Learning Hub</title>
     <!-- SEO & AI Optimization Meta Tags -->
-    <meta name="description" content="Discover thousands of MCQs by any topic using our advanced AI-driven search. Perfect for 2026 Board Exam preparation, MDCAT, ECAT, and GRE topic-wise study. 100% accurate syllabus-based questions.">
+    <meta name="description" content="Ahmad Learning Hub is a free online test preparation website. It offers practice tests, MCQs, and resources for competitive exams, job tests, and interviews.">
     <meta name="keywords" content="topic wise MCQs, AI question finder, Ahmad Learning Hub search, board exam topics, science MCQs 2026, chemistry MCQs by topic, physics MCQs by topic">
     <meta name="author" content="Ahmad Learning Hub">
     
@@ -351,13 +351,13 @@ if (isset($_POST['start_quiz'])) {
 <?php include_once '../header.php'; ?>
 
 <!-- SIDE SKYSCRAPER ADS (Right Only) -->
-<?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
-
-<!-- TOP AD BANNER -->
-<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+<?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 30%;') ?>
 
 <div class="main-content">
     <div class="topic-search-container">
+        <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
+        <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
         <?php
         $source = $_REQUEST['source'] ?? '';
         $quizDuration = $_REQUEST['quiz_duration'] ?? 10;
@@ -450,11 +450,13 @@ if (isset($_POST['start_quiz'])) {
                         name="topic_search" 
                         id="topic_search"
                         class="search-input" 
-                        placeholder="Type any topic (e.g. Molecular Biology, Calculus...)" 
+                        placeholder="Select your target topic (e.g., Organic Chemistry, Wave Optics...)" 
                         value="<?= htmlspecialchars($searchQuery) ?>"
                         autofocus
                     >
-                    <button type="submit" class="search-btn">Find Items</button>
+                    <button type="submit" class="search-btn" title="Initiate AI Search">
+                        <i class="fas fa-search"></i>
+                    </button>
                 </div>
             </form>
         </div>
@@ -511,31 +513,36 @@ if (isset($_POST['start_quiz'])) {
         <?php endif; ?>
         
         <article class="seo-article-section">
+            <h2 class="seo-section-title">Free Online MCQs Test Preparation for Competitive Exams</h2>
+            <div class="seo-intro-text">
+                <p><strong>Ahmad Learning Hub</strong> is a premier free online test preparation ecosystem. We provide comprehensive practice tests, expert-verified MCQs, and strategic resources designed for competitive exams, career job tests, and high-stakes interviews.</p>
+            </div>
+            
             <div class="seo-grid">
                 <div class="seo-card">
-                    <div class="seo-icon"><i class="fas fa-microscope" style="color: var(--primary);"></i></div>
-                    <h2 class="seo-card-title">Micro-Topic Precision</h2>
-                    <p class="seo-card-text">Our proprietary AI engine breaks down curricula into atomic topics. Search specifically for "Electron Transport Chain" or "Kinetic Theory" to get laser-focused practice.</p>
+                    <div class="seo-icon"><i class="fas fa-microscope"></i></div>
+                    <h3 class="seo-card-title">Competitive Exam Focus</h3>
+                    <p class="seo-card-text">Tailored resources for MDCAT, ECAT, NTS, and CSS exams. Our platform ensures you are prepared for the specific patterns and challenges of top-tier competitive tests.</p>
                 </div>
                 <div class="seo-card">
-                    <div class="seo-icon"><i class="fas fa-brain" style="color: #a855f7;"></i></div>
-                    <h2 class="seo-card-title">Cognitive AI Synthesis</h2>
-                    <p class="seo-card-text">Powered by Google Gemini Pro, we don't just find questions—we verify their conceptual integrity against current 2026 board standards across Pakistan.</p>
+                    <div class="seo-icon"><i class="fas fa-shield-check"></i></div>
+                    <h3 class="seo-card-title">Job Test Readiness</h3>
+                    <p class="seo-card-text">Comprehensive question banks for government and private sector job recruitment tests. Practice with real-world scenarios to secure your dream career.</p>
                 </div>
                 <div class="seo-card">
-                    <div class="seo-icon"><i class="fas fa-chart-line" style="color: var(--success);"></i></div>
-                    <h2 class="seo-card-title">Adaptive Difficulty</h2>
-                    <p class="seo-card-text">Choose your challenge level. From foundational Easy mode to board-crushing Hard mode, tailor your preparation to your current mastery level.</p>
+                    <div class="seo-icon"><i class="fas fa-bolt"></i></div>
+                    <h3 class="seo-card-title">Interview Mastery</h3>
+                    <p class="seo-card-text">Access curated MCQ sets and resources specifically designed for technical and conceptual interview rounds across all major academic fields.</p>
                 </div>
                 <div class="seo-card">
-                    <div class="seo-icon"><i class="fas fa-users" style="color: var(--accent);"></i></div>
-                    <h2 class="seo-card-title">Multi-Platform Ready</h2>
-                    <p class="seo-card-text">Perfect for individual study or classroom hosting. Select your modules and instantly broadcast a live interactive competition to any device.</p>
+                    <div class="seo-icon"><i class="fas fa-trophy"></i></div>
+                    <h3 class="seo-card-title">Free Expert Resources</h3>
+                    <p class="seo-card-text">High-quality educational content provided entirely for free. Join thousands of successful candidates who use Ahmad Learning Hub for daily study.</p>
                 </div>
             </div>
             
             <div class="seo-footer">
-                <p>Pakistan's most sophisticated <strong>Topic-Wise MCQ Generator</strong>. Designed for excellence in <strong>MDCAT, ECAT, NTS,</strong> and High School Board Examinations.</p>
+                <p>The definitive <strong>MCQ Test Preparation Platform</strong>. Free practice tests and resources for <strong>MDCAT, ECAT, NTS,</strong> and National Board excellence.</p>
             </div>
         </article>
     </div>

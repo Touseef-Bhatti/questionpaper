@@ -66,18 +66,9 @@ $total = $totalQuery ? $totalQuery->fetch_assoc()['total'] : 0;
 $totalPages = ceil($total / $perPage);
 
 $deletedQuestions = $conn->query("SELECT id, question_id, class_id, book_name, chapter_id, question_type, question_text, deleted_at FROM deleted_questions ORDER BY deleted_at DESC LIMIT $perPage OFFSET $offset");
+include_once __DIR__ . '/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recently Deleted Questions</title>
-    <link rel="stylesheet" href="../css/admin.css">
-    <link rel="stylesheet" href="../css/footer.css">
-</head>
-<body>
-    <?php include __DIR__ . '/header.php'; ?>
+
     <div class="wrap">
         <div class="nav">
             <a href="dashboard.php" class="btn">← Back to Dashboard</a>
@@ -165,5 +156,4 @@ $deletedQuestions = $conn->query("SELECT id, question_id, class_id, book_name, c
         <?php endif; ?>
     </div>
     
-</body>
-</html>
+

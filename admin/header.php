@@ -58,29 +58,32 @@ $adminUrl = $baseUrl . 'admin/';
             <ul class="admin-nav-menu" id="adminNavMenu">
                 <li><a href="<?= $adminUrl ?>dashboard.php" class="nav-link-dashboard">📊 Dashboard</a></li>
                 <li class="nav-dropdown">
-                    <a href="#" class="nav-link-dropdown">📚 Manage Content</a>
+                    <a href="#" class="nav-link-dropdown">🏫 School</a>
                     <ul class="admin-dropdown-menu">
-                        <li><a href="<?= $adminUrl ?>manage_classes.php">🏫 Classes</a></li>
-                        <li><a href="<?= $adminUrl ?>manage_books.php">📖 Books</a></li>
-                        <li><a href="<?= $adminUrl ?>manage_chapters.php">📝 Chapters</a></li>
-                        <li><a href="<?= $adminUrl ?>manage_questions.php">❓ Questions</a></li>
+                        <li><a href="<?= $adminUrl ?>manageSchool/manage_classes.php">🏛️ Classes</a></li>
+                        <li><a href="<?= $adminUrl ?>manageSchool/manage_books.php">📖 Books</a></li>
+                        <li><a href="<?= $adminUrl ?>manageSchool/manage_chapters.php">📝 Chapters</a></li>
+                        <li><a href="<?= $adminUrl ?>manageSchool/manage_questions.php">❓ Questions</a></li>
+                        <li><a href="<?= $adminUrl ?>manageSchool/manage_notes.php">📚 Notes</a></li>
                     </ul>
                 </li>
                 <li class="nav-dropdown">
                     <a href="#" class="nav-link-dropdown">🤖 AI Content</a>
                     <ul class="admin-dropdown-menu">
-                        <li><a href="<?= $adminUrl ?>manage_ai_mcqs.php">☑️ MCQs</a></li>
-                        <li><a href="<?= $adminUrl ?>manage_ai_short.php">📝 Short Qs</a></li>
-                        <li><a href="<?= $adminUrl ?>manage_ai_long.php">📑 Long Qs</a></li>
-                        <li><a href="<?= $adminUrl ?>manage_ai_keys.php">🔑 API Keys</a></li>
+                        <li><a href="<?= $adminUrl ?>manageAIcontent/manage_ai_mcqs.php">☑️ MCQs</a></li>
+                        <li><a href="<?= $adminUrl ?>manageAIcontent/manage_ai_short.php">📝 Short Qs</a></li>
+                        <li><a href="<?= $adminUrl ?>manageAIcontent/manage_ai_long.php">📑 Long Qs</a></li>
+                        <li><a href="<?= $adminUrl ?>manageAIcontent/manage_ai_keys.php">🔑 API Keys</a></li>
+                        <li><a href="<?= $adminUrl ?>topics/index.php">🏷️ Generated Topics</a></li>
                     </ul>
                 </li>
                 <li class="nav-dropdown">
-                    <a href="#" class="nav-link-dropdown">💳 Subscriptions</a>
+                    <a href="#" class="nav-link-dropdown">💳 Payments</a>
                     <ul class="admin-dropdown-menu">
                         <li><a href="<?= $adminUrl ?>subscriptions/index.php">📋 Plan Settings</a></li>
                         <li><a href="<?= $adminUrl ?>subscriptions/user_usage.php">📊 User Usage</a></li>
-                        <li><a href="<?= $adminUrl ?>super_admin_payments.php">💰 Payments</a></li>
+                        <li><a href="<?= $adminUrl ?>managePayment/super_admin_payments.php">💰 Payments</a></li>
+                        <li><a href="<?= $adminUrl ?>managePayment/payment_analytics.php">📈 Analytics</a></li>
                         <li><a href="<?= $adminUrl ?>super_admin_users.php">👤 User Plans</a></li>
                     </ul>
                 </li>

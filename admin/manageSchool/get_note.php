@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../security.php';
 requireAdminAuth();
 
 header('Content-Type: application/json');

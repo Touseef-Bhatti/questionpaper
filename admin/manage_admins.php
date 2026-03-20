@@ -101,17 +101,9 @@ $admins = $conn->query("SELECT id, name, email, role, created_at FROM admins ORD
 
 // Fetch pending actions
 $pendingActions = $conn->query("SELECT id, action_type, name, email, role, created_at FROM pending_admin_actions ORDER BY created_at DESC");
+include_once __DIR__ . '/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Admins - Admin</title>
-    <link rel="stylesheet" href="../css/admin.css">
-    <link rel="stylesheet" href="../css/footer.css">
-    <link rel="stylesheet" href="../css/main.css">
-    <style>
+<style>
         .admin-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         .nav { margin-bottom: 20px; }
         .nav a { color: #1e3c72; text-decoration: none; font-weight: 500; }
@@ -147,9 +139,7 @@ $pendingActions = $conn->query("SELECT id, action_type, name, email, role, creat
         
         .empty-state { text-align: center; padding: 40px; color: #6b7280; }
     </style>
-</head>
-<body>
-    <?php include __DIR__ . '/header.php'; ?>
+
     <div class="admin-container">
         <div class="nav">
             <a href="dashboard.php">← Back to Dashboard</a>
@@ -298,5 +288,4 @@ $pendingActions = $conn->query("SELECT id, action_type, name, email, role, creat
     </div>
     
     
-</body>
-</html>
+

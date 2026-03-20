@@ -51,11 +51,12 @@ if (!$result) {
     <!-- SIDE SKYSCRAPER ADS (Auto-responsive) -->
     <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
 
-    <!-- TOP AD BANNER -->
-    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
     <h1>Select Book for Class <?= htmlspecialchars($classId) ?></h1>
 
     <div class="main-container">
+
+    <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
+    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
     <!-- MIDDLE AD BANNER -->
     <?= renderAd('banner', 'Place Middle Banner Here', 'ad-placement-top') ?>

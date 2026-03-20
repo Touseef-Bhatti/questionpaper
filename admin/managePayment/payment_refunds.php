@@ -1,12 +1,12 @@
 <?php
 // Payment Refunds Management Interface
 session_start();
-require_once '../db_connect.php';
-require_once '../services/PaymentService.php';
+require_once '../../db_connect.php';
+require_once '../../services/PaymentService.php';
 
 // Check if admin is logged in
 if (!isset($_SESSION['admin_id'])) {
-    header('Location: login.php');
+    header('Location: ../login.php');
     exit;
 }
 
@@ -347,7 +347,7 @@ $refundStats = $conn->query($sql)->fetch_assoc();
                 return;
             }
             
-            fetch(`../payment/check_status.php?order_id=${encodeURIComponent(orderId)}`, {
+            fetch(`../../payment/check_status.php?order_id=${encodeURIComponent(orderId)}`, {
                 method: 'GET',
                 credentials: 'same-origin'
             })

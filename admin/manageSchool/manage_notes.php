@@ -1,13 +1,13 @@
 <?php
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../security.php';
 requireAdminAuth();
 
 // Create table if not exists
 // Schema creation moved to install.php
 
 // File upload configuration
-$uploadDir = __DIR__ . '/../uploads/notes/';
+$uploadDir = __DIR__ . '/../../uploads/notes/';
 if (!file_exists($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
@@ -159,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->execute();
             $result = $stmt->get_result();
             if ($row = $result->fetch_assoc()) {
-                $filePath = __DIR__ . '/../' . $row['file_path'];
+                $filePath = __DIR__ . '/../../' . $row['file_path'];
                 
                 // Delete from database
                 $deleteStmt = $conn->prepare("DELETE FROM uploaded_notes WHERE note_id = ?");
@@ -235,14 +235,8 @@ $deletedQuery = "SELECT n.*, c.class_name, b.book_name, ch.chapter_name, a.name 
 $deletedResult = $conn->query($deletedQuery);
 
 $csrfToken = generateCSRFToken();
+include_once __DIR__ . '/../header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Uploaded Notes - Admin</title>
-    <link rel="stylesheet" href="../css/admin.css">
     <style>
         .notes-container {
             max-width: 1400px;
@@ -463,10 +457,7 @@ $csrfToken = generateCSRFToken();
             font-size: 1.5rem;
             cursor: pointer;
         }
-    </style>
-</head>
-<body>
-    <?php include __DIR__ . '/header.php'; ?>
+
     
     <div class="notes-container">
         <h1>📚 Manage Uploaded Notes</h1>
@@ -905,4 +896,4 @@ function formatFileSize($bytes) {
         return $bytes . ' bytes';
     }
 }
-?>
+

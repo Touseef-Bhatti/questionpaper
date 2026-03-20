@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = intval($_SESSION['user_id']);
 $sql = "SELECT name, email, created_at FROM users WHERE id = $user_id";
 $result = $conn->query($sql);
-$user = $result ? $result->fetch_assoc() : null;
+$profile = $result ? $result->fetch_assoc() : null;
 
 
 
@@ -104,19 +104,19 @@ $user = $result ? $result->fetch_assoc() : null;
   <div class="profile-content">
     <h2>Your Profile</h2>
 
-    <?php if ($user): ?>
+<?php if ($profile): ?>
       <div class="profile-info">
         <div class="info">
           <span class="label">Name:</span>
-          <span class="value"><?= htmlspecialchars($user['name']) ?></span>
+          <span class="value"><?= htmlspecialchars($profile['name']) ?></span>
         </div>
         <div class="info">
           <span class="label">Email:</span>
-          <span class="value"><?= htmlspecialchars($user['email']) ?></span>
+          <span class="value"><?= htmlspecialchars($profile['email']) ?></span>
         </div>
         <div class="info">
           <span class="label">Member Since:</span>
-          <span class="value"><?= date('F j, Y', strtotime($user['created_at'])) ?></span>
+          <span class="value"><?= date('F j, Y', strtotime($profile['created_at'])) ?></span>
         </div>
       </div>
 

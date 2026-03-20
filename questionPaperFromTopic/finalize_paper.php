@@ -47,14 +47,12 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
     <div class="container text-center animate-fade-up">
         <h1 class="hero-title" style="font-size: 2.5rem;">Finalize Assessment</h1>
         <p class="hero-subtitle mb-0">Configure your paper structure and generate the final PDF.</p>
+        
+        <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
+        <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
     </div>
 </div>
 
-<!-- SIDE SKYSCRAPER ADS (Right Only) -->
-<?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 40%;') ?>
-
-<!-- TOP AD BANNER -->
-<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
 <div class="container pb-5">
     <div class="row justify-content-center">

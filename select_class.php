@@ -33,13 +33,13 @@ if (!$classResult) {
     <!-- SIDE SKYSCRAPER ADS (Auto-responsive) -->
     <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 20%;') ?>
 
-    <!-- TOP AD BANNER -->
-    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
-
     <div class="main-content">
 
 <div class="select-class-content">
     <h1>🎓 Select Your Class for Exam Preparation</h1>
+    
+    <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
+    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
     
     <div class="description-section">
         <div class="info-banner">

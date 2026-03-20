@@ -6,8 +6,8 @@ if (isset($_GET['debug'])) {
 }
 
 try {
-    require_once __DIR__ . '/../db_connect.php';
-    require_once __DIR__ . '/security.php';
+    require_once __DIR__ . '/../../db_connect.php';
+    require_once __DIR__ . '/../security.php';
 } catch (Exception $e) {
     error_log('Database connection error in manage_books.php: ' . $e->getMessage());
     die('Database connection failed. Please check server configuration.');
@@ -100,22 +100,12 @@ if (isset($_GET['msg'])) {
 }
 
 $books = $conn->query("SELECT b.book_id, b.book_name, c.class_id, c.class_name FROM book b JOIN class c ON c.class_id=b.class_id ORDER BY b.book_id ASC");
+include_once __DIR__ . '/../header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Books</title>
-    <link rel="stylesheet" href="../css/admin.css">
-    <link rel="stylesheet" href="../css/footer.css">
-    
-</head>
-<body>
-    <?php include __DIR__ . '/header.php'; ?>
+
     <div class="wrap">
         <div class="nav">
-            <a href="dashboard.php">← Back to Dashboard</a>
+            <a href="../dashboard.php">← Back to Dashboard</a>
         </div>
         <h1>Manage Books</h1>
         <?php if ($message): ?><p class="msg"><?= htmlspecialchars($message) ?></p><?php endif; ?>
@@ -172,7 +162,6 @@ $books = $conn->query("SELECT b.book_id, b.book_name, c.class_id, c.class_name F
         </table>
     </div>
    
-</body>
-</html>
+
 
 

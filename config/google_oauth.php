@@ -35,7 +35,9 @@ class GoogleOAuthConfig
         $params = [
             'client_id' => self::getClientId(),
             'redirect_uri' => self::getRedirectUri(),
-            'scope' => 'email profile',
+            // Keep scope minimal to avoid some hosts/WAF blocking long callback URLs
+            // that include `userinfo.profile` in the `scope` query parameter.
+            'scope' => 'email',
             'response_type' => 'code',
             'access_type' => 'online',
             'prompt' => 'select_account'

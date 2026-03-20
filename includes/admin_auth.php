@@ -135,6 +135,22 @@ function requireSuperAdmin() {
 function adminPageHeader($title, $requiredRole = 'admin') {
     $user = requireAdminRole($requiredRole);
     
+    // Calculate path to root based on current script location
+    // This handles files in admin/ or admin/subdir/ or admin/subdir/subsubdir/
+    $scriptPath = $_SERVER['SCRIPT_NAME'];
+    $adminPos = strpos($scriptPath, '/admin/');
+    $relPath = '';
+    
+    if ($adminPos !== false) {
+        $afterAdmin = substr($scriptPath, $adminPos + 7); // +7 for '/admin/'
+        $depth = substr_count($afterAdmin, '/');
+        $relPath = str_repeat('../', $depth);
+        $rootRelPath = str_repeat('../', $depth + 1);
+    } else {
+        $rootRelPath = '../';
+        $relPath = './';
+    }
+
     echo "<!DOCTYPE html>
     <html lang=\"en\">
     <head>
@@ -181,8 +197,8 @@ function adminPageHeader($title, $requiredRole = 'admin') {
                         <p class=\"mb-0\">Welcome, {$user['name']} " . getRoleBadge($user['role']) . "</p>
                     </div>
                     <div class=\"col-auto\">
-                        <a href=\"../index.php\" class=\"btn btn-light\"><i class=\"fas fa-home\"></i> Home</a>
-                        <a href=\"../logout.php\" class=\"btn btn-outline-light\"><i class=\"fas fa-sign-out-alt\"></i> Logout</a>
+                        <a href=\"{$rootRelPath}index.php\" class=\"btn btn-light\"><i class=\"fas fa-home\"></i> Home</a>
+                        <a href=\"{$relPath}logout.php\" class=\"btn btn-outline-light\"><i class=\"fas fa-sign-out-alt\"></i> Logout</a>
                     </div>
                 </div>
             </div>
@@ -198,13 +214,25 @@ function adminNavigation($currentPage = '') {
     if (!isSuperAdmin()) {
         return;
     }
+
+    // Calculate path to admin root
+    $scriptPath = $_SERVER['SCRIPT_NAME'];
+    $adminPos = strpos($scriptPath, '/admin/');
+    $relPath = '';
     
+    if ($adminPos !== false) {
+        $afterAdmin = substr($scriptPath, $adminPos + 7);
+        $depth = substr_count($afterAdmin, '/');
+        $relPath = str_repeat('../', $depth);
+    }
+    
+    // Paths are now relative to admin/
     $navItems = [
-        'payment_analytics.php' => ['icon' => 'chart-line', 'title' => 'Analytics'],
-        'payment_refunds.php' => ['icon' => 'undo', 'title' => 'Refunds'],
-        'verify_payment.php' => ['icon' => 'check-circle', 'title' => 'Verify Payments'],
-        'payment_health.php' => ['icon' => 'heartbeat', 'title' => 'Health Check'],
-        'super_admin_payments.php' => ['icon' => 'credit-card', 'title' => 'All Payments'],
+        'managePayment/payment_analytics.php' => ['icon' => 'chart-line', 'title' => 'Analytics'],
+        'managePayment/payment_refunds.php' => ['icon' => 'undo', 'title' => 'Refunds'],
+        'managePayment/verify_payment.php' => ['icon' => 'check-circle', 'title' => 'Verify Payments'],
+        'managePayment/payment_health.php' => ['icon' => 'heartbeat', 'title' => 'Health Check'],
+        'managePayment/super_admin_payments.php' => ['icon' => 'credit-card', 'title' => 'All Payments'],
         'super_admin_users.php' => ['icon' => 'users', 'title' => 'All Users']
     ];
     
@@ -213,8 +241,11 @@ function adminNavigation($currentPage = '') {
                 <nav class="nav nav-pills">';
                 
     foreach ($navItems as $file => $item) {
-        $active = (basename($_SERVER['PHP_SELF']) === $file) ? 'active' : '';
-        echo "<a class=\"nav-link $active\" href=\"$file\">
+        $itemBase = basename($file);
+        $currentBase = basename($_SERVER['PHP_SELF']);
+        $active = ($currentBase === $itemBase) ? 'active' : '';
+        
+        echo "<a class=\"nav-link $active\" href=\"{$relPath}{$file}\">
                 <i class=\"fas fa-{$item['icon']}\"></i> {$item['title']}
               </a>";
     }

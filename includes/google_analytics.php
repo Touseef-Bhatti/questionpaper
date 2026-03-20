@@ -1,3 +1,7 @@
+<?php 
+$hostPart = explode(':', $_SERVER['HTTP_HOST'] ?? '')[0];
+if ($hostPart !== 'localhost' && $hostPart !== '127.0.0.1'): 
+?>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-RNM8N7JBGM"></script>
 <script>
@@ -7,3 +11,4 @@
 
   gtag('config', 'G-RNM8N7JBGM');
 </script>
+<?php endif; ?>

@@ -1,7 +1,9 @@
 <?php
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../security.php';
 requireAdminAuth();
+
+include_once __DIR__ . '/../header.php';
 
 $message = '';
 $error = '';
@@ -260,11 +262,11 @@ $csrfToken = generateCSRFToken();
     </style>
 </head>
 <body>
-    <?php include __DIR__ . '/header.php'; ?>
+    <?php include __DIR__ . '/../header.php'; ?>
 
     <div class="ai-container">
         <div class="nav">
-            <a href="dashboard.php">← Back to Dashboard</a>
+            <a href="../dashboard.php">← Back to Dashboard</a>
         </div>
 
         <div class="ai-header">

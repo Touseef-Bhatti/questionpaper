@@ -34,14 +34,15 @@ body {
 }
 
 .topic-search-container {
-    max-width: 860px;
-    width: 90%;
-    margin: 60px auto;
+    width: 60%;
+    margin: 10%;
     background: var(--card-bg);
-    padding: 48px;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xl);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 64px 48px;
+    border-radius: 40px;
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.1);
+    border: 1px solid #f1f5f9;
+    position: relative;
+    z-index: 10;
 }
 
 /* Top Navigation Buttons Styles */
@@ -93,8 +94,8 @@ body {
 
 @media (max-width: 768px) {
     .topic-search-container {
-        width: 100%;
-        margin: 0;
+        min-width: 90%;
+        margin: auto;
         padding: 20px 16px;
         border-radius: 0;
         box-shadow: none;
@@ -125,9 +126,10 @@ body {
     }
 
     .search-btn {
-        padding: 10px 14px;
+        width: 42px;
+        height: 42px;
         right: 6px;
-        font-size: 0.85rem;
+        font-size: 1rem;
     }
 
     .level-container {
@@ -150,22 +152,24 @@ body {
 }
 
 h1 {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: #1e293b;
-    margin-bottom: 12px;
-    letter-spacing: -0.025em;
+    font-size: 3.5rem;
+    font-weight: 950;
+    color: #0f172a;
+    margin-bottom: 20px;
+    letter-spacing: -0.05em;
     text-align: center;
+    line-height: 1;
 }
 
 .desc {
     text-align: center;
-    color: var(--text-muted);
-    font-size: 1.125rem;
-    margin-bottom: 40px;
-    max-width: 600px;
+    color: #64748b;
+    font-size: 1.25rem;
+    margin-bottom: 56px;
+    max-width: 650px;
     margin-left: auto;
     margin-right: auto;
+    line-height: 1.6;
 }
 
 .search-section {
@@ -203,17 +207,21 @@ h1 {
     background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
     color: white;
     border: none;
-    padding: 12px 24px;
-    border-radius: var(--radius-sm);
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    font-weight: 700;
-    transition: all 0.3s ease;
+    font-size: 1.25rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .search-btn:hover {
-    transform: translateY(-50%) translateY(-2px);
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    transform: translateY(-50%) translateY(-2px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
 }
 
 .level-container {
@@ -1069,70 +1077,121 @@ h1 {
 
 /* SEO Article Section Layout Fix */
 .seo-article-section {
-    max-width: 1200px;
-    width: 90%;
-    margin: 80px auto 120px;
-    padding: 0 20px;
+    max-width: 1400px;
+    width: 94%;
+    margin: 100px auto 140px;
+    padding: 0;
+}
+
+.seo-section-title {
+    text-align: center;
+    font-size: 2.25rem;
+    font-weight: 900;
+    color: #1e293b;
+    margin-bottom: 56px;
+    letter-spacing: -0.04em;
+    background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.seo-intro-text {
+    text-align: center;
+    max-width: 800px;
+    margin: -30px auto 60px;
+    font-size: 1.2rem;
+    line-height: 1.8;
+    color: #475569;
 }
 
 .seo-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* Force 2 columns on desktop as requested */
+    grid-template-columns: repeat(2, 1fr);
     gap: 32px;
 }
 
 .seo-card {
     background: white;
-    padding: 32px;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-    border: 1px solid #f1f5f9;
-    transition: all 0.3s ease;
+    padding: 40px;
+    border-radius: 28px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+    border: 1.5px solid #f1f5f9;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
     height: 100%;
 }
 
 .seo-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    transform: translateY(-12px);
+    box-shadow: 0 24px 48px rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.2);
 }
 
 .seo-icon {
-    font-size: 2.5rem;
-    margin-bottom: 24px;
+    width: 64px;
+    height: 64px;
+    background: #f8fafc;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    margin-bottom: 28px;
+    transition: all 0.3s ease;
+    color: var(--primary);
+}
+
+.seo-card:hover .seo-icon {
+    background: var(--primary);
+    color: white;
+    transform: rotate(-5deg) scale(1.1);
 }
 
 .seo-card-title {
-    font-size: 1.4rem;
+    font-size: 1.45rem;
     font-weight: 800;
-    color: #1e293b;
+    color: #0f172a;
     margin-bottom: 16px;
+    letter-spacing: -0.02em;
 }
 
 .seo-card-text {
     color: #64748b;
-    font-size: 1rem;
-    line-height: 1.6;
+    font-size: 1.05rem;
+    line-height: 1.7;
     margin: 0;
 }
 
 .seo-footer {
     grid-column: 1 / -1;
     text-align: center;
-    margin-top: 60px;
-    padding-top: 40px;
-    border-top: 1px solid #f1f5f9;
+    margin-top: 80px;
+    padding: 40px;
+    background: #f8fafc;
+    border-radius: 24px;
     color: #64748b;
+    font-size: 1.1rem;
 }
 
 @media (max-width: 768px) {
     .seo-grid {
         grid-template-columns: 1fr;
+        gap: 20px;
     }
     .seo-article-section {
-        margin: 40px auto 80px;
-        padding: 0 12px;
+        width: 100%;
+        margin: 60px auto 100px;
+        padding: 0 16px;
+    }
+    .seo-card {
+        padding: 28px 24px;
+        border-radius: 24px;
+    }
+    .seo-section-title {
+        font-size: 1.75rem;
+        margin-bottom: 32px;
     }
 
     /* Mobile AI Loader Fix */

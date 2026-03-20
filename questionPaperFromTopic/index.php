@@ -25,18 +25,14 @@ $userPlan = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
 <?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 15%;') ?>
 
 
-<!-- TOP AD BANNER -->
-<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
-
-<main class="animate-fade-up">
-    <!-- Hero Section -->
-    <section class="hero-builder text-center">
-        <div class="container">
-            <h1 class="hero-title animate-fade-up">Question Paper Generator</h1>
             <p class="hero-subtitle animate-fade-up">
                 AI-Powered curriculum mapping and custom question paper generator. <br>
                 Empowering educators with precision-built academic resources.
             </p>
+
+            <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
+            <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
 
             <!-- Mode Selector -->
             <div class="mode-container animate-fade-up">

@@ -1,8 +1,8 @@
 <?php
 // Payment System Health Check API
 session_start();
-require_once '../db_connect.php';
-require_once '../services/PaymentService.php';
+require_once '../../db_connect.php';
+require_once '../../services/PaymentService.php';
 
 // Set JSON header
 header('Content-Type: application/json');
@@ -35,7 +35,7 @@ try {
     
     // SafePay configuration check
     try {
-        $config = require __DIR__ . '/../config/safepay.php';
+        $config = require __DIR__ . '/../../config/safepay.php';
         if (empty($config['apiKey']) || empty($config['v1Secret'])) {
             $systemChecks['safepay'] = ['status' => 'critical', 'message' => 'SafePay credentials missing'];
             $health['status'] = 'critical';

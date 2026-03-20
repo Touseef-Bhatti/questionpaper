@@ -103,18 +103,9 @@ if (isset($_POST['action'])) {
 
 // Get all accounts and keys
 $accounts = $aiKeysSystem->getAllAccounts();
-
+include_once __DIR__ . '/../header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI API Key Management - Admin Dashboard</title>
-    <link rel="stylesheet" href="../../css/admin.css">
-    <link rel="stylesheet" href="../../css/footer.css">
-    <link rel="stylesheet" href="../../css/main.css">
-    <style>
+<style>
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -195,16 +186,13 @@ $accounts = $aiKeysSystem->getAllAccounts();
             font-size: 0.8em;
             font-weight: 600;
         }
-    </style>
-</head>
-<body>
-    <?php include __DIR__ . '/../header.php'; ?>
+
     <div class="admin-container" style="padding: 20px;">
         <div class="top">
             <h1>AI API Key Management</h1>
             <div>
                 <strong><?= htmlspecialchars($_SESSION['name'] ?? 'Admin') ?></strong>
-                <a class="logout" href="../../logout.php">Logout</a>
+                <a class="logout" href="../logout.php">Logout</a>
             </div>
         </div>
 
@@ -344,6 +332,5 @@ $accounts = $aiKeysSystem->getAllAccounts();
         <?php endif; ?>
         
     </div>
-    <?php include __DIR__ . '/../../footer.php'; ?>
-</body>
-</html>
+    
+

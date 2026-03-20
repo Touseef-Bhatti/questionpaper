@@ -1,12 +1,21 @@
 <?php
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../security.php';
 requireAdminAuth();
 
-// Ensure verification table exists (avoids error on first run)
-// Moved to install.php
-// $createTableSql = ...;
-// $conn->query($createTableSql);
+include_once __DIR__ . '/../header.php';
+
+// Ensure verification table exists (avoids error if not yet run via verify script)
+$createTableSql = "CREATE TABLE IF NOT EXISTS AIMCQsVerification (
+    mcq_id INT PRIMARY KEY,
+    verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
+    last_checked_at DATETIME,
+    suggested_correct_option TEXT,
+    original_correct_option TEXT,
+    ai_notes TEXT,
+    FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
+)";
+$conn->query($createTableSql);
 
 $message = '';
 $error = '';
@@ -247,14 +256,7 @@ if ($whereSql === '') {
 
 $csrfToken = generateCSRFToken();
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage AI Generated MCQs</title>
-    <link rel="stylesheet" href="../css/admin.css">
-    <style>
+<style>
         .ai-mcqs-container {
             max-width: 1400px;
             margin: 0 auto;
@@ -602,13 +604,11 @@ $csrfToken = generateCSRFToken();
             display: inline-block;
         }
     </style>
-</head>
-<body>
-    <?php include __DIR__ . '/header.php'; ?>
+
 
     <div class="ai-mcqs-container">
         <div class="nav">
-            <a href="dashboard.php">← Back to Dashboard</a>
+            <a href="../dashboard.php">← Back to Dashboard</a>
         </div>
 
         <div class="ai-mcqs-header">
@@ -1026,5 +1026,4 @@ $csrfToken = generateCSRFToken();
         });
     }
     </script>
-</body>
-</html>
+

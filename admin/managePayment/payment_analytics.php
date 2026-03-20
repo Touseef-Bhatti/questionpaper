@@ -4,8 +4,8 @@
  * Advanced analytics and reporting for payment data
  */
 
-require_once '../includes/admin_auth.php';
-require_once '../services/PaymentService.php';
+require_once '../../includes/admin_auth.php';
+require_once '../../services/PaymentService.php';
 
 // Require admin access
 $user = adminPageHeader('Payment Analytics', 'admin');
@@ -25,20 +25,9 @@ $healthStatus = $paymentService->getHealthStatus();
 $stats = $paymentService->getPaymentStatistics($period);
 
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Analytics - Admin Dashboard</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f8f9fa;
-            padding: 20px;
-        }
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
         
         .container {
             max-width: 1400px;
@@ -194,10 +183,9 @@ $stats = $paymentService->getPaymentStatistics($period);
             }
         }
     </style>
-</head>
-<body>
+
     <div class="container">
-        <a href="dashboard.php" class="back-link">← Back to Dashboard</a>
+        <a href="../dashboard.php" class="back-link">← Back to Dashboard</a>
         
         <div class="header">
             <h1>💰 Payment Analytics</h1>
@@ -417,5 +405,4 @@ $stats = $paymentService->getPaymentStatistics($period);
             .catch(error => console.error('Health check failed:', error));
         }, 300000); // 5 minutes
     </script>
-</body>
-</html>
+

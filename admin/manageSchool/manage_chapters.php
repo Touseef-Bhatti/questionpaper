@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../security.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 requireAdminAuth();
@@ -184,22 +184,12 @@ if ($filterBookId > 0) {
 $whereSql = count($wheres) ? ('WHERE ' . implode(' AND ', $wheres)) : '';
 
 $chapters = $conn->query("SELECT ch.chapter_id, ch.chapter_name, ch.class_id, ch.book_name, c.class_name, b.book_id FROM chapter ch LEFT JOIN class c ON c.class_id = ch.class_id LEFT JOIN book b ON b.class_id = ch.class_id AND b.book_name = ch.book_name $whereSql ORDER BY $orderExpr $sortDir");
+include_once __DIR__ . '/../header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Chapters</title>
-    <link rel="stylesheet" href="../css/admin.css">
-    <link rel="stylesheet" href="../css/footer.css">
-    
-</head>
-<body>
-    <?php include __DIR__ . '/header.php'; ?>
+
     <div class="wrap">
         <div class="nav">
-            <a href="dashboard.php">← Back to Dashboard</a>
+            <a href="../dashboard.php">← Back to Dashboard</a>
         </div>
         <h1>Manage Chapters</h1>
         <?php if ($message): ?><p class="msg" style="color:green;"><?= htmlspecialchars($message) ?></p><?php endif; ?>
@@ -396,7 +386,4 @@ $chapters = $conn->query("SELECT ch.chapter_id, ch.chapter_name, ch.class_id, ch
             bookSelect.disabled = true; // Initially disabled
         });
     </script>
-</body>
-</html>
-
-
+    </script>

@@ -44,12 +44,12 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
     <!-- SIDE SKYSCRAPER ADS -->
     <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
 
-    <!-- TOP AD BANNER -->
-    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
-    
-
 <div class="question-container">
     <h3>Generate Question Paper for Book: <?= htmlspecialchars($book_name) ?> (Class <?= htmlspecialchars($classId) ?>)</h3>
+    
+    <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
+    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
 
     <form method="POST" action="select_topics.php">
         <input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">

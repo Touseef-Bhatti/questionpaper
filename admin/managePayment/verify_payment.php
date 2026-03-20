@@ -1,12 +1,12 @@
 <?php
 // Admin Payment Verification Interface
 session_start();
-require_once '../db_connect.php';
-require_once '../services/PaymentService.php';
+require_once '../../db_connect.php';
+require_once '../../services/PaymentService.php';
 
 // Check if admin is logged in
 if (!isset($_SESSION['admin_id'])) {
-    header('Location: login.php');
+    header('Location: ../login.php');
     exit;
 }
 
@@ -172,7 +172,7 @@ $recentPayments = $paymentService->getPaymentStatistics(7); // Last 7 days
 </head>
 <body>
     <div class="container">
-        <a href="dashboard.php" class="back-link">← Back to Dashboard</a>
+        <a href="../dashboard.php" class="back-link">← Back to Dashboard</a>
         
         <div class="header">
             <h1>Payment Verification</h1>

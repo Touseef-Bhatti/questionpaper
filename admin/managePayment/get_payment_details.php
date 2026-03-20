@@ -4,7 +4,7 @@
  * Returns detailed payment information for admin panel
  */
 
-require_once '../includes/admin_auth.php';
+require_once '../../includes/admin_auth.php';
 
 // Require super admin access
 requireSuperAdmin();
@@ -17,7 +17,7 @@ if (!$paymentId || !is_numeric($paymentId)) {
     exit;
 }
 
-require_once '../db_connect.php';
+require_once '../../db_connect.php';
 
 // Get detailed payment information
 $sql = "SELECT p.*, 

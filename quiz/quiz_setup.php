@@ -69,11 +69,11 @@ include '../db_connect.php';
 <!-- SIDE SKYSCRAPER ADS -->
 <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 10%;') ?>
 
-<!-- TOP AD BANNER -->
-<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
-
 <div class="main-content">
     <div class="quiz-setup-container">
+        <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
+        <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+
         <header class="setup-header">
             <h1>Master Your Exams with Custom Quizzes</h1>
             <p class="desc">Ahmad Learning Hub provides a personalized learning experience. Select your current academic level below to generate a focused MCQ practice session tailored to your syllabus.</p>

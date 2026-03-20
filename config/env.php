@@ -16,6 +16,7 @@ class EnvLoader
         'AI_DAILY_QUOTA_PER_KEY' => '100000',
         'AI_MAX_RETRIES' => '3',
         'AI_RETRY_DELAY_MS' => '100',
+        'GENERATING_KEYWORDS_KEY' => '',
     ];
 
     /**
@@ -62,6 +63,9 @@ class EnvLoader
             $candidates[] = __DIR__ . '/.env.production';
             $candidates[] = __DIR__ . '/.env.local';
             $candidates[] = __DIR__ . '/.env';
+            $candidates[] = __DIR__ . '/../.env.production';
+            $candidates[] = __DIR__ . '/../.env.local';
+            $candidates[] = __DIR__ . '/../.env';
             
             // Use the first existing file
             $envFile = null;

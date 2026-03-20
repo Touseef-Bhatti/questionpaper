@@ -51,3 +51,4 @@
 </footer>
 <?php include __DIR__ . '/cookie_consent.php'; ?>
 <?php include __DIR__ . '/user_type_selection.php'; ?>
+<?= renderMonetagScripts() ?>

@@ -235,7 +235,6 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS api_keys (
 // 8. AI MCQs Verification (manage_ai_mcqs.php)
 runQuery($conn, "CREATE TABLE IF NOT EXISTS AIGeneratedMCQs (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    topic_id INT DEFAULT NULL,
     topic VARCHAR(255) NOT NULL,
     question_text TEXT NOT NULL,
     option_a TEXT NOT NULL,
@@ -243,10 +242,28 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS AIGeneratedMCQs (
     option_c TEXT NOT NULL,
     option_d TEXT NOT NULL,
     correct_option TEXT NOT NULL,
-    generated_at DATETIME NOT NULL,
-    INDEX idx_topic (topic),
-    INDEX idx_topic_id (topic_id)
+    generated_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIGeneratedMCQs");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS AIMCQsVerification (
+    mcq_id INT PRIMARY KEY,
+    verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
+    last_checked_at DATETIME,
+    suggested_correct_option TEXT,
+    original_correct_option TEXT,
+    ai_notes TEXT,
+    FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIMCQsVerification");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS MCQsVerification (
+    mcq_id INT PRIMARY KEY,
+    verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
+    last_checked_at DATETIME,
+    suggested_correct_option TEXT,
+    original_correct_option TEXT,
+    ai_notes TEXT,
+    FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: MCQsVerification");
 
 // 8.1 AI Questions Topic (Normalized Topic Storage)
 runQuery($conn, "CREATE TABLE IF NOT EXISTS AIQuestionsTopic (
@@ -255,16 +272,6 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS AIQuestionsTopic (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIQuestionsTopic");
 
-// 8.2 Generated Topics (Topic Search Cache)
-runQuery($conn, "CREATE TABLE IF NOT EXISTS generated_topics (
-    id INT AUTO_INCREMENT PRIMARY KEY, 
-    topic_name VARCHAR(255) UNIQUE, 
-    source_term VARCHAR(255),
-    question_types VARCHAR(255),
-    keywords TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: generated_topics");
-
 // 18. Quiz Rooms
 runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_rooms (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -272,9 +279,7 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_rooms (
     room_code VARCHAR(10) NOT NULL UNIQUE,
     class_id INT NOT NULL,
     book_id INT NOT NULL,
-    mcq_count INT DEFAULT 10,
     duration_mins INT DEFAULT 30,
-    quiz_started BOOLEAN DEFAULT FALSE,
     lobby_enabled BOOLEAN DEFAULT TRUE,
     start_time DATETIME NULL,
     active_question_ids TEXT DEFAULT NULL,
@@ -292,27 +297,20 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_room_questions (
     option_c TEXT NOT NULL,
     option_d TEXT NOT NULL,
     correct_option TEXT NOT NULL,
-    display_order INT DEFAULT 0,
     FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_room_questions");
 
 runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_participants (
     id INT AUTO_INCREMENT PRIMARY KEY,
     room_id INT NOT NULL,
-    user_id INT NULL,
     roll_number VARCHAR(50) NOT NULL,
     name VARCHAR(255) NOT NULL,
     score INT DEFAULT 0,
-    current_question INT DEFAULT 0,
-    time_remaining_sec INT NULL,
     question_order TEXT NULL,
     last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('lobby', 'waiting', 'active', 'in_progress', 'completed', 'disconnected') DEFAULT 'lobby',
+    status ENUM('lobby', 'in_progress', 'completed') DEFAULT 'lobby',
     FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    UNIQUE KEY unique_participant (room_id, roll_number),
-    INDEX idx_room_status (room_id, status)
+    UNIQUE KEY unique_participant (room_id, roll_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_participants");
 
 runQuery($conn, "CREATE TABLE IF NOT EXISTS live_quiz_events (
@@ -334,28 +332,12 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_responses (
     selected_option VARCHAR(1) NULL,
     is_correct TINYINT(1) NULL,
     time_spent_sec INT NULL,
-    answered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (participant_id) REFERENCES quiz_participants(id) ON DELETE CASCADE,
     FOREIGN KEY (question_id) REFERENCES quiz_room_questions(id) ON DELETE CASCADE,
     UNIQUE KEY unique_response (participant_id, question_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_responses");
 
-// 18.2 User Saved Questions (Personal Question Bank)
-runQuery($conn, "CREATE TABLE IF NOT EXISTS user_saved_questions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    question_text TEXT NOT NULL,
-    option_a TEXT NOT NULL,
-    option_b TEXT NOT NULL,
-    option_c TEXT NOT NULL,
-    option_d TEXT NOT NULL,
-    correct_option CHAR(1) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user_saved (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: user_saved_questions");
-
-// 18.3 Usage Tracking
+// 18.2 Usage Tracking
 runQuery($conn, "CREATE TABLE IF NOT EXISTS usage_tracking (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -368,7 +350,7 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS usage_tracking (
     INDEX idx_user_action (user_id, action, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: usage_tracking");
 
-// 18.4 User Generated Papers Log (Specific tracking for papers)
+// 18.3 User Generated Papers Log (Specific tracking for papers)
 runQuery($conn, "CREATE TABLE IF NOT EXISTS user_generated_papers_log (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -428,19 +410,17 @@ if (!$result || $result->num_rows == 0) {
     runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN host_id INT NOT NULL DEFAULT 1", "Column: quiz_rooms.host_id");
 }
 
-// Check if AIGeneratedMCQs has topic_id column
-$result = $conn->query("SHOW COLUMNS FROM AIGeneratedMCQs LIKE 'topic_id'");
+// Check if AIMCQsVerification has original_correct_option
+$result = $conn->query("SHOW COLUMNS FROM AIMCQsVerification LIKE 'original_correct_option'");
 if (!$result || $result->num_rows == 0) {
-    runQuery($conn, "ALTER TABLE AIGeneratedMCQs ADD COLUMN topic_id INT DEFAULT NULL AFTER id", "Column: AIGeneratedMCQs.topic_id");
-    runQuery($conn, "ALTER TABLE AIGeneratedMCQs ADD INDEX idx_topic_id (topic_id)", "Index: AIGeneratedMCQs.idx_topic_id");
+    runQuery($conn, "ALTER TABLE AIMCQsVerification ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option", "Column: AIMCQsVerification.original_correct_option");
 }
 
-// Check if generated_topics has keywords column
-$result = $conn->query("SHOW COLUMNS FROM generated_topics LIKE 'keywords'");
+// Check if MCQsVerification has original_correct_option
+$result = $conn->query("SHOW COLUMNS FROM MCQsVerification LIKE 'original_correct_option'");
 if (!$result || $result->num_rows == 0) {
-    runQuery($conn, "ALTER TABLE generated_topics ADD COLUMN keywords TEXT AFTER topic_name", "Column: generated_topics.keywords");
+    runQuery($conn, "ALTER TABLE MCQsVerification ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option", "Column: MCQsVerification.original_correct_option");
 }
-
 // ========== PERFORMANCE INDEXES - CRITICAL FOR PRODUCTION ==========
 echo "\n\n=== Creating Performance Indexes ===\n";
 
@@ -521,10 +501,4 @@ echo "\n\n=== Performance Indexes Created ===\n";
 
 echo "\nInstallation complete!\n";
 echo "</pre>";
-echo "<h2>Database Setup Complete</h2>";
-echo "<p>All tables and indexes have been initialized.</p>";
-echo "<div style='margin-top: 20px;'>";
-echo "<a href='index.php' style='display: inline-block; padding: 12px 24px; background: #4f6ef7; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-right: 10px;'>Go to Homepage</a>";
-echo "<a href='quiz/online_quiz_dashboard.php' style='display: inline-block; padding: 12px 24px; background: #2ecc71; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;'>Quiz Dashboard</a>";
-echo "</div>";
 ?>

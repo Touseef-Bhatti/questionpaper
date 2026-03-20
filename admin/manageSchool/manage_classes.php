@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../security.php';
 requireAdminAuth();
 
 if (session_status() === PHP_SESSION_NONE) session_start();
@@ -72,22 +72,12 @@ if (isset($_GET['msg'])) {
 }
 
 $classes = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC");
+include_once __DIR__ . '/../header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Classes</title>
-    <link rel="stylesheet" href="../css/admin.css">
-    <link rel="stylesheet" href="../css/footer.css">
-</head>
-<body>
-    <?php include __DIR__ . '/header.php'; ?>
-    <div class="wrap">
+
     <div class="wrap">
         <div class="nav">
-            <a href="dashboard.php">← Back to Dashboard</a>
+            <a href="../dashboard.php">← Back to Dashboard</a>
         </div>
         <h1>Manage Classes</h1>
         <?php if ($message): ?><p class="msg"><?= htmlspecialchars($message) ?></p><?php endif; ?>
@@ -134,7 +124,6 @@ $classes = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_i
         </table>
     </div>
    
-</body>
-</html>
+
 
 

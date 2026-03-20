@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../db_connect.php';
-require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../security.php';
 requireAdminAuth();
 
 $hasBookName = false;
@@ -479,16 +479,9 @@ if ($hasBookName) {
 } else {
     $questions = $conn->query("SELECT $qTable.id, $qTable.class_id, IFNULL(c.book_name,'') AS book_name, $qTable.book_id, $qTable.chapter_id, c.chapter_name, $typeExpr AS question_type, $textExpr AS question_text, $qTable.topic FROM questions $qTable $joinChapter $joinBook $where ORDER BY $orderExpr $sortDir" . ($questionsLimit ? " $questionsLimit" : ""));
 }
+include_once __DIR__ . '/../header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Questions</title>
-    <link rel="stylesheet" href="../css/admin.css">
-    <link rel="stylesheet" href="../css/footer.css">
-    <style>
+<style>
         .mcq-options-display {
             margin-top: 8px;
             padding: 8px;
@@ -506,18 +499,16 @@ if ($hasBookName) {
         }
     </style>
     
-</head>
-<body>
-    <?php include __DIR__ . '/header.php'; ?>
+
     <div class="wrap">
         <div class="nav">
-            <a href="dashboard.php">← Back to Dashboard</a>
+            <a href="../dashboard.php">← Back to Dashboard</a>
         </div>
         <h1>Manage Questions</h1>
         <?php if ($message): ?><p class="msg"><?= htmlspecialchars($message) ?></p><?php endif; ?>
 
             <div style="margin-top:24px; text-align: center;">
-            <a href="deleted_questions.php" class="btn" style="display: inline-block; padding: 12px 24px; font-size: 16px; text-decoration: none; background: #28a745; color: white; border-radius: 8px; transition: background 0.3s;">
+            <a href="../deleted_questions.php" class="btn" style="display: inline-block; padding: 12px 24px; font-size: 16px; text-decoration: none; background: #28a745; color: white; border-radius: 8px; transition: background 0.3s;">
                 🗑️ View Recently Deleted Questions
             </a>
         </div>
@@ -1178,8 +1169,7 @@ if ($hasBookName) {
         <?php endif; ?>
 
     </div>
-</body>
-</html>
+
 
 
 
