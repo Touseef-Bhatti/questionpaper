@@ -1,7 +1,7 @@
 <?php
 session_start();
 // quiz_setup.php - Public quiz setup page
-include '../db_connect.php';
+include_once '../db_connect.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -57,11 +57,11 @@ include '../db_connect.php';
     <meta property="twitter:description" content="Tailor your study sessions with our advanced MCQ generator. Practice by class, book, or specific chapters.">
     <meta property="twitter:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-og.jpg">
 
-    <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/quiz_setup.css">
-    <link rel="stylesheet" href="../css/ai_loader.css">
+    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/main.css">
+    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/quiz_setup.css">
+    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/ai_loader.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="../js/ai_loader.js" defer></script>
+    <script src="<?= ($assetBase ?? '') ?>js/ai_loader.js" defer></script>
 </head>
 <body>
 <?php include_once '../header.php'; ?>
@@ -105,7 +105,7 @@ include '../db_connect.php';
                         <select id="book_id" name="book_id" required disabled>
                             <option value="">Select a book</option>
                         </select>
-                        <button type="button" class="btn topic-btn" onclick="window.location.href='mcqs_topic.php'">Topic</button>
+                        <button type="button" class="btn topic-btn" onclick="window.location.href='mcqs_topic'">Topic</button>
                     </div>
                     <div class="hint">Books are filtered by class.</div>
                 </div>

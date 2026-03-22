@@ -84,9 +84,14 @@ if (!$result) {
 
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Select chapters for 9th or 10th Class books to generate custom question papers and online tests. Tailored for Punjab Board new syllabus and up-to-date papers.">
-    <meta name="keywords" content="9th class, 10th class, question paper generator, online mcqs, quiz, test paper, new syllabus punjab board, pakistan board up to date papers, online tests, notes">
-	<title>9th & 10th Class Question Papers Generator, Online Tests & Notes | Ahmad Learning Hub</title>
+
+
+
+<meta name="description" content="Select chapters for <?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> to generate custom question papers and practice tests. Tailored to Punjab Board syllabus with up-to-date MCQs, past papers, and study resources.">
+<meta name="keywords" content="<?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> chapter selection, <?= htmlspecialchars($classId) ?> class question papers, Punjab Board MCQs, online tests chapter-wise, generate paper for <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?>, subject-wise test generator, Pakistan Board exam preparation">
+<title><?= htmlspecialchars($classId) ?> Class <?= htmlspecialchars($book_name) ?> Chapter Selection for Question Papers | Punjab Board Generator</title>
+
+
   
 <script>
 document.addEventListener('DOMContentLoaded', function() {

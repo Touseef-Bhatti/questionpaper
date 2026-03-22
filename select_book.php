@@ -40,9 +40,13 @@ if (!$result) {
     <link rel="stylesheet" href="css/buttons.css">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Select a book for 9th or 10th Class to generate question papers, take online MCQs, and access notes. Ahmad Learning Hub offers up-to-date Punjab Board syllabus resources.">
-    <meta name="keywords" content="9th class, 10th class, question paper generator, online mcqs, quiz, test paper, new syllabus punjab board, pakistan board up to date papers, online tests, notes">
-    <title>9th & 10th Class Question Papers Generator, Online Tests & Notes | Ahmad Learning Hub</title>
+
+<meta name="description" content="Select a subject for <?= htmlspecialchars($classId) ?> class to generate question papers based on Punjab Board patterns. Create MCQs tests, chapter-wise papers, and school exam papers instantly.">
+
+<meta name="keywords" content="<?= htmlspecialchars($classId) ?> class subjects, <?= htmlspecialchars($classId) ?> paper generator, Punjab Board subjects, online MCQs test <?= htmlspecialchars($classId) ?>, subject-wise question papers, test generator Pakistan">
+
+
+    <title>Select Subject for <?= htmlspecialchars($classId) ?> Class Paper Generator | Punjab Board</title>
   
 </head>
 <body>
@@ -51,7 +55,7 @@ if (!$result) {
     <!-- SIDE SKYSCRAPER ADS (Auto-responsive) -->
     <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
 
-    <h1>Select Book for Class <?= htmlspecialchars($classId) ?></h1>
+    <h1>Select Subject to Generate <?= htmlspecialchars($classId) ?> Class Question Paper</h1>
 
     <div class="main-container">
 
@@ -88,19 +92,38 @@ if (!$result) {
     </div>
     <button class="go-back-btn" onclick="window.history.back()">⬅ Go Back</button>
 
+
+<p class="seo-subject-info">
+    Choose a subject for <?= htmlspecialchars($classId) ?> class to generate Punjab Board  
+    question papers, MCQs tests, and chapter-wise exam papers instantly.
+</p>
     </div>
 <?php include 'footer.php'; ?>
 
     <script>
         const classId = '<?= urlencode($classId) ?>';
         
+        function getOrdinalSuffix(i) {
+            var j = i % 10, k = i % 100;
+            if (j == 1 && k != 11) return i + "st";
+            if (j == 2 && k != 12) return i + "nd";
+            if (j == 3 && k != 13) return i + "rd";
+            return i + "th";
+        }
+
         function navigateToChapters(el) {
             const bookName = el.getAttribute('data-book-name');
             if (!bookName) {
                 alert('Please select a valid book.');
                 return;
             }
-            window.location.href = `select_chapters.php?class_id=${classId}&book_name=${encodeURIComponent(bookName)}`;
+            
+            // Generate SEO-friendly slug
+            const bookSlug = bookName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            const classOrdinal = getOrdinalSuffix(parseInt(classId));
+            
+            // Construct the SEO-optimized URL
+            window.location.href = `${classOrdinal}-class-${bookSlug}-question-paper-generator`;
         }
         
         function showComingSoon() {

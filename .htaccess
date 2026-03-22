@@ -16,3 +16,45 @@ Options -Indexes
 <FilesMatch "\.(bak|sql|tar|gz|zip)$">
     Require all denied
 </FilesMatch>
+
+# SEO-Optimized URL Rewriting
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 1. Map root-level requests to 'quiz/' folder
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/quiz/$1.php -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/quiz/$1 -f
+    RewriteRule ^([^/]+)$ quiz/$1 [L]
+
+    # 2. Map root-level requests to 'questionPaperFromTopic/' folder
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/questionPaperFromTopic/$1.php -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/questionPaperFromTopic/$1 -f
+    RewriteRule ^([^/]+)$ questionPaperFromTopic/$1 [L]
+
+    # 3. Map root-level requests to 'notes/' folder
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/notes/$1.php -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/notes/$1 -f
+    RewriteRule ^([^/]+)$ notes/$1 [L]
+
+    # 4. Map root-level requests to 'auth/' folder
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/auth/$1.php -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/auth/$1 -f
+    RewriteRule ^([^/]+)$ auth/$1 [L]
+
+    # 5. Handle SEO pattern for class/book question paper generator
+    # Matches patterns like: 10th-class-physics-question-paper-generator
+    RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-question-paper-generator/?$ select_chapters.php?class_id=$1&book_name=$2 [QSA,NC,L]
+
+    # 4. Hide .php extensions for a cleaner URL structure (General Root Files)
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^(.*)$ $1.php [NC,L]
+</IfModule>

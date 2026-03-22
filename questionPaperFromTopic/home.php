@@ -18,8 +18,8 @@ $userPlan = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
 ?>
 
 <!-- Link Professional CSS -->
-<link rel="stylesheet" href="../css/paper-builder.css?v=<?= time() . rand(7000, 8000) ?>">
-<link rel="stylesheet" href="../css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
+<link rel="stylesheet" href="<?= $assetBase ?>css/paper-builder.css?v=<?= time() . rand(7000, 8000) ?>">
+<link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
 
 <!-- SIDE SKYSCRAPER ADS (Right Only) -->
 <?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 15%;') ?>

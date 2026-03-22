@@ -84,7 +84,7 @@ if ($success) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Admin Action - Admin</title>
-    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <style>
         .container { max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .success { color: #155724; background: #d4edda; padding: 15px; border-radius: 6px; margin-bottom: 20px; }

@@ -238,7 +238,7 @@ $csrfToken = generateCSRFToken();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage AI Long Questions</title>
-    <link rel="stylesheet" href="../css/admin.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/admin.css">
     <style>
         .ai-container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
         .ai-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }

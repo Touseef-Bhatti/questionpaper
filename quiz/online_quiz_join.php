@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
   </script>
 
-  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {

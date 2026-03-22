@@ -82,9 +82,9 @@ if (empty($_SESSION['csrf_token'])) {
 <html lang="en">
 <head>
    
-    <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/header.css">
-    <link rel="stylesheet" href="../css/checkout.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/header.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/checkout.css">
     <?php include '../header.php'; ?>
 
     <meta charset="UTF-8">

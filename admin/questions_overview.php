@@ -26,9 +26,9 @@ $result = $conn->query($sql);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Questions Overview - Admin Dashboard</title>
-    <link rel="stylesheet" href="../css/admin.css">
-    <link rel="stylesheet" href="../css/footer.css">
-    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/admin.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/footer.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <style>
         .stats-table {
             width: 100%;

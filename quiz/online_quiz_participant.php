@@ -68,7 +68,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Participant Details | Ahmad Learning Hub</title>
 
-    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {

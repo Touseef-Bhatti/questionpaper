@@ -259,7 +259,7 @@ $missing_count = max(0, $target_count - $current_count);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Room Questions - <?= htmlspecialchars($room_code) ?></title>
-    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <style>
         :root {
             --primary: #4f46e5;

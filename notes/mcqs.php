@@ -307,10 +307,10 @@ if ($viewMcqs) {
     </script>
     <?php endif; ?>
     
-    <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/notes.css">
-    <link rel="stylesheet" href="../css/buttons.css">
-    <link rel="stylesheet" href="../css/notes-mcqs.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/notes.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/notes-mcqs.css">
     <style>
        
     </style>

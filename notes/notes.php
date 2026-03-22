@@ -1,6 +1,7 @@
 <?php
 // Require authentication before accessing this page
 // require_once 'auth/auth_check.php';
+include '../db_connect.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -8,9 +9,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Materials - Ahmad Learning Hub</title>
-    <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/notes.css">
-    <link rel="stylesheet" href="../css/buttons.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/notes.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css">
    
 </head>
 <body>

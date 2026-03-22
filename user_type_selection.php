@@ -176,7 +176,7 @@
     function updateLinks(type) {
         // Only target links in nav and footer to minimize iteration
         // Also target links that explicitly point to our target files
-        const links = document.querySelectorAll('nav a, footer a, [href*="select_class.php"], [href*="quiz_setup.php"], [href*="questionPaperFromTopic"], [href*="mcqs_topic.php"]');
+        const links = document.querySelectorAll('nav a, footer a, a[href*="select_class"], a[href*="quiz_setup"], a[href*="mcqs_topic"], a[href*="home"]');
         
         // Batch the updates to avoid layout thrashing
         const updates = [];
@@ -189,16 +189,18 @@
             const targetQuizSetup = 'quiz_setup.php';
 
             if (type === 'Other') {
-                if (href.includes(targetGeneratePaper)) {
-                    updates.push(() => { link.href = link.href.replace('select_class.php', 'questionPaperFromTopic/index.php'); });
-                } else if (href.includes(targetQuizSetup)) {
-                    updates.push(() => { link.href = link.href.replace('quiz_setup.php', 'mcqs_topic.php'); });
+                // Change 'Select Class' to 'Home' (AI Generator) and 'Quiz Setup' to 'MCQs Topic'
+                if (href.includes('select_class')) {
+                    updates.push(() => { link.href = link.href.replace('select_class', 'home'); });
+                } else if (href.includes('quiz_setup')) {
+                    updates.push(() => { link.href = link.href.replace('quiz_setup', 'mcqs_topic'); });
                 }
             } else if (type === 'School') {
-                if (href.includes('questionPaperFromTopic/index.php')) {
-                    updates.push(() => { link.href = link.href.replace('questionPaperFromTopic/index.php', 'select_class.php'); });
-                } else if (href.includes('mcqs_topic.php')) {
-                    updates.push(() => { link.href = link.href.replace('mcqs_topic.php', 'quiz_setup.php'); });
+                // Change 'Home' (AI Generator) back to 'Select Class' and 'MCQs Topic' back to 'Quiz Setup'
+                if (href.includes('home')) {
+                    updates.push(() => { link.href = link.href.replace('home', 'select_class'); });
+                } else if (href.includes('mcqs_topic')) {
+                    updates.push(() => { link.href = link.href.replace('mcqs_topic', 'quiz_setup'); });
                 }
             }
         });

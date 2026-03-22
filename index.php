@@ -10,9 +10,10 @@ include 'db_connect.php';
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Ahmad Learning Hub helps 9th and 10th class students prepare for Punjab Board exams with free online tests, chapter-wise MCQs, past papers, notes, and guess papers. Teachers can generate question papers and host online quizzes easily.">
-    <meta name="keywords" content="online exam preparation, 9th class, 10th class, Punjab Board, online test, MCQs, past papers, solved notes, guess papers, chapter-wise test, paper generator, Ahmad Learning Hub, quiz for students, Pakistan exams, test preparation, online learning, board exams">
-    <title>Ahmad Learning Hub - Online Exam Preparation, Past Papers & Notes for 9th & 10th Class Punjab Board</title>
+    <meta name="description" content="Ahmad Learning Hub is an all-in-one question paper generator and exam preparation platform for students and teachers in Pakistan and India. Create school, college, and university tests with board exam patterns, MCQs, subjective questions, past papers, and online quizzes.">
+
+<meta name="keywords" content="question paper generator, online test maker, exam paper creator, MCQs test online, board exam preparation, school test generator, college exam papers, university test maker, online quiz maker, Punjab Board, CBSE, ICSE, Pakistan exams, India exams, past papers, solved notes, guess papers, Ahmad Learning Hub  ">
+    <title>Ahmad Learning Hub – Generate Question Papers for All Classes | School, College & University Tests </title>
     
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/index.css">
@@ -34,14 +35,16 @@ include 'db_connect.php';
             <div class="container hero-grid">
                 
                 <div class="hero-content">
-                    <div class="eyebrow">Intelligent Exam Preparation</div>
-                    <h1 class="hero-title">Ahmad Learning Hub — Smarter, Faster, Future-Ready</h1>
-                    <p class="subtitle">Prepare for 9th & 10th Punjab Board exams with adaptive tests, chapter-wise practice, instant analytics and printable papers — all in one modern platform.</p>
+                    <div class="eyebrow" style="color: aliceblue;">Intelligent Exam Preparation</div>
+                    <h1 class="hero-title">Ahmad Learning Hub  —Smarter and Faster</h1>
+                    <p class="subtitle">All-in-one question paper generator for 9th & 10th — build Punjab Board-style exams, school tests, and practice papers with real exam patterns, MCQs, and instant downloads.</p>
+                    <br><br>
+
 
                     <div class="hero-actions">
-                        <a href="select_class.php" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
-                        <a href="quiz/quiz_setup.php" class="button secondary"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
-                        <a href="notes/notes.php" class="button ghost"><i class="fas fa-book-reader"></i> Notes & Guides</a>
+                        <a href="select_class" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                        <a href="quiz_setup" class="button secondary"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
+                        <a href="notes" class="button ghost"><i class="fas fa-book-reader"></i> Notes & Guides</a>
                     </div>
 
                     <div class="hero-stats">
@@ -56,7 +59,7 @@ include 'db_connect.php';
         </section>
 
         <?= renderAd('banner', 'Place Top Banner Here') ?>
-
+<br>
         <!-- HOW IT WORKS -->
         <section class="how-section">
             <div class="container">
@@ -80,7 +83,7 @@ include 'db_connect.php';
                 </div>
             </div>
         </section>
-        
+        <br>
         <?= renderAd('banner', 'Place Middle Banner Here') ?>
         <br>
         <!-- TEACHERS & TOOLS -->
@@ -91,24 +94,25 @@ include 'db_connect.php';
                         <div class="card">
                             <h3>Teacher tools</h3>
                             <p>Create quizzes, generate papers, and manage questions.</p>
-                            <a class="btn btn-primary" href="select_class.php">Generate Question Paper</a>
-                            <a class="btn btn-outline" href="quiz/online_quiz_host_new.php">Host a Quiz</a>
+                            <a class="btn btn-primary" href="select_class">Generate Question Paper</a>
+                            <a class="btn btn-outline" href="online_quiz_host_new">Host a Quiz</a>
                             
-                            <a class="btn btn-ghost" href="notes/notes.php">View Notes</a>
+                            <a class="btn btn-ghost" href="notes">View Notes</a>
                         </div>
                     </div>
                     <div>
                         <div class="card">
                             <h3>For students</h3>
                             <p>Join quizzes, take tests, and access study materials.</p>
-                            <a class="btn btn-primary" href="quiz/online_quiz_join.php">Join Quiz</a>
-                            <a class="btn btn-outline" href="quiz/quiz_setup.php">Take Online Test</a>
-                            <a class="btn btn-ghost" href="notes/notes.php">View Notes</a>
+                            <a class="btn btn-primary" href="online_quiz_join">Join Quiz</a>
+                            <a class="btn btn-outline" href="quiz_setup">Take Online Test</a>
+                            <a class="btn btn-ghost" href="notes">View Notes</a>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
+        <br>
 
         <?= renderAd('banner', 'Place Bottom Banner Here') ?>
 
@@ -121,8 +125,8 @@ include 'db_connect.php';
                     <p>Join thousands of students and educators who trust Ahmad Learning Hub for smarter, faster, and future-ready <span class="keyword">online quizzes</span>, <span class="keyword">practice tests</span>, and <span class="keyword">question paper generation</span>. Unlock adaptive tests, generate custom <span class="keyword">study materials</span>, and host engaging quizzes with ease.</p>
                     <p>Whether you're a student aiming for top grades or a teacher looking to streamline assessment, Ahmad Learning Hub provides the tools you need to succeed. Get started today and transform your learning and teaching experience with our comprehensive <span class="keyword">exam preparation platform</span>!</p>
                     <div class="cta-actions">
-                        <a href="select_class.php" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
-                        <a href="quiz/quiz_setup.php" class="button ghost"><i class="fas fa-laptop-code"></i> Start Test</a>
+                        <a href="select_class" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                        <a href="quiz_setup" class="button ghost"><i class="fas fa-laptop-code"></i> Start Test</a>
                     </div>
                 </div>
             </div>

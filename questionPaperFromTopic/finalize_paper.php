@@ -11,8 +11,8 @@ $subscriptionStatus = getSubscriptionInfo();
 $isPremium = $subscriptionStatus && $subscriptionStatus['is_premium'];
 $userPlan = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
 ?>
-<link rel="stylesheet" href="../css/paper-builder.css?v=<?= time() . rand(11000, 12000) ?>">
-<link rel="stylesheet" href="../css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
+<link rel="stylesheet" href="<?= $assetBase ?>css/paper-builder.css?v=<?= time() . rand(11000, 12000) ?>">
+<link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
 
 <?php
 // Ensure we have topics to process

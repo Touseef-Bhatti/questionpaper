@@ -27,7 +27,7 @@ function join_url($code){
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Live Quiz Dashboard - Ahmad Learning Hub</title>
-  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
   <style>
     .container-narrow { max-width: 1100px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); padding: 20px; }
     .flex { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

@@ -156,8 +156,8 @@ $prefix = ($scriptDir === '/' || $scriptDir === '') ? '' : $scriptDir;
 // Debug aid: leave an HTML comment showing the computed prefix (remove in production if needed)
 echo "<!-- CSS prefix: " . htmlspecialchars($prefix) . " -->\n";
 ?>
-    <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/login.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/login.css">
 </head>
 <body>
 <?php include '../header.php'; ?>

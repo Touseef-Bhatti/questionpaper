@@ -346,54 +346,37 @@
   animation: none;
 }
 /* ======================= MOBILE FIXES ======================= */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
+  .button-container {
+    flex-direction: column !important;
+    gap: 20px !important;
+    align-items: center !important;
+    margin-top: 30px !important;
+  }
+  
   .btn-wrapper {
-    width: 80%;
-    margin: 1em;
-    transform: scale(0.9); /* reduces overall footprint */
+    margin: 15px auto !important;
+    width: 90% !important;
+    display: flex !important;
+    justify-content: center !important;
+    transform: none !important;
   }
 
   .btn {
-    --border-radius: 18px;
-    font-size: 0.85em;
-    padding: 0.45em 0.6em 0.45em 0.9em;
-
-    /* softer shadows for small screens */
-    box-shadow:
-      inset 0px 1px 1px rgba(255, 255, 255, 0.2),
-      inset 0px 2px 2px rgba(255, 255, 255, 0.1),
-      0px -2px 2px rgba(0, 0, 0, 0.02),
-      0px -4px 4px rgba(0, 0, 0, 0.04);
+    width: 100% !important;
+    max-width: 280px !important;
+    font-size: 0.9rem !important;
+    padding: 10px 15px !important;
   }
 
-  .btn-svg {
-    height: 20px;
-    margin-right: 0.4rem;
-    filter: drop-shadow(0 0 1px #fff7);
-  }
-
-  .btn-letter {
-    font-size: 0.9em;
-  }
-
-  /* Reduce blur/scale on mobile */
-  @keyframes focused-letter-anim {
-    0%, 100% {
-      filter: blur(0px);
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.4); /* instead of 2 */
-      filter: blur(6px) brightness(150%);
-    }
-  }
-
-  /* Reduce glow intensity */
-  .btn:focus::after,
-  .btn:hover::after {
-    opacity: 0.4;
+  .go-back-btn, .Btn-Container {
+    width: 100% !important;
+    max-width: 280px !important;
+    margin-top: 10px !important;
+    justify-content: center !important;
   }
 }
+
 /* ======================== AUTO SELECT ======================== */
 
 
@@ -446,12 +429,6 @@
   100% {
     opacity: 1;
     margin-left: 10px;
-  }
-}
-@media (max-width: 768px) {
-  .button-container {
-    flex-direction: column;
-    gap: 10px;
   }
 }
 

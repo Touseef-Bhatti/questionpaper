@@ -19,9 +19,11 @@ if (!$classResult) {
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Select your class 9th or 10th to generate question papers, take online MCQs quizzes, and access up-to-date notes. Supported for New Syllabus Punjab Board and Pakistan Board.">
-    <meta name="keywords" content="9th class, 10th class, question paper generator, online mcqs, quiz, test paper, new syllabus punjab board, pakistan board up to date papers, online tests, notes">
-    <title>9th & 10th Class Question Papers Generator, Online Tests & Notes | Ahmad Learning Hub </title>
+<title>Generate 9th & 10th Class Question Papers | Punjab Board MCQs & Tests</title>
+
+<meta name="description" content="Select 9th or 10th class to generate question papers based on Punjab Board patterns. Create MCQs tests, school exams, and practice papers with chapter-wise questions and printable formats.">
+
+<meta name="keywords" content="9th class paper generator, 10th class paper generator, Punjab Board question papers, online MCQs test 9th class, 10th class tests, school exam papers, chapter-wise MCQs, test generator Pakistan">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_class.css">
     <link rel="stylesheet" href="css/buttons.css">
@@ -36,7 +38,7 @@ if (!$classResult) {
     <div class="main-content">
 
 <div class="select-class-content">
-    <h1>🎓 Select Your Class for Exam Preparation</h1>
+    <h1>Generate 9th & 10th Class Question Papers – Punjab Board</h1>
     
     <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
     <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
@@ -45,10 +47,8 @@ if (!$classResult) {
         <div class="info-banner">
             <h2>📘 Welcome to Ahmad Learning Hub – Smart Paper Generator</h2>
             <p>
-                Ahmad Learning Hub is your all-in-one platform for <strong>online exam preparation</strong> for 
-                <strong>9th and 10th class Punjab Board students</strong>. Whether you’re a teacher creating 
-                <strong>custom question papers</strong> or a student attempting <strong>online MCQ tests</strong>, 
-                everything starts here by selecting your class.
+              Generate 9th and 10th class question papers online based on Punjab Board exam patterns. 
+Create MCQs tests, school exams, and practice papers instantly or attempt online quizzes for better preparation.
             </p>
 
           
@@ -71,8 +71,8 @@ if (!$classResult) {
                     <?= htmlspecialchars($row['class_name']); ?>
                 </div>
             <?php } ?>
-            <div class="class-box other-class-box" onclick="window.location.href = 'questionPaperFromTopic/index.php'">
-                Others
+            <div class="class-box other-class-box" onclick="window.location.href = 'questionPaperFromTopic/home.php'">
+              College & University Papers
             </div>
         </div>
     </div>
@@ -115,7 +115,16 @@ if (!$classResult) {
     
     <button class="go-back-btn" onclick="window.history.back()">⬅ Go Back</button>
 </div>
+<div class="seo-content">
+    <h2>9th & 10th Class Paper Generator for Punjab Board</h2>
+    <p>
+        This platform allows students and teachers in Pakistan to generate question papers 
+        for 9th and 10th class according to Punjab Board patterns. You can create chapter-wise 
+        tests, full-length exam papers, and MCQs quizzes for better exam preparation.
+    </p>
+</div>
 </div> <!-- main-content -->
+
 
 <?php include 'footer.php'; ?>
 

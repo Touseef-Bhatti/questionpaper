@@ -6,6 +6,20 @@ require_once 'middleware/SubscriptionCheck.php';
 
 $classId = intval($_POST['class_id']);
 $book_name = trim($_POST['book_name'] ?? '');
+$chapter_no = intval($_GET['chapter_no'] ?? 0);
+
+// Get class name for better display
+$className = "Class " . $classId;
+if ($classId > 0) {
+    $stmt = $conn->prepare("SELECT class_name FROM class WHERE class_id = ?");
+    $stmt->bind_param("i", $classId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) {
+        $className = $row['class_name'];
+    }
+    $stmt->close();
+}
 
 if (empty($book_name)) {
     echo("<h2 style='color:red;'>Invalid book name. Please go back and try again.</h2>");
@@ -17,6 +31,19 @@ $selectedChapters = $_POST['chapters'] ?? [];
 if (empty($selectedChapters)) {
     echo("<h2 style='color:red;'>No chapters selected. Please go back and select chapters.</h2>");
     exit;
+}
+
+// Prepare chapter information for meta tags and title
+$chapter_info = "";
+$chapter_names = [];
+if (!empty($selectedChapters)) {
+    foreach ($selectedChapters as $ch) {
+        $parts = explode('|', $ch);
+        if (isset($parts[1])) $chapter_names[] = $parts[1];
+    }
+    $chapter_info = implode(', ', $chapter_names);
+} else if ($chapter_no > 0) {
+    $chapter_info = "Chapter " . $chapter_no;
 }
 
 $shortQuestions = $_POST['short_questions'] ?? [];
@@ -34,9 +61,11 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Configure question paper details for 9th and 10th Class. Choose MCQs, Short, and Long questions. Support for New Syllabus Punjab Board.">
-    <meta name="keywords" content="9th class, 10th class, question paper generator, online mcqs, quiz, test paper, new syllabus punjab board, pakistan board up to date papers, online tests, notes">
-    <title>9th & 10th Class Question Papers Generator, Online Tests & Notes | Ahmad Learning Hub</title>
+
+<meta name="description" content="View MCQs, short, and long questions for <?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> - <?= htmlspecialchars($chapter_info) ?>. Tailored to Punjab Board exam pattern with up-to-date questions for better preparation.">
+<meta name="keywords" content="<?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> MCQs, short questions, long questions, exam questions, Punjab Board paper pattern">
+<title><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> - <?= htmlspecialchars($chapter_info) ?> | Question Selection</title>
+
 </head>
 <body>
     <?php include 'header.php'; ?>
@@ -45,7 +74,7 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
     <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
 
 <div class="question-container">
-    <h3>Generate Question Paper for Book: <?= htmlspecialchars($book_name) ?> (Class <?= htmlspecialchars($classId) ?>)</h3>
+    <h3>Generate Question Paper for Book: <?= htmlspecialchars($book_name) ?> (<?= htmlspecialchars($className) ?>)</h3>
     
     <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
     <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
@@ -194,7 +223,56 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
            
     </form>
     
-<button class="go-back-btn" onclick="window.history.back()">⬅ Go Back to Chapters</button>
+    <button class="go-back-btn" onclick="window.history.back()">⬅ Go Back to Chapters</button>
+
+    <!-- SEO ARTICLE SECTION -->
+    <article class="seo-article-section">
+        <div class="seo-container">
+            <div class="seo-info-bar">
+                <i class="fas fa-info-circle"></i>
+                <span>You are currently selecting questions for <strong><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?></strong> (<?= htmlspecialchars($chapter_info) ?>).</span>
+            </div>
+
+            <div class="seo-header">
+                <h2>The Best Way to Generate <?= htmlspecialchars($book_name) ?> Paper for <?= htmlspecialchars($className) ?></h2>
+                <p>Tailor your assessment with precision. Our automated system helps you pick the right balance of questions according to the official Punjab Board scheme.</p>
+            </div>
+
+            <div class="seo-grid">
+                <div class="seo-card">
+                    <div class="seo-card-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Board Exam Patterns</h3>
+                    <p>Every question in our database is mapped to the latest 2026 syllabus and patterns for 9th, 10th and FSc classes across all Punjab Boards including Lahore, Faisalabad, and Rawalpindi.</p>
+                </div>
+
+                <div class="seo-card">
+                    <div class="seo-card-icon">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h3>Comprehensive Selection</h3>
+                    <p>Mix and match MCQs, short questions, and long questions from multiple chapters of <strong><?= htmlspecialchars($book_name) ?></strong> to create a truly representative exam for your students.</p>
+                </div>
+
+                <div class="seo-card">
+                    <div class="seo-card-icon">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <h3>Ready to Print</h3>
+                    <p>Once you generate your paper, it is formatted to be professional, clean, and ready for immediate printing. Perfect for mid-terms, final exams, or weekly school tests.</p>
+                </div>
+
+                <div class="seo-card">
+                    <div class="seo-card-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Track Success</h3>
+                    <p>Join the thousands of teachers and educational institutes in Pakistan who trust Ahmad Learning Hub for fast, reliable, and high-quality assessment tools.</p>
+                </div>
+            </div>
+        </div>
+    </article>
 </div>
 
 <?php include 'footer.php' ?>
@@ -216,6 +294,7 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
             width: 95%;
             min-width: 95%;
             padding: 15px;
+            margin: 5% auto;
         }
     }
     .topic_btn {
@@ -234,7 +313,109 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
         border-radius: 4px;
     }
 
-    
+    /* SEO Article Styling */
+    .seo-article-section {
+        margin-top: 50px;
+        padding-top: 40px;
+        border-top: 2px solid #f1f3f6;
+    }
 
-    
+    .seo-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .seo-info-bar {
+        background: #e7f3ff;
+        color: #2b6cb0;
+        padding: 12px 20px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.95rem;
+    }
+
+    .seo-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .seo-header h2 {
+        font-size: 1.8rem;
+        color: #2c3e50;
+        margin-bottom: 15px;
+    }
+
+    .seo-header p {
+        color: #64748b;
+        max-width: 700px;
+        margin: 0 auto;
+        line-height: 1.6;
+    }
+
+    .seo-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    .seo-card {
+        background: #f8fafc;
+        padding: 25px;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        border: 1px solid #edf2f7;
+    }
+
+    .seo-card:hover {
+        transform: translateY(-5px);
+        background: #ffffff;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        border-color: #3182ce;
+    }
+
+    .seo-card-icon {
+        width: 45px;
+        height: 45px;
+        background: #3182ce;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        font-size: 1.2rem;
+    }
+
+    .seo-card h3 {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+        color: #2d3748;
+    }
+
+    .seo-card p {
+        color: #718096;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    @media (max-width: 768px) {
+        .question-container {
+            width: 95%;
+            min-width: 95%;
+            padding: 15px;
+            margin: 5% auto;
+        }
+
+        .seo-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .seo-header h2 {
+            font-size: 1.5rem;
+        }
+    }
 </style>

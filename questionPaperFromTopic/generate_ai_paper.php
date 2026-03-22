@@ -8,7 +8,7 @@ require_once __DIR__ . '/../header.php';
 require_once __DIR__ . '/../quiz/mcq_generator.php';
 require_once __DIR__ . '/../includes/APIKeyManager.php';
 ?>
-<link rel="stylesheet" href="../css/paper-builder.css?v=<?= time() . rand(6000, 7000) ?>">
+<link rel="stylesheet" href="<?= $assetBase ?>css/paper-builder.css?v=<?= time() . rand(6000, 7000) ?>">
 <?php
 
 // Get inputs from configure_paper.php or topic search

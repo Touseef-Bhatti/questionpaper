@@ -1,4 +1,28 @@
 <?php
+// Dynamic asset base calculation (robust for subdirectory deployments and URL rewriting)
+$scriptPath = $_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '');
+$scriptDir  = str_replace('\\', '/', dirname($scriptPath));
+$docRoot    = str_replace('\\', '/', rtrim($_SERVER['DOCUMENT_ROOT'] ?? '', '/'));
+$appDirFs   = str_replace('\\', '/', __DIR__);
+$requestUri = explode('?', $_SERVER['REQUEST_URI'] ?? '/')[0];
+
+$assetBase = '';
+
+if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
+    $appBase = substr($appDirFs, strlen($docRoot));
+    if ($appBase === '') { $appBase = '/'; }
+
+    // Use REQUEST_URI to determine depth for the browser, but fallback to SCRIPT_NAME if needed
+    $uriPath = (strpos($requestUri, $appBase) === 0) ? $requestUri : $scriptPath;
+    $rel = ltrim(substr($uriPath, strlen($appBase)), '/');
+    // We don't rtrim() here because a trailing slash means the browser treats it as a directory
+    $depth = ($rel === '' || $rel === '/') ? 0 : substr_count($rel, '/');
+    $assetBase = ($depth > 0) ? str_repeat('../', $depth) : '';
+} else {
+    // Fallback: assume root vs deep levels
+    $depth = substr_count(trim($requestUri, '/'), '/');
+    $assetBase = ($depth > 0) ? str_repeat('../', $depth) : '';
+}
 // Load environment configuration
 require_once __DIR__ . '/config/env.php';
 

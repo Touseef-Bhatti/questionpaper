@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/ads.php';
-include 'db_connect.php';
+include_once __DIR__ . '/db_connect.php';
 // Start session only if not already active and headers are not yet sent.
 if (session_status() === PHP_SESSION_NONE) {
     if (!headers_sent()) {
@@ -10,31 +10,6 @@ if (session_status() === PHP_SESSION_NONE) {
         // Consumers of sessions should call session_start() at the top of their scripts
         // if they need session available before output.
     }
-}
-
-// Dynamic asset base calculation (robust for subdirectory deployments)
-$scriptPath = $_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '');
-$scriptDir  = str_replace('\\', '/', dirname($scriptPath));
-$docRoot    = str_replace('\\', '/', rtrim($_SERVER['DOCUMENT_ROOT'] ?? '', '/'));
-$appDirFs   = str_replace('\\', '/', __DIR__);
-$assetBase  = '';
-
-if ($docRoot !== '' && strpos($appDirFs, $docRoot) === 0) {
-    $appBase = substr($appDirFs, strlen($docRoot)); // e.g. /myapp
-    if ($appBase === '') { $appBase = '/'; }
-
-    if (strpos($scriptDir, $appBase) === 0) {
-        $rel = trim(substr($scriptDir, strlen($appBase)), '/');
-        $depth = ($rel === '') ? 0 : (substr_count($rel, '/') + 1);
-        $assetBase = str_repeat('../', $depth);
-    } else {
-        // Fallback if SCRIPT_NAME doesn't start with app base
-        $assetBase = (substr_count(trim($scriptDir, '/'), '/') >= 1) ? '../' : '';
-    }
-} else {
-    // Fallback: assume root vs one-level deep
-    $isRoot = ($scriptDir === '' || $scriptDir === '/' || $scriptDir === '.');
-    $assetBase  = $isRoot ?  '' : '../';
 }
 
 // Active page detection logic
@@ -990,8 +965,8 @@ html.dark-mode .user-header-info .fw-bold {
 <body>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-<link rel="stylesheet" href="../css/index.css">
-<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="<?= $assetBase ?>css/index.css">
+<link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
 
 <nav class="navbar">
   <div class="navbar-container">
@@ -1002,19 +977,19 @@ html.dark-mode .user-header-info .fw-bold {
       <span></span>
     </div>
     <ul class="nav-menu" id="navMenu">
-      <li><a href="<?= $assetBase ?>index.php" class="<?= (basename($current_page) == 'index.php' || basename($current_page) == '') ? 'active' : '' ?>"><i class="fas fa-home"></i> Home</a></li>
+      <li><a href="<?= $assetBase ?>index" class="<?= (basename($current_page) == 'index.php' || basename($current_page) == '') ? 'active' : '' ?>"><i class="fas fa-home"></i> Home</a></li>
       <li class="dropdown">
         <a class="dropbtn <?= $is_gen_paper_active ? 'active' : '' ?>">Generate Paper <i class="fas fa-caret-down"></i></a>
         <div class="dropdown-content">
-             <a href="<?= $assetBase ?>select_class.php" class="<?= is_active('select_class.php') ?>"><i class="fas fa-file-alt"></i> Create Question Paper</a>
-          <a href="<?= $assetBase ?>quiz/online_quiz_host_new.php" class="<?= is_active('online_quiz_host_new.php') ?>"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
-          <a href="<?= $assetBase ?>quiz/quiz_setup.php" class="<?= is_active('quiz_setup.php') ?>"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
-          <a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="<?= is_active('online_quiz_join.php') ?>"><i class="fas fa-gamepad"></i> Join Quiz</a>
+             <a href="<?= $assetBase ?>select_class" class="<?= is_active('select_class.php') ?>"><i class="fas fa-file-alt"></i> Create Question Paper</a>
+          <a href="<?= $assetBase ?>online_quiz_host_new" class="<?= is_active('online_quiz_host_new.php') ?>"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
+          <a href="<?= $assetBase ?>quiz_setup" class="<?= is_active('quiz_setup.php') ?>"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
+          <a href="<?= $assetBase ?>online_quiz_join" class="<?= is_active('online_quiz_join.php') ?>"><i class="fas fa-gamepad"></i> Join Quiz</a>
         </div>
       </li>
-      <li><a href="<?= $assetBase ?>notes/notes.php" class="<?= is_active('notes.php') ?>"><i class="fas fa-book"></i> Notes</a></li>
-      <li><a href="<?= $assetBase ?>quiz/online_quiz_join.php" class="btn-join"><i class="fas fa-gamepad" ></i> Join</a></li>
-      <li><a href="<?= $assetBase ?>about.php" class="<?= is_active('about.php') ?>"><i class="fas fa-info-circle"></i> About</a></li>
+      <li><a href="<?= $assetBase ?>notes" class="<?= is_active('notes.php') ?>"><i class="fas fa-book"></i> Notes</a></li>
+      <li><a href="<?= $assetBase ?>online_quiz_join" class="btn-join"><i class="fas fa-gamepad" ></i> Join</a></li>
+      <li><a href="<?= $assetBase ?>about" class="<?= is_active('about.php') ?>"><i class="fas fa-info-circle"></i> About</a></li>
       <!-- <li><a href="<?= $assetBase ?>contact.php" class="<?= is_active('contact.php') ?>"><i class="fas fa-envelope"></i> Contact</a></li> -->
 
                 <?php if (isset($_SESSION['user_id'])): ?>
@@ -1027,7 +1002,7 @@ html.dark-mode .user-header-info .fw-bold {
                     ?>
                     <?php if (isset($subInfo) && $subInfo): ?>
                         <li>
-                            <a href="<?= $subInfo['is_premium'] ? ($assetBase . 'subscription.php') : 'javascript:void(0)' ?>"
+                            <a href="<?= $subInfo['is_premium'] ? ($assetBase . 'subscription') : 'javascript:void(0)' ?>"
                                onclick="<?= $subInfo['is_premium'] ? '' : 'showGlobalUpgradeModal(\'general\')' ?>"
                                class="plan-chip  <?= $subInfo['is_premium'] ? 'premium' : 'basic' ?>"
                                title="<?= htmlspecialchars($subInfo['plan_name']) ?> Plan" style="border-radius: 50px;">
@@ -1037,22 +1012,22 @@ html.dark-mode .user-header-info .fw-bold {
                         </li>
                     <?php endif; ?>
                     <li class="dropdown profile-dropdown">
-                        <a href="<?= $assetBase ?>profile.php" class="dropbtn <?= is_active('profile.php') ?>"><i class="fas fa-user-circle"></i> Profile <i class="fas fa-caret-down"></i></a>
+                        <a href="<?= $assetBase ?>profile" class="dropbtn <?= is_active('profile.php') ?>"><i class="fas fa-user-circle"></i> Profile <i class="fas fa-caret-down"></i></a>
                         <div class="dropdown-content">
                             <div class="user-header-info px-3 py-2 border-bottom mb-1">
                                 <div class="fw-bold text-dark small"><?= htmlspecialchars($_SESSION['name'] ?? 'User') ?></div>
                                 <div class="text-muted small" style="font-size: 0.75rem;"><?= htmlspecialchars($_SESSION['email'] ?? '') ?></div>
                             </div>
-                            <a href="<?= $assetBase ?>profile.php" class="<?= is_active('profile.php') ?>"><i class="fas fa-user-cog"></i> My Profile</a>
+                            <a href="<?= $assetBase ?>profile" class="<?= is_active('profile.php') ?>"><i class="fas fa-user-cog"></i> My Profile</a>
                             <a href="#" id="headerModeSwitchBtn"><i class="fas fa-exchange-alt"></i> Switch Mode</a>
-                            <a href="<?= $assetBase ?>settings.php" class="<?= is_active('settings.php') ?>"><i class="fas fa-cog"></i> Settings</a>
-                            <a href="<?= $assetBase ?>auth/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                            <a href="<?= $assetBase ?>settings" class="<?= is_active('settings.php') ?>"><i class="fas fa-cog"></i> Settings</a>
+                            <a href="<?= $assetBase ?>logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
                         </div>
                     </li>
                 <?php else: ?>
                     <!-- <li><a href="<?= $assetBase ?>subscription.php">Plans</a></li> -->
                     
-                    <li><a href="<?= $assetBase ?>auth/login.php" class="<?= is_active('login.php') ?>"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+                    <li><a href="<?= $assetBase ?>login" class="<?= is_active('login.php') ?>"><i class="fas fa-sign-in-alt"></i> Login</a></li>
                 <?php endif; ?>
             </ul>
         </div>
@@ -1069,8 +1044,8 @@ html.dark-mode .user-header-info .fw-bold {
         </div>
         <div class="auth-modal-body">
             <div class="auth-options">
-                <a href="<?= $assetBase ?>auth/login.php" class="btn-auth-login">Login to My Account</a>
-                <a href="<?= $assetBase ?>auth/register.php" class="btn-auth-register">Create New Account</a>
+                <a href="<?= $assetBase ?>login" class="btn-auth-login">Login to My Account</a>
+                <a href="<?= $assetBase ?>register" class="btn-auth-register">Create New Account</a>
             </div>
             <div class="auth-modal-footer">
                 <p>Unlock smart paper generation, online quizzes, and expert notes!</p>
@@ -1104,7 +1079,7 @@ html.dark-mode .user-header-info .fw-bold {
         </div>
         
         <div class="upgrade-modal-actions">
-            <a href="<?= $assetBase ?>subscription.php" class="btn-upgrade-now">
+            <a href="<?= $assetBase ?>subscription" class="btn-upgrade-now">
                 <i class="fas fa-rocket"></i> Upgrade Now
             </a>
             <button type="button" class="btn-maybe-later" onclick="closeGlobalUpgradeModal()">

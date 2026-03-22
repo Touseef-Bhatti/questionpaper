@@ -2,7 +2,7 @@
 // mcqs_topic.php - Topic search page for MCQs
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-include '../db_connect.php';
+include_once '../db_connect.php';
 require_once 'mcq_generator.php';
 // require_once 'MongoSearchLogger.php';
 require_once '../services/SubscriptionService.php';
@@ -341,11 +341,11 @@ if (isset($_POST['start_quiz'])) {
     }
     </script>
 
-    <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/mcqs_topic.css">
-    <link rel="stylesheet" href="../css/ai_loader.css">
+    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/main.css">
+    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/mcqs_topic.css">
+    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/ai_loader.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="../js/ai_loader.js" defer></script>
+    <script src="<?= ($assetBase ?? '') ?>js/ai_loader.js" defer></script>
 </head>
 <body>
 <?php include_once '../header.php'; ?>

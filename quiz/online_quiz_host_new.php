@@ -39,8 +39,8 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
     }
     </script>
 
-    <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/online_quiz_host_new.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/online_quiz_host_new.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
    
      <?php include_once '../header.php'; ?>
