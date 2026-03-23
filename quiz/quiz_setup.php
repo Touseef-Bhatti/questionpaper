@@ -1,7 +1,7 @@
 <?php
 session_start();
 // quiz_setup.php - Public quiz setup page
-include_once '../db_connect.php';
+include '../db_connect.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -57,11 +57,11 @@ include_once '../db_connect.php';
     <meta property="twitter:description" content="Tailor your study sessions with our advanced MCQ generator. Practice by class, book, or specific chapters.">
     <meta property="twitter:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-og.jpg">
 
-    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/main.css">
-    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/quiz_setup.css">
-    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/ai_loader.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/quiz_setup.css">
+    <link rel="stylesheet" href="../css/ai_loader.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="<?= ($assetBase ?? '') ?>js/ai_loader.js" defer></script>
+    <script src="../js/ai_loader.js" defer></script>
 </head>
 <body>
 <?php include_once '../header.php'; ?>
@@ -86,10 +86,10 @@ include_once '../db_connect.php';
             <div class="grid">
                 <div>
                     <label for="class_id">Class</label>
-                    <div id="class_dropdown_container"></div>
-                    <select class="select" id="class_id" name="class_id" style="display:none;" required>
+                    <select class="select" id="class_id" name="class_id" required>
                         <option value="">Select a class</option>
                         <?php
+                        // Load classes
                         $cls = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC");
                         if ($cls) {
                             while ($row = $cls->fetch_assoc()) {
@@ -102,11 +102,10 @@ include_once '../db_connect.php';
                 <div>
                     <label for="book_id">Book</label>
                     <div class="input-with-action">
-                        <div id="book_dropdown_container" style="flex:1;"></div>
-                        <select id="book_id" name="book_id" style="display:none;" required disabled>
+                        <select id="book_id" name="book_id" required disabled>
                             <option value="">Select a book</option>
                         </select>
-                        <button type="button" class="btn topic-btn" onclick="window.location.href='mcqs_topic'">Topic</button>
+                        <button type="button" class="btn topic-btn" onclick="window.location.href='mcqs_topic.php'">Topic</button>
                     </div>
                     <div class="hint">Books are filtered by class.</div>
                 </div>
@@ -224,249 +223,69 @@ include_once '../db_connect.php';
 <?php include '../footer.php'; ?>
 
 <script>
+const classSel = document.getElementById('class_id');
+const bookSel = document.getElementById('book_id');
+const chapterSelector = document.getElementById('chapterSelector');
+const chapterIdsInput = document.getElementById('chapter_ids');
+const resetBtn = document.getElementById('resetBtn');
+
 let selectedChapterIds = [];
+let progressInterval;
 
-// ─── Pro-Selection Engine ─────────────────────────────────────────
-
-const SelectionSystem = {
-    cache: {
-        books: {},    // {class_id: [data]}
-        chapters: {}  // {book_id: [data]}
-    },
+function startLoaderProgress() {
+    const progressBar = document.getElementById('loaderProgressBar');
+    if (!progressBar) return;
     
-    dropdowns: {}, // Instances
-
-    init() {
-        this.dropdowns.class = this.createCustomDropdown('class_dropdown_container', 'class_id', 'Select a class');
-        this.dropdowns.book = this.createCustomDropdown('book_dropdown_container', 'book_id', 'Select a book', true);
-        
-        this.setupListeners();
-        this.populateInitialClasses();
-        this.handleUrlParams();
-    },
-
-    createCustomDropdown(containerId, originalSelectId, placeholder, disabled = false) {
-        const container = document.getElementById(containerId);
-        const originalSelect = document.getElementById(originalSelectId);
-        
-        container.innerHTML = `
-            <div class="custom-dropdown ${disabled ? 'disabled' : ''}" id="custom_${originalSelectId}">
-                <div class="dropdown-overlay"></div>
-                <div class="dropdown-trigger">
-                    <span class="trigger-label">${placeholder}</span>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <div class="dropdown-menu">
-                    <div class="dropdown-search">
-                        <input type="text" placeholder="Search...">
-                    </div>
-                    <div class="dropdown-options"></div>
-                </div>
-            </div>
-        `;
-
-        const dropdown = container.querySelector('.custom-dropdown');
-        const trigger = dropdown.querySelector('.dropdown-trigger');
-        const searchInput = dropdown.querySelector('.dropdown-search input');
-        
-        trigger.onclick = (e) => {
-            e.stopPropagation();
-            if (dropdown.classList.contains('disabled')) return;
-            
-            // Close other dropdowns
-            Object.values(this.dropdowns).forEach(d => {
-                if (d.element !== dropdown) d.element.classList.remove('active');
-            });
-            
-            dropdown.classList.toggle('active');
-            if (dropdown.classList.contains('active')) searchInput.focus();
-        };
-
-        searchInput.onclick = (e) => e.stopPropagation();
-        searchInput.oninput = (e) => this.filterOptions(dropdown, e.target.value);
-
-        // Global click to close
-        document.addEventListener('click', () => dropdown.classList.remove('active'));
-
-        return {
-            element: dropdown,
-            originalSelect,
-            placeholder,
-            options: []
-        };
-    },
-
-    populateInitialClasses() {
-        const classDropdown = this.dropdowns.class;
-        const options = Array.from(classDropdown.originalSelect.options)
-            .filter(o => o.value !== '')
-            .map(o => ({ id: o.value, name: o.textContent }));
-        
-        this.updateDropdownOptions('class', options);
-    },
-
-    updateDropdownOptions(key, options) {
-        const dd = this.dropdowns[key];
-        dd.options = options;
-        const list = dd.element.querySelector('.dropdown-options');
-        
-        if (options.length === 0) {
-            list.innerHTML = '<div class="dropdown-option no-results">No matches found</div>';
+    // Reset
+    progressBar.style.width = '0%';
+    clearInterval(progressInterval);
+    
+    let width = 0;
+    progressInterval = setInterval(() => {
+        if (width >= 90) {
+            // Slow down significantly after 90%
+            if (width < 95) width += 0.1;
         } else {
-            list.innerHTML = options.map(opt => `
-                <div class="dropdown-option" data-id="${opt.id}" onclick="SelectionSystem.selectOption('${key}', '${opt.id}', '${opt.name}')">
-                    ${opt.name}
-                </div>
-            `).join('');
+            // Fast initially, then slower
+            const increment = Math.max(0.5, (90 - width) / 20);
+            width += increment;
         }
-    },
+        progressBar.style.width = width + '%';
+    }, 100);
+}
 
-    selectOption(key, id, name) {
-        const dd = this.dropdowns[key];
-        dd.element.querySelector('.trigger-label').textContent = name;
-        dd.originalSelect.value = id;
-        dd.element.classList.remove('active');
-        
-        // Trigger original change event
-        dd.originalSelect.dispatchEvent(new Event('change'));
-        
-        // Style selected option
-        const allOpts = dd.element.querySelectorAll('.dropdown-option');
-        allOpts.forEach(o => {
-            o.classList.toggle('selected', o.getAttribute('data-id') === id);
-        });
-    },
+function toQuery(params) {
+  return Object.entries(params).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+}
 
-    filterOptions(dropdown, query) {
-        const list = dropdown.querySelector('.dropdown-options');
-        const options = Array.from(list.querySelectorAll('.dropdown-option:not(.no-results)'));
-        let visibleCount = 0;
+async function loadBooks() {
+  bookSel.innerHTML = '<option value="">Loading...</option>';
+  bookSel.disabled = true;
+  clearChapters();
+  
+  const cid = classSel.value;
+  if (!cid) { 
+    bookSel.innerHTML = '<option value="">Select a book</option>'; 
+    return; 
+  }
+  
+  try {
+    const res = await fetch('quiz_data.php?' + toQuery({ type: 'books', class_id: cid }));
+    const data = await res.json();
+    bookSel.innerHTML = '<option value="">Select a book</option>' + data.map(b => `<option value="${b.book_id}">${b.book_name}</option>`).join('');
+    bookSel.disabled = false;
+  } catch (error) {
+    bookSel.innerHTML = '<option value="">Error loading books</option>';
+    console.error('Error loading books:', error);
+  }
+}
 
-        options.forEach(opt => {
-            const match = opt.textContent.toLowerCase().includes(query.toLowerCase());
-            opt.style.display = match ? 'flex' : 'none';
-            if (match) visibleCount++;
-        });
-
-        // Toggle no-results
-        let noResults = list.querySelector('.no-results');
-        if (visibleCount === 0) {
-            if (!noResults) {
-                const div = document.createElement('div');
-                div.className = 'dropdown-option no-results';
-                div.textContent = 'No matches found';
-                list.appendChild(div);
-            }
-        } else if (noResults) {
-            noResults.remove();
-        }
-    },
-
-    showSkeleton(key) {
-        const list = this.dropdowns[key].element.querySelector('.dropdown-options');
-        list.innerHTML = `
-            <div class="dropdown-skeleton">
-                <div class="skeleton-item"></div>
-                <div class="skeleton-item" style="width: 80%"></div>
-                <div class="skeleton-item" style="width: 90%"></div>
-            </div>
-        `;
-    },
-
-    setupListeners() {
-        this.dropdowns.class.originalSelect.addEventListener('change', async () => {
-            const cid = this.dropdowns.class.originalSelect.value;
-            this.resetBook();
-            clearChapters();
-            
-            if (!cid) return;
-            
-            this.dropdowns.book.element.classList.remove('disabled');
-            this.showSkeleton('book');
-            
-            const books = await this.getBooks(cid);
-            this.updateDropdownOptions('book', books);
-        });
-
-        this.dropdowns.book.originalSelect.addEventListener('change', async () => {
-            loadChapters();
-        });
-    },
-
-    resetBook() {
-        const dd = this.dropdowns.book;
-        dd.element.querySelector('.trigger-label').textContent = dd.placeholder;
-        dd.originalSelect.value = '';
-        dd.element.classList.add('disabled');
-        dd.element.classList.remove('active');
-        this.updateDropdownOptions('book', []);
-    },
-
-    async getBooks(classId) {
-        if (this.cache.books[classId]) return this.cache.books[classId];
-        
-        try {
-            const res = await fetch(`quiz_data.php?type=books&class_id=${classId}`);
-            const data = await res.json();
-            const formatted = data.map(b => ({ id: b.book_id, name: b.book_name }));
-            this.cache.books[classId] = formatted;
-            return formatted;
-        } catch (e) {
-            console.error(e);
-            return [];
-        }
-    },
-
-    async handleUrlParams() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlClassId = urlParams.get('class_id');
-        const urlBookId = urlParams.get('book_id');
-        const urlChapterId = urlParams.get('chapter_id');
-        
-        if (urlClassId) {
-            const classMatches = this.dropdowns.class.options.find(o => o.id == urlClassId);
-            if (classMatches) {
-                this.selectOption('class', classMatches.id, classMatches.name);
-                
-                if (urlBookId) {
-                    const checkBooks = setInterval(async () => {
-                        const books = this.cache.books[urlClassId];
-                        if (books) {
-                            clearInterval(checkBooks);
-                            const bookMatch = books.find(b => b.id == urlBookId);
-                            if (bookMatch) {
-                                this.selectOption('book', bookMatch.id, bookMatch.name);
-                                
-                                if (urlChapterId) {
-                                    // Wait for chapters
-                                    const checkChapters = setInterval(() => {
-                                        const checkbox = document.getElementById(`ch_${urlChapterId}`);
-                                        if (checkbox) {
-                                            clearInterval(checkChapters);
-                                            checkbox.checked = true;
-                                            handleChapterChange(parseInt(urlChapterId));
-                                        }
-                                    }, 100);
-                                    // Safety timeout
-                                    setTimeout(() => clearInterval(checkChapters), 5000);
-                                }
-                            }
-                        }
-                    }, 100);
-                    setTimeout(() => clearInterval(checkBooks), 5000);
-                }
-            }
-        }
-    }
-};
-
-// Original Load Chapters (Keeping but optimizing)
 async function loadChapters() {
   clearChapters();
-  chapterSelector.innerHTML = '<div class="dropdown-skeleton" style="padding:40px"><div class="skeleton-item"></div><div class="skeleton-item" style="width:80%"></div></div>';
+  chapterSelector.innerHTML = '<div class="selector-hint">Loading chapters...</div>';
   
-  const cid = document.getElementById('class_id').value; 
-  const bid = document.getElementById('book_id').value;
+  const cid = classSel.value; 
+  const bid = bookSel.value;
   
   if (!cid || !bid) {
     chapterSelector.innerHTML = '<div class="selector-hint">Select a book first to see available chapters</div>';
@@ -474,7 +293,7 @@ async function loadChapters() {
   }
   
   try {
-    const res = await fetch(`quiz_data.php?type=chapters&class_id=${cid}&book_id=${bid}`);
+    const res = await fetch('quiz_data.php?' + toQuery({ type: 'chapters', class_id: cid, book_id: bid }));
     const data = await res.json();
     
     if (data.length === 0) {
@@ -482,80 +301,89 @@ async function loadChapters() {
       return;
     }
     
-    // Optimized fragment-based rendering for zero-lag
-    const fragment = document.createDocumentFragment();
-    data.forEach(chapter => {
-        const item = document.createElement('div');
-        item.className = 'chapter-item';
-        item.innerHTML = `
-            <input type="checkbox" id="ch_${chapter.chapter_id}" value="${chapter.chapter_id}">
-            <label for="ch_${chapter.chapter_id}">${chapter.chapter_name}</label>
-        `;
-        item.onclick = (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
-            const cb = item.querySelector('input');
-            cb.checked = !cb.checked;
-            handleChapterChange(chapter.chapter_id);
-        };
-        item.querySelector('input').onclick = (e) => {
-            e.stopPropagation();
-            handleChapterChange(chapter.chapter_id);
-        };
-        item.querySelector('label').onclick = (e) => e.stopPropagation();
-        fragment.appendChild(item);
-    });
+    // Create checkbox list for chapters
+    const chapterHTML = data.map(chapter => `
+      <div class="chapter-item" onclick="toggleChapter(${chapter.chapter_id}, this)">
+        <input type="checkbox" id="ch_${chapter.chapter_id}" value="${chapter.chapter_id}" onchange="handleChapterChange(${chapter.chapter_id})" onclick="event.stopPropagation()">
+        <label for="ch_${chapter.chapter_id}" onclick="event.stopPropagation()">${chapter.chapter_name}</label>
+      </div>
+    `).join('');
     
-    chapterSelector.innerHTML = '';
-    chapterSelector.appendChild(fragment);
+    chapterSelector.innerHTML = chapterHTML;
   } catch (error) {
     chapterSelector.innerHTML = '<div class="selector-hint">Error loading chapters</div>';
+    console.error('Error loading chapters:', error);
   }
 }
 
+function toggleChapter(chapterId, itemElement) {
+  const checkbox = itemElement.querySelector('input[type="checkbox"]');
+  checkbox.checked = !checkbox.checked;
+  handleChapterChange(chapterId);
+}
+
 function handleChapterChange(chapterId) {
-    const cb = document.getElementById(`ch_${chapterId}`);
-    if (cb.checked) {
-        if (!selectedChapterIds.includes(chapterId)) selectedChapterIds.push(chapterId);
-    } else {
-        selectedChapterIds = selectedChapterIds.filter(id => id !== chapterId);
-    }
-    updateChapterInput();
+  if (selectedChapterIds.includes(chapterId)) {
+    selectedChapterIds = selectedChapterIds.filter(id => id !== chapterId);
+  } else {
+    selectedChapterIds.push(chapterId);
+  }
+  updateChapterInput();
 }
 
 function updateChapterInput() {
-    document.getElementById('chapter_ids').value = selectedChapterIds.join(',');
+  chapterIdsInput.value = selectedChapterIds.join(',');
 }
 
 function clearChapters() {
-    selectedChapterIds = [];
-    document.getElementById('chapter_ids').value = '';
-    chapterSelector.innerHTML = '<div class="selector-hint">Select a book first to see available chapters</div>';
+  selectedChapterIds = [];
+  chapterIdsInput.value = '';
+  chapterSelector.innerHTML = '<div class="selector-hint">Select a book first to see available chapters</div>';
 }
 
-// Reset button enhancement - fully reset everything
+// Event listeners
+classSel.addEventListener('change', loadBooks);
+bookSel.addEventListener('change', loadChapters);
+
+// Pre-fill form from URL parameters
+(async function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlClassId = urlParams.get('class_id');
+  const urlBookId = urlParams.get('book_id');
+  const urlChapterId = urlParams.get('chapter_id');
+
+  if (urlClassId) {
+    classSel.value = urlClassId;
+    await loadBooks();
+    
+    if (urlBookId) {
+      bookSel.value = urlBookId;
+      await loadChapters();
+      
+      // If a specific chapter is provided, select it
+      if (urlChapterId) {
+        setTimeout(() => {
+          const chapterCheckbox = document.getElementById(`ch_${urlChapterId}`);
+          if (chapterCheckbox) {
+            chapterCheckbox.checked = true;
+            handleChapterChange(parseInt(urlChapterId));
+          }
+        }, 500);
+      }
+    }
+  }
+})();
+
+// Reset button
 resetBtn.addEventListener('click', () => {
-    // 1. Reset Selects
-    document.getElementById('class_id').value = '';
-    document.getElementById('book_id').value = '';
-    document.getElementById('book_id').disabled = true;
-    
-    // 2. Clear Chapters
-    clearChapters();
-    
-    // 3. Reset Dropdown UI
-    const classDD = SelectionSystem.dropdowns.class;
-    classDD.element.querySelector('.trigger-label').textContent = classDD.placeholder;
-    classDD.element.querySelectorAll('.dropdown-option').forEach(o => o.classList.remove('selected'));
-    
-    SelectionSystem.resetBook();
+  const form = document.getElementById('quizForm');
+  form.reset();
+  bookSel.innerHTML = '<option value="">Select a book</option>';
+  bookSel.disabled = true;
+  clearChapters();
 });
 
-// Initialize on DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
-    SelectionSystem.init();
-});
-
-// AI Loader Logic (Maintained from original)
+// Show AI loader on form submit (timestamp-based, mobile-reliable)
 document.getElementById('quizForm').addEventListener('submit', function() {
     const modal = document.getElementById('aiLoaderModal');
     const progressBar = document.getElementById('aiProgressBar');
@@ -564,18 +392,30 @@ document.getElementById('quizForm').addEventListener('submit', function() {
     modal.style.display = 'flex';
 
     const steps = [
-        { id: 1, duration: 2000 },
-        { id: 2, duration: 2000 },
-        { id: 3, duration: 2000 },
-        { id: 4, duration: 2000 },
-        { id: 5, duration: 1500 }
+        { id: 1, duration: 2500 },
+        { id: 2, duration: 2500 },
+        { id: 3, duration: 2500 },
+        { id: 4, duration: 2500 },
+        { id: 5, duration: 2500 }
     ];
 
-    const totalDuration = steps.reduce((acc, s) => acc + s.duration, 0);
-    const startTime = Date.now();
+    const totalDuration = steps.reduce(function(acc, s) { return acc + s.duration; }, 0);
 
-    const loaderInterval = setInterval(() => {
+    steps.forEach(function(step) {
+        const stepEl = document.getElementById('step-' + step.id);
+        const iconEl = document.getElementById('icon-' + step.id);
+        if (stepEl) {
+            stepEl.classList.remove('active', 'completed');
+            iconEl.innerHTML = '<i class="fas fa-circle-notch"></i>';
+        }
+    });
+
+    const startTime = Date.now();
+    let lastStepIndex = -1;
+
+    const loaderInterval = setInterval(function() {
         const elapsed = Date.now() - startTime;
+
         let progress = Math.min((elapsed / totalDuration) * 100, 99);
         if (progressBar) progressBar.style.width = progress + '%';
 
@@ -589,21 +429,41 @@ document.getElementById('quizForm').addEventListener('submit', function() {
             }
         }
 
-        steps.forEach((step, idx) => {
-            const stepEl = document.getElementById('step-' + step.id);
-            const iconEl = document.getElementById('icon-' + step.id);
-            if (!stepEl) return;
-            if (idx < activeStepIndex) {
-                stepEl.classList.add('completed');
-                iconEl.innerHTML = '<i class="fas fa-check"></i>';
-            } else if (idx === activeStepIndex) {
-                stepEl.classList.add('active');
-                iconEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            }
-        });
+        if (activeStepIndex !== lastStepIndex) {
+            lastStepIndex = activeStepIndex;
+            steps.forEach(function(step, idx) {
+                const stepEl = document.getElementById('step-' + step.id);
+                const iconEl = document.getElementById('icon-' + step.id);
+                if (!stepEl) return;
+                if (idx < activeStepIndex) {
+                    stepEl.classList.add('completed');
+                    stepEl.classList.remove('active');
+                    iconEl.innerHTML = '<i class="fas fa-check"></i>';
+                } else if (idx === activeStepIndex) {
+                    stepEl.classList.add('active');
+                    stepEl.classList.remove('completed');
+                    iconEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                } else {
+                    stepEl.classList.remove('active', 'completed');
+                    iconEl.innerHTML = '<i class="fas fa-circle-notch"></i>';
+                }
+            });
+        }
 
-        if (elapsed >= totalDuration) clearInterval(loaderInterval);
-    }, 100);
+        if (elapsed >= totalDuration) {
+            clearInterval(loaderInterval);
+            steps.forEach(function(step) {
+                const stepEl = document.getElementById('step-' + step.id);
+                const iconEl = document.getElementById('icon-' + step.id);
+                if (stepEl) {
+                    stepEl.classList.add('completed');
+                    stepEl.classList.remove('active');
+                    iconEl.innerHTML = '<i class="fas fa-check"></i>';
+                }
+            });
+            if (progressBar) progressBar.style.width = '99%';
+        }
+    }, 250);
 });
 </script>
 </body>
