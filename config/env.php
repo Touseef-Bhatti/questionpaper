@@ -10,7 +10,7 @@ class EnvLoader
     
     // Define default values if not present in .env
     private static $defaults = [
-        'BASE_URL' => 'https://paper.bhattichemicalsindustry.com.pk/',
+        'BASE_URL' => 'https://ahmadlearninghub.com.pk/',
         'AI_DEFAULT_MODEL' => 'gpt-4-turbo',
         'AI_FALLBACK_MODEL' => 'gpt-3.5-turbo',
         'AI_DAILY_QUOTA_PER_KEY' => '100000',

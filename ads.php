@@ -26,13 +26,8 @@ function renderAd($type, $placement = '', $class = '', $style = '') {
         return "<!-- Ads skipped for AJAX request -->";
     }
 
-    // Do not show ads on localhost (handles ports like localhost:8000)
-    // $hostPart = explode(':', $_SERVER['HTTP_HOST'] ?? '')[0];
-    // if ($hostPart === 'localhost' || $hostPart === '127.0.0.1') {
-    //     $showAds = false;
-    // }
+    // Do not show ads on localhost handling
     if ($showAds && $userId) {
-        // Logged in: Check subscription features
         $showAds = SubscriptionCheck::shouldShowAds($userId);
     }
 

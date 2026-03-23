@@ -1270,7 +1270,7 @@ html.dark-mode .user-header-info .fw-bold {
                 sessionStorage.setItem('alh_auth_modal_seen', 'true');
                 
                 // Show modal after a short delay
-                setTimeout(showAuthModal, 2000);
+                setTimeout(showAuthModal, 20000);
             }
         } else if (isUserLoggedIn) {
             // Store login status for future reference if they are currently logged in

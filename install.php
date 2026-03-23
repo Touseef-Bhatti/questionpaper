@@ -37,6 +37,27 @@ function createIndexIfNotExists($conn, $tableName, $indexName, $columns) {
 // 0. Set Time Zone to PST (Pakistan Standard Time, UTC+5)
 runQuery($conn, "SET time_zone = '+05:00';", "Setting Session Time Zone to PST (+05:00)");
 
+// 0.0 Core User Tables
+runQuery($conn, "CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY, 
+    name VARCHAR(191) NOT NULL, 
+    email VARCHAR(191) NOT NULL UNIQUE, 
+    password VARCHAR(255) NOT NULL, 
+    role ENUM('user', 'admin', 'superadmin') DEFAULT 'user',
+    token VARCHAR(64), 
+    verified TINYINT(1) DEFAULT 0, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: users");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS pending_users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(191) NOT NULL,
+    email VARCHAR(191) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    token VARCHAR(64),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: pending_users");
+
 // 0.1 User Subscription Columns
 try {
     $result = $conn->query("SHOW COLUMNS FROM users LIKE 'subscription_status'");

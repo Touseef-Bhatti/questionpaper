@@ -590,7 +590,8 @@ const isPremium = <?= json_encode($isPremium) ?>;
 const topicLimit = <?= json_encode($topicLimit) ?>;
 
 function ignoreModeAndNavigate(url) {
-    window.location.href = '../reset_and_go.php?redirect=' + encodeURIComponent('quiz/' + url);
+    localStorage.setItem('user_type_preference', 'School');
+    window.location.href = url;
 }
 
 function showUpgradeModal() {

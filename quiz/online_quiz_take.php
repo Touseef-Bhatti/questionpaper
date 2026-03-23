@@ -479,7 +479,13 @@ $stmt->close();
 </head>
 <body>
 <?php include_once '../header.php'; ?>
+
+<!-- SIDE SKYSCRAPER ADS -->
+<?= renderAd('skyscraper', 'Online Quiz Page Right Skyscraper', 'right', 'margin-top: 10%;') ?>
 <div class="main-content">
+  <!-- TOP AD BANNER -->
+  <?= renderAd('banner', 'Online Quiz Page Top Banner', 'ad-placement-top', 'margin-bottom: 20px;') ?>
+
   <div class="quiz-container">
     <!-- Header with Progress -->
     <div class="quiz-header" id="quizHeader">
@@ -550,6 +556,11 @@ $stmt->close();
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- BOTTOM AD BANNER -->
+  <div style="margin-top: 30px;">
+    <?= renderAd('banner', 'Online Quiz Page Bottom Banner') ?>
   </div>
 </div>
 
@@ -860,5 +871,6 @@ function restoreProgress() {
     }
 }
 </script>
+<?php include '../footer.php'; ?>
 </body>
 </html>

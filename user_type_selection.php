@@ -141,7 +141,7 @@
                 requestAnimationFrame(() => {
                     overlay.classList.add('show');
                 });
-            }, 5000);
+            }, 10000);
         } else {
             console.log('User type already selected:', userType);
             applyUserTypeSettings(userType);

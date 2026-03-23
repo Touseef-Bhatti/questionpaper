@@ -440,7 +440,14 @@ function h($str) {
     </style>
 </head>
 <?php include_once '../header.php'; ?>
+
+<!-- SIDE SKYSCRAPER ADS (Right Only) -->
+<?= renderAd('skyscraper', 'Online Quiz Lobby Right Skyscraper', 'right', 'margin-top: 10%;') ?>
 <body>
+<div class="main-content">
+    <!-- TOP AD BANNER -->
+    <?= renderAd('banner', 'Online Quiz Lobby Top Banner', 'ad-placement-top', 'margin-bottom: 20px;') ?>
+
     <div class="lobby-wrapper">
         <div class="lobby-container">
             <header class="lobby-header">
@@ -515,8 +522,14 @@ function h($str) {
                     </button>
                 </div>
             </main>
-        </div>
     </div>
+    </div>
+
+    <!-- BOTTOM AD BANNER -->
+    <div style="margin-top: 30px;">
+        <?= renderAd('banner', 'Online Quiz Lobby Bottom Banner') ?>
+    </div>
+</div>
 
     <script>
         let checkInterval;
@@ -651,5 +664,6 @@ function h($str) {
             clearInterval(checkInterval);
         });
     </script>
+<?php include '../footer.php'; ?>
 </body>
 </html>

@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
   </script>
 
-  <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
+  <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/main.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -262,7 +262,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 <?php include_once '../header.php'; ?>
+
+<!-- SIDE SKYSCRAPER ADS (Right Only) -->
+<?= renderAd('skyscraper', 'Online Quiz Join Right Skyscraper', 'right', 'margin-top: 10%;') ?>
 <div class="main-content">
+  <!-- TOP AD BANNER -->
+  <?= renderAd('banner', 'Online Quiz Join Top Banner', 'ad-placement-top', 'margin-bottom: 20px;') ?>
+
   <div class="join-container" style="flex-direction: column;">
     <div class="join-card">
       <h1>Join Live AI Quiz</h1>
@@ -328,6 +334,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
     </div>
+  </div>
+
+  <!-- BOTTOM AD BANNER -->
+  <div style="margin-top: 30px;">
+    <?= renderAd('banner', 'Online Quiz Join Bottom Banner') ?>
   </div>
 </div>
 <?php include '../footer.php'; ?>

@@ -8,9 +8,19 @@ error_reporting(E_ALL);
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require __DIR__ . '/PHPMailer-master/src/Exception.php';
-require __DIR__ . '/PHPMailer-master/src/PHPMailer.php';
-require __DIR__ . '/PHPMailer-master/src/SMTP.php';
+// Support repository layouts where tests may run from /tests and PHPMailer-master lives in project root
+$phpmailerDir = __DIR__ . '/PHPMailer-master';
+if (!is_dir($phpmailerDir) && is_dir(__DIR__ . '/../PHPMailer-master')) {
+    $phpmailerDir = __DIR__ . '/../PHPMailer-master';
+}
+
+if (!is_dir($phpmailerDir)) {
+    die('❌ PHPMailer directory not found. Expected at: ' . __DIR__ . '/PHPMailer-master or ../PHPMailer-master');
+}
+
+require_once $phpmailerDir . '/src/Exception.php';
+require_once $phpmailerDir . '/src/PHPMailer.php';
+require_once $phpmailerDir . '/src/SMTP.php';
 
 echo "🚀 Ahmad Learning Hub Mail Test<br><br>";
 
@@ -38,5 +48,5 @@ try {
     $mail->send();
     echo "✔ Test email sent successfully!";
 } catch (Exception $e) {
-    echo "❌ Mailer Error: " . $mail->ErrorInfo;
+    echo "❌ Mailer Error: " . $mail->ErrorInfo . '<br>' . $e->getMessage();
 }

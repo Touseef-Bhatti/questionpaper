@@ -15,13 +15,20 @@
 
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../../config/AIKeyConfigManager.php';
-require_once __DIR__ . '/../header.php';
 
-// Check admin access
-if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
+// Session must be started before any output
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Check admin access before any HTML output
+if (!isset($_SESSION['admin']) || $_SESSION['admin'] !== true) {
     header("Location: ../login.php");
     exit;
 }
+
+// Now that auth is checked, include the header
+require_once __DIR__ . '/../header.php';
 
 try {
     // Determine which environment file to use

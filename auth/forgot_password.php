@@ -6,12 +6,17 @@ include '../db_connect.php';
 $submitted = false;
 
 function get_site_url() {
-    // Prefer environment-configured URL for production
+    // Prefer environment-configured URL from .env.local / .env.production
+    $defaultUrl = 'https://ahmadlearninghub.com.pk';
+
     if (class_exists('EnvLoader')) {
-        $url = EnvLoader::get('APP_URL', EnvLoader::get('SITE_URL', 'https://paper.bhattichemicalsindustry.com.pk'));
+        $appUrl = EnvLoader::get('APP_URL', EnvLoader::get('SITE_URL', $defaultUrl));
+        $siteUrl = EnvLoader::get('SITE_URL', $appUrl);
+        $url = $appUrl ?: $siteUrl ?: $defaultUrl;
     } else {
-        $url = 'https://paper.bhattichemicalsindustry.com.pk';
+        $url = $defaultUrl;
     }
+
     // Trim trailing slash
     return rtrim($url, "/");
 }

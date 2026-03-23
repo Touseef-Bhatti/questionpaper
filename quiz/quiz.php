@@ -711,7 +711,13 @@ if (is_dir($incorrectDir)) {
 <body>
 <?php include_once '../header.php'; ?>
 
+<!-- SIDE SKYSCRAPER ADS -->
+<?= renderAd('skyscraper', 'Quiz Page Right Skyscraper', 'right', 'margin-top: 10%;') ?>
+
 <div class="main-content">
+    <!-- TOP AD BANNER -->
+    <?= renderAd('banner', 'Quiz Page Top Banner', 'ad-placement-top', 'margin-bottom: 20px;') ?>
+
     <div class="quiz-container">
         <!-- Header -->
         <div class="quiz-header">
@@ -788,10 +794,18 @@ if (is_dir($incorrectDir)) {
             </div>
         </div>
     </div>
+
+    <!-- BOTTOM AD BANNER -->
+    <div style="margin-top: 30px;">
+        <?= renderAd('banner', 'Quiz Page Bottom Banner') ?>
+    </div>
 </div>
 
-<script src="funny_sounds/funny_audio_manager.js"></script>
+<script src="<?= $assetBase ?>quiz/funny_sounds/funny_audio_manager.js"></script>
 <script>
+// Initialize Audio Manager
+FunnyAudioManager.setBasePath('<?= $assetBase ?>');
+
 // ─── Data ──────────────────────────────────────────────────────────
 const questions = <?= json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 let currentQuestion = 0;
@@ -972,11 +986,16 @@ function playFunnySound(type) {
 }
 
 // ─── Pre-cache Funny Sounds ────────────────────────────────────────
+// Essential interface sounds
+['quiz/funny_sounds/quiz start.mp3', 'quiz/funny_sounds/onSwitchMode.mp3', 'quiz/funny_sounds/zeroMarks.mp3'].forEach(path => {
+    FunnyAudioManager._getAudio(path);
+});
+
 if (funnySounds.correct) {
-    funnySounds.correct.forEach(s => FunnyAudioManager._getAudio(`funny_sounds/correct/${s}`));
+    funnySounds.correct.forEach(s => FunnyAudioManager._getAudio(`quiz/funny_sounds/correct/${s}`));
 }
 if (funnySounds.incorrect) {
-    funnySounds.incorrect.forEach(s => FunnyAudioManager._getAudio(`funny_sounds/incorrect/${s}`));
+    funnySounds.incorrect.forEach(s => FunnyAudioManager._getAudio(`quiz/funny_sounds/incorrect/${s}`));
 }
 
 

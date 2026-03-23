@@ -6,7 +6,7 @@ echo "<h1>Testing Registration Components</h1>";
 
 echo "<h2>1. Testing Database Connection:</h2>";
 try {
-    require_once __DIR__ . '/db_connect.php';
+    require_once __DIR__ . '/../db_connect.php';
     if (isset($conn) && $conn->ping()) {
         echo "<p style='color: green;'>&#10004; Database connected successfully!</p>";
         // Test a simple query
@@ -38,7 +38,7 @@ $testEmail = 'test@example.com'; // Replace with a real email if you want to act
 $testToken = 'dummy_token_12345';
 
 try {
-    require_once __DIR__ . '/phpmailer_mailer.php';
+    require_once __DIR__ . '/../email/phpmailer_mailer.php';
     echo "<p>Attempting to send a test verification email to: " . htmlspecialchars($testEmail) . "</p>";
     
     // Note: sendVerificationEmail function might log errors internally.

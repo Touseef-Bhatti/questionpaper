@@ -15,9 +15,9 @@ return [
     'webhookSecret' => EnvLoader::get('SAFEPAY_WEBHOOK_SECRET'),
     
     // Application URLs (environment-aware)
-    'success_url' => EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk') . '/payment/success.php',
-    'cancel_url' => EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk') . '/payment/cancel.php',
-    'webhook_url' => EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk') . '/payment/webhook.php',
+    'success_url' => EnvLoader::get('APP_URL', 'https://ahmadlearninghub.com.pk/') . '/payment/success.php',
+    'cancel_url' => EnvLoader::get('APP_URL', 'https://ahmadlearninghub.com.pk/') . '/payment/cancel.php',
+    'webhook_url' => EnvLoader::get('APP_URL', 'https://ahmadlearninghub.com.pk/') . '/payment/webhook.php',
     
     // Payment settings
     'currency' => EnvLoader::get('DEFAULT_CURRENCY', 'PKR'),
