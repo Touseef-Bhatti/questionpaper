@@ -1,8 +1,10 @@
 <?php
 session_start();
 // require_once __DIR__ . '/../auth/auth_check.php';
-$pageTitle = "Finalize Paper | Intelligent Paper Builder";
-$metaDescription = "Configure your paper layout, choose question counts, and generate your PDF assessment.";
+$pageTitle = "Configure & Generate Question Paper | PDF Assessment Builder";
+$metaDescription = "Configure your question paper layout, set question counts, and generate PDF. Professional question paper builder with multiple customization options.";
+$metaKeywords = "question paper generator, PDF builder, assessment configuration, question paper layouts, educational assessment";
+
 require_once __DIR__ . '/../header.php';
 require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
 
@@ -10,9 +12,25 @@ require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
 $subscriptionStatus = getSubscriptionInfo();
 $isPremium = $subscriptionStatus && $subscriptionStatus['is_premium'];
 $userPlan = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
+
+// Prepare JSON-LD structured data
+$jsonLD = [
+    "@context" => "https://schema.org",
+    "@type" => "WebApplication",
+    "name" => "Question Paper Configuration",
+    "description" => "Configure and generate professional question papers",
+    "url" => "https://" . $_SERVER['HTTP_HOST'] . "/questionPaperFromTopic/finalize_paper.php",
+    "applicationCategory" => "EducationalApplication"
+];
 ?>
 <link rel="stylesheet" href="<?= $assetBase ?>css/paper-builder.css?v=<?= time() . rand(11000, 12000) ?>">
 <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
+<link rel="stylesheet" href="<?= $assetBase ?>css/search-results.css?v=<?= time() . rand(1, 1000) ?>">
+
+<!-- SEO: JSON-LD Structured Data -->
+<script type="application/ld+json">
+<?= json_encode($jsonLD, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
+</script>>
 
 <?php
 // Ensure we have topics to process
@@ -45,11 +63,13 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
 
 <div class="hero-builder py-5 mb-4" style="padding-bottom: 2rem !important; padding-top: 3rem !important;">
     <div class="container text-center animate-fade-up">
-        <h1 class="hero-title" style="font-size: 2.5rem;">Finalize Assessment</h1>
-        <p class="hero-subtitle mb-0">Configure your paper structure and generate the final PDF.</p>
+        <h1 class="hero-title" style="font-size: 2.5rem;">Finalize Your Question Paper</h1>
+        <p class="hero-subtitle mb-0">Configure paper structure and generate PDF.</p>
         
-        <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
-        <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
+        <!-- TOP AD BANNER -->
+        <div class="ad-placement-top mt-4">
+            <?= renderAd('banner', 'Finalize Hero Banner', 'ad-hero-banner') ?>
+        </div>
     </div>
 </div>
 
@@ -58,9 +78,6 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
     <div class="row justify-content-center">
         <!-- Main Column -->
         <div class="col-lg-12 paper-builder-main-content">
-            <!-- MIDDLE TOP AD -->
-            <?= renderAd('banner', 'Finalize Top Banner') ?>
-            <br>
             <div class="row g-4 justify-content-center">
         
         <!-- Left Column: Selected Topics Summary -->
@@ -248,12 +265,12 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
 
                         <hr class="my-5" style="border-color: #e2e8f0;">
 
-                        <div class="btn-wrapper" onclick="handleGeneratePaper()" style="cursor: pointer; transform: scale(0.9); display: flex; justify-content: center; margin: 0 auto;">
+                        <div class="btn-wrapper" onclick="handleGeneratePaper()">
                           <button type="button" class="btn">
                             <svg class="btn-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"></path>
                             </svg>
-                            <div style="min-width: 16.2em;" class="txt-wrapper">
+                            <div class="txt-wrapper">
                               <div class="txt-1">
                                 <span class="btn-letter">G</span><span class="btn-letter">e</span><span class="btn-letter">n</span><span class="btn-letter">e</span><span class="btn-letter">r</span><span class="btn-letter">a</span><span class="btn-letter">t</span><span class="btn-letter">e</span><span style="opacity: 0;" class="btn-letter">-</span><span class="btn-letter">Q</span><span class="btn-letter">u</span><span class="btn-letter">e</span><span class="btn-letter">s</span><span class="btn-letter">t</span><span class="btn-letter">i</span><span class="btn-letter">o</span><span class="btn-letter">n</span><span style="opacity: 0;" class="btn-letter">-</span><span class="btn-letter">P</span><span class="btn-letter">a</span><span class="btn-letter">p</span><span class="btn-letter">e</span><span class="btn-letter">r</span>
                               </div>

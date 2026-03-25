@@ -987,7 +987,7 @@ html.dark-mode .user-header-info .fw-bold {
           <a href="<?= $assetBase ?>online_quiz_join" class="<?= is_active('online_quiz_join.php') ?>"><i class="fas fa-gamepad"></i> Join Quiz</a>
         </div>
       </li>
-      <li><a href="<?= $assetBase ?>notes" class="<?= is_active('notes.php') ?>"><i class="fas fa-book"></i> Notes</a></li>
+      <li><a href="<?= $assetBase ?>note" class="<?= is_active('note.php') ?>"><i class="fas fa-book"></i> Notes</a></li>
       <li><a href="<?= $assetBase ?>online_quiz_join" class="btn-join"><i class="fas fa-gamepad" ></i> Join</a></li>
       <li><a href="<?= $assetBase ?>about" class="<?= is_active('about.php') ?>"><i class="fas fa-info-circle"></i> About</a></li>
       <!-- <li><a href="<?= $assetBase ?>contact.php" class="<?= is_active('contact.php') ?>"><i class="fas fa-envelope"></i> Contact</a></li> -->

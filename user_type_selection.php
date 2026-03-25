@@ -126,26 +126,39 @@
 </div>
 
 <script>
+    let pendingNavigationElement = null;
+
     document.addEventListener('DOMContentLoaded', function() {
         checkUserType();
+        setupLinkInterception();
     });
 
     function checkUserType() {
         const userType = localStorage.getItem('user_type_preference');
         
-        if (!userType) {
-            // No choice made yet, show popup after 5 seconds
-            setTimeout(() => {
-                const overlay = document.getElementById('userTypeOverlay');
-                // Use requestAnimationFrame for smoother entry
-                requestAnimationFrame(() => {
-                    overlay.classList.add('show');
-                });
-            }, 10000);
-        } else {
+        if (userType) {
             console.log('User type already selected:', userType);
             applyUserTypeSettings(userType);
         }
+    }
+
+    function setupLinkInterception() {
+        document.body.addEventListener('click', function(e) {
+            const link = e.target.closest('a[href*="select_class"], a[href*="quiz_setup"], a[href*="mcqs_topic"], a[href*="home"]');
+            
+            if (link) {
+                const userType = localStorage.getItem('user_type_preference');
+                if (!userType) {
+                    e.preventDefault();
+                    pendingNavigationElement = link;
+                    
+                    const overlay = document.getElementById('userTypeOverlay');
+                    requestAnimationFrame(() => {
+                        overlay.classList.add('show');
+                    });
+                }
+            }
+        });
     }
 
     function selectUserType(type) {
@@ -159,6 +172,14 @@
         // Apply settings immediately but smoothly
         requestAnimationFrame(() => {
             applyUserTypeSettings(type);
+            
+            // If they were trying to navigate before the popup interrupted them
+            if (pendingNavigationElement) {
+                // Wait slightly for href updates to process
+                setTimeout(() => {
+                    window.location.href = pendingNavigationElement.href;
+                }, 50);
+            }
         });
 
         console.log('User type saved:', type);

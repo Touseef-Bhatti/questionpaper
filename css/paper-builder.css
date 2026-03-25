@@ -351,7 +351,7 @@ body {
 
 /* --- Search Command Section --- */
 .search-wrapper {
-    margin-top: -2.8rem;
+    margin-top: 2.8rem;
     z-index: 100;
     padding: 0 1.5rem;
 }
@@ -538,13 +538,12 @@ body {
         font-size: 1.6rem;
     }
     .generate-action-btn {
-        transform: scale(0.75); /* Scale down for mobile bounds */
         margin: 0 auto;
         display: flex;
         justify-content: center;
     }
     .generate-action-btn:hover {
-        transform: scale(0.77);
+        /* No scaling on mobile for better touch target */
     }
 }
 

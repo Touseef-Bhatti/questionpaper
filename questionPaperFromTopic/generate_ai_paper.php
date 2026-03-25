@@ -1,14 +1,32 @@
 <?php
 session_start();
-$pageTitle = "Generated Paper | Intelligent Paper Builder";
-$metaDescription = "View and print your AI-generated assessment paper.";
+$pageTitle = "AI-Generated Question Paper | Download & Print";
+$metaDescription = "View your AI-generated question paper with multiple question types. Download as PDF or Word document.";
+$metaKeywords = "AI question paper, generated assessment, question paper download, PDF export";
+
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../header.php';
 require_once __DIR__ . '/../quiz/mcq_generator.php';
 require_once __DIR__ . '/../includes/APIKeyManager.php';
+
+// Prepare JSON-LD structured data
+$jsonLD = [
+    "@context" => "https://schema.org",
+    "@type" => "WebApplication",
+    "name" => "AI Question Paper Generator",
+    "description" => "AI-powered question paper generation tool",
+    "url" => "https://" . $_SERVER['HTTP_HOST'] . "/questionPaperFromTopic/generate_ai_paper.php",
+    "applicationCategory" => "EducationalApplication"
+];
 ?>
 <link rel="stylesheet" href="<?= $assetBase ?>css/paper-builder.css?v=<?= time() . rand(6000, 7000) ?>">
+<link rel="stylesheet" href="<?= $assetBase ?>css/search-results.css?v=<?= time() . rand(1, 1000) ?>">
+
+<!-- SEO: JSON-LD Structured Data -->
+<script type="application/ld+json">
+<?= json_encode($jsonLD, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
+</script>>
 <?php
 
 // Get inputs from configure_paper.php or topic search

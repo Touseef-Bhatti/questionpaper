@@ -166,12 +166,17 @@
   position: relative;
   display: flex;
   align-items: center;
-  min-width: 6.4em;
+  min-width: 14em; /* Increased to accommodate longer text */
+  justify-content: center;
 }
 .txt-1,
 .txt-2 {
   position: absolute;
   word-spacing: -1em;
+  white-space: nowrap; /* Keep letters on one line for animation */
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 .txt-1 {
   animation: appear-anim 1s ease-in-out forwards;
@@ -349,24 +354,34 @@
 @media (max-width: 768px) {
   .button-container {
     flex-direction: column !important;
-    gap: 20px !important;
+    gap: 15px !important;
     align-items: center !important;
-    margin-top: 30px !important;
+    margin-top: 20px !important;
   }
   
   .btn-wrapper {
-    margin: 15px auto !important;
-    width: 90% !important;
+    margin: 10px auto !important;
+    width: 100% !important;
     display: flex !important;
     justify-content: center !important;
     transform: none !important;
   }
 
   .btn {
-    width: 100% !important;
-    max-width: 280px !important;
-    font-size: 0.9rem !important;
-    padding: 10px 15px !important;
+    width: auto !important;
+    min-width: 250px !important;
+    max-width: 100% !important;
+    font-size: 0.85rem !important; /* Slightly smaller on mobile to fit long text */
+    padding: 8px 12px 8px 15px !important;
+  }
+  
+  .txt-wrapper {
+      min-width: 12em !important; /* Responsive min-width */
+  }
+
+  .btn-svg {
+      height: 20px !important;
+      margin-right: 0.3rem !important;
   }
 
   .go-back-btn, .Btn-Container {

@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="<?= $assetBase ?>css/notes.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/textbook.css">
+  
 </head>
 <body>
     <?php include '../header.php'; ?>
