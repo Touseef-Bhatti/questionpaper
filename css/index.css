@@ -844,3 +844,16 @@ body {
 @media (prefers-reduced-motion: reduce) {
     .a2hs-prompt, .a2hs-card { transition: none !important; animation: none !important; }
 }
+
+/* PC Screens: Center text vertically within the fixed height hero section */
+@media (min-width: 992px) {
+    .hero-section {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-top: 4rem; /* Adjusted to balance visually with the negative margin-top set on the parent */
+    }
+    .hero-grid {
+        width: 100%;
+    }
+}

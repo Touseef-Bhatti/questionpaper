@@ -460,7 +460,25 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
     MCQs to verify:\n";
 
     foreach ($mcqs as $m) {
-        $prompt .= "ID: {$m[$pk]}, Topic: {$m['topic']}, Q: {$m[$qCol]}, A: {$m['option_a']}, B: {$m['option_b']}, C: {$m['option_c']}, D: {$m['option_d']}, Correct: {$m['correct_option']}\n";
+        // For mcqs table, convert letter to text for AI prompt
+        $correctText = $m['correct_option'];
+        if ($sourceTable === 'mcqs') {
+            $letter = strtoupper($m['correct_option']);
+            switch ($letter) {
+                case 'A': $correctText = $m['option_a']; break;
+                case 'B': $correctText = $m['option_b']; break;
+                case 'C': $correctText = $m['option_c']; break;
+                case 'D': $correctText = $m['option_d']; break;
+            }
+        }
+        
+        // For mcqs table, create a topic from class/book/chapter if topic doesn't exist
+        $topic = isset($m['topic']) ? $m['topic'] : 'General MCQ';
+        if ($sourceTable === 'mcqs' && !isset($m['topic'])) {
+            $topic = 'Class ' . ($m['class_id'] ?? 'Unknown') . ' - Book ' . ($m['book_id'] ?? 'Unknown') . ' - Chapter ' . ($m['chapter_id'] ?? 'Unknown');
+        }
+        
+        $prompt .= "ID: {$m[$pk]}, Topic: {$topic}, Q: {$m[$qCol]}, A: {$m['option_a']}, B: {$m['option_b']}, C: {$m['option_c']}, D: {$m['option_d']}, Correct: {$correctText}\n";
     }
 
     list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, 10000, 120);
@@ -517,11 +535,29 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
 
         // If corrected, also update the main table
         if ($status === 'corrected' && !empty($suggested)) {
-            $updateMainSql = "UPDATE $mainTable SET correct_option = ? WHERE $pk = ?";
-            $stmt = $conn->prepare($updateMainSql);
-            $stmt->bind_param('si', $suggested, $id);
-            $stmt->execute();
-            $stmt->close();
+            if ($sourceTable === 'mcqs') {
+                // For mcqs table, convert text back to letter
+                $letter = '';
+                if (strcasecmp($suggested, $original['option_a']) === 0) $letter = 'A';
+                elseif (strcasecmp($suggested, $original['option_b']) === 0) $letter = 'B';
+                elseif (strcasecmp($suggested, $original['option_c']) === 0) $letter = 'C';
+                elseif (strcasecmp($suggested, $original['option_d']) === 0) $letter = 'D';
+                
+                if (!empty($letter)) {
+                    $updateMainSql = "UPDATE $mainTable SET correct_option = ? WHERE $pk = ?";
+                    $stmt = $conn->prepare($updateMainSql);
+                    $stmt->bind_param('si', $letter, $id);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            } else {
+                // For AIGeneratedMCQs, store the text directly
+                $updateMainSql = "UPDATE $mainTable SET correct_option = ? WHERE $pk = ?";
+                $stmt = $conn->prepare($updateMainSql);
+                $stmt->bind_param('si', $suggested, $id);
+                $stmt->execute();
+                $stmt->close();
+            }
         }
     }
 

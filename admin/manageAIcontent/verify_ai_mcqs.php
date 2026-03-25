@@ -115,7 +115,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $ids = array_map('intval', $ids);
     $idsList = implode(',', $ids);
     
-    $sql = "SELECT m.$pk as id, m.topic, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option as current_correct, 
+    $questionColumn = ($sourceTable === 'mcqs') ? 'question' : 'question_text';
+    $topicColumn = ($sourceTable === 'mcqs') ? "CONCAT('Class ', COALESCE(m.class_id, 'Unknown'), ' - Book ', COALESCE(m.book_id, 'Unknown'), ' - Chapter ', COALESCE(m.chapter_id, 'Unknown'))" : 'm.topic';
+    $sql = "SELECT m.$pk as id, $topicColumn as topic, m.$questionColumn as question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option as current_correct, 
             v.verification_status, v.suggested_correct_option, v.original_correct_option, v.ai_notes, v.last_checked_at
             FROM $mainTable m
             JOIN $verifyTable v ON m.$pk = v.$fk
@@ -150,9 +152,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             echo '<td><span class="badge ' . $badgeClass . '">' . ucfirst($row['verification_status']) . '</span></td>';
             echo '<td>';
             if ($row['verification_status'] === 'corrected') {
-                echo '<div class="mb-1"><strong>Corrected to:</strong> <span class="text-success fw-bold">' . htmlspecialchars($row['current_correct']) . '</span></div>';
-                if (!empty($row['original_correct_option']) && $row['original_correct_option'] !== $row['current_correct']) {
-                    echo '<div class="text-muted small">Previous: ' . htmlspecialchars($row['original_correct_option']) . '</div>';
+                $correctedText = '';
+                $originalText = '';
+                
+                if ($sourceTable === 'mcqs') {
+                    // For mcqs table, current_correct is letter, suggested_correct_option is text
+                    $correctedText = htmlspecialchars($row['suggested_correct_option'] ?: $row['current_correct']);
+                    
+                    // Convert original letter to text
+                    $origLetter = strtoupper($row['original_correct_option'] ?: '');
+                    switch ($origLetter) {
+                        case 'A': $originalText = htmlspecialchars($row['option_a']); break;
+                        case 'B': $originalText = htmlspecialchars($row['option_b']); break;
+                        case 'C': $originalText = htmlspecialchars($row['option_c']); break;
+                        case 'D': $originalText = htmlspecialchars($row['option_d']); break;
+                        default: $originalText = htmlspecialchars($row['original_correct_option'] ?: 'Unknown');
+                    }
+                } else {
+                    // For AIGeneratedMCQs, both are text
+                    $correctedText = htmlspecialchars($row['current_correct']);
+                    $originalText = htmlspecialchars($row['original_correct_option'] ?: 'Unknown');
+                }
+                
+                echo '<div class="mb-1"><strong>Corrected to:</strong> <span class="text-success fw-bold">' . $correctedText . '</span></div>';
+                if (!empty($row['original_correct_option'])) {
+                    echo '<div class="text-muted small">Previous: ' . $originalText . '</div>';
                 }
             }
             if (!empty($row['ai_notes'])) {
@@ -245,7 +269,10 @@ if ($filter === 'all') {
 if (!empty($search)) {
     $searchEscaped = $conn->real_escape_string($search);
     $questionColumn = ($sourceTable === 'mcqs') ? 'm.question' : 'm.question_text';
-    $whereClause .= " AND ($questionColumn LIKE '%$searchEscaped%' OR m.topic LIKE '%$searchEscaped%')";
+    $topicSearch = ($sourceTable === 'mcqs') ? 
+        "(CONCAT('Class ', COALESCE(m.class_id, ''), ' - Book ', COALESCE(m.book_id, ''), ' - Chapter ', COALESCE(m.chapter_id, '')) LIKE '%$searchEscaped%')" : 
+        "m.topic LIKE '%$searchEscaped%'";
+    $whereClause .= " AND ($questionColumn LIKE '%$searchEscaped%' OR $topicSearch)";
 }
 
 // Count for Pagination
@@ -256,7 +283,8 @@ $totalPages = ceil($totalRows / $perPage);
 
     // Fetch Report Data
     $questionColumn = ($sourceTable === 'mcqs') ? 'question' : 'question_text';
-    $reportSql = "SELECT m.$pk as id, m.topic, m.$questionColumn as question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option as current_correct, 
+    $topicColumn = ($sourceTable === 'mcqs') ? "CONCAT('Class ', COALESCE(m.class_id, 'Unknown'), ' - Book ', COALESCE(m.book_id, 'Unknown'), ' - Chapter ', COALESCE(m.chapter_id, 'Unknown'))" : 'm.topic';
+    $reportSql = "SELECT m.$pk as id, $topicColumn as topic, m.$questionColumn as question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option as current_correct, 
             v.verification_status, v.suggested_correct_option, v.original_correct_option, v.ai_notes, v.last_checked_at
             FROM $mainTable m
             LEFT JOIN $verifyTable v ON m.$pk = v.$fk
@@ -740,7 +768,14 @@ if (isset($_GET['filter']) || isset($_GET['page'])) {
                                                 <?php 
                                                 $options = ['a' => $row['option_a'], 'b' => $row['option_b'], 'c' => $row['option_c'], 'd' => $row['option_d']];
                                                 foreach ($options as $key => $val):
-                                                    $isCorrect = (strcasecmp($val, $row['current_correct']) === 0);
+                                                    $isCorrect = false;
+                                                    if ($sourceTable === 'mcqs') {
+                                                        // For mcqs table, correct_option is a letter
+                                                        $isCorrect = (strcasecmp($row['current_correct'], strtoupper($key)) === 0);
+                                                    } else {
+                                                        // For AIGeneratedMCQs, correct_option is the text
+                                                        $isCorrect = (strcasecmp($val, $row['current_correct']) === 0);
+                                                    }
                                                 ?>
                                                     <div class="option-item <?= $isCorrect ? 'is-correct' : '' ?>">
                                                         <span class="option-letter"><?= strtoupper($key) ?>)</span>
@@ -765,9 +800,35 @@ if (isset($_GET['filter']) || isset($_GET['page'])) {
                                         <?php if ($row['verification_status'] === 'corrected'): ?>
                                             <div class="correction-highlight shadow-sm">
                                                 <div class="small text-muted mb-1"><i class="fas fa-magic me-1"></i> Corrected from:</div>
-                                                <div class="text-danger text-decoration-line-through small mb-2"><?= htmlspecialchars($row['original_correct_option'] ?: 'Unknown') ?></div>
+                                                <div class="text-danger text-decoration-line-through small mb-2">
+                                                    <?php
+                                                    if ($sourceTable === 'mcqs') {
+                                                        // For mcqs table, original_correct_option is a letter, convert to text
+                                                        $origLetter = strtoupper($row['original_correct_option'] ?: '');
+                                                        $origText = 'Unknown';
+                                                        switch ($origLetter) {
+                                                            case 'A': $origText = $row['option_a']; break;
+                                                            case 'B': $origText = $row['option_b']; break;
+                                                            case 'C': $origText = $row['option_c']; break;
+                                                            case 'D': $origText = $row['option_d']; break;
+                                                        }
+                                                        echo htmlspecialchars($origText);
+                                                    } else {
+                                                        echo htmlspecialchars($row['original_correct_option'] ?: 'Unknown');
+                                                    }
+                                                    ?>
+                                                </div>
                                                 <div class="small text-muted mb-1">To:</div>
-                                                <div class="text-success fw-bold"><?= htmlspecialchars($row['current_correct']) ?></div>
+                                                <div class="text-success fw-bold">
+                                                    <?php
+                                                    if ($sourceTable === 'mcqs') {
+                                                        // For mcqs table, suggested_correct_option is already text
+                                                        echo htmlspecialchars($row['suggested_correct_option'] ?: $row['current_correct']);
+                                                    } else {
+                                                        echo htmlspecialchars($row['current_correct']);
+                                                    }
+                                                    ?>
+                                                </div>
                                             </div>
                                         <?php endif; ?>
                                         <?php if (!empty($row['ai_notes'])): ?>

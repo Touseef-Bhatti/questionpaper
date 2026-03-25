@@ -16,7 +16,7 @@
                 <li><a href="<?= $assetBase ?? '' ?>index"><i class="fas fa-home"></i> Home</a></li>
                 <li><a href="<?= $assetBase ?? '' ?>select_class"><i class="fas fa-file-alt"></i> Generate Paper</a></li>
                 <li><a href="<?= $assetBase ?? '' ?>quiz_setup"><i class="fas fa-question-circle"></i> Online Quiz</a></li>
-                <li><a href="<?= $assetBase ?? '' ?>notes"><i class="fas fa-book"></i> Notes</a></li>
+                <li><a href="<?= $assetBase ?? '' ?>note"><i class="fas fa-book"></i> Notes</a></li>
             </ul>
         </div>
         <div class="footer-section footer-links-group">
@@ -36,8 +36,8 @@
         <div class="footer-section footer-contact">
             <h3>Contact Us</h3>
             <p><i class="fas fa-map-marker-alt"></i> Gujranwala</p>
-            <p><i class="fas fa-phone"></i> +92 3206472460</p>
-            <p><i class="fas fa-envelope"></i> support@Ahmad Learning Hub.com</p>
+            <p><a href="https://wa.me/923206472460" target="_blank" aria-label="Chat with us on WhatsApp" style="color: aliceblue;"><i class="fab fa-whatsapp" ></i> +92 3206472460</a></p>
+            <p> <a href="mailto:touseef12345bhatt@gmail.com" target="_blank" aria-label="Email us" style="color: aliceblue;"><i class="fas fa-envelope"></i> touseef12345bhatt@gmail.com</a></p>
             <div class="footer-social">
                 <a href="https://facebook.com/" target="_blank" aria-label="Follow us on Facebook"><i class="fab fa-facebook-f"></i></a>
                 <a href="https://twitter.com/" target="_blank" aria-label="Follow us on Twitter"><i class="fab fa-twitter"></i></a>

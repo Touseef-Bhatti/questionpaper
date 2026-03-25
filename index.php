@@ -31,7 +31,7 @@ include 'db_connect.php';
     <div class="main-content" style="margin-top: -10%;">
 
         <!-- HERO: Futuristic & Clean -->
-        <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover;">
+        <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover ;height: 100vh;">
             <div class="container hero-grid">
                 
                <div class="hero-content">
