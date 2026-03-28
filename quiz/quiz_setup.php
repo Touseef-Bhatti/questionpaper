@@ -11,9 +11,11 @@ include '../db_connect.php';
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Take a Free Online Quiz - AI MCQ Generator - Ahmad Learning Hub</title>
+    <title>Online MCQs Test For 9th and 10th Board Exams - Ahmad Learning Hub</title>
     <!-- Enhanced SEO Meta Tags -->
-    <meta name="description" content="Free AI-powered MCQ generator for board exams. Practice with thousands of questions according to the new 2026 syllabus. Perfect for Matric, FSc, MDCAT & ECAT prep. Generate custom tests by class, book, or AI topic search.">
+    <meta name="description" content="Chapter Wise MCQs for all books , Online MCQs test for Class 9 and 10 Board Exams.Practice Your Exam Preparation With Fast and Easy Online Tool - Ahmad Learning Hub">
+
+
     <meta name="keywords" content="AI MCQs, AI quiz generator, new syllabus MCQs 2026, board exam preparation, online MCQs practice, Matric MCQs, FSc MCQs, Biology MCQs, Chemistry MCQs, Physics MCQs, All board MCQs, Ahmad Learning Hub, automatic test generator">
     <meta name="author" content="Ahmad Learning Hub">
     <meta name="robots" content="index, follow">
@@ -61,7 +63,7 @@ include '../db_connect.php';
     <link rel="stylesheet" href="../css/quiz_setup.css">
     <link rel="stylesheet" href="../css/ai_loader.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="../js/ai_loader.js" defer></script>
+    <!-- <script src="../js/ai_loader.js" defer></script> -->
 </head>
 <body>
 <?php include_once '../header.php'; ?>
@@ -75,8 +77,8 @@ include '../db_connect.php';
         <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
         <header class="setup-header">
-            <h1>Master Your Exams with Custom Quizzes</h1>
-            <p class="desc">Ahmad Learning Hub provides a personalized learning experience. Select your current academic level below to generate a focused MCQ practice session tailored to your syllabus.</p>
+            <h1>Online MCQs Test For 9th and 10th Board Exams</h1>
+            <p class="desc">Ahmad Learning Hub provides a personalized learning experience. Select your Class below to generate a focused MCQ practice session tailored to your syllabus.</p>
         </header>
 
         <form id="quizForm" method="POST" action="quiz.php">
@@ -144,34 +146,44 @@ include '../db_connect.php';
     </div>
 
     <!-- SEO Article Section -->
-    <article class="seo-article-section">
-        <div class="seo-grid">
-            <div class="seo-card">
-                <div class="seo-icon">🤖</div>
-                <h3 class="seo-card-title">AI-Powered MCQs</h3>
-                <p class="seo-card-text">Using advanced AI, we generate high-quality questions for any topic. Our AI matches the difficulty and style of modern board exams, ensuring you're ready for anything.</p>
-            </div>
-            
-            <div class="seo-card">
-                <div class="seo-icon">🆕</div>
-                <h3 class="seo-card-title">New 2026 Syllabus</h3>
-                <p class="seo-card-text">Our database is updated daily to follow the latest Board Exam New Syllabus and paper patterns. Practice with confidence knowing you're studying the right material.</p>
-            </div>
-            
-            <div class="seo-card">
-                <div class="seo-icon">🌍</div>
-                <h3 class="seo-card-title">All Boards Coverage</h3>
-                <p class="seo-card-text">From Punjab Board to Federal and Sindh Boards, we provide MCQs for all standard educational curricula, including MDCAT, ECAT, and GRE foundations.</p>
-            </div>
-            <div class="seo-card">
-                <div class="seo-icon">📈</div>
-                <h3 class="seo-card-title">Success Analytics</h3>
-                <p class="seo-card-text">Simulate real exam environments and track your performance. Regular testing on our platform is proven to increase retention and boost exam confidence.</p>
-            </div>
+ <!-- SEO Article Section -->
+<article class="seo-article-section">
+    <div class="seo-grid">
+        
+        <div class="seo-card">
+            <div class="seo-icon">📘</div>
+            <h3 class="seo-card-title">Class 9 & 10 MCQs Quiz</h3>
+            <p class="seo-card-text">
+                Practice online MCQs quizzes for Class 9 and Class 10 subjects. Our platform offers chapter-wise MCQs and full syllabus quizzes based on Punjab Board and other educational boards in Pakistan to help students prepare effectively for exams.
+            </p>
         </div>
 
+        <div class="seo-card">
+            <div class="seo-icon">📚</div>
+            <h3 class="seo-card-title">Chapter Wise MCQs Selection</h3>
+            <p class="seo-card-text">
+                Select MCQs chapter-wise for all major subjects including Math, Physics, Chemistry, Biology, and Computer Science. Focus on specific chapters to strengthen concepts and improve exam preparation with targeted practice.
+            </p>
         </div>
-    </article>
+
+        <div class="seo-card">
+            <div class="seo-icon">🎯</div>
+            <h3 class="seo-card-title">Topic Wise Online MCQs</h3>
+            <p class="seo-card-text">
+                Choose MCQs by topics within each chapter for deeper understanding. Topic-wise quizzes help students practice difficult concepts, revise important areas, and improve accuracy in board exam questions.
+            </p>
+        </div>
+
+        <div class="seo-card">
+            <div class="seo-icon">📝</div>
+            <h3 class="seo-card-title">Board Pattern Based Practice</h3>
+            <p class="seo-card-text">
+                All MCQs are designed according to the latest board exam patterns. Whether you're preparing for Punjab Board or other boards, our quizzes follow real exam-style questions for better preparation and confidence.
+            </p>
+        </div>
+
+    </div>
+</article>
 
     <!-- BOTTOM AD BANNER -->
     <br>

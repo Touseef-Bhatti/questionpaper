@@ -36,6 +36,13 @@ foreach ($gen_paper_pages as $p) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
+<link rel="icon" type="image/png" href="favicon/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="favicon/favicon.svg" />
+<link rel="shortcut icon" href="favicon/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png" />
+<link rel="manifest" href="favicon/site.webmanifest" />
+
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
 
@@ -1214,13 +1221,12 @@ html.dark-mode .user-header-info .text-muted {
     color: #94a3b8;
 }
    </style>
-   <link rel="stylesheet" href="<?= $assetBase ?>css/ads.css">
+  
 </head>
 <body>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-<link rel="stylesheet" href="<?= $assetBase ?>css/index.css">
-<link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
+
 
 <nav class="navbar">
   <div class="navbar-container">

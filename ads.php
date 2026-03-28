@@ -1,10 +1,16 @@
 <?php
+
+
+
+
 /**
  * Ad Management System
  * Centrally manages ad rendering and subscription-based visibility.
  */
 
 require_once __DIR__ . '/middleware/SubscriptionCheck.php';
+
+
 
 // ==========================================
 // AD NETWORKS INCLUDES
@@ -70,3 +76,5 @@ function renderMonetagScripts() {
     // include __DIR__ . '/includes/monetag_ads.php';
     return ob_get_clean();
 }
+
+

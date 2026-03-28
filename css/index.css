@@ -84,8 +84,9 @@ body {
     letter-spacing: 0.18em;
     display: inline-block;
     background: rgba(255,255,255,0.03);
-    padding: 0.35rem 0.75rem;
+    padding: 0.45rem 1.75rem;
     border-radius: 999px;
+    margin-top: 10%;
 }
 
 .hero-content h1 {
@@ -608,6 +609,9 @@ body {
 @media (max-width: 768px) {
     .teachers-section .card .btn {
         width: 100%; /* Full width buttons on small screens */
+    }
+    .btn {
+        margin: auto;
     }
 }
 

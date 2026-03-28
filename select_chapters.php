@@ -2,7 +2,7 @@
 session_start();
 // require_once 'auth/auth_check.php';
 // Require authentication before accessing this page
-// require_once 'auth_check.php';
+
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 
@@ -38,6 +38,14 @@ function getPatternDefaults($classId, $book_name) {
                 'long' => 3
             ];
         }
+        // math
+        if ($book_name_lower == 'math') {
+            return [
+                'mcqs' => 15,
+                'sq' => 27, 
+                'long' => 5
+            ];
+        }
     }
     
     // Default values if conditions don't match
@@ -51,21 +59,35 @@ function getPatternDefaults($classId, $book_name) {
 // Get pattern defaults
 $patternDefaults = getPatternDefaults($classId, $book_name);
 
-// Fetch chapters using prepared statement (OPTIMIZED)
-$chapterQuery = "SELECT chapter_id, chapter_name FROM chapter WHERE class_id = ? AND book_name = ? ORDER BY chapter_id ASC";
-$stmt = $conn->prepare($chapterQuery);
+require_once 'services/CacheManager.php';
+$cache = new CacheManager();
+$cacheKey = "chapters_c_" . $classId . "_b_" . md5($book_name);
+$chaptersData = $cache->get($cacheKey);
 
-if (!$stmt) {
-    die("<h2 style='color:red;'>Error: " . htmlspecialchars($conn->error) . "</h2>");
-}
+if (!$chaptersData) {
+    // Fetch chapters using prepared statement (OPTIMIZED)
+    $chapterQuery = "SELECT chapter_id, chapter_name FROM chapter WHERE class_id = ? AND book_name = ? ORDER BY chapter_id ASC";
+    $stmt = $conn->prepare($chapterQuery);
 
-$stmt->bind_param('is', $classId, $book_name);
-$stmt->execute();
-$result = $stmt->get_result();
+    if (!$stmt) {
+        die("<h2 style='color:red;'>Error: " . htmlspecialchars($conn->error) . "</h2>");
+    }
 
-// Check for errors
-if (!$result) {
-	die("<h2 style='color:red;'>Error fetching data: " . htmlspecialchars($conn->error) . "</h2>");
+    $stmt->bind_param('is', $classId, $book_name);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    // Check for errors
+    if (!$result) {
+        die("<h2 style='color:red;'>Error fetching data: " . htmlspecialchars($conn->error) . "</h2>");
+    }
+    
+    $chaptersData = [];
+    while ($row = $result->fetch_assoc()) {
+        $chaptersData[] = $row;
+    }
+    
+    $cache->set($cacheKey, $chaptersData, 86400); // 24 hours
 }
 
 ?>
@@ -87,9 +109,14 @@ if (!$result) {
 
 
 
-<meta name="description" content="Select chapters for <?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> to generate custom question papers and practice tests. Tailored to Punjab Board syllabus with up-to-date MCQs, past papers, and study resources.">
-<meta name="keywords" content="<?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> chapter selection, <?= htmlspecialchars($classId) ?> class question papers, Punjab Board MCQs, online tests chapter-wise, generate paper for <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?>, subject-wise test generator, Pakistan Board exam preparation">
-<title><?= htmlspecialchars($classId) ?> Class <?= htmlspecialchars($book_name) ?> Chapter Selection for Question Papers | Punjab Board Generator</title>
+<meta name="description" content="Generate Online Question Paper for <?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> to generate Chapter-wise question papers and MCQs Papers.According to Punjab Board up-to-date syllabus">
+
+
+<meta name="keywords" content="<?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> chapter selection, <?= htmlspecialchars($classId) ?> class question papers, Punjab Board MCQs, online tests chapter-wise, generate paper for <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?>, subject-wise test generator, Pakistan Board exam preparation , Fast Paper generator ">
+
+
+
+<title>Online Question Papers for <?= htmlspecialchars($classId) ?> Class <?= htmlspecialchars($book_name) ?> | Punjab Board</title>
 
 
   
@@ -827,8 +854,8 @@ document.addEventListener('DOMContentLoaded', function() {
 			</div>
 
 			<?php
-			if ($result->num_rows > 0) {
-				while ($row = $result->fetch_assoc()) {
+			if (!empty($chaptersData)) {
+				foreach ($chaptersData as $row) {
 					$chapter_display = "{$row['chapter_name']}";
 					$chapter_value = "{$row['chapter_id']}|{$row['chapter_name']}";
 			?>
@@ -923,6 +950,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 		</form>
 
+        <!-- SEO Content -->
+         <section>
+            <div>
+                <h2>Online Question Paper Generator for <?= htmlspecialchars($classId) ?> Class <?= htmlspecialchars($book_name) ?> Chapters wise .</h2><br>
+                <p>Fast Question paper generator tool for class <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?>  chapters wise.<strong> Best paper setter tool for Teachers. </strong>you can generate MCQs papers for <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?> </p> </div>
+            </div>
+         </section>
 		
 	</div>
   </div>

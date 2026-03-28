@@ -1,4 +1,6 @@
 <?php
+
+
 // Dynamic asset base calculation (robust for subdirectory deployments and URL rewriting)
 $scriptPath = $_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '');
 $scriptDir  = str_replace('\\', '/', dirname($scriptPath));

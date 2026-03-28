@@ -12,20 +12,34 @@ if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !is_numeric($_GET['
 
 $classId = intval($_GET['class_id']);
 
-// Select all books for this class using prepared statement (OPTIMIZED)
-$bookQuery = "SELECT book_id, book_name FROM book WHERE class_id = ? ORDER BY book_id ASC";
-$stmt = $conn->prepare($bookQuery);
+require_once 'services/CacheManager.php';
+$cache = new CacheManager();
+$cacheKey = "books_class_" . $classId;
+$booksData = $cache->get($cacheKey);
 
-if (!$stmt) {
-    die("<h2 style='color:red;'>Database error: " . htmlspecialchars($conn->error) . "</h2>");
-}
+if (!$booksData) {
+    // Select all books for this class using prepared statement (OPTIMIZED)
+    $bookQuery = "SELECT book_id, book_name FROM book WHERE class_id = ? ORDER BY book_id ASC";
+    $stmt = $conn->prepare($bookQuery);
 
-$stmt->bind_param('i', $classId);
-$stmt->execute();
-$result = $stmt->get_result();
+    if (!$stmt) {
+        die("<h2 style='color:red;'>Database error: " . htmlspecialchars($conn->error) . "</h2>");
+    }
 
-if (!$result) {
-    die("<h2 style='color:red;'>Query error: " . htmlspecialchars($conn->error) . "</h2>");
+    $stmt->bind_param('i', $classId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if (!$result) {
+        die("<h2 style='color:red;'>Query error: " . htmlspecialchars($conn->error) . "</h2>");
+    }
+    
+    $booksData = [];
+    while ($row = $result->fetch_assoc()) {
+        $booksData[] = $row;
+    }
+    
+    $cache->set($cacheKey, $booksData, 86400); // 24 hours
 }
 ?>
 
@@ -41,12 +55,14 @@ if (!$result) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<meta name="description" content="Select a subject for <?= htmlspecialchars($classId) ?> class to generate question papers based on Punjab Board patterns. Create MCQs tests, chapter-wise papers, and school exam papers instantly.">
-
-<meta name="keywords" content="<?= htmlspecialchars($classId) ?> class subjects, <?= htmlspecialchars($classId) ?> paper generator, Punjab Board subjects, online MCQs test <?= htmlspecialchars($classId) ?>, subject-wise question papers, test generator Pakistan">
 
 
-    <title>Select Subject for <?= htmlspecialchars($classId) ?> Class Paper Generator | Punjab Board</title>
+<meta name="description" content="Select book for <?= htmlspecialchars($classId) ?> class to generate Online question papers And MCQs PApers based on Punjab Board patterns. Create  chapter-wise papers,Custom Question Papers for class Tests and school exam papers Ready to Download.">
+
+<meta name="keywords" content="<?= htmlspecialchars($classId) ?> class subjects, <?= htmlspecialchars($classId) ?>Question paper generator, Punjab Board subjects, online MCQs test <?= htmlspecialchars($classId) ?>, subject-wise question papers, test generator Pakistan">
+
+
+    <title>Online Question Paper Generator for  <?= htmlspecialchars($classId) ?> Class | Punjab Board</title>
   
 </head>
 <body>
@@ -68,8 +84,8 @@ if (!$result) {
     <div class="classes-container" id="book-box-container">
 
     <div class="classes-grid" id="books-grid">
-        <?php if ($result->num_rows > 0): ?>
-            <?php while ($row = $result->fetch_assoc()): ?>
+        <?php if (!empty($booksData)): ?>
+            <?php foreach ($booksData as $row): ?>
                 <?php
                     // Example: Make some  "coming soon" book
 
@@ -84,7 +100,7 @@ if (!$result) {
                 >
                     <?= htmlspecialchars($row['book_name']) ?>
                 </div>
-            <?php endwhile; ?>
+            <?php endforeach; ?>
         <?php else: ?>
             <h3 style="color:red;">No books found for this class.</h3>
         <?php endif; ?>
@@ -94,8 +110,8 @@ if (!$result) {
 
 
 <p class="seo-subject-info">
-    Choose a subject for <?= htmlspecialchars($classId) ?> class to generate Punjab Board  
-    question papers, MCQs tests, and chapter-wise exam papers instantly.
+    Fast Question paper generator for <?= htmlspecialchars($classId) ?> class for  Punjab Board  and School Exams.Fast MCQs Paper generator for <?= htmlspecialchars($classId) ?> class Exams. Create custom
+    question papers, MCQs tests, and chapter-wise for <?= htmlspecialchars($classId) ?> exam papers in seconds.
 </p>
     </div>
 <?php include 'footer.php'; ?>

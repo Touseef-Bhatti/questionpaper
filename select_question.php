@@ -62,8 +62,12 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta name="description" content="View MCQs, short, and long questions for <?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> - <?= htmlspecialchars($chapter_info) ?>. Tailored to Punjab Board exam pattern with up-to-date questions for better preparation.">
-<meta name="keywords" content="<?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> MCQs, short questions, long questions, exam questions, Punjab Board paper pattern">
+<meta name="description" content="Online Question Paper Generator for <?= htmlspecialchars($className)  ?>  class <?= htmlspecialchars($book_name) ?> - Chapter <?= htmlspecialchars($chapter_info) ?>.According to Punjab Board exam pattern with up-to-date Chapter Wise questions for All MCQs , Short Questions, Long Questions. , Best Tool For Techers.">
+
+
+<meta name="keywords" content=" Question Paper For <?=  htmlspecialchars($className) ?> - <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?>MCQs paper Generator ,Chapter Wise Paper generator ,MCQs, short questions, long questions, exam questions, Punjab Board paper pattern">
+
+
 <title><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> - <?= htmlspecialchars($chapter_info) ?> | Question Selection</title>
 
 </head>
@@ -230,12 +234,12 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
         <div class="seo-container">
             <div class="seo-info-bar">
                 <i class="fas fa-info-circle"></i>
-                <span>You are currently selecting questions for <strong><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?></strong> (<?= htmlspecialchars($chapter_info) ?>).</span>
+                <span>Online Paper Setter Tool For Teachers of class <strong><?= htmlspecialchars($className) ?>  <?= htmlspecialchars($book_name) ?>Book </strong> Chapter Wise Question Selection from Chapter Number (<?= htmlspecialchars($chapter_info) ?>).</span>
             </div>
 
             <div class="seo-header">
-                <h2>The Best Way to Generate <?= htmlspecialchars($book_name) ?> Paper for <?= htmlspecialchars($className) ?></h2>
-                <p>Tailor your assessment with precision. Our automated system helps you pick the right balance of questions according to the official Punjab Board scheme.</p>
+                <h2>The Best Paper Generator Tool for <?= htmlspecialchars($book_name) ?> Paper of class <?= htmlspecialchars($className) ?></h2>
+                <p>Best Available tool to Generate Question paper With Full Controlled Chapter Wise Selection. Tailor your assessment with precision. Our automated Advanced system helps you pick the right balance of questions according to the official Punjab Board scheme.</p>
             </div>
 
             <div class="seo-grid">

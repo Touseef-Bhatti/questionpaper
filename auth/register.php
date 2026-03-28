@@ -182,16 +182,20 @@ echo "<!-- CSS prefix: " . htmlspecialchars($prefix) . " -->\n";
                 <div class="input-group">
                     <label for="password">Password</label>
                     <div class="password-container">
-                        <input class="form-control" type="password" name="password" id="password" required placeholder="Password" style="padding-right:40px;">
-                        <button type="button" class="password-toggle" onclick="togglePassword('password')"><span id="password-icon">\ud83d\udc41\ufe0f</span></button>
+                        <input class="form-control" type="password" name="password" id="password" required placeholder="Password" style="padding-right:42px;">
+                        <button type="button" class="password-toggle" onclick="togglePassword('password')" aria-label="Show password">
+                            <svg id="password-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
                     </div>
                 </div>
 
                 <div class="input-group">
                     <label for="confirm_password">Confirm Password</label>
                     <div class="password-container">
-                        <input class="form-control" type="password" name="confirm_password" id="confirm_password" required placeholder="Confirm Password" style="padding-right:40px;">
-                        <button type="button" class="password-toggle" onclick="togglePassword('confirm_password')"><span id="confirm_password-icon">\ud83d\udc41\ufe0f</span></button>
+                        <input class="form-control" type="password" name="confirm_password" id="confirm_password" required placeholder="Confirm Password" style="padding-right:42px;">
+                        <button type="button" class="password-toggle" onclick="togglePassword('confirm_password')" aria-label="Show confirm password">
+                            <svg id="confirm_password-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -231,17 +235,14 @@ function closePopup() {
 }
 
 function togglePassword(fieldId) {
-    const passwordField = document.getElementById(fieldId);
-    const icon = document.getElementById(fieldId + '-icon');
-    
-    if (!passwordField) return;
-    if (passwordField.type === 'password') {
-        passwordField.type = 'text';
-        if (icon) icon.textContent = '\ud83d\ude48';
-    } else {
-        passwordField.type = 'password';
-        if (icon) icon.textContent = '\ud83d\udc41\ufe0f';
-    }
+    const field = document.getElementById(fieldId);
+    const icon  = document.getElementById(fieldId + '-icon');
+    if (!field) return;
+    const isHidden = field.type === 'password';
+    field.type = isHidden ? 'text' : 'password';
+    icon.innerHTML = isHidden
+        ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+        : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
 }
 </script>
 

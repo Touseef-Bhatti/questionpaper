@@ -1,14 +1,14 @@
-<link rel="stylesheet" href="<?= $assetBase ?>css/footer.css">
+<link rel="stylesheet" href="<?= $assetBase ?? '' ?>css/footer.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 
 <!-- GLOBAL PRE-FOOTER AD BANNER -->
-<?= renderAd('banner', 'Place Pre-Footer Banner Here', '', 'margin-top: 40px; margin-bottom: 0;') ?>
+
 
 <footer class="footer">
     <div class="footer-container">
         <div class="footer-section footer-brand">
             <a href="<?= $assetBase ?? '' ?>index" class="footer-logo">Ahmad Learning Hub</a>
-            <p class="footer-tagline">Your ultimate solution for 9th & 10th class past papers, online tests, solved notes, and guess papers for Punjab Board exam preparation.</p>
+            <p class="footer-tagline">Generate Fast Chapter Wise Question papers for All Classes , MCQs papers For class 9th and 10th , online tests papers for Punjab Board exam preparation.</p>
         </div>
         <div class="footer-section footer-links-group">
             <h3>Quick Links</h3>
@@ -51,4 +51,3 @@
 </footer>
 <?php include __DIR__ . '/cookie_consent.php'; ?>
 <?php include __DIR__ . '/user_type_selection.php'; ?>
-<?= renderMonetagScripts() ?>

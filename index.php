@@ -12,8 +12,10 @@ include 'db_connect.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Ahmad Learning Hub is an all-in-one question paper generator and exam preparation platform for students and teachers in Pakistan and India. Create school, college, and university tests with board exam patterns, MCQs, subjective questions, past papers, and online quizzes.">
 
-<meta name="keywords" content="question paper generator, online test maker, exam paper creator, MCQs test online, board exam preparation, school test generator, college exam papers, university test maker, online quiz maker, Punjab Board, CBSE, ICSE, Pakistan exams, India exams, past papers, solved notes, guess papers, Ahmad Learning Hub  ">
-    <title>Ahmad Learning Hub – Generate Question Papers for All Classes | School, College & University Tests </title>
+<meta name="keywords" content="Online question paper generator, question paper generator,Online Paper genertor, online test , online quiz , online exam paper generator , AI paper generator ,Online Question paper generator for 9th class, online question paper for 10th class , Online exam , online test maker, exam paper creator, MCQs test online, board exam preparation, school test generator, college exam papers, university test maker, online quiz maker, Punjab Board, CBSE, ICSE, Pakistan exams, India exams, past papers, solved notes, guess papers, Ahmad Learning Hub  ">
+
+
+    <title>Ahmad Learning Hub – Online Question Paper Generator for All Classes | School, College & University</title>
     
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/index.css">
@@ -42,7 +44,7 @@ include 'db_connect.php';
     </h1>
     
     <p class="subtitle">
-        Create 9th & 10th class Punjab Board question papers or search any topic to start MCQs tests instantly — with real exam patterns, short and long questions, and downloadable papers.
+        Create 9th & 10th class question papers or search any topic to start MCQs tests instantly — with real exam patterns, short and long questions, and downloadable papers.
     </p>
 </div>
 
@@ -101,7 +103,7 @@ include 'db_connect.php';
             <h2>Ready to excel in your <span class="highlight">exam preparation</span>?</h2>
             
             <p>
-                Join thousands of learners and educators worldwide who trust <strong>Ahmad Learning Hub</strong> for smarter, faster, and future-ready <span class="keyword">online quizzes</span>, <span class="keyword">practice tests</span>, and <span class="keyword">custom question papers</span>. 
+                Join thousands of learners and educators worldwide who trust <strong>Ahmad Learning Hub</strong> for smarter, faster, and future-ready <span class="keyword">online quizzes</span>, <span class="keyword">practice tests</span>, and <span class="keyword">Online question papers generator </span>. 
                 Prepare for a wide range of exams including <strong>board exams</strong> (Punjab Board, CBSE, ICSE), <strong>college & university exams</strong>, <strong>medical entrance exams</strong> (NEET, MCAT), <strong>engineering entrance exams</strong> (JEE, EAMCET), <strong>law exams</strong> (CLAT, LSAT), and international tests like <strong>GRE, GMAT, SAT, IELTS, TOEFL</strong>.
             </p>
             

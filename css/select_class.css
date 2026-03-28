@@ -30,6 +30,7 @@
             background-clip: text;
            
             box-shadow: 0 4px 15px rgba(79, 110, 247, 0.3);
+            border-radius: 10%;
         }
         
         .classes-container {
@@ -241,7 +242,10 @@
                 grid-template-columns: 1fr;
                 gap: 1rem;
             }
-            
+            .class-box{
+                max-width: 90%;
+                margin: 0 auto 1.5rem auto;
+            }
             .features-list {
                 grid-template-columns: 1fr;
             }

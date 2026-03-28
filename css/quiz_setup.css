@@ -445,7 +445,7 @@ select:disabled {
   }
   
   .quiz-setup-container {
-    min-width: 90%;
+    min-width: 100%;
     padding: 24px;
     margin: auto;
   }
