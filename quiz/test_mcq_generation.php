@@ -16,6 +16,53 @@ require_once __DIR__ . '/mcq_generator.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
+// AJAX API Key Test Handler
+if (isset($_GET['action']) && $_GET['action'] === 'test_key' && isset($_POST['api_key'])) {
+    header('Content-Type: application/json');
+    $apiKey = trim($_POST['api_key']);
+    $model = EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
+    
+    $url = "https://openrouter.ai/api/v1/chat/completions";
+    $data = [
+        'model' => $model,
+        'messages' => [['role' => 'user', 'content' => 'hi']],
+        'temperature' => 0.1,
+        'max_tokens' => 5
+    ];
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $apiKey,
+        'HTTP-Referer: https://paper.bhattichemicalsindustry.com.pk',
+        'X-Title: Ahmad Learning Hub'
+    ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+    
+    if ($httpCode === 200) {
+        echo json_encode(['success' => true, 'message' => 'Connection Successful']);
+    } else {
+        $errorMsg = "HTTP $httpCode";
+        if ($response) {
+            $respData = json_decode($response, true);
+            if (isset($respData['error']['message'])) {
+                $errorMsg = $respData['error']['message'];
+            }
+        }
+        if ($curlError) $errorMsg .= " (cURL: $curlError)";
+        echo json_encode(['success' => false, 'message' => $errorMsg]);
+    }
+    exit;
+}
+
 $cacheManager = null;
 if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
     require_once __DIR__ . '/../services/CacheManager.php';
@@ -150,7 +197,67 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
             border-radius: 5px;
             font-size: 14px;
         }
+        .test-btn {
+            background: #28a745;
+            padding: 5px 12px;
+            font-size: 13px;
+            margin: 0 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .test-btn:hover {
+            background: #218838;
+        }
+        .test-status {
+            font-size: 13px;
+            margin-left: 10px;
+            font-weight: bold;
+        }
     </style>
+    <script>
+        async function testKey(apiKey, statusId) {
+            const statusEl = document.getElementById(statusId);
+            statusEl.textContent = 'Testing...';
+            statusEl.style.color = '#17a2b8';
+            
+            try {
+                const formData = new FormData();
+                formData.append('api_key', apiKey);
+                
+                const response = await fetch('?action=test_key', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    statusEl.textContent = '✓ ' + result.message;
+                    statusEl.style.color = '#28a745';
+                } else {
+                    statusEl.textContent = '✗ ' + result.message;
+                    statusEl.style.color = '#dc3545';
+                }
+            } catch (error) {
+                statusEl.textContent = '✗ Error: ' + error.message;
+                statusEl.style.color = '#dc3545';
+            }
+        }
+
+        async function testAllKeys() {
+            const btns = document.querySelectorAll('.test-key-btn');
+            const btnAll = document.getElementById('testAllBtn');
+            btnAll.disabled = true;
+            btnAll.textContent = 'Testing All...';
+            
+            for (const btn of btns) {
+                await btn.click();
+            }
+            
+            btnAll.disabled = false;
+            btnAll.textContent = 'Check All API Keys';
+        }
+    </script>
 </head>
 <body>
     <div class="test-container">
@@ -169,6 +276,7 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
         
         if (!empty($allKeys)) {
              echo '<div class="success">✓ Found ' . count($allKeys) . ' API Keys in rotation (AIKeyRotator - Account 2 → Primary → Account 3)</div>';
+             echo '<div style="margin-bottom: 20px;"><button id="testAllBtn" onclick="testAllKeys()" style="background: #28a745;">Check All API Keys Connection</button></div>';
              
              foreach ($allKeys as $i => $item) {
                  $k = $item['key'] ?? '';
@@ -179,7 +287,14 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
                  $status = $exhausted ? ' <span style="color: #dc3545;">(Exhausted)</span>' : ($isNext ? ' <span style="color: #28a745; font-weight: bold;">(Next Request)</span>' : '');
                  $style = $exhausted ? 'opacity: 0.7;' : ($isNext ? 'border: 2px solid #28a745; background-color: #f0fff4;' : '');
                  
-                 echo '<div class="info" style="' . $style . '">Key ' . ($i+1) . ' [' . htmlspecialchars($account) . ']: ' . substr($k, 0, 10) . '...' . substr($k, -5) . $status . '</div>';
+                 $statusId = "status_" . $i;
+                 echo '<div class="info" style="' . $style . 'display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">';
+                 echo '<div>Key ' . ($i+1) . ' [' . htmlspecialchars($account) . ']: ' . substr($k, 0, 10) . '...' . substr($k, -5) . $status . '</div>';
+                 echo '<div style="display: flex; align-items: center;">';
+                 echo '<button class="test-btn test-key-btn" onclick="testKey(\'' . $k . '\', \'' . $statusId . '\')">Test Connection</button>';
+                 echo '<span id="' . $statusId . '" class="test-status"></span>';
+                 echo '</div>';
+                 echo '</div>';
              }
         } else {
             $hasKey1 = EnvLoader::get('KEY_1', '');

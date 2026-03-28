@@ -162,23 +162,8 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .footer-menu a:hover {
-        background: rgba(56, 189, 248, 0.1); /* Highlight on touch/hover */
-        transform: none; /* Simplify animation on mobile */
-    }
-
     .footer-social {
-        display: flex;
-        justify-content: center;
-        gap: 12px;
-    }
-
-    .footer-social a {
-        margin-right: 0;
-        width: 42px; /* Larger icons for mobile */
-        height: 42px;
-        line-height: 42px;
-        font-size: 1.1rem;
+        margin-top: 20px;
     }
 
     .footer-bottom {

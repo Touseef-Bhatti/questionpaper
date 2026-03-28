@@ -126,11 +126,11 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 1) {
 $searchQuery = '';
 $searchResults = [];
 $showResults = false;
-$studyLevel = $_POST['study_level'] ?? '';
+$studyLevel = $_POST['study_level'] ?? 'medium';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !empty(trim($_POST['topic_search']))) {
     $searchQuery = trim($_POST['topic_search']);
-    $studyLevel = $_POST['study_level'] ?? '';
+    $studyLevel = $_POST['study_level'] ?? 'medium';
     
     if (!empty($searchQuery)) {
         $cacheKey = null; $usedCache = false;
@@ -373,9 +373,11 @@ if (isset($_POST['start_quiz'])) {
             </a>
         </div>
         
-        <h1>Expert MCQ Search</h1>
-        <p class="desc">Discover thousands of expert-verified questions instantly. Add multiple topics to create your perfect personalized quiz.</p>
-        
+       <<h2>Search Any Topic & Generate Online MCQs Quiz Instantly</h2>
+<p class="desc">
+    Create AI-powered MCQs quizzes by searching any topic. Practice chapter-wise and topic-wise questions for school exams and international tests like SAT, GRE, GCSE, A-Level, MDCAT, ECAT, and NTS. Start your online quiz now and improve your performance.
+</p>
+
         <?php if (isset($error)): ?>
             <div style="background: rgba(239, 68, 68, 0.1); border: 2px solid var(--danger); color: var(--danger); padding: 20px; border-radius: 16px; margin-bottom: 32px; text-align: center; font-weight: 800; animation: shake 0.5s ease-in-out;">
                 <i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($error) ?>
@@ -420,7 +422,7 @@ if (isset($_POST['start_quiz'])) {
                     <input type="hidden" name="study_level" value="<?= htmlspecialchars($studyLevel) ?>">
                     <div id="hidden_topics_inputs"></div>
                     <button type="submit" name="start_quiz" class="start-quiz-btn" id="startQuizBtn" disabled>
-                        <i class="fas fa-bolt"></i> Start Intelligent Quiz
+                        <i class="fas fa-bolt"></i> Start  Quiz
                     </button>
                 </form>
             </div>
@@ -436,9 +438,14 @@ if (isset($_POST['start_quiz'])) {
                 <div style="margin-bottom: 32px;">
                     <label class="level-label">Challenge Level <span style="color: var(--danger);">*</span></label>
                     <div class="level-container">
+
+
                         <button type="button" class="level-btn" id="btn-easy" data-level="easy" onclick="selectLevel('easy', this)"><i class="fas fa-leaf"></i> Easy</button>
-                        <button type="button" class="level-btn" id="btn-medium" data-level="medium" onclick="selectLevel('medium', this)"><i class="fas fa-balance-scale"></i> Medium</button>
+                        <!-- medium by default -->
+                        <button type="button" class="level-btn" id="btn-medium" data-level="medium" onclick="selectLevel('medium', this)"><i class="fas fa-balance-scale " ></i> Medium</button>
                         <button type="button" class="level-btn" id="btn-hard" data-level="hard" onclick="selectLevel('hard', this)"><i class="fas fa-fire"></i> Hard</button>
+
+
                     </div>
                     <input type="hidden" name="study_level" id="study_level" value="<?= htmlspecialchars($studyLevel) ?>">
                     <div id="levelError" class="level-error"><i class="fas fa-info-circle"></i> Please select a difficulty level to continue</div>
@@ -450,7 +457,7 @@ if (isset($_POST['start_quiz'])) {
                         name="topic_search" 
                         id="topic_search"
                         class="search-input" 
-                        placeholder="Select your target topic (e.g., Organic Chemistry, Wave Optics...)" 
+                        placeholder="Search topic (e.g., Organic Chemistry, Wave Optics...)" 
                         value="<?= htmlspecialchars($searchQuery) ?>"
                         autofocus
                     >
@@ -484,24 +491,31 @@ if (isset($_POST['start_quiz'])) {
                     <?php endif; ?>
                 </div>
                 
-                <div class="topic-list" id="topicList">
-                    <?php foreach ($searchResults as $index => $result): 
-                        $topicData = ['topic' => $result['topic'], 'similarity' => $result['similarity']];
-                        $topicJson = htmlspecialchars(json_encode($topicData), ENT_QUOTES);
-                    ?>
-                        <div class="topic-item" data-topic-data="<?= $topicJson ?>" onclick="toggleTopic(this, '<?= $topicJson ?>')">
-                            <div class="topic-name"><?= htmlspecialchars($result['topic']) ?></div>
-                            <div class="topic-similarity"><?= $result['similarity'] ?>% match</div>
-                        </div>
-                    <?php endforeach; ?>
-                    <?php if (empty($searchResults)): ?>
-                    <?php endif; ?>
+                <div class="topics-scroll-container">
+                    <div class="topic-list" id="topicList">
+                        <?php foreach ($searchResults as $index => $result): 
+                            $topicData = ['topic' => $result['topic'], 'similarity' => $result['similarity']];
+                            $topicJson = htmlspecialchars(json_encode($topicData), ENT_QUOTES);
+                        ?>
+                            <div class="topic-item" data-topic-data="<?= $topicJson ?>" onclick="toggleTopic(this, '<?= $topicJson ?>')">
+                                <div class="topic-name"><?= htmlspecialchars($result['topic']) ?></div>
+                                <div class="topic-similarity"><?= $result['similarity'] ?>% match</div>
+                            </div>
+                        <?php endforeach; ?>
+                        <?php if (empty($searchResults)): ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 
                 <div class="load-more-btn-container">
-                    <button type="button" id="loadMoreTopicsBtn" class="btn-secondary">
-                        <i class="fas fa-magic"></i> Explore Related Topics (AI)
-                    </button>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                        <button type="button" id="loadMoreTopicsBtn" class="btn-secondary" style="width: 100%; max-width: 400px;">
+                            <i class="fas fa-magic"></i> Explore More Topics (AI)
+                        </button>
+                        <button type="button" class="start-quiz-btn startQuizBtnResults" style="width: 100%; max-width: 400px;" onclick="document.getElementById('startQuizBtn').click()" disabled>
+                            <i class="fas fa-bolt"></i> Start Quiz
+                        </button>
+                    </div>
                     <div id="loadMoreLoader" style="display:none;">
                          <div class="loader-progress">
                              <div class="loader-progress-bar" id="loadMoreProgressBar"></div>
@@ -511,41 +525,61 @@ if (isset($_POST['start_quiz'])) {
                 </div>
             </div>
         <?php endif; ?>
-        
+        <br>
+        <br><br>
+        <br><br><br>
         <article class="seo-article-section">
-            <h2 class="seo-section-title">Free Online MCQs Test Preparation for Competitive Exams</h2>
-            <div class="seo-intro-text">
-                <p><strong>Ahmad Learning Hub</strong> is a premier free online test preparation ecosystem. We provide comprehensive practice tests, expert-verified MCQs, and strategic resources designed for competitive exams, career job tests, and high-stakes interviews.</p>
-            </div>
-            
-            <div class="seo-grid">
-                <div class="seo-card">
-                    <div class="seo-icon"><i class="fas fa-microscope"></i></div>
-                    <h3 class="seo-card-title">Competitive Exam Focus</h3>
-                    <p class="seo-card-text">Tailored resources for MDCAT, ECAT, NTS, and CSS exams. Our platform ensures you are prepared for the specific patterns and challenges of top-tier competitive tests.</p>
-                </div>
-                <div class="seo-card">
-                    <div class="seo-icon"><i class="fas fa-shield-check"></i></div>
-                    <h3 class="seo-card-title">Job Test Readiness</h3>
-                    <p class="seo-card-text">Comprehensive question banks for government and private sector job recruitment tests. Practice with real-world scenarios to secure your dream career.</p>
-                </div>
-                <div class="seo-card">
-                    <div class="seo-icon"><i class="fas fa-bolt"></i></div>
-                    <h3 class="seo-card-title">Interview Mastery</h3>
-                    <p class="seo-card-text">Access curated MCQ sets and resources specifically designed for technical and conceptual interview rounds across all major academic fields.</p>
-                </div>
-                <div class="seo-card">
-                    <div class="seo-icon"><i class="fas fa-trophy"></i></div>
-                    <h3 class="seo-card-title">Free Expert Resources</h3>
-                    <p class="seo-card-text">High-quality educational content provided entirely for free. Join thousands of successful candidates who use Ahmad Learning Hub for daily study.</p>
-                </div>
-            </div>
-            
-            <div class="seo-footer">
-                <p>The definitive <strong>MCQ Test Preparation Platform</strong>. Free practice tests and resources for <strong>MDCAT, ECAT, NTS,</strong> and National Board excellence.</p>
-            </div>
-        </article>
+    <h2 class="seo-section-title">AI-Powered Online MCQs Quiz Generator for Global Exams & Subjects</h2>
+    
+    <div class="seo-intro-text">
+        <p>
+            <strong>Ahmad Learning Hub</strong> is a smart AI-based online MCQs quiz platform where students can search any topic and instantly generate quizzes. Whether you're preparing for school exams, competitive tests, or international exams like SAT, GRE, GCSE, A-Levels, or IELTS, our AI creates topic-based MCQs quizzes tailored to your needs.
+        </p>
     </div>
+    
+    <div class="seo-grid">
+        
+        <div class="seo-card">
+            <div class="seo-icon"><i class="fas fa-search"></i></div>
+            <h3 class="seo-card-title">Search Any Topic – Instant Quiz</h3>
+            <p class="seo-card-text">
+                Enter any topic like algebra, biology, programming, physics, or English grammar, and our AI will automatically generate related topics and create an online MCQs quiz instantly. Perfect for quick practice and concept revision.
+            </p>
+        </div>
+        
+        <div class="seo-card">
+            <div class="seo-icon"><i class="fas fa-robot"></i></div>
+            <h3 class="seo-card-title">AI Generated MCQs for All Subjects</h3>
+            <p class="seo-card-text">
+                Our AI generates high-quality MCQs for all subjects including Math, Physics, Chemistry, Biology, Computer Science, and General Knowledge. Practice unlimited online quizzes with accurate and exam-focused questions.
+            </p>
+        </div>
+        
+        <div class="seo-card">
+            <div class="seo-icon"><i class="fas fa-globe"></i></div>
+            <h3 class="seo-card-title">Global Exam Preparation</h3>
+            <p class="seo-card-text">
+                Prepare for international exams like SAT, GRE, GMAT, GCSE, A-Level, AP Exams, and European entry tests. Also suitable for MDCAT, ECAT, NTS, CSS, and other competitive exams worldwide.
+            </p>
+        </div>
+        
+        <div class="seo-card">
+            <div class="seo-icon"><i class="fas fa-chart-line"></i></div>
+            <h3 class="seo-card-title">Practice, Test & Improve</h3>
+            <p class="seo-card-text">
+                Take unlimited online MCQs tests, improve your accuracy, and strengthen weak topics. Our AI-driven quiz system helps students from Pakistan, UK, USA, and Europe prepare smarter and faster.
+            </p>
+        </div>
+        
+    </div>
+    
+    <div class="seo-footer">
+        <p>
+            The ultimate <strong>AI MCQs Quiz Generator</strong> for students worldwide. Practice online tests for <strong>SAT, GRE, GCSE, A-Level, MDCAT, ECAT, NTS, CSS</strong> and more. Search any topic and start your quiz instantly.
+        </p>
+    </div>
+</article>
+</div>
 </div>
 
 <!-- Upgrade Plan Modal -->
@@ -711,7 +745,7 @@ function updateSelectedTopicsUI() {
     const section = document.getElementById('selectedTopicsSection');
     const list = document.getElementById('selectedTopicsList');
     const count = document.getElementById('selectedCount');
-    const startBtn = document.getElementById('startQuizBtn');
+    const startBtns = document.querySelectorAll('.start-quiz-btn');
     const hiddenInputs = document.getElementById('hidden_topics_inputs');
     const hiddenMcqCount = document.getElementById('hidden_mcq_count');
     const mcqCountInput = document.getElementById('mcq_count');
@@ -729,7 +763,7 @@ function updateSelectedTopicsUI() {
             hiddenInputs.appendChild(input);
         });
         hiddenMcqCount.value = mcqCountInput.value;
-        startBtn.disabled = !(mcqCountInput.value > 0);
+        startBtns.forEach(btn => btn.disabled = !(mcqCountInput.value > 0));
         
         list.innerHTML = '';
         selectedTopics.forEach((topicJson) => {
@@ -750,13 +784,14 @@ function updateSelectedTopicsUI() {
     } else {
         section.classList.add('empty');
         list.innerHTML = '<div class="no-selection-hint" style="width: 100%; text-align: center; color: var(--text-muted); padding: 20px; font-weight: 600;">Your list is currently empty. Start by searching modules below.</div>';
-        startBtn.disabled = true;
+        startBtns.forEach(btn => btn.disabled = true);
     }
 }
 
 document.getElementById('mcq_count')?.addEventListener('input', function() {
     document.getElementById('hidden_mcq_count').value = this.value;
-    document.getElementById('startQuizBtn').disabled = !(selectedTopics.length > 0 && this.value > 0);
+    const startBtns = document.querySelectorAll('.start-quiz-btn');
+    startBtns.forEach(btn => btn.disabled = !(selectedTopics.length > 0 && this.value > 0));
 });
 
 document.getElementById('searchForm')?.addEventListener('submit', function(e) {
@@ -870,6 +905,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
-<?php include '../footer.php'; ?>
+
 </body>
+<?php include '../footer.php'; ?>
 </html>
