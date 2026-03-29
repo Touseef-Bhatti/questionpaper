@@ -59,37 +59,35 @@ function getPatternDefaults($classId, $book_name) {
 // Get pattern defaults
 $patternDefaults = getPatternDefaults($classId, $book_name);
 
-require_once 'services/CacheManager.php';
-$cache = new CacheManager();
-$cacheKey = "chapters_c_" . $classId . "_b_" . md5($book_name);
-$chaptersData = $cache->get($cacheKey);
+// Fetch chapters with available question counts (OPTIMIZED)
+$chapterQuery = "SELECT 
+                    c.chapter_id, 
+                    c.chapter_name,
+                    (SELECT COUNT(*) FROM mcqs WHERE chapter_id = c.chapter_id) as mcq_count,
+                    (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'short') as short_count,
+                    (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'long') as long_count
+                FROM chapter c
+                WHERE c.class_id = ? AND c.book_name = ? 
+                ORDER BY c.chapter_id ASC";
+$stmt = $conn->prepare($chapterQuery);
 
-if (!$chaptersData) {
-    // Fetch chapters using prepared statement (OPTIMIZED)
-    $chapterQuery = "SELECT chapter_id, chapter_name FROM chapter WHERE class_id = ? AND book_name = ? ORDER BY chapter_id ASC";
-    $stmt = $conn->prepare($chapterQuery);
-
-    if (!$stmt) {
-        die("<h2 style='color:red;'>Error: " . htmlspecialchars($conn->error) . "</h2>");
-    }
-
-    $stmt->bind_param('is', $classId, $book_name);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    // Check for errors
-    if (!$result) {
-        die("<h2 style='color:red;'>Error fetching data: " . htmlspecialchars($conn->error) . "</h2>");
-    }
-    
-    $chaptersData = [];
-    while ($row = $result->fetch_assoc()) {
-        $chaptersData[] = $row;
-    }
-    
-    $cache->set($cacheKey, $chaptersData, 86400); // 24 hours
+if (!$stmt) {
+    die("<h2 style='color:red;'>Error: " . htmlspecialchars($conn->error) . "</h2>");
 }
 
+$stmt->bind_param('is', $classId, $book_name);
+$stmt->execute();
+$result = $stmt->get_result();
+
+// Check for errors
+if (!$result) {
+    die("<h2 style='color:red;'>Error fetching data: " . htmlspecialchars($conn->error) . "</h2>");
+}
+
+$chaptersData = [];
+while ($row = $result->fetch_assoc()) {
+    $chaptersData[] = $row;
+}
 ?>
 
 <!DOCTYPE html>
@@ -571,68 +569,107 @@ document.addEventListener('DOMContentLoaded', function() {
     const chapters = Array.from(document.querySelectorAll('label > input[type="checkbox"][name="chapters[]"]')).map(cb => ({
       checkbox: cb,
       wrap: cb.closest('label'),
+      box: cb.closest('label').querySelector('.chapter-box'),
       id: cb.value.split('|')[0]
     }));
 
-    // Ensure at least one chapter selected; if none, select all
-    const selected = chapters.filter(c => c.checkbox.checked);
-    if (selected.length === 0) {
-      chapters.forEach(c => c.checkbox.checked = true);
+    // Helper to get available counts
+    const getAvailable = (c, type) => parseInt(c.box.getAttribute(`data-available-${type}`)) || 0;
+
+    // By default (if none selected), only select chapters that have AT LEAST ONE question of ANY type
+    const initiallySelected = chapters.filter(c => c.checkbox.checked);
+    if (initiallySelected.length === 0) {
+      chapters.forEach(c => {
+        const hasAny = getAvailable(c, 'mcq') > 0 || getAvailable(c, 'short') > 0 || getAvailable(c, 'long') > 0;
+        c.checkbox.checked = hasAny;
+      });
     }
 
     const activeChapters = chapters.filter(c => c.checkbox.checked);
-    if (activeChapters.length === 0) return alert('No chapters available to distribute questions.');
+    if (activeChapters.length === 0) return alert('No chapters available with questions to distribute.');
 
     const totalMcqs = Math.min(20, parseInt(totalMcqsInput.value) || 0);
     const totalLongs = Math.min(5, parseInt(totalLongsInput.value) || 0);
     const totalShorts = parseInt(totalShortsInput?.value) || 0;
 
-    // Distribute integers as evenly as possible, left-to-right
-    function distribute(total, n) {
-      const base = Math.floor(total / n);
-      const rem = total % n;
-      return Array.from({length: n}, (_, i) => base + (i < rem ? 1 : 0));
+    /**
+     * Smart distribution that respects available counts.
+     * If a chapter has less than its share, it gets 0, and the amount is redistributed.
+     */
+    function distributeSmart(total, chaptersList, availableType) {
+      let remaining = total;
+      let pool = chaptersList.map(c => ({
+        id: c.id,
+        available: getAvailable(c, availableType),
+        assigned: 0,
+        active: true,
+        input: c.wrap.querySelector(`input[name^="${availableType === 'mcq' ? 'mcqs' : availableType === 'short' ? 'short_questions' : 'long_questions'}["]`)
+      }));
+
+      let changed = true;
+      while (remaining > 0 && changed) {
+        changed = false;
+        let activePool = pool.filter(p => p.active);
+        if (activePool.length === 0) break;
+
+        let share = Math.floor(remaining / activePool.length);
+        let extra = remaining % activePool.length;
+
+        for (let i = 0; i < activePool.length; i++) {
+          let p = activePool[i];
+          let target = share + (i < extra ? 1 : 0);
+          
+          if (target > p.available) {
+            p.assigned = 0;
+            p.active = false;
+            changed = true;
+            // We need to restart the distribution calculation because the share just increased
+            break; 
+          }
+        }
+
+        if (!changed) {
+          // Everyone can handle their share
+          activePool.forEach((p, i) => {
+            p.assigned = share + (i < extra ? 1 : 0);
+          });
+          remaining = 0;
+        } else {
+          // Restart loop with remaining total and fewer active chapters
+          remaining = total; 
+          pool.forEach(p => { if (!p.active) p.assigned = 0; });
+        }
+      }
+      
+      // Update inputs
+      pool.forEach(p => {
+        if (p.input) p.input.value = p.assigned;
+      });
+      
+      return pool;
     }
 
     // MCQs
-    const mcqDist = distribute(totalMcqs, activeChapters.length);
-    activeChapters.forEach((c, idx) => {
-      const inp = c.wrap.querySelector('input[name^="mcqs["]');
-      if (inp) { inp.value = mcqDist[idx]; }
-    });
+    distributeSmart(totalMcqs, activeChapters, 'mcq');
 
-    // Longs - note: if withPattern and not computer, totalLongs is number of printed long questions (max 5), but internal sum should be 2x
-    // For computer, no parts, so don't multiply by 2
+    // Longs
     const longTargetPerDisplay = withPattern && !isComputer ? totalLongs * 2 : totalLongs;
-    const longDist = distribute(longTargetPerDisplay, activeChapters.length);
-    activeChapters.forEach((c, idx) => {
-      const inp = c.wrap.querySelector('input[name^="long_questions["]');
-      if (inp) { inp.value = longDist[idx]; renderLongPlacementsForChapter(c.id, inp.value); }
-    });
+    distributeSmart(longTargetPerDisplay, activeChapters, 'long');
 
     // Shorts
-    if (!withPattern) {
-      const shortDist = distribute(totalShorts, activeChapters.length);
-      activeChapters.forEach((c, idx) => {
-        const inp = c.wrap.querySelector('input[name^="short_questions["]');
-        if (inp) inp.value = shortDist[idx];
-      });
-    } else {
-      // withPattern: use pattern defaults for science, computer, and math subjects (class 9 or 10)
+    let targetShorts = totalShorts;
+    if (withPattern && (classId === 9 || classId === 10)) {
       const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
       const isMath = bookName === 'math';
-      if ((isScience || isComputer || isMath) && (classId === 9 || classId === 10) && patternDefaults.sq > 0) {
-        const shortDist = distribute(patternDefaults.sq, activeChapters.length);
-        activeChapters.forEach((c, idx) => {
-          const inp = c.wrap.querySelector('input[name^="short_questions["]');
-          if (inp) inp.value = shortDist[idx];
-        });
+      if ((isScience || isComputer || isMath) && patternDefaults.sq > 0) {
+        targetShorts = patternDefaults.sq;
       }
     }
+    distributeSmart(targetShorts, activeChapters, 'short');
 
     // For withPattern, ensure long part selects exist and assign unique (q,part) pairs across ALL placements
     if (withPattern) {
-      // First, re-render placements for all chapters
+      // First, re-render placements for all chapters based on the new assigned values
       activeChapters.forEach((c) => {
         const longInp = c.wrap.querySelector('input[name^="long_questions["]');
         const cnt = parseInt(longInp?.value) || 0;
@@ -867,7 +904,10 @@ document.addEventListener('DOMContentLoaded', function() {
 			?>
 					<label>
 						<input type="checkbox" name="chapters[]" value="<?= htmlspecialchars($chapter_value) ?>">
-						<div class="chapter-box">
+						<div class="chapter-box" 
+                             data-available-mcq="<?= $row['mcq_count'] ?? 0 ?>" 
+                             data-available-short="<?= $row['short_count'] ?? 0 ?>" 
+                             data-available-long="<?= $row['long_count'] ?? 0 ?>">
 							<?= htmlspecialchars($chapter_display) ?>
 							<div style="margin-top: 10px;">
 								<input type="number" name="mcqs[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="MCQs" min="0" style="margin-right: 10px; padding: 5px; width: 100px;" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">

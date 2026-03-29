@@ -4,12 +4,10 @@
 include 'db_connect.php';
 $pageTitle = "Generated Question Paper";
 include 'header.php';
-require_once 'services/CacheManager.php';
 require_once 'services/QuestionService.php';
 
-// Initialize cache and question service
-$cache = new CacheManager();
-$questionService = new QuestionService($conn, $cache);
+// Initialize question service
+$questionService = new QuestionService($conn);
 function toRoman($num) {
     $map = [
         'm' => 1000, 'cm' => 900, 'd' => 500, 'cd' => 400,

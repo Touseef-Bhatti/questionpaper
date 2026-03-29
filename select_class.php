@@ -4,27 +4,19 @@ session_start();
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 
-require_once 'services/CacheManager.php';
-$cache = new CacheManager();
-$cacheKey = 'all_classes';
-$classesData = $cache->get($cacheKey);
+include 'includes/adsterra_ads.php';
 
-if (!$classesData) {
-    // Fetch all available classes with their IDs and names using prepared statement (OPTIMIZED)
-    $classQuery = "SELECT class_id, class_name FROM class ORDER BY class_id ASC";
-    $classResult = $conn->query($classQuery);
+// Fetch all available classes with their IDs and names using prepared statement (OPTIMIZED)
+$classQuery = "SELECT class_id, class_name FROM class ORDER BY class_id ASC";
+$classResult = $conn->query($classQuery);
 
-    if (!$classResult) {
-        die("<h2 style='color:red;'>Database error: " . htmlspecialchars($conn->error) . "</h2>");
-    }
-    
-    $classesData = [];
-    while ($row = $classResult->fetch_assoc()) {
-        $classesData[] = $row;
-    }
-    
-    // Cache for 24 hours
-    $cache->set($cacheKey, $classesData, 86400);
+if (!$classResult) {
+    die("<h2 style='color:red;'>Error fetching classes: " . htmlspecialchars($conn->error) . "</h2>");
+}
+
+$classesData = [];
+while ($row = $classResult->fetch_assoc()) {
+    $classesData[] = $row;
 }
 ?>
 <!DOCTYPE html>

@@ -27,7 +27,8 @@ function renderAdsterraAdUnit($type, $placement = '', $class = '', $style = '') 
     // Leave the array empty to show ads on ALL pages.
     $allowedPages = [
         'index.php',
-        'mcqs.php'
+        'mcqs.php',
+        'select_class.php'
     ];
     
     if (!empty($allowedPages)) {

@@ -12,34 +12,25 @@ if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !is_numeric($_GET['
 
 $classId = intval($_GET['class_id']);
 
-require_once 'services/CacheManager.php';
-$cache = new CacheManager();
-$cacheKey = "books_class_" . $classId;
-$booksData = $cache->get($cacheKey);
+// Select all books for this class using prepared statement (OPTIMIZED)
+$bookQuery = "SELECT book_id, book_name FROM book WHERE class_id = ? ORDER BY book_id ASC";
+$stmt = $conn->prepare($bookQuery);
 
-if (!$booksData) {
-    // Select all books for this class using prepared statement (OPTIMIZED)
-    $bookQuery = "SELECT book_id, book_name FROM book WHERE class_id = ? ORDER BY book_id ASC";
-    $stmt = $conn->prepare($bookQuery);
+if (!$stmt) {
+    die("<h2 style='color:red;'>Database error: " . htmlspecialchars($conn->error) . "</h2>");
+}
 
-    if (!$stmt) {
-        die("<h2 style='color:red;'>Database error: " . htmlspecialchars($conn->error) . "</h2>");
-    }
+$stmt->bind_param('i', $classId);
+$stmt->execute();
+$result = $stmt->get_result();
 
-    $stmt->bind_param('i', $classId);
-    $stmt->execute();
-    $result = $stmt->get_result();
+if (!$result) {
+    die("<h2 style='color:red;'>Query error: " . htmlspecialchars($conn->error) . "</h2>");
+}
 
-    if (!$result) {
-        die("<h2 style='color:red;'>Query error: " . htmlspecialchars($conn->error) . "</h2>");
-    }
-    
-    $booksData = [];
-    while ($row = $result->fetch_assoc()) {
-        $booksData[] = $row;
-    }
-    
-    $cache->set($cacheKey, $booksData, 86400); // 24 hours
+$booksData = [];
+while ($row = $result->fetch_assoc()) {
+    $booksData[] = $row;
 }
 ?>
 

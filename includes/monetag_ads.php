@@ -39,10 +39,7 @@ $allowedPages = [
     'online_quiz_lobby.php',
     'online_quiz_take.php',
     'textbooks.php',
-    'textbooks.php',
-    'mcqs.php'
-
-
+    'mcqs.php' ,
 ];
 
 if (!empty($allowedPages)) {
