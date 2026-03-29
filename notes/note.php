@@ -65,7 +65,7 @@ include '../db_connect.php';
             </div>
             
             <div class="go-back-section">
-                <button class="go-back-btn" onclick="window.history.back()">⬅ Go Back</button>
+                <a href="../index.php" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center;">⬅ Go Back</a>
             </div>
         </div>
     </div> <!-- main-content -->

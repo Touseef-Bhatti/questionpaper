@@ -25,7 +25,7 @@ function toRoman($num) {
     }
     return $return;
 }
-function displayShortSection($questions, &$idx) {
+function displayShortSection($questions, &$idx, $marksPerSq = 2) {
     if (!empty($questions)) {
         echo '<ol type="i">';
         foreach ($questions as $q) {
@@ -36,7 +36,7 @@ function displayShortSection($questions, &$idx) {
             echo '<span class="q-text">' . htmlspecialchars($q['question_text']) . '</span>';
             echo '</div>';
             echo '<div class="marks-container">';
-            echo '<input type="number" value="' . $q['marks'] . '" class="marks-input" />';
+            echo '<input type="number" value="' . $marksPerSq . '" class="marks-input" />';
             echo '</div>';
             echo '</div>';
             echo '<div class="action-buttons"><button class="btn edit" onclick="makeEditable(this)">Edit</button></div>';
@@ -52,20 +52,47 @@ function displayShortSection($questions, &$idx) {
 $isTopicSource = (isset($_POST['source']) && $_POST['source'] === 'topics');
 
 if (!$isTopicSource && !isset($_POST['class_id'], $_POST['book_name'], $_POST['chapters'])) {
-    echo("<h2 style='color:red;'>Required data is missing. Please go back and try again.</h2>");
-    echo("<script>setTimeout(function(){ window.location = 'select_class.php'; }, 2000);</script>");
+    echo "<script>
+        alert('Required data is missing. Please go back and try again.');
+        window.location.href = 'select_class.php';
+    </script>";
     exit;
 }
+
+$patternMode = isset($_POST['pattern_mode']) && $_POST['pattern_mode'] === 'without' ? 'without' : 'with';
+$patternQCount = 3; // sensible default
+$explicitCount = 0;
+if (isset($_POST['total_longs']) && trim($_POST['total_longs']) !== '') {
+    $explicitCount = intval($_POST['total_longs']);
+} elseif (isset($_POST['pattern_qcount']) && trim($_POST['pattern_qcount']) !== '') {
+    $explicitCount = intval($_POST['pattern_qcount']);
+}
+
+// Inspect posted placement selects (long_qnum) to find the highest referenced Q number
+$maxReferencedQ = 0;
+if (!empty($_POST['long_qnum']) && is_array($_POST['long_qnum'])) {
+    foreach ($_POST['long_qnum'] as $chapId => $qnums) {
+        if (!is_array($qnums)) continue;
+        foreach ($qnums as $val) {
+            $n = intval($val);
+            if ($n > $maxReferencedQ) $maxReferencedQ = $n;
+        }
+    }
+}
+
+$patternQCount = max(1, min(10, max($explicitCount, $maxReferencedQ, $patternQCount)));
 
 $classId = isset($_POST['class_id']) ? intval($_POST['class_id']) : 0;
 $bookName = isset($_POST['book_name']) ? htmlspecialchars($_POST['book_name']) : 'Custom Paper';
 $totalMarks = 0;
 $classNameHeader = '';
 $mcqByChapter = [];
+$chapterMap = []; // id => name/number for error reporting
 
 if ($isTopicSource) {
     // ---- TOPIC BASED GENERATION LOGIC ----
     $topics = $_POST['topics'] ?? [];
+    $chapterMap[0] = 'Selected Topics';
     $totalMcqs = isset($_POST['total_mcqs']) ? intval($_POST['total_mcqs']) : 20;
     $totalShorts = isset($_POST['total_shorts']) ? intval($_POST['total_shorts']) : 0;
     $totalLongs = isset($_POST['total_longs']) ? intval($_POST['total_longs']) : 0;
@@ -120,15 +147,17 @@ if ($isTopicSource) {
         foreach ($chaptersArr as $item) {
             $parts = explode('|', $item, 2);
             $cid = isset($parts[0]) ? intval($parts[0]) : 0;
+            $cname = isset($parts[1]) ? $parts[1] : "Chapter $cid";
             if ($cid > 0) {
                 $chapterIds[] = $cid;
+                $chapterMap[$cid] = $cname;
             }
         }
     }
     if (!empty($chapterIds)) {
         // Use prepared statement for better performance and security (OPTIMIZED)
         $placeholders = str_repeat('?,', count($chapterIds) - 1) . '?';
-        $sql = "SELECT chapter_id, COALESCE(chapter_no, chapter_id) AS num FROM chapter WHERE chapter_id IN ($placeholders) ORDER BY num ASC";
+        $sql = "SELECT chapter_id, COALESCE(chapter_no, chapter_id) AS num, chapter_name FROM chapter WHERE chapter_id IN ($placeholders) ORDER BY num ASC";
         $stmt = $conn->prepare($sql);
         
         if ($stmt) {
@@ -140,6 +169,8 @@ if ($isTopicSource) {
             if ($res) {
                 while ($row = $res->fetch_assoc()) {
                     $nums[] = (string)intval($row['num']);
+                    // Update map with more precise name/number if found in DB
+                    $chapterMap[intval($row['chapter_id'])] = "Chapter " . $row['num'] . " (" . $row['chapter_name'] . ")";
                 }
             }
         }
@@ -199,9 +230,55 @@ foreach ($shortQuestions as $chapterId => $questions) {
     }
 }
 shuffle($allShortQs);
-$section1 = array_slice($allShortQs, 0, 8);
-$section2 = array_slice($allShortQs, 8, 8);
-$section3 = array_slice($allShortQs, 16, 8);
+
+$bookNameLower = strtolower($bookName);
+$sqPerSection = 8; // Default for Science (24 total)
+$sqAttempt = 5;    // Default attempt count
+$sqAttemptWord = "FIVE";
+$longAttempt = 2;  // Default for Science
+$longAttemptWord = "TWO";
+$marksPerMcq = 1;
+$marksPerSq = 2;
+$marksPerLongPartA = 4; // Default part A marks
+$marksPerLongPartB = 4; // Default part B marks
+
+if ($bookNameLower === 'math') {
+    $sqPerSection = 9;
+    $sqAttempt = 6;
+    $sqAttemptWord = "SIX";
+    $longAttempt = 3;
+    $longAttemptWord = "THREE";
+    $marksPerLongPartA = 4; // Math has 4+4
+    $marksPerLongPartB = 4;
+} elseif ($bookNameLower === 'computer') {
+    $sqPerSection = 6;
+    $sqAttempt = 4;
+    $sqAttemptWord = "FOUR";
+    $longAttempt = 2;
+    $longAttemptWord = "TWO";
+    $marksPerLongPartA = 4; // Computer parts vary but 4+4 or 8 total
+    $marksPerLongPartB = 4;
+} elseif (in_array($bookNameLower, ['physics', 'chemistry', 'biology'])) {
+    $sqPerSection = 8;
+    $sqAttempt = 5;
+    $sqAttemptWord = "FIVE";
+    $longAttempt = 2;
+    $longAttemptWord = "TWO";
+    $marksPerLongPartA = 4; // Science A has 4
+    $marksPerLongPartB = 5; // Science B has 5
+} else {
+    $sqPerSection = 8;
+    $sqAttempt = 5;
+    $sqAttemptWord = "FIVE";
+    $longAttempt = 2;
+    $longAttemptWord = "TWO";
+    $marksPerLongPartA = 4;
+    $marksPerLongPartB = 4;
+}
+
+$section1 = array_slice($allShortQs, 0, $sqPerSection);
+$section2 = array_slice($allShortQs, $sqPerSection, $sqPerSection);
+$section3 = array_slice($allShortQs, $sqPerSection * 2, $sqPerSection);
 $longQuestions = [];
 if (!$isTopicSource && !empty($_POST['long_questions'])) {
     foreach ($_POST['long_questions'] as $chapterId => $count) {
@@ -226,35 +303,24 @@ foreach ($longQuestions as $chapterId => $questions) {
 }
 shuffle($allLongQs);
 $allLongQs = array_slice($allLongQs, 0, 20);
-$patternMode = isset($_POST['pattern_mode']) && $_POST['pattern_mode'] === 'without' ? 'without' : 'with';
-// For without pattern mode, use the total_longs value directly
-// Determine how many distinct pattern question numbers (Q1..Qn) are available.
-// Prefer the posted Total Longs (number of printed long questions) for both modes when available.
-// Determine how many distinct pattern question numbers (Q1..Qn) are available.
-// We'll prefer explicit totals (total_longs or pattern_qcount) but also fall back to
-// scanning the posted placements (`long_qnum`) to discover the highest Q number the form submitted.
-$patternQCount = 3; // sensible default
-$explicitCount = 0;
-if (isset($_POST['total_longs']) && trim($_POST['total_longs']) !== '') {
-    $explicitCount = intval($_POST['total_longs']);
-} elseif (isset($_POST['pattern_qcount']) && trim($_POST['pattern_qcount']) !== '') {
-    $explicitCount = intval($_POST['pattern_qcount']);
-}
-
-// Inspect posted placement selects (long_qnum) to find the highest referenced Q number
-$maxReferencedQ = 0;
-if (!empty($_POST['long_qnum']) && is_array($_POST['long_qnum'])) {
-    foreach ($_POST['long_qnum'] as $chapId => $qnums) {
-        if (!is_array($qnums)) continue;
-        foreach ($qnums as $val) {
-            $n = intval($val);
-            if ($n > $maxReferencedQ) $maxReferencedQ = $n;
-        }
+if ($patternMode === 'with') {
+    // Calculate total marks based on attempts
+    $mcqCount = 0;
+    foreach ($mcqByChapter as $qs) {
+        $mcqCount += count($qs);
     }
+    
+    // MCQs marks
+    $totalMarks = $mcqCount * $marksPerMcq;
+    
+    // Short questions marks (3 sections * attempt count * marks per SQ)
+    $totalMarks += (3 * $sqAttempt * $marksPerSq);
+    
+    // Long questions marks (attempt count * total marks per full question)
+    $totalMarks += ($longAttempt * ($marksPerLongPartA + $marksPerLongPartB));
 }
 
-// Choose the largest sensible source (explicit count or max referenced), clamp to 1..10
-$patternQCount = max(1, min(10, max($explicitCount, $maxReferencedQ, $patternQCount)));
+// choose the largest sensible source
 // Calculate offset for re-numbering long questions to start from Q5
 $minOriginalQNum = PHP_INT_MAX;
 if (!empty($_POST['long_qnum']) && is_array($_POST['long_qnum'])) {
@@ -322,7 +388,13 @@ if ($patternMode === 'with') {
     foreach ($requiredPerChapter as $chapId => $need) {
         $have = isset($longQuestions[$chapId]) ? count($longQuestions[$chapId]) : 0;
         if ($need > $have) {
-            die('<h2 style="color:red;">Not enough long questions in the selected chapter (ID ' . htmlspecialchars((string)$chapId) . ') to fulfill placements. Needed ' . $need . ', available ' . $have . '.</h2>');
+            $chapterInfo = isset($chapterMap[$chapId]) ? $chapterMap[$chapId] : "Chapter ID $chapId";
+            $msg = "Not enough long questions in " . $chapterInfo . " to fulfill placements. Needed " . $need . ", available " . $have . ".";
+            echo "<script>
+                alert('" . addslashes($msg) . "');
+                window.location.href = 'select_chapters.php?class_id=" . $classId . "&book_name=" . urlencode($bookName) . "';
+            </script>";
+            exit;
         }
     }
     $chapterQueues = [];
@@ -560,7 +632,14 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
 
         if (!empty($allMcqs)) { 
             echo '<div class="section mcq-compact">'; 
-            echo '<h3>Multiple Choice Questions (MCQs)</h3>'; 
+            echo '<div class="question-row">';
+            echo '<div class="question-content">';
+            echo '<h3>1. Multiple Choice Questions (MCQs)</h3>'; 
+            echo '</div>';
+            echo '<div class="marks-container">';
+            echo '<input type="text" value="' . $marksPerMcq . '*' . count($allMcqs) . '=' . ($marksPerMcq * count($allMcqs)) . '" class="marks-input" style="width: 80px;" />';
+            echo '</div>';
+            echo '</div>';
             echo '<div class="mcq-grid">'; 
             $i = 1; 
             foreach ($allMcqs as $m) { 
@@ -585,7 +664,14 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
         <div id="short-long-section">
         <?php if ($patternMode === 'without') { ?>
             <div class="section">
-                <h3>Short Questions</h3>
+                <div class="question-row">
+                    <div class="question-content">
+                        <h3>Short Questions</h3>
+                    </div>
+                    <div class="marks-container">
+                        <input type="text" value="Total Short Marks" class="marks-input" style="width: 120px;" />
+                    </div>
+                </div>
                 <ol type="i">
                 <?php $idx = 1; foreach ($allShortQs as $q) { ?>
                     <li>
@@ -603,7 +689,14 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
                 </ol>
             </div>
             <div class="section">
-                <h3>Long Questions</h3>
+                <div class="question-row">
+                    <div class="question-content">
+                        <h3>Long Questions</h3>
+                    </div>
+                    <div class="marks-container">
+                        <input type="text" value="Total Long Marks" class="marks-input" style="width: 120px;" />
+                    </div>
+                </div>
                 <ol>
                 <?php $qNum = 1; foreach ($allLongQs as $q) { ?>
                     <li>
@@ -619,25 +712,53 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
             </div>
         <?php } else { ?>
             <div class="section"> 
-                <h4>2. Write Short answers to any Five(5) questions:</h4>
+                <div class="question-row">
+                    <div class="question-content">
+                        <h4>2. Write Short answers to any (<?= $sqAttempt ?>) <?= $sqAttemptWord ?> questions:</h4>
+                    </div>
+                    <div class="marks-container">
+                        <input type="text" value="<?= $marksPerSq ?>*<?= $sqAttempt ?>=<?= $marksPerSq * $sqAttempt ?>" class="marks-input" style="width: 80px;" />
+                    </div>
+                </div>
  
-                <?php $idx = 1; displayShortSection($section1, $idx); ?> 
+                <?php $idx = 1; displayShortSection($section1, $idx, $marksPerSq); ?> 
             </div> 
 
             <div class="section"> 
-               <h4>3. Write Short answers to any Five(5) questions:</h4>
-                <?php $idx = 1; displayShortSection($section2, $idx); ?> 
+                <div class="question-row">
+                    <div class="question-content">
+                        <h4>3. Write Short answers to any (<?= $sqAttempt ?>) <?= $sqAttemptWord ?> questions:</h4>
+                    </div>
+                    <div class="marks-container">
+                        <input type="text" value="<?= $marksPerSq ?>*<?= $sqAttempt ?>=<?= $marksPerSq * $sqAttempt ?>" class="marks-input" style="width: 80px;" />
+                    </div>
+                </div>
+                <?php $idx = 1; displayShortSection($section2, $idx, $marksPerSq); ?> 
             </div> 
 
             <div class="section"> 
-               <h4>4. Write Short answers to any Five(5) questions:</h4>
-                <?php $idx = 1; displayShortSection($section3, $idx); ?> 
+                <div class="question-row">
+                    <div class="question-content">
+                        <h4>4. Write Short answers to any (<?= $sqAttempt ?>) <?= $sqAttemptWord ?> questions:</h4>
+                    </div>
+                    <div class="marks-container">
+                        <input type="text" value="<?= $marksPerSq ?>*<?= $sqAttempt ?>=<?= $marksPerSq * $sqAttempt ?>" class="marks-input" style="width: 80px;" />
+                    </div>
+                </div>
+                <?php $idx = 1; displayShortSection($section3, $idx, $marksPerSq); ?> 
             </div> 
 
             <!-- Long Questions --> 
           
             <div class="section"> 
-                <h4>Long Questions: </h4>
+                <div class="question-row">
+                    <div class="question-content">
+                        <h4>Long Questions: (Attempt any (<?= $longAttempt ?>) <?= $longAttemptWord ?> questions)</h4>
+                    </div>
+                    <div class="marks-container">
+                        <input type="text" value="<?= $longAttempt ?>*<?= ($marksPerLongPartA + $marksPerLongPartB) ?>=<?= $longAttempt * ($marksPerLongPartA + $marksPerLongPartB) ?>" class="marks-input" style="width: 80px;" />
+                    </div>
+                </div>
                 <ol> 
                     <?php 
                     for ($q = 5; $q <= $patternQCount; $q++) {
@@ -655,7 +776,7 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
                             $qa = $placements[$aKey]; 
                             echo '<div class="question-row">'; 
                             echo '<div class="question-content">a. <span class="q-text">' . htmlspecialchars($qa['question_text']) . '</span></div>'; 
-                            echo '<div class="marks-container"><input type="number" value="' . $qa['marks'] . '" class="marks-input" /></div>'; 
+                            echo '<div class="marks-container"><input type="number" value="' . $marksPerLongPartA . '" class="marks-input" /></div>'; 
                             echo '</div>'; 
                         } 
                         
@@ -663,7 +784,7 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
                             $qb = $placements[$bKey]; 
                             echo '<div class="question-row">'; 
                             echo '<div class="question-content">b. <span class="q-text">' . htmlspecialchars($qb['question_text']) . '</span></div>'; 
-                            echo '<div class="marks-container"><input type="number" value="' . $qb['marks'] . '" class="marks-input" /></div>'; 
+                            echo '<div class="marks-container"><input type="number" value="' . $marksPerLongPartB . '" class="marks-input" /></div>'; 
                             echo '</div>'; 
                         } 
                         
@@ -678,7 +799,7 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
     </div>
                  
         <div class="print-buttons">
-                <button class="go-back-btn" onclick="window.history.back()">⬅️ Go Back</button>
+                <a href="select_chapters.php" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center;">⬅️ Go Back</a>
 
                 <button onclick="window.print()" class="cssbuttons-io-button">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="none" d="M0 0h24v24H0z"></path><path fill="currentColor" d="M6 9h12v6H6z"/><path fill="currentColor" d="M6 3h12v2H6z"/><path fill="currentColor" d="M8 15v4h8v-4"/></svg>

@@ -227,7 +227,7 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
            
     </form>
     
-    <button class="go-back-btn" onclick="window.history.back()">⬅ Go Back to Chapters</button>
+    <a href="select_chapters.php?class_id=<?= $classId ?>&book_name=<?= urlencode($book_name) ?>" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center;">⬅ Go Back to Chapters</a>
 
     <!-- SEO ARTICLE SECTION -->
     <article class="seo-article-section">

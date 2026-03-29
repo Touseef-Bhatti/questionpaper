@@ -150,8 +150,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function applyPatternDefaults() {
         if (isWithPattern() && (classId === 9 || classId === 10)) {
             const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
+            const isMath = bookName === 'math';
             
-            if (isScience || isComputer) {
+            if (isScience || isComputer || isMath) {
                 if (patternDefaults.mcqs > 0 && totalMcqsInput) {
                     totalMcqsInput.value = patternDefaults.mcqs;
                 }
@@ -172,7 +173,8 @@ document.addEventListener('DOMContentLoaded', function() {
         let defaultMcq = 12;
         if (withPattern && (classId === 9 || classId === 10)) {
             const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
-            if (isScience || isComputer) {
+            const isMath = bookName === 'math';
+            if (isScience || isComputer || isMath) {
                 defaultMcq = patternDefaults.mcqs;
             }
         }
@@ -312,10 +314,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateShortsVisibility() {
         const withPattern = isWithPattern();
         const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
+        const isMath = bookName === 'math';
         
         if (!withPattern) {
             totalShortsLabel.style.display = 'inline-block';
-        } else if ((isScience || isComputer) && withPattern && (classId === 9 || classId === 10)) {
+        } else if ((isScience || isComputer || isMath) && withPattern && (classId === 9 || classId === 10)) {
             totalShortsLabel.style.display = 'none';
             // Use pattern defaults for shorts
             if (totalShortsInput && patternDefaults.sq > 0) {
@@ -407,7 +410,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
-        if ((isScience || isComputer) && withPattern && (classId === 9 || classId === 10)) {
+        const isMath = bookName === 'math';
+        if ((isScience || isComputer || isMath) && withPattern && (classId === 9 || classId === 10)) {
             const targetShort = patternDefaults.sq;
             if (sumShort !== targetShort) {
             e.preventDefault();
@@ -614,9 +618,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (inp) inp.value = shortDist[idx];
       });
     } else {
-      // withPattern: use pattern defaults for science and computer subjects (class 9 or 10)
+      // withPattern: use pattern defaults for science, computer, and math subjects (class 9 or 10)
       const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
-      if ((isScience || isComputer) && (classId === 9 || classId === 10) && patternDefaults.sq > 0) {
+      const isMath = bookName === 'math';
+      if ((isScience || isComputer || isMath) && (classId === 9 || classId === 10) && patternDefaults.sq > 0) {
         const shortDist = distribute(patternDefaults.sq, activeChapters.length);
         activeChapters.forEach((c, idx) => {
           const inp = c.wrap.querySelector('input[name^="short_questions["]');
@@ -739,7 +744,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-trigger auto-fill if pattern defaults are applicable
     const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
-    if ((isScience || isComputer) && (classId === 9 || classId === 10) && patternDefaults.mcqs > 0) {
+    const isMath = bookName === 'math';
+    if ((isScience || isComputer || isMath) && (classId === 9 || classId === 10) && patternDefaults.mcqs > 0) {
       // Apply pattern defaults to inputs first
       applyPatternDefaults();
       updateShortsVisibility();
@@ -805,7 +811,7 @@ document.addEventListener('DOMContentLoaded', function() {
 						<li>Enter <strong>Total MCQs</strong> (maximum 20). Then distribute MCQs across selected chapters so the sum matches.</li>
 						<li><strong>With pattern:</strong> For most subjects, each long prints as parts <strong>(a)</strong> and <strong>(b)</strong>. Distribute exactly <strong>2 × Total Longs</strong> across chapters. For <strong>Computer</strong>, long questions have no parts - distribute exactly <strong>Total Longs</strong> across chapters.</li>
 						<li><strong>Without pattern:</strong> Each long prints as a single question. Distribute exactly <strong>Total Longs</strong> across chapters.</li>
-						<li><strong>With pattern only:</strong> For <strong>Biology, Chemistry, Physics</strong> - enter <strong>exactly 24 short questions</strong> across chapters. For <strong>Computer</strong> - enter <strong>exactly 18 short questions</strong> across chapters.</li>
+						<li><strong>With pattern only:</strong> For <strong>Biology, Chemistry, Physics</strong> - enter <strong>exactly 24 short questions</strong> across chapters. For <strong>Math</strong> - enter <strong>exactly 27 short questions</strong> across chapters. For <strong>Computer</strong> - enter <strong>exactly 18 short questions</strong> across chapters.</li>
 						<li><strong>Without pattern:</strong> Enter any number of short questions as desired.</li>
 					</ul>
 				</div>
@@ -880,7 +886,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 			<br>
 			<div class="button-container"style=" justify-content: center; display: flex;align-items: center; padding: 10px; border-radius: 5px; color: white; font-weight: bold; margin-bottom: 15px;">
-<button style="height: 55px; margin-top:6% ; align-items:center ;justify-content:center " class="go-back-btn" onclick="window.history.back()">⬅ Go Back </button>
+<a href="select_book.php?class_id=<?= $classId ?>" style="height: 55px; margin-top:6% ; align-items:center ;justify-content:center; text-decoration: none; display: inline-flex; " class="go-back-btn">⬅ Go Back </a>
   <!-- Stylish Animated Button -->
 <div style="margin-top: 8%;" class="btn-wrapper">
   <button type="button" class="btn auto-fill-btn">

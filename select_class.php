@@ -136,7 +136,7 @@ Generator MCQs tests, school exams, and practice papers instantly or attempt onl
         </div>
     </div>
     
-    <button class="go-back-btn" onclick="window.history.back()">⬅ Go Back</button>
+    <a href="index.php" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center;">⬅ Go Back</a>
 </div>
 <div class="seo-content">
     <h2>9th & 10th Class Paper Generator for Punjab Board</h2>

@@ -106,7 +106,7 @@ if (!$booksData) {
         <?php endif; ?>
     </div>
     </div>
-    <button class="go-back-btn" onclick="window.history.back()">⬅ Go Back</button>
+    <a href="select_class.php" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center;">⬅ Go Back</a>
 
 
 <p class="seo-subject-info">
