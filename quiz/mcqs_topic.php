@@ -313,7 +313,7 @@ if (isset($_POST['start_quiz'])) {
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Online MCQs Test Preparation for Competitive Exams | Ahmad Learning Hub</title>
+    <title>Free Online MCQs Test Preparation for All Competitive Exams | Ahmad Learning Hub</title>
     <!-- SEO & AI Optimization Meta Tags -->
     <meta name="description" content="Ahmad Learning Hub is a free online test preparation website. It offers practice tests, MCQs, and resources for competitive exams, job tests, and interviews.">
     <meta name="keywords" content="topic wise MCQs, AI question finder, Ahmad Learning Hub search, board exam topics, science MCQs 2026, chemistry MCQs by topic, physics MCQs by topic">
@@ -373,7 +373,7 @@ if (isset($_POST['start_quiz'])) {
             </a>
         </div>
         
-       <<h2>Search Any Topic & Generate Online MCQs Quiz Instantly</h2>
+       <h2>Search Any Topic & Generate Online MCQs Quiz Instantly</h2>
 <p class="desc">
     Create AI-powered MCQs quizzes by searching any topic. Practice chapter-wise and topic-wise questions for school exams and international tests like SAT, GRE, GCSE, A-Level, MDCAT, ECAT, and NTS. Start your online quiz now and improve your performance.
 </p>

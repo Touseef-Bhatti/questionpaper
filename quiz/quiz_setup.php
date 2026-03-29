@@ -22,10 +22,10 @@ include '../db_connect.php';
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://paper.bhattichemicalsindustry.com.pk/quiz/quiz_setup.php">
-    <meta property="og:title" content="Free AI MCQ Generator for Board Exams | Ahmad Learning Hub">
+    <meta property="og:url" content="https://ahmadlearninghub.com.pk/quiz/quiz_setup.php">
+    <meta property="og:title" content="Online MCQs Test For 9th and 10th Board Exams - Ahmad Learning Hub">
     <meta property="og:description" content="Generate 100% accurate MCQs based on the latest 2026 syllabus using advanced AI. All subjects covered - science and arts.">
-    <meta property="og:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-og.jpg">
+    <meta property="og:image" content="https://ahmadlearninghub.com.pk/assets/images/quiz-og.jpg">
 
     <!-- JSON-LD Structured Data for SEO Rich Snippets -->
     <script type="application/ld+json">
@@ -55,7 +55,7 @@ include '../db_connect.php';
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://paper.bhattichemicalsindustry.com.pk/quiz/quiz_setup.php">
-    <meta property="twitter:title" content="Take a Free Online Quiz - Ahmad Learning Hub">
+    <meta property="twitter:title" content="Online MCQs Test For 9th and 10th Board Exams - Ahmad Learning Hub">
     <meta property="twitter:description" content="Tailor your study sessions with our advanced MCQ generator. Practice by class, book, or specific chapters.">
     <meta property="twitter:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-og.jpg">
 

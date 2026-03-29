@@ -76,7 +76,7 @@ include 'db_connect.php';
                             <a class="btn btn-primary" href="select_class">Generate Question Paper</a>
                             <a class="btn btn-outline" href="online_quiz_host_new">Host a Quiz</a>
                             
-                            <a class="btn btn-ghost" href="notes">View Notes</a>
+                            <a class="btn btn-ghost" href="note">View Notes</a>
                         </div>
                     </div>
                     <div>
@@ -85,7 +85,7 @@ include 'db_connect.php';
                             <p>Prepare Exam with Chapter-wise real Exam-style Questions , MCQs And have Access to all updated Notes </p>
                             <a class="btn btn-primary" href="online_quiz_join">Join Quiz</a>
                             <a class="btn btn-outline" href="quiz_setup">Take Online Test</a>
-                            <a class="btn btn-ghost" href="notes">View Notes</a>
+                            <a class="btn btn-ghost" href="note">View Notes</a>
                         </div>
                     </div>
                 </div>
