@@ -4,8 +4,6 @@ session_start();
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 
-include 'includes/adsterra_ads.php';
-
 // Fetch all available classes with their IDs and names using prepared statement (OPTIMIZED)
 $classQuery = "SELECT class_id, class_name FROM class ORDER BY class_id ASC";
 $classResult = $conn->query($classQuery);

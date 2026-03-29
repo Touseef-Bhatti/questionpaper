@@ -26,9 +26,7 @@ function renderAdsterraAdUnit($type, $placement = '', $class = '', $style = '') 
     // Add the filenames where you want banner ads to appear (e.g., 'index.php', 'mcqs.php').
     // Leave the array empty to show ads on ALL pages.
     $allowedPages = [
-        'index.php',
-        'mcqs.php',
-        'select_class.php'
+     
     ];
     
     if (!empty($allowedPages)) {
