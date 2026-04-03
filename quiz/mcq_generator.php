@@ -86,14 +86,14 @@ function getOrCreateTopicId($conn, $topicName) {
         return $topicIdCache[$topicName];
     }
 
-    // Ensure table exists (just in case)
+    // AIQuestionsTopic table is created in install.php - with safety fallback for runtime
     static $checked = false;
     if (!$checked) {
         $conn->query("CREATE TABLE IF NOT EXISTS AIQuestionsTopic (
             id INT AUTO_INCREMENT PRIMARY KEY,
             topic_name VARCHAR(255) NOT NULL UNIQUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )");
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         $checked = true;
     }
 
@@ -223,9 +223,9 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '') {
 
     $levelHint = $lvl ? "Difficulty: {$lvl}. " : '';
     $topicsStr = implode(', ', $topics);
-    // $distHint = count($topics) > 1
-    //     ? "Distribute across topics: " . $topicsStr . ". Each MCQ must include \"topic\" field with the topic name."
-    //     : "Topic: {$topicsStr}.";
+    $distHint = count($topics) > 1
+        ? "Distribute across topics: " . $topicsStr . ". Each MCQ must include \"topic\" field with the topic name."
+        : "Topic: {$topicsStr}.";
 
     $prompt = "i have an exam of topics {$topicsStr} and you have to Generate exactly {$count} MCQs.  {$levelHint}Return ONLY a JSON array.generate correct answer for each MCQs.Make sure correct_option exactly matches the correct option.Each item: {\"topic\":\"...\", \"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. No extra text.";
     $maxTokens = min(16000, 500 + $count * 400);
@@ -374,7 +374,8 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
         $qCol = 'question_text';
     }
 
-    // Ensure verification table exists
+    // Verification tables (MCQsVerification and AIMCQsVerification) are created in install.php
+    // Added as safety fallback - creates if doesn't exist
     if ($sourceTable === 'mcqs') {
         $conn->query("CREATE TABLE IF NOT EXISTS MCQsVerification (
             mcq_id INT PRIMARY KEY,
@@ -384,7 +385,7 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
             original_correct_option TEXT,
             ai_notes TEXT,
             FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE
-        )");
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     } else {
         $conn->query("CREATE TABLE IF NOT EXISTS AIMCQsVerification (
             mcq_id INT PRIMARY KEY,
@@ -394,7 +395,7 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
             original_correct_option TEXT,
             ai_notes TEXT,
             FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
-        )");
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 
     // Fetch MCQs to check
@@ -489,6 +490,7 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
 
     $results = parseMcqJson($resp);
     if (!is_array($results)) return ['success' => false, 'message' => 'Failed to parse AI response'];
+
 
     $stats = ['checked' => 0, 'verified' => 0, 'corrected' => 0, 'flagged' => 0, 'processed_ids' => []];
     $now = date('Y-m-d H:i:s');

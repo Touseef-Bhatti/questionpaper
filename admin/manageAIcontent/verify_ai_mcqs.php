@@ -28,13 +28,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
     }
 
     if ($_POST['action'] === 'approve') {
-        $stmt = $conn->prepare("UPDATE $verifyTable SET verification_status = 'verified', last_checked_at = NOW() WHERE $fk = ?");
+        $sql = "INSERT INTO $verifyTable ($fk, verification_status, last_checked_at) 
+                VALUES (?, 'verified', NOW()) 
+                ON DUPLICATE KEY UPDATE 
+                verification_status = 'verified', last_checked_at = NOW()";
+        $stmt = $conn->prepare($sql);
         $stmt->bind_param('i', $id);
         $success = $stmt->execute();
         $stmt->close();
         echo json_encode(['success' => $success]);
     } elseif ($_POST['action'] === 'flag') {
-        $stmt = $conn->prepare("UPDATE $verifyTable SET verification_status = 'flagged', last_checked_at = NOW() WHERE $fk = ?");
+        $sql = "INSERT INTO $verifyTable ($fk, verification_status, last_checked_at) 
+                VALUES (?, 'flagged', NOW()) 
+                ON DUPLICATE KEY UPDATE 
+                verification_status = 'flagged', last_checked_at = NOW()";
+        $stmt = $conn->prepare($sql);
         $stmt->bind_param('i', $id);
         $success = $stmt->execute();
         $stmt->close();
@@ -215,9 +223,9 @@ if ($sourceTable === 'mcqs') {
 }
 
 // Ensure table exists for report view as well
-$createTableSql = "";
+// Tables are primarily created in install.php, but with safety fallback here
 if ($sourceTable === 'mcqs') {
-    $createTableSql = "CREATE TABLE IF NOT EXISTS MCQsVerification (
+    $conn->query("CREATE TABLE IF NOT EXISTS MCQsVerification (
         mcq_id INT PRIMARY KEY,
         verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
         last_checked_at DATETIME,
@@ -225,9 +233,9 @@ if ($sourceTable === 'mcqs') {
         original_correct_option TEXT,
         ai_notes TEXT,
         FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE
-    )";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 } else {
-    $createTableSql = "CREATE TABLE IF NOT EXISTS AIMCQsVerification (
+    $conn->query("CREATE TABLE IF NOT EXISTS AIMCQsVerification (
         mcq_id INT PRIMARY KEY,
         verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
         last_checked_at DATETIME,
@@ -235,14 +243,7 @@ if ($sourceTable === 'mcqs') {
         original_correct_option TEXT,
         ai_notes TEXT,
         FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
-    )";
-}
-$conn->query($createTableSql);
-
-// Self-healing: Add missing original_correct_option if it doesn't exist
-$colCheck = $conn->query("SHOW COLUMNS FROM $verifyTable LIKE 'original_correct_option'");
-if ($colCheck && $colCheck->num_rows === 0) {
-    $conn->query("ALTER TABLE $verifyTable ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option");
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
 // Pagination

@@ -41,7 +41,7 @@ include '../db_connect.php';
                     <div class="material-title">MCQs</div>
                     <div class="material-description">Multiple choice questions with answers</div>
                 </div>
-                <div class="material-card" onclick="navigateToMaterial('past-papers')">
+                <!-- <div class="material-card" onclick="navigateToMaterial('past-papers')">
                     <span class="material-icon">📄</span>
                     <div class="material-title">Past Papers</div>
                     <div class="material-description">Previous years' exam papers with solutions</div>
@@ -58,7 +58,7 @@ include '../db_connect.php';
                     <div class="material-title">Solved Exercises</div>
                     <div class="material-description">Step-by-step solutions to textbook exercises</div>
                 </div>
-                
+                 -->
                 
                 
                 
@@ -89,7 +89,7 @@ include '../db_connect.php';
                 'past-papers': 'past_papers.php',
                 'guess-papers': 'guess_papers.php',
                 'solved-exercises': 'solved_exercises.php',
-                'mcqs': 'mcqs.php',
+                'mcqs': 'mcqs',
                 'model-papers': 'model_papers.php'
             };
             

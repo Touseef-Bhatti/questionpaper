@@ -53,6 +53,10 @@ Options -Indexes
     # Matches patterns like: 10th-class-physics-question-paper-generator
     RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-question-paper-generator/?$ select_chapters.php?class_id=$1&book_name=$2 [QSA,NC,L]
 
+    # 6. Handle SEO pattern for MCQs page
+    # Matches patterns like: mcqs/9th-class/physics
+    RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ notes/mcqs.php?class_id=$1&book_name=$2&view=1 [QSA,NC,L]
+
     # 4. Hide .php extensions for a cleaner URL structure (General Root Files)
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME}.php -f

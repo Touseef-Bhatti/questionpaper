@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $hash  = password_hash($password, PASSWORD_DEFAULT);
                     $token = bin2hex(random_bytes(32));
 
-                    // Create table if not exists
+                    // Table 'pending_users' is created in install.php - with safety fallback for runtime
                     $conn->query("CREATE TABLE IF NOT EXISTS pending_users (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         name VARCHAR(191) NOT NULL,

@@ -73,7 +73,7 @@ function renderMonetagScripts() {
     // 3. Render Monetag scripts from includes
     // To disable Monetag completely, you can comment out the include below
     ob_start();
-    include __DIR__ . '/includes/monetag_ads.php';
+    // include __DIR__ . '/includes/monetag_ads.php';
     return ob_get_clean();
 }
 

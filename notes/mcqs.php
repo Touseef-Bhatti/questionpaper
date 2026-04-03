@@ -1,12 +1,85 @@
 <?php
+ob_start();
 include '../db_connect.php';
 
 // Get filter parameters
 $classId = isset($_GET['class_id']) ? intval($_GET['class_id']) : 0;
 $bookId = isset($_GET['book_id']) ? intval($_GET['book_id']) : 0;
+$bookNameUrl = isset($_GET['book_name']) ? trim($_GET['book_name']) : '';
 $chapterId = isset($_GET['chapter_id']) ? intval($_GET['chapter_id']) : 0;
-$search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $viewMcqs = isset($_GET['view']) && $_GET['view'] == '1'; // Only show MCQs when view=1
+
+// If bookName is provided but not bookId, find bookId
+$cleanBookName = '';
+if ($classId > 0 && !empty($bookNameUrl)) {
+    $cleanBookName = str_replace('-', ' ', $bookNameUrl);
+    $findBookQuery = "SELECT book_id, book_name FROM book WHERE class_id = ? AND (book_name = ? OR REPLACE(book_name, ' ', '-') = ?) LIMIT 1";
+    $findStmt = $conn->prepare($findBookQuery);
+    $findStmt->bind_param('iss', $classId, $cleanBookName, $bookNameUrl);
+    $findStmt->execute();
+    $findResult = $findStmt->get_result();
+    if ($row = $findResult->fetch_assoc()) {
+        $bookId = intval($row['book_id']);
+        $cleanBookName = $row['book_name']; // Get actual name from DB
+    }
+    $findStmt->close();
+}
+
+// SEO Canonical Redirect Logic
+if ($classId > 0 && $bookId > 0 && (strpos($_SERVER['REQUEST_URI'], 'mcqs.php') !== false || isset($_GET['book_id']))) {
+    // If we have class and book, but we're using the old URL format (mcqs.php or book_id param), redirect to SEO URL
+    if (empty($cleanBookName)) {
+        $nameQuery = "SELECT book_name FROM book WHERE book_id = ? LIMIT 1";
+        $nStmt = $conn->prepare($nameQuery);
+        $nStmt->bind_param('i', $bookId);
+        $nStmt->execute();
+        $nRes = $nStmt->get_result();
+        if ($nrow = $nRes->fetch_assoc()) {
+            $cleanBookName = $nrow['book_name'];
+        }
+        $nStmt->close();
+    }
+    
+    if (!empty($cleanBookName)) {
+        $slug = strtolower(str_replace(' ', '-', $cleanBookName));
+        $suffix = 'th';
+        if ($classId == 1) $suffix = 'st';
+        elseif ($classId == 2) $suffix = 'nd';
+        elseif ($classId == 3) $suffix = 'rd';
+        
+        $newPath = "/mcqs/{$classId}{$suffix}-class/{$slug}";
+        
+        // Add other params except the ones handled by path
+        $remainingParams = $_GET;
+        unset($remainingParams['class_id'], $remainingParams['book_id'], $remainingParams['book_name']);
+        
+        // Ensure view=1 is present if we're viewing MCQs
+        if ($viewMcqs) {
+            $remainingParams['view'] = '1';
+        }
+        
+        // If view=1 is the only remaining param and it's already handled by the SEO route, we can omit it if desired
+        // But the rewrite rule includes &view=1, so it's safer to keep it or handle it consistently.
+        // Actually, the rewrite rule maps to notes/mcqs.php?class_id=$1&book_name=$2&view=1
+        // So the SEO URL /mcqs/10th-class/math already implies view=1.
+        if (isset($remainingParams['view']) && $remainingParams['view'] == '1') {
+            unset($remainingParams['view']);
+        }
+        
+        $queryString = !empty($remainingParams) ? '?' . http_build_query($remainingParams) : '';
+        
+        // Build absolute URL to avoid issues with subdirectories if any
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+        $host = $_SERVER['HTTP_HOST'];
+        $fullRedirectUrl = $protocol . "://" . $host . $newPath . $queryString;
+        
+        header("HTTP/1.1 301 Moved Permanently");
+        header("Location: " . $fullRedirectUrl);
+        exit;
+    }
+}
+
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $perPage = 20;
 $offset = ($page - 1) * $perPage;
@@ -489,8 +562,30 @@ if ($viewMcqs) {
                 <!-- Pagination -->
                 <?php if ($totalPages > 1): ?>
                     <div class="pagination">
+                        <?php 
+                        $baseSeoUrl = '';
+                        if ($classId > 0 && !empty($cleanBookName)) {
+                            $slug = strtolower(str_replace(' ', '-', $cleanBookName));
+                            $suffix = 'th';
+                            if ($classId == 1) $suffix = 'st';
+                            elseif ($classId == 2) $suffix = 'nd';
+                            elseif ($classId == 3) $suffix = 'rd';
+                            $baseSeoUrl = "/mcqs/{$classId}{$suffix}-class/{$slug}";
+                        }
+
+                        function getPageUrl($pageNum, $baseSeoUrl) {
+                            $params = $_GET;
+                            $params['page'] = $pageNum;
+                            if (!empty($baseSeoUrl)) {
+                                unset($params['class_id'], $params['book_id'], $params['book_name'], $params['view']);
+                                return $baseSeoUrl . (!empty($params) ? '?' . http_build_query($params) : '');
+                            }
+                            return '?' . http_build_query($params);
+                        }
+                        ?>
+
                         <?php if ($page > 1): ?>
-                            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">« Previous</a>
+                            <a href="<?= getPageUrl($page - 1, $baseSeoUrl) ?>">« Previous</a>
                         <?php else: ?>
                             <span class="disabled">« Previous</span>
                         <?php endif; ?>
@@ -503,12 +598,12 @@ if ($viewMcqs) {
                             <?php if ($i == $page): ?>
                                 <span class="current"><?= $i ?></span>
                             <?php else: ?>
-                                <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>"><?= $i ?></a>
+                                <a href="<?= getPageUrl($i, $baseSeoUrl) ?>"><?= $i ?></a>
                             <?php endif; ?>
                         <?php endfor; ?>
 
                         <?php if ($page < $totalPages): ?>
-                            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">Next »</a>
+                            <a href="<?= getPageUrl($page + 1, $baseSeoUrl) ?>">Next »</a>
                         <?php else: ?>
                             <span class="disabled">Next »</span>
                         <?php endif; ?>
@@ -587,12 +682,13 @@ if ($viewMcqs) {
         }
 
         function clearFilters() {
-            window.location.href = 'mcqs.php';
+            window.location.href = '/mcqs';
         }
 
         function viewMcqs() {
             const classId = document.getElementById('class_id').value;
             const bookId = document.getElementById('book_id').value;
+            const bookSelect = document.getElementById('book_id');
             const chapterId = document.getElementById('chapter_id').value;
             const search = document.getElementById('search').value;
             
@@ -605,17 +701,33 @@ if ($viewMcqs) {
                 alert('Please select a book first.');
                 return;
             }
+
+            const bookName = bookSelect.options[bookSelect.selectedIndex].text;
             
-            // Build URL with filters and view=1
+            // Build SEO URL
+            let suffix = 'th';
+            if (classId == 1) suffix = 'st';
+            else if (classId == 2) suffix = 'nd';
+            else if (classId == 3) suffix = 'rd';
+            
+            const slug = bookName.toLowerCase().trim().replace(/\s+/g, '-');
+            const baseUrl = `/mcqs/${classId}${suffix}-class/${slug}`;
+            
+            // Add other filters as query params
             const params = new URLSearchParams();
-            params.append('class_id', classId);
-            params.append('book_id', bookId);
             if (chapterId > 0) params.append('chapter_id', chapterId);
             if (search.trim()) params.append('search', search.trim());
             params.append('view', '1');
             
-            window.location.href = 'mcqs.php?' + params.toString();
+            const queryString = params.toString();
+            window.location.href = baseUrl + (queryString ? '?' + queryString : '');
         }
+
+        // Handle form submission via Enter key
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            viewMcqs();
+        });
 
         function takeQuiz() {
             const classId = document.getElementById('class_id').value;

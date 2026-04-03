@@ -253,9 +253,17 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS api_keys (
     UNIQUE KEY unique_key_hash (key_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: api_keys");
 
+// 8.0 AI Questions Topic (Normalized Topic Storage) - MUST be before AIGeneratedMCQs
+runQuery($conn, "CREATE TABLE IF NOT EXISTS AIQuestionsTopic (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    topic_name VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIQuestionsTopic");
+
 // 8. AI MCQs Verification (manage_ai_mcqs.php)
 runQuery($conn, "CREATE TABLE IF NOT EXISTS AIGeneratedMCQs (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    topic_id INT NULL,
     topic VARCHAR(255) NOT NULL,
     question_text TEXT NOT NULL,
     option_a TEXT NOT NULL,
@@ -263,7 +271,8 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS AIGeneratedMCQs (
     option_c TEXT NOT NULL,
     option_d TEXT NOT NULL,
     correct_option TEXT NOT NULL,
-    generated_at DATETIME NOT NULL
+    generated_at DATETIME NOT NULL,
+    FOREIGN KEY (topic_id) REFERENCES AIQuestionsTopic(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIGeneratedMCQs");
 
 runQuery($conn, "CREATE TABLE IF NOT EXISTS AIMCQsVerification (
@@ -285,13 +294,6 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS MCQsVerification (
     ai_notes TEXT,
     FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: MCQsVerification");
-
-// 8.1 AI Questions Topic (Normalized Topic Storage)
-runQuery($conn, "CREATE TABLE IF NOT EXISTS AIQuestionsTopic (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    topic_name VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIQuestionsTopic");
 
 // 18. Quiz Rooms
 runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_rooms (
@@ -442,6 +444,40 @@ $result = $conn->query("SHOW COLUMNS FROM MCQsVerification LIKE 'original_correc
 if (!$result || $result->num_rows == 0) {
     runQuery($conn, "ALTER TABLE MCQsVerification ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option", "Column: MCQsVerification.original_correct_option");
 }
+
+// Check if AIGeneratedMCQs has topic_id column (for mcq_generator compatibility)
+$result = $conn->query("SHOW COLUMNS FROM AIGeneratedMCQs LIKE 'topic_id'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE AIGeneratedMCQs ADD COLUMN topic_id INT NULL AFTER id", "Column: AIGeneratedMCQs.topic_id");
+}
+
+// Quiz Lobby System Enhancements
+echo "\nAdding Lobby System Columns...\n";
+
+// Check if quiz_rooms table has quiz_started column
+$result = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'quiz_started'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN quiz_started BOOLEAN DEFAULT FALSE AFTER status", "Column: quiz_rooms.quiz_started");
+}
+
+// Check if quiz_rooms table has quiz_duration_minutes column
+$result = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'quiz_duration_minutes'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN quiz_duration_minutes INT DEFAULT 30 AFTER quiz_started", "Column: quiz_rooms.quiz_duration_minutes");
+}
+
+// Check if quiz_participants table has current_question column
+$result = $conn->query("SHOW COLUMNS FROM quiz_participants LIKE 'current_question'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE quiz_participants ADD COLUMN current_question INT DEFAULT 0 AFTER status", "Column: quiz_participants.current_question");
+}
+
+// Check if quiz_participants table has time_remaining_sec column
+$result = $conn->query("SHOW COLUMNS FROM quiz_participants LIKE 'time_remaining_sec'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE quiz_participants ADD COLUMN time_remaining_sec INT NULL AFTER current_question", "Column: quiz_participants.time_remaining_sec");
+}
+
 // ========== PERFORMANCE INDEXES - CRITICAL FOR PRODUCTION ==========
 echo "\n\n=== Creating Performance Indexes ===\n";
 
