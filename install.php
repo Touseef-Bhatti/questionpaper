@@ -406,16 +406,20 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS admin_logs (
 
 runQuery($conn, "CREATE TABLE IF NOT EXISTS pending_admin_actions (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    action_type ENUM('create', 'delete') NOT NULL,
+    action_type ENUM('create', 'delete', 'login', 'password_change') NOT NULL,
     admin_id INT NULL,
     name VARCHAR(255) NULL,
     email VARCHAR(255) NULL,
     password_hash VARCHAR(255) NULL,
+    old_password_hash VARCHAR(255) NULL,
     role VARCHAR(50) NULL,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL,
     token VARCHAR(64) NOT NULL UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME NOT NULL,
-    INDEX idx_token (token)
+    INDEX idx_token (token),
+    INDEX idx_action_type (action_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: pending_admin_actions");
 
 // ========== MIGRATE MISSING COLUMNS (For old installations) ==========
@@ -443,6 +447,32 @@ if (!$result || $result->num_rows == 0) {
 $result = $conn->query("SHOW COLUMNS FROM MCQsVerification LIKE 'original_correct_option'");
 if (!$result || $result->num_rows == 0) {
     runQuery($conn, "ALTER TABLE MCQsVerification ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option", "Column: MCQsVerification.original_correct_option");
+}
+
+// Check if pending_admin_actions table exists and update ENUM for login/password_change features
+$result = $conn->query("SHOW COLUMNS FROM pending_admin_actions LIKE 'action_type'");
+if ($result && $result->num_rows > 0) {
+    $colInfo = $result->fetch_assoc();
+    // Check if the ENUM already has 'login' and 'password_change' values
+    if (stripos($colInfo['Type'], 'login') === false) {
+        runQuery($conn, "ALTER TABLE pending_admin_actions MODIFY COLUMN action_type ENUM('create', 'delete', 'login', 'password_change') NOT NULL", "Updated: pending_admin_actions.action_type ENUM");
+    }
+}
+
+// Check if pending_admin_actions has new columns (for login and password change features)
+$result = $conn->query("SHOW COLUMNS FROM pending_admin_actions LIKE 'old_password_hash'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE pending_admin_actions ADD COLUMN old_password_hash VARCHAR(255) NULL AFTER password_hash", "Column: pending_admin_actions.old_password_hash");
+}
+
+$result = $conn->query("SHOW COLUMNS FROM pending_admin_actions LIKE 'ip_address'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE pending_admin_actions ADD COLUMN ip_address VARCHAR(45) NULL AFTER role", "Column: pending_admin_actions.ip_address");
+}
+
+$result = $conn->query("SHOW COLUMNS FROM pending_admin_actions LIKE 'user_agent'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE pending_admin_actions ADD COLUMN user_agent TEXT NULL AFTER ip_address", "Column: pending_admin_actions.user_agent");
 }
 
 // Check if AIGeneratedMCQs has topic_id column (for mcq_generator compatibility)

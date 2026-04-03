@@ -93,6 +93,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
+        } elseif ($action === 'change_password') {
+            $id = intval($_POST['id'] ?? 0);
+            $newPassword = $_POST['new_password'] ?? '';
+            
+            if ($id <= 0 || $newPassword === '') {
+                $message = 'Invalid request. Please ensure all fields are filled.';
+            } else {
+                $currentAdminId = $_SESSION['id'] ?? $_SESSION['admin_id'] ?? null;
+                $currentAdminRole = $_SESSION['role'] ?? '';
+                
+                // Check authorization
+                // SuperAdmin can change any password
+                // Regular admin can only change their own password
+                $canChange = false;
+                if (strtolower($currentAdminRole) === 'superadmin') {
+                    $canChange = true;
+                } elseif ($id === $currentAdminId) {
+                    $canChange = true;
+                }
+                
+                if (!$canChange) {
+                    $message = 'You do not have permission to change this admin\'s password.';
+                } else {
+                    // Fetch admin details
+                    $stmt = $conn->prepare("SELECT id, name, email, password FROM admins WHERE id = ?");
+                    $stmt->bind_param("i", $id);
+                    $stmt->execute();
+                    $res = $stmt->get_result();
+                    $targetAdmin = $res->fetch_assoc();
+                    $stmt->close();
+                    
+                    if ($targetAdmin) {
+                        $newPasswordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+                        $token = bin2hex(random_bytes(32));
+                        $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+                        
+                        // Store pending password change
+                        $stmt = $conn->prepare("INSERT INTO pending_admin_actions 
+                            (action_type, admin_id, email, password_hash, old_password_hash, token, expires_at) 
+                            VALUES ('password_change', ?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("isssss", $id, $targetAdmin['email'], $newPasswordHash, $targetAdmin['password'], $token, $expires);
+                        
+                        if ($stmt->execute()) {
+                            $details = "<strong>Admin:</strong> " . htmlspecialchars($targetAdmin['name']) . 
+                                      "<br><strong>Email:</strong> " . htmlspecialchars($targetAdmin['email']) .
+                                      "<br><strong>Action:</strong> Password Change Request";
+                            
+                            if (sendAdminActionVerificationEmail($verificationEmail, 'password_change', $token, $details)) {
+                                $message = 'A verification email has been sent to ' . $verificationEmail . '. Please verify to complete password change.';
+                            } else {
+                                $message = 'Pending action created, but failed to send verification email.';
+                            }
+                        } else {
+                            $message = 'Error creating password change request.';
+                        }
+                        $stmt->close();
+                    } else {
+                        $message = 'Admin not found.';
+                    }
+                }
+            }
         }
     }
 }
@@ -100,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $admins = $conn->query("SELECT id, name, email, role, created_at FROM admins ORDER BY created_at DESC");
 
 // Fetch pending actions
-$pendingActions = $conn->query("SELECT id, action_type, name, email, role, created_at FROM pending_admin_actions ORDER BY created_at DESC");
+$pendingActions = $conn->query("SELECT id, action_type, admin_id, name, email, role, created_at FROM pending_admin_actions ORDER BY created_at DESC");
 include_once __DIR__ . '/header.php';
 ?>
 <style>
@@ -263,7 +324,23 @@ include_once __DIR__ . '/header.php';
                             </td>
                             <td><?= date('M d, Y H:i', strtotime($admin['created_at'])) ?></td>
                             <td>
-                                <?php $currentAdminId = $_SESSION['id'] ?? $_SESSION['admin_id'] ?? null; ?>
+                                <?php $currentAdminId = $_SESSION['id'] ?? $_SESSION['admin_id'] ?? null; 
+                                      $currentAdminRole = $_SESSION['role'] ?? ''; ?>
+                                
+                                <!-- Password Change Button -->
+                                <?php 
+                                $canChangePassword = false;
+                                if (strtolower($currentAdminRole) === 'superadmin') {
+                                    $canChangePassword = true;
+                                } elseif ($admin['id'] === $currentAdminId) {
+                                    $canChangePassword = true;
+                                }
+                                
+                                if ($canChangePassword): ?>
+                                    <button type="button" class="btn-small" style="background: #3b82f6; color: white; margin-right: 4px;" onclick="togglePasswordChangeModal(<?= (int)$admin['id'] ?>, '<?= htmlspecialchars($admin['name']) ?>')">Change Pass</button>
+                                <?php endif; ?>
+                                
+                                <!-- Delete Button -->
                                 <?php if ($admin['id'] !== $currentAdminId): ?>
                                     <form method="POST" style="display: inline;" onsubmit="return confirm('Delete this admin account?');">
                                         <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
@@ -285,7 +362,74 @@ include_once __DIR__ . '/header.php';
                 </div>
             <?php endif; ?>
         </div>
+        
+        <!-- Password Change Modal -->
+        <div id="passwordChangeModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+            <div style="background: white; border-radius: 12px; padding: 32px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);">
+                <h2 style="margin-top: 0; color: #1e3c72; margin-bottom: 20px;">Change Admin Password</h2>
+                <p style="color: #6b7280; margin-bottom: 20px;">Enter the new password for <strong id="modalAdminName"></strong>. They will need to verify this change via email.</p>
+                
+                <form method="POST" id="passwordChangeForm">
+                    <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
+                    <input type="hidden" name="action" value="change_password">
+                    <input type="hidden" name="id" id="modalAdminId" value="">
+                    
+                    <div class="form-group">
+                        <label for="newPassword">New Password</label>
+                        <input type="password" id="newPassword" name="new_password" placeholder="Enter new password" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" name="confirm_password" placeholder="Confirm new password" required>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" style="flex: 1;">Send Verification Email</button>
+                        <button type="button" style="flex: 1; background: #6b7280;" onclick="closePasswordChangeModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
     
-    
+    <script>
+        function togglePasswordChangeModal(adminId, adminName) {
+            document.getElementById('passwordChangeModal').style.display = 'flex';
+            document.getElementById('modalAdminId').value = adminId;
+            document.getElementById('modalAdminName').textContent = adminName;
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('newPassword').focus();
+        }
+        
+        function closePasswordChangeModal() {
+            document.getElementById('passwordChangeModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('passwordChangeModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePasswordChangeModal();
+            }
+        });
+        
+        // Validate passwords match before submission
+        document.getElementById('passwordChangeForm')?.addEventListener('submit', function(e) {
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword !== confirmPassword) {
+                e.preventDefault();
+                alert('Passwords do not match. Please try again.');
+                return false;
+            }
+            
+            if (newPassword.length < 6) {
+                e.preventDefault();
+                alert('Password must be at least 6 characters long.');
+                return false;
+            }
+        });
+    </script>
 

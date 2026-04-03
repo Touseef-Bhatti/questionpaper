@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/security.php';
+
+if (session_status() === PHP_SESSION_NONE) session_start();
+
 // Verification script doesn't necessarily need SuperAdmin if accessed via token link, 
 // but the action itself is for admins.
 
@@ -68,7 +71,63 @@ if ($action['action_type'] === 'create') {
         $error = "Error deleting admin account.";
     }
     $stmt->close();
+} elseif ($action['action_type'] === 'login') {
+    // Verify the admin still exists and get their details
+    $stmt = $conn->prepare("SELECT id, name, email, role FROM admins WHERE id = ? AND email = ?");
+    $stmt->bind_param("is", $action['admin_id'], $action['email']);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    
+    if ($res && $res->num_rows === 1) {
+        $admin = $res->fetch_assoc();
+        // Create session
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = $admin['id'];
+        $_SESSION['admin_id'] = $admin['id'];
+        $_SESSION['id'] = $admin['id'];
+        $_SESSION['name'] = $admin['name'];
+        $_SESSION['email'] = $admin['email'];
+        $_SESSION['role'] = strtolower($admin['role']);
+        
+        $success = true;
+        $message = "Login verified successfully! Redirecting to dashboard...";
+        
+        // Redirect to dashboard after 3 seconds
+        echo '<meta http-equiv="refresh" content="3; url=dashboard.php">';
+    } else {
+        $error = 'Admin account not found or verification mismatch.';
+    }
+    $stmt->close();
+} elseif ($action['action_type'] === 'password_change') {
+    // Verify the admin exists
+    $stmt = $conn->prepare("SELECT id, email FROM admins WHERE id = ? AND email = ?");
+    $stmt->bind_param("is", $action['admin_id'], $action['email']);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    
+    if ($res && $res->num_rows === 1) {
+        $admin = $res->fetch_assoc();
+        // Update password
+        $stmt2 = $conn->prepare("UPDATE admins SET password = ? WHERE id = ?");
+        $stmt2->bind_param("si", $action['password_hash'], $admin['id']);
+        
+        if ($stmt2->execute()) {
+            $success = true;
+            $message = "Password changed successfully! Redirecting to login...";
+            
+            // Log them out and redirect to login
+            session_destroy();
+            echo '<meta http-equiv="refresh" content="3; url=login.php">';
+        } else {
+            $error = "Error updating password.";
+        }
+        $stmt2->close();
+    } else {
+        $error = 'Admin account not found or verification mismatch.';
+    }
+    $stmt->close();
 }
+
 
 if ($success) {
     // Delete the pending action

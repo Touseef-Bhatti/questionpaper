@@ -15,6 +15,7 @@ services:
     depends_on:
       - db
       - redis
+      - mailhog
     restart: unless-stopped
 
   db:
@@ -45,6 +46,14 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: paper_mailhog
+    ports:
+      - "1025:1025"    # SMTP server
+      - "8025:8025"    # Web interface
+    restart: unless-stopped
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
