@@ -258,9 +258,14 @@ function togglePassword(fieldId) {
 <?php endif; ?>
 <?php if (!empty($success)): ?>
 <script>
-    showPopup("<?= htmlspecialchars($success, ENT_QUOTES) ?>");
-    // Redirect to login after short delay so user can read message
-    setTimeout(function(){ window.location.href = 'login.php'; }, 1600);
+    // In development mode, the success message might contain HTML (the verification link)
+    // We use a longer timeout or no timeout if the dev link is present
+    <?php if (strpos($success, '🛠️') !== false): ?>
+        showPopup(`<?= $success ?>`);
+    <?php else: ?>
+        showPopup("<?= htmlspecialchars($success, ENT_QUOTES) ?>");
+        setTimeout(function(){ window.location.href = 'login.php'; }, 2500);
+    <?php endif; ?>
 </script>
 <?php endif; ?>
 </body>

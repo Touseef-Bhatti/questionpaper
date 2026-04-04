@@ -74,8 +74,8 @@ try {
     $stmt->close();
 
     if ($existingUser) {
-        // Link Google account to existing user
-        $stmt = $conn->prepare("UPDATE users SET google_id = ?, oauth_provider = 'google' WHERE id = ?");
+        // Link Google account to existing user and mark as verified
+        $stmt = $conn->prepare("UPDATE users SET google_id = ?, oauth_provider = 'google', verified = 1 WHERE id = ?");
         $stmt->bind_param('si', $googleId, $existingUser['id']);
         $stmt->execute();
         $stmt->close();
@@ -95,13 +95,21 @@ try {
         exit;
     }
 
-    // Create new user with Google account
-    $stmt = $conn->prepare("INSERT INTO users (name, email, google_id, oauth_provider, password) VALUES (?, ?, ?, 'google', NULL)");
+    // Create new user with Google account - marked as verified by default
+    $stmt = $conn->prepare("INSERT INTO users (name, email, google_id, oauth_provider, password, verified) VALUES (?, ?, ?, 'google', NULL, 1)");
     $stmt->bind_param('sss', $name, $email, $googleId);
 
     if ($stmt->execute()) {
         $newUserId = $conn->insert_id;
         $stmt->close();
+
+        // Send welcome email for new Google user
+        try {
+            require_once __DIR__ . '/../email/phpmailer_mailer.php';
+            sendWelcomeEmail($email, $name);
+        } catch (Exception $e) {
+            error_log('Welcome email for Google user failed: ' . $e->getMessage());
+        }
 
         // Log them in
         session_regenerate_id(true);

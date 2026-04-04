@@ -14,7 +14,8 @@ require_once __DIR__ . '/../PHPMailer-master/src/SMTP.php';
  * Load and normalize email settings from environment variables.
  */
 function getMailerFromAddress() {
-    return EnvLoader::get('SMTP_FROM_EMAIL', EnvLoader::get('SMTP_USERNAME', 'admin@ahmadlearninghub.com.pk'));
+    $default = 'admin@ahmadlearninghub.com.pk';
+    return EnvLoader::get('SMTP_FROM_EMAIL', EnvLoader::get('SMTP_USERNAME', $default));
 }
 
 function getMailerFromName() {
@@ -31,6 +32,7 @@ function getAppUrl() {
 
 function configureMailerSmtp(PHPMailer $mail) {
     $mail->isSMTP();
+    $mail->CharSet = 'UTF-8';
     $mail->Host       = EnvLoader::get('SMTP_HOST', 'mailhog');
 
     $smtpPassword = EnvLoader::get('SMTP_PASSWORD', '');
@@ -58,6 +60,7 @@ function configureMailerSmtp(PHPMailer $mail) {
 
     $mail->Port = EnvLoader::getInt('SMTP_PORT', 1025);
     $mail->SMTPDebug = EnvLoader::getInt('SMTP_DEBUG', 0);
+    $mail->Timeout = 10; // Set a 10-second timeout for connection and SMTP commands
     
     // Add custom error handler to log more detailed SMTP errors
     $mail->SMTPDebug = 2; // Enable detailed debug output
@@ -202,6 +205,9 @@ function sendFallbackEmail($to, $token) {
         $verifyUrl = getAppUrl() . '/email/verify_email.php?token=' . urlencode($token);
         
         $subject = 'Verify your email address - ' . $fromName;
+        // Clean subject of any newlines
+        $subject = str_replace(["\r", "\n"], '', $subject);
+        
         $message = "Welcome to " . $fromName . "!\n\n" .
                   "Please verify your email address by clicking this link:\n" .
                   $verifyUrl . "\n\n" .
@@ -367,7 +373,37 @@ function sendAdminActionVerificationEmail($to, $actionType, $token, $details = '
         
     } catch (Exception $e) {
         error_log('Admin action verification email error: ' . $e->getMessage());
-        return false;
+        // Fallback to PHP mail()
+        try {
+            $fromEmail = getMailerFromAddress();
+            $fromName = getMailerFromName();
+            $verifyUrl = getAppUrl() . '/admin/verify_admin_action.php?token=' . urlencode($token);
+            
+            $actionTitles = [
+                'login' => 'Verify Admin Login',
+                'password_change' => 'Verify Password Change',
+                'create' => 'Verify New Admin Creation',
+                'delete' => 'Verify Admin Deletion'
+            ];
+            $actionTitle = $actionTitles[$actionType] ?? 'Verify Admin Action';
+            $subject = $actionTitle . ' - ' . $fromName;
+            $subject = str_replace(["\r", "\n"], '', $subject);
+
+            $message = "Dear Admin,\n\n" .
+                      strip_tags(str_replace(['<br>', '</p>'], ["\n", "\n\n"], $actionDesc)) . "\n\n" .
+                      "Please verify here: " . $verifyUrl . "\n\n" .
+                      "Best regards,\nThe " . $fromName . " Security Team";
+            
+            $headers = "From: " . $fromName . " <" . $fromEmail . ">\r\n" .
+                      "Reply-To: " . $fromEmail . "\r\n" .
+                      "MIME-Version: 1.0\r\n" .
+                      "Content-Type: text/plain; charset=UTF-8\r\n";
+            
+            return mail($to, $subject, $message, $headers);
+        } catch (Exception $ex) {
+            error_log('Admin action fallback email error: ' . $ex->getMessage());
+            return false;
+        }
     }
 }
 
@@ -378,14 +414,24 @@ function sendAdminActionVerificationEmail($to, $actionType, $token, $details = '
  */
 function sendWelcomeEmail($to, $userName) {
     try {
-        $fromEmail = getMailerFromAddress();
+        if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            error_log('Invalid email address: ' . $to);
+            return false;
+        }
+
+        $mail = new PHPMailer(true);
+        configureMailerSmtp($mail);
+
         $fromName = getMailerFromName();
+        $mail->setFrom(getMailerFromAddress(), $fromName);
+        $mail->addAddress($to);
+
         $baseUrl = getAppUrl();
-
         $loginUrl = rtrim($baseUrl, '/') . '/auth/login.php';
-        $dashboardUrl = rtrim($baseUrl, '/') . '/select_class.php';
+        $dashboardUrl = rtrim($baseUrl, '/') . '/index.php';
 
-        $subject = '🎉 Welcome to ' . $fromName . ' - Your Learning Journey Begins!';
+        $mail->isHTML(true);
+        $mail->Subject = '🎉 Welcome to ' . $fromName . ' - Your Learning Journey Begins!';
 
         // Professional and engaging HTML welcome email
         $htmlMessage = '
@@ -405,7 +451,7 @@ function sendWelcomeEmail($to, $userName) {
                     <tr>
                         <td style="background: linear-gradient(135deg, #4f6ef7 0%, #6ac1ff 100%); padding: 60px 40px; text-align: center; position: relative;">
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url(\'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDYwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxnIGNsaXBwYXRoPSJ1cmwoI2NsaXAwXzBfXzE5NDUpIj4KPHBhdGggZD0iTTAgMEg2MDBWMjAwSDBWMFoiIGZpbGw9InVybCgjZ3JhZGllbnQwX2xpbmVhcl8wXzBfXzE5NDUpIi8+CjwvZz4KPGRlZnM+CjxsaW5lYXJHcmFkaWVudCBpZD0iZ3JhZGllbnQwX2xpbmVhcl8wXzBfXzE5NDUiIGcxeD0iMCUiIGcxeT0iMCUiIGcyeD0iMTAwJSIgZzJ5PSIxMDAlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzRGNkVGNyIgc3RvcC1vcGFjaXR5PSIwLjEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNmFjMWZmIiBzdG9wLW9wYWNpdHk9IjAuMSIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPg==\') no-repeat center; opacity: 0.1;"></div>
-                            <h1 style="color: #ffffff; margin: 0; font-size: 36px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 1; position: relative;">🎉 Welcome Aboard!</h1>
+                            <h1 style="color: #ffffff; margin: 0; font-size: 36px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 1; position: relative;">🎉 Welcome To Ahmad Learnig Hub!</h1>
                             <p style="color: #ffffff; margin: 15px 0 0 0; font-size: 18px; opacity: 0.95; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">Your learning adventure starts here</p>
                         </td>
                     </tr>
@@ -501,26 +547,181 @@ function sendWelcomeEmail($to, $userName) {
 </body>
 </html>';
 
-        // Headers for HTML email
-        $headers = "From: " . $fromName . " <" . $fromEmail . ">\r\n" .
-                  "Reply-To: " . $fromEmail . "\r\n" .
-                  "X-Mailer: PHP/" . phpversion() . "\r\n" .
-                  "MIME-Version: 1.0\r\n" .
-                  "Content-Type: text/html; charset=UTF-8\r\n";
+        $mail->Body = $htmlMessage;
+        $mail->AltBody = "Welcome to " . $fromName . "!\n\nYour account has been successfully verified. Login here: " . $loginUrl;
 
-        // Send the email
-        $result = mail($to, $subject, $htmlMessage, $headers);
-
-        if ($result) {
-            error_log('Welcome email sent successfully to: ' . $to);
-            return true;
-        } else {
-            error_log('Welcome email failed for: ' . $to);
-            return false;
-        }
+        $mail->send();
+        error_log('Welcome email sent successfully to: ' . $to);
+        return true;
 
     } catch (Exception $e) {
         error_log('Welcome email error: ' . $e->getMessage());
+        // Fallback to PHP mail()
+        return sendFallbackWelcomeEmail($to, $userName);
+    }
+}
+
+/**
+ * Fallback Welcome Email using PHP mail()
+ */
+function sendFallbackWelcomeEmail($to, $userName) {
+    try {
+        $fromEmail = getMailerFromAddress();
+        $fromName = getMailerFromName();
+        $baseUrl = getAppUrl();
+        $loginUrl = rtrim($baseUrl, '/') . '/auth/login.php';
+
+        $subject = '🎉 Welcome to ' . $fromName . ' - Your Learning Journey Begins!';
+        $subject = str_replace(["\r", "\n"], '', $subject);
+        
+        $message = "Hello " . $userName . ",\n\n" .
+                  "Welcome to " . $fromName . "! Your account has been successfully verified.\n\n" .
+                  "You can now login here: " . $loginUrl . "\n\n" .
+                  "Best regards,\nThe " . $fromName . " Team";
+        
+        $headers = "From: " . $fromName . " <" . $fromEmail . ">\r\n" .
+                  "Reply-To: " . $fromEmail . "\r\n" .
+                  "MIME-Version: 1.0\r\n" .
+                  "Content-Type: text/plain; charset=UTF-8\r\n";
+        
+        return mail($to, $subject, $message, $headers);
+    } catch (Exception $e) {
+        error_log('Fallback welcome email error: ' . $e->getMessage());
         return false;
+    }
+}
+
+
+/**
+ * Send Password Reset Email
+ */
+function send_reset_email($to, $reset_link) {
+    try {
+        if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            error_log('Invalid email address: ' . $to);
+            return false;
+        }
+
+        $mail = new PHPMailer(true);
+        configureMailerSmtp($mail);
+
+        // Recipients
+        $fromName = getMailerFromName();
+        $mail->setFrom(getMailerFromAddress(), $fromName);
+        $mail->addAddress($to);
+
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = 'Reset your password - ' . $fromName;
+
+        // Beautiful HTML email for password reset
+        $htmlMessage = '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Your Password</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f4f4; padding: 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #4f6ef7, #6ac1ff); padding: 40px 20px; text-align: center;">
+                            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">' . htmlspecialchars($fromName) . '</h1>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #4f6ef7; margin: 0 0 20px 0; font-size: 24px;">Password Reset Request</h2>
+                            <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">We received a request to reset your password. If you didn\'t make this request, you can safely ignore this email.</p>
+                            <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">To reset your password, please click the button below:</p>
+                            
+                            <!-- Reset Button -->
+                            <table width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 30px 0;">
+                                <tr>
+                                    <td align="center">
+                                        <table cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
+                                            <tr>
+                                                <td align="center" style="
+                                                    background-color: #4f6ef7;
+                                                    border-radius: 8px;
+                                                    text-align: center;
+                                                    box-shadow: 0 4px 12px rgba(79, 110, 247, 0.3);
+                                                ">
+                                                    <a href="' . $reset_link . '" target="_blank" rel="noopener noreferrer" style="
+                                                        background-color: #4f6ef7;
+                                                        border: 18px solid #4f6ef7;
+                                                        color: #ffffff !important;
+                                                        display: inline-block;
+                                                        font-family: Arial, Helvetica, sans-serif;
+                                                        font-size: 16px;
+                                                        font-weight: bold;
+                                                        line-height: 1.2;
+                                                        text-align: center;
+                                                        text-decoration: none !important;
+                                                        border-radius: 8px;
+                                                        -webkit-text-size-adjust: none;
+                                                        -ms-text-size-adjust: none;
+                                                        mso-line-height-rule: exactly;
+                                                    ">🔑 RESET PASSWORD</a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="color: #666; font-size: 14px; line-height: 1.5; margin: 30px 0 10px 0;">If the button doesn\'t work, copy and paste this link:</p>
+                            <p style="color: #4f6ef7; font-size: 14px; word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 0 0 30px 0;">' . $reset_link . '</p>
+                            
+                            <hr style="border: none; height: 1px; background: #eee; margin: 30px 0;">
+                            <p style="color: #888; font-size: 12px; margin: 0;"><strong>Note:</strong> This link will expire in 1 hour.</p>
+                            <p style="color: #888; font-size: 12px; margin: 10px 0 0 0;">Best regards,<br><strong>The ' . htmlspecialchars($fromName) . ' Team</strong></p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>';
+        
+        $mail->Body = $htmlMessage;
+        $mail->AltBody = "Reset your password here: " . $reset_link;
+
+        $mail->send();
+        error_log('Reset email sent successfully to: ' . $to);
+        return true;
+
+    } catch (Exception $e) {
+        error_log('Password reset email error: ' . $e->getMessage());
+        // Fallback to PHP mail()
+        try {
+            $fromEmail = getMailerFromAddress();
+            $fromName = getMailerFromName();
+            $subject = 'Reset your password - ' . $fromName;
+            $subject = str_replace(["\r", "\n"], '', $subject);
+
+            $message = "We received a request to reset your password.\n\n" .
+                      "To reset your password, please click the link below:\n" .
+                      $reset_link . "\n\n" .
+                      "This link will expire in 1 hour.\n\n" .
+                      "Best regards,\nThe " . $fromName . " Team";
+            
+            $headers = "From: " . $fromName . " <" . $fromEmail . ">\r\n" .
+                      "Reply-To: " . $fromEmail . "\r\n" .
+                      "MIME-Version: 1.0\r\n" .
+                      "Content-Type: text/plain; charset=UTF-8\r\n";
+            
+            return mail($to, $subject, $message, $headers);
+        } catch (Exception $ex) {
+            error_log('Password reset fallback email error: ' . $ex->getMessage());
+            return false;
+        }
     }
 }

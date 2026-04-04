@@ -125,6 +125,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
+        } elseif ($action === 'delete_pending') {
+            $pendingId = intval($_POST['pending_id'] ?? 0);
+            if ($pendingId > 0) {
+                $stmt = $conn->prepare("DELETE FROM pending_admin_actions WHERE id = ?");
+                $stmt->bind_param("i", $pendingId);
+                if ($stmt->execute()) {
+                    $_SESSION['admin_success'] = 'Pending verification request has been deleted.';
+                } else {
+                    $_SESSION['admin_error'] = 'Error deleting pending verification request.';
+                }
+                $stmt->close();
+                header('Location: ' . $_SERVER['PHP_SELF']);
+                exit;
+            }
         } elseif ($action === 'change_password') {
             $id = intval($_POST['id'] ?? 0);
             $newPassword = $_POST['new_password'] ?? '';
@@ -271,6 +285,7 @@ include_once __DIR__ . '/header.php';
                             <th>Role</th>
                             <th>Initiated</th>
                             <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -288,6 +303,14 @@ include_once __DIR__ . '/header.php';
                             <td><?= $pending['role'] ? ucfirst($pending['role']) : '-' ?></td>
                             <td><?= date('M d, H:i', strtotime($pending['created_at'])) ?></td>
                             <td style="color: #f59e0b; font-weight: 600;">Waiting for Verification</td>
+                            <td>
+                                <form method="POST" style="display: inline;" onsubmit="return confirm('Delete this pending verification request?');">
+                                    <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
+                                    <input type="hidden" name="action" value="delete_pending">
+                                    <input type="hidden" name="pending_id" value="<?= (int)$pending['id'] ?>">
+                                    <button type="submit" class="btn-small btn-delete">Delete</button>
+                                </form>
+                            </td>
                         </tr>
                         <?php endwhile; ?>
                     </tbody>
