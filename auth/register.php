@@ -113,7 +113,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             } else {
                                 // Don't fail registration if email fails - user is already registered
                                 error_log('Email sending failed for: ' . $email . ' but user was registered successfully');
-                                $success = 'Registration successful! However, there was an issue sending the verification email. Please use the "Resend Verification" option or contact support.';
+                                $success = 'Registration successful! However, there was an issue sending the verification email.';
+                                
+                                if (EnvLoader::get('APP_ENV') === 'development') {
+                                    $verifyUrl = getAppUrl() . '/email/verify_email.php?token=' . urlencode($token);
+                                    $success .= '<br><br><strong>🛠️ Development Mode:</strong><br>Verification Link: <a href="' . $verifyUrl . '">' . $verifyUrl . '</a>';
+                                } else {
+                                    $success .= ' Please use the "Resend Verification" option or contact support.';
+                                }
                             }
                         } else {
                             $conn->rollback();

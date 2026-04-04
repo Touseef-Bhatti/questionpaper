@@ -7,12 +7,13 @@ include '../db_connect.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require '../PHPMailer-master/src/Exception.php';
-require '../PHPMailer-master/src/PHPMailer.php';
-require '../PHPMailer-master/src/SMTP.php';
+require_once '../PHPMailer-master/src/Exception.php';
+require_once '../PHPMailer-master/src/PHPMailer.php';
+require_once '../PHPMailer-master/src/SMTP.php';
 require '../config/env.php';
 
 $submitted = false;
+$dev_reset_link = ''; // For debugging in development
 
 function get_site_url() {
     // Prefer environment-configured URL from .env.local / .env.production
@@ -115,7 +116,7 @@ function send_reset_email($to, $reset_link) {
 
                             <!-- Footer -->
                             <hr style="border: none; height: 1px; background: linear-gradient(90deg, #e2e8f0 0%, #cbd5e0 50%, #e2e8f0 100%); margin: 40px 0;">
-                            <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0; text-align: center;">Need help? Contact our support team at <a href="mailto:support@bhattichemicalsindustry.com.pk" style="color: #4f6ef7; text-decoration: none;">support@bhattichemicalsindustry.com.pk</a></p>
+                            <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0; text-align: center;">Need help? Contact our support team at <a href="mailto:admin@ahmadlearninghub.com.pk" style="color: #4f6ef7; text-decoration: none;">admin@ahmadlearninghub.com.pk</a></p>
                             <p style="color: #a0aec0; font-size: 12px; margin: 0; text-align: center;">© ' . date('Y') . ' ' . htmlspecialchars($fromName) . '. All rights reserved.</p>
                         </td>
                     </tr>
@@ -184,8 +185,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ins->execute();
                     $ins->close();
                     // Build absolute URL based on configured SITE/APP URL
-$reset_link = get_site_url() . '/auth/reset_password.php?token=' . urlencode($token);
-                    send_reset_email($email, $reset_link);
+                    $reset_link = get_site_url() . '/auth/reset_password.php?token=' . urlencode($token);
+                    $email_sent = send_reset_email($email, $reset_link);
+                    
+                    // In development mode, capture the link if email fails
+                    if (!$email_sent && EnvLoader::get('APP_ENV') === 'development') {
+                        $GLOBALS['dev_reset_link'] = $reset_link;
+                    }
                 }
             }
             // Cleanup: remove expired tokens
@@ -217,7 +223,15 @@ $reset_link = get_site_url() . '/auth/reset_password.php?token=' . urlencode($to
   <div class="card">
     <h1 style="margin-top:0;">Forgot Password</h1>
     <?php if ($submitted): ?>
-      <div class="success">If an account with that email exists, we have sent a password reset link.</div>
+      <div class="success">
+        If an account with that email exists, we have sent a password reset link.
+        <?php if (!empty($dev_reset_link)): ?>
+          <div style="margin-top: 10px; padding: 10px; background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; border-radius: 6px; font-size: 13px;">
+            <strong>🛠️ Development Mode:</strong> Email failed to send (check SMTP/MailHog).<br>
+            Use this link: <a href="<?= $dev_reset_link ?>" style="color: #4f6ef7; word-break: break-all;"><?= $dev_reset_link ?></a>
+          </div>
+        <?php endif; ?>
+      </div>
     <?php endif; ?>
     <p class="muted">Enter your account email and we will send you a link to reset your password.</p>
     <form method="POST" action="">

@@ -6,15 +6,15 @@ require_once __DIR__ . '/../config/env.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require __DIR__ . '/../PHPMailer-master/src/Exception.php';
-require __DIR__ . '/../PHPMailer-master/src/PHPMailer.php';
-require __DIR__ . '/../PHPMailer-master/src/SMTP.php';
+require_once __DIR__ . '/../PHPMailer-master/src/Exception.php';
+require_once __DIR__ . '/../PHPMailer-master/src/PHPMailer.php';
+require_once __DIR__ . '/../PHPMailer-master/src/SMTP.php';
 
 /**
  * Load and normalize email settings from environment variables.
  */
 function getMailerFromAddress() {
-    return EnvLoader::get('SMTP_FROM_EMAIL', EnvLoader::get('SMTP_USERNAME', 'paper@bhattichemicalsindustry.com.pk'));
+    return EnvLoader::get('SMTP_FROM_EMAIL', EnvLoader::get('SMTP_USERNAME', 'admin@ahmadlearninghub.com.pk'));
 }
 
 function getMailerFromName() {
@@ -22,7 +22,7 @@ function getMailerFromName() {
 }
 
 function getAppUrl() {
-    $baseUrl = EnvLoader::get('APP_URL', EnvLoader::get('SITE_URL', 'https://paper.bhattichemicalsindustry.com.pk'));
+    $baseUrl = EnvLoader::get('APP_URL', EnvLoader::get('SITE_URL', 'https://ahmadlearninghub.com.pk'));
     if (!preg_match('/^https?:\/\//', $baseUrl)) {
         $baseUrl = 'https://' . $baseUrl;
     }
@@ -58,6 +58,14 @@ function configureMailerSmtp(PHPMailer $mail) {
 
     $mail->Port = EnvLoader::getInt('SMTP_PORT', 1025);
     $mail->SMTPDebug = EnvLoader::getInt('SMTP_DEBUG', 0);
+    
+    // Add custom error handler to log more detailed SMTP errors
+    $mail->SMTPDebug = 2; // Enable detailed debug output
+    $mail->Debugoutput = function($str, $level) {
+        if (strpos($str, 'Connection: Failed') !== false || strpos($str, 'SMTP Error: Could not connect') !== false) {
+            error_log('SMTP Debug [' . $level . ']: ' . $str);
+        }
+    };
 }
 
 function sendVerificationEmail($to, $token) {
@@ -476,7 +484,7 @@ function sendWelcomeEmail($to, $userName) {
                             <div style="background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%); border-radius: 12px; padding: 25px; margin: 30px 0; border-left: 4px solid #38b2ac;">
                                 <h4 style="color: #234e52; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">🤝 Join Our Learning Community</h4>
                                 <p style="color: #2d3748; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">Connect with thousands of students and teachers who are already benefiting from our platform. Share your experiences, ask questions, and grow together!</p>
-                                <p style="color: #2d3748; font-size: 15px; line-height: 1.6; margin: 0;"><strong>Need Help?</strong> Our support team is here for you. Contact us anytime at <a href="mailto:support@bhattichemicalsindustry.com.pk" style="color: #38b2ac; text-decoration: none;">support@bhattichemicalsindustry.com.pk</a></p>
+                                <p style="color: #2d3748; font-size: 15px; line-height: 1.6; margin: 0;"><strong>Need Help?</strong> Our support team is here for you. Contact us anytime at <a href="mailto:admin@ahmadlearninghub.com.pk" style="color: #38b2ac; text-decoration: none;">admin@ahmadlearninghub.com.pk</a></p>
                             </div>
 
                             <!-- Footer -->

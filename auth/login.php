@@ -30,7 +30,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $user = $result ? $result->fetch_assoc() : null;
         $stmt->close();
 
-        if ($user && password_verify($password, $user["password"])) {
+        if ($user && isset($user["password"]) && password_verify($password, $user["password"])) {
             // Regenerate session to prevent session fixation
             session_regenerate_id(true);
 
