@@ -37,11 +37,7 @@ foreach ($gen_paper_pages as $p) {
 <html lang="en">
 <head>
 
-<link rel="icon" type="image/png" href="favicon/favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="favicon/favicon.svg" />
-<link rel="shortcut icon" href="favicon/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png" />
-<link rel="manifest" href="favicon/site.webmanifest" />
+<?php include_once __DIR__ . '/includes/favicons.php'; ?>
 
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
@@ -54,6 +50,9 @@ foreach ($gen_paper_pages as $p) {
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'AhmadLearningHub' ?></title>
     <?php if (isset($metaDescription)): ?>
     <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
+    <?php endif; ?>
+    <?php if (isset($metaKeywords)): ?>
+    <meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
     <?php endif; ?>
     
     <!-- Theme initialization script to prevent flash of unstyled content -->

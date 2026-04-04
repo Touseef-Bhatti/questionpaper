@@ -22,7 +22,7 @@ include 'db_connect.php';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 
-   
+    <?php include_once __DIR__ . '/includes/favicons.php'; ?>
 
 </head>
 <body>
@@ -118,7 +118,7 @@ include 'db_connect.php';
             </div>
         </div>
     </div>
-</section>a
+</section>
 
     </div>
 

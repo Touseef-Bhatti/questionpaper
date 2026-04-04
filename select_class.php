@@ -20,6 +20,7 @@ while ($row = $classResult->fetch_assoc()) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
@@ -35,7 +36,6 @@ while ($row = $classResult->fetch_assoc()) {
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_class.css">
   
-
 
     <title>Online Question Paper Generator | Punjab Board  & Others</title>
 </head>
@@ -71,6 +71,7 @@ Generator MCQs tests, school exams, and practice papers instantly or attempt onl
         <?= renderAd('banner', 'Place Middle Banner Here', 'ad-placement-middle') ?>
     
     <div class="classes-container">
+
         <h2>📋 Select Your Class to Continue</h2>
         <p>
             Choose your class below to start generating <strong>Online question papers Punjab Board Exam Pattern</strong>and 

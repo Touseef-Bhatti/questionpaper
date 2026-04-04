@@ -1,7 +1,9 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 // require_once 'auth/auth_check.php';
-include 'db_connect.php';
+include_once 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 
 $classId = intval($_POST['class_id']);
@@ -39,21 +41,34 @@ $chapter_names = [];
 if (!empty($selectedChapters)) {
     foreach ($selectedChapters as $ch) {
         $parts = explode('|', $ch);
-        if (isset($parts[1])) $chapter_names[] = $parts[1];
+        if (isset($parts[1])) {
+            // Extract chapter number if possible, else use name
+            $name = $parts[1];
+            if (preg_match('/(?:Chapter|Unit)\s*([0-9]+)/i', $name, $matches)) {
+                $chapter_names[] = $matches[1];
+            } else {
+                $chapter_names[] = $name;
+            }
+        }
     }
-    $chapter_info = implode(', ', $chapter_names);
+    $chapter_info = "chapter No." . implode(',', $chapter_names);
 } else if ($chapter_no > 0) {
-    $chapter_info = "Chapter " . $chapter_no;
+    $chapter_info = "chapter No." . $chapter_no;
 }
 
 $shortQuestions = $_POST['short_questions'] ?? [];
 $mcqs = isset($_POST['mcqs']) ? $_POST['mcqs'] : [];
 $longQuestions = $_POST['long_questions'] ?? [];
 $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
+
+// Define page SEO title and description
+$seo_title = "{$className} " . ucfirst($book_name) . " {$chapter_info} MCQs, Short, Long Questions | Question Paper Generator";
+$seo_description = "Generate {$className} " . ucfirst($book_name) . " {$chapter_info} Question Paper. Includes MCQs, Short Questions, and Long Questions according to Punjab Board pattern. Best online tool for teachers.";
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?php include_once __DIR__ . '/includes/favicons.php'; ?>
 
     <link rel="stylesheet" href="css/main.css">
      <link rel="stylesheet" href="css/buttons.css">
@@ -62,13 +77,13 @@ $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta name="description" content="Online Question Paper Generator for <?= htmlspecialchars($className)  ?>  class <?= htmlspecialchars($book_name) ?> - Chapter <?= htmlspecialchars($chapter_info) ?>.According to Punjab Board exam pattern with up-to-date Chapter Wise questions for All MCQs , Short Questions, Long Questions. , Best Tool For Techers.">
+<meta name="description" content="<?= htmlspecialchars($seo_description) ?>">
 
 
-<meta name="keywords" content=" Question Paper For <?=  htmlspecialchars($className) ?> - <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?>MCQs paper Generator ,Chapter Wise Paper generator ,MCQs, short questions, long questions, exam questions, Punjab Board paper pattern">
+<meta name="keywords" content="Question Paper For <?= htmlspecialchars($className) ?> - <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> MCQs paper Generator, Chapter Wise Paper generator, MCQs, short questions, long questions, exam questions, Punjab Board paper pattern">
 
 
-<title><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> - <?= htmlspecialchars($chapter_info) ?> | Question Selection</title>
+<title><?= htmlspecialchars($seo_title) ?></title>
 
 </head>
 <body>

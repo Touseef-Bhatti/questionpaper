@@ -50,12 +50,11 @@ $jsonLD = [
     display: none;
     padding: 60px 0;
     text-align: center;
-    background: rgba(248, 250, 252, 0.8);
-    backdrop-filter: blur(10px);
+    background: #ffffff; /* Solid sharp background */
     border-radius: 30px;
     margin: 40px 0;
-    border: 2px solid var(--border, #e2e8f0);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border, #e2e8f0);
+    box-shadow: var(--sh-subtle);
     animation: loaderFadeIn 0.5s ease;
 }
 
@@ -161,49 +160,84 @@ $jsonLD = [
 <main class="main-content">
 
 
-<div class="hero-builder py-5 mb-4" style="padding-bottom: 2rem !important; padding-top: 3rem !important;">
+<div class="hero-builder mb-4">
     <div class="container text-center animate-fade-up">
-        <h1 class="hero-title" style="font-size: 2.8rem;">Create Custom Question Papers</h1>
-        <p class="hero-subtitle mb-0">AI-Powered curriculum mapping and custom question paper generator. <br> Empowering educators with precision-built academic resources.</p>
-        
-        <!-- TOP AD BANNER -->
-        <div class="ad-placement-top mt-4 mb-4">
-            <?= renderAd('banner', 'Hero Section Banner', 'ad-hero-banner') ?>
-        </div>
-
-        <!-- Mode Selector -->
-        <div class="mode-container mt-4" role="tablist" aria-label="Question type selector">
-            <button class="mode-btn active" onclick="switchMode('mcqs')" id="btn-mcqs" role="tab" aria-selected="true" aria-controls="mcqs-content">
-                <i class="fas fa-layer-group" aria-hidden="true"></i> MCQs
-                <span class="badge" id="badge-mcqs" aria-label="MCQs count">0</span>
-            </button>
-            <button class="mode-btn" onclick="switchMode('short')" id="btn-short" role="tab" aria-selected="false" aria-controls="short-content">
-                <i class="fas fa-align-left" aria-hidden="true"></i> Short Questions
-                <span class="badge" id="badge-short" aria-label="Short questions count">0</span>
-            </button>
-            <button class="mode-btn" onclick="switchMode('long')" id="btn-long" role="tab" aria-selected="false" aria-controls="long-content">
-                <i class="fas fa-align-justify" aria-hidden="true"></i> Long Questions
-                <span class="badge" id="badge-long" aria-label="Long questions count">0</span>
-            </button>
-        </div>
+        <h1 class="hero-title">Create Custom Question Papers</h1>
+        <p class="hero-subtitle">AI-Powered curriculum mapping and custom question paper generator. Empowering educators with precision-built academic resources.</p>
     </div>
 </div>
 
-    <div class="container py-5 px-4 px-xl-5">
-            <!-- SIDE SKYSCRAPER ADS (Right Only) - Hidden on mobile and positioned below content on desktop -->
-    <aside class="ad-sidebar d-none d-lg-block" aria-label="Advertisement sidebar">
-        <?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', '') ?>
-    </aside>
-        <div class="row justify-content-center">
-            <!-- Main Application Content -->
-            <div class="col-lg-10 paper-builder-main-content">
+<div class="container py-5 px-4 px-xl-5">
+    <div class="row justify-content-center">
+        <!-- Main Application Content -->
+        <div class="col-lg-10 paper-builder-main-content">
+            
+            <!-- Professional Quick Guide -->
+            <div class="pro-guide-container animate-fade-up">
+                <div class="pro-guide-header">
+                    <span class="pro-guide-badge">Getting Started</span>
+                    <h3 class="pro-guide-title">How to use the Paper Generator</h3>
+                </div>
+                <div class="pro-guide-content">
+                    <div class="pro-step">
+                        <div class="pro-step-icon"><i class="fas fa-list-ol"></i></div>
+                        <div class="pro-step-text">
+                            <strong>1. Select Type</strong>
+                            <p>Choose between MCQs, Short, or Long questions from the selector above.</p>
+                        </div>
+                    </div>
+                    <div class="pro-step">
+                        <div class="pro-step-icon"><i class="fas fa-search"></i></div>
+                        <div class="pro-step-text">
+                            <strong>2. Search Topic</strong>
+                            <p>Search for your topic. Use "Suggest More Topics" if you need AI help.</p>
+                        </div>
+                    </div>
+                    <div class="pro-step">
+                        <div class="pro-step-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="pro-step-text">
+                            <strong>3. Pick Topics</strong>
+                            <p>Click the topics you want. You can mix and match from different types.</p>
+                        </div>
+                    </div>
+                    <div class="pro-step">
+                        <div class="pro-step-icon"><i class="fas fa-file-export"></i></div>
+                        <div class="pro-step-text">
+                            <strong>4. Finalize</strong>
+                            <p>Review your selection and click "Generate Question Paper" to build it.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <br><br><br>
+
+            <!-- Mode Selector -->
+            <div class="text-center mb-5">
+                <div class="mode-container animate-fade-up" role="tablist" aria-label="Question type selector">
+                    <button class="mode-btn active" onclick="switchMode('mcqs')" id="btn-mcqs" role="tab" aria-selected="true" aria-controls="mcqs-content">
+                        <i class="fas fa-layer-group" aria-hidden="true"></i> MCQs
+                        <span class="badge" id="badge-mcqs" aria-label="MCQs count">0</span>
+                    </button>
+                    <button class="mode-btn" onclick="switchMode('short')" id="btn-short" role="tab" aria-selected="false" aria-controls="short-content">
+                        <i class="fas fa-align-left" aria-hidden="true"></i> Short Questions
+                        <span class="badge" id="badge-short" aria-label="Short questions count">0</span>
+                    </button>
+                    <button class="mode-btn" onclick="switchMode('long')" id="btn-long" role="tab" aria-selected="false" aria-controls="long-content">
+                        <i class="fas fa-align-justify" aria-hidden="true"></i> Long Questions
+                        <span class="badge" id="badge-long" aria-label="Long questions count">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <br><br><br><br><br>
                 <!-- Search Bar with Info -->
-                <div class="search-section mb-5 animate-fade-up delay-100">
-                    <div class="search-intro text-center mb-4">
-                        <h3 class="fw-bold mb-1" style="color: #0f172a; font-family: 'Outfit', sans-serif;">Find Topics to Build From</h3>
+                <div class="search-section mb-5 animate-fade-up">
+                    <div class="search-intro text-center mb-5">
+                        <h3 class="fw-bold mb-2" style="color: #0f172a; font-family: 'Outfit', sans-serif;">Find Topics to Build From</h3>
                         <p class="text-muted small">Search for specific topics or let AI suggest related topics</p>
                     </div>
-
+<br><br><br><br>
                     <!-- Search Bar -->
                     <form class="search-wrapper mb-4" id="searchForm" role="search" onsubmit="handleSearch(event)">
                         <div class="search-card">
@@ -212,7 +246,7 @@ $jsonLD = [
                                 <input type="text" 
                                        id="topicSearch"
                                        class="search-input"
-                                       placeholder="Search for topics..."
+                                       placeholder="search MCQs topics"
                                        aria-label="Search topics"
                                        autocomplete="off"
                                        minlength="2">
@@ -254,7 +288,7 @@ $jsonLD = [
                         </div>
                         <button class="btn-ai-discovery" onclick="fetchAiTopics()" aria-label="Load more AI suggestions">
                             <span class="shimmer" aria-hidden="true"></span>
-                            <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Suggest More Topics with AI
+                            <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Suggest More Topics
                         </button>
 
                         <!-- Load More Loader (Matched with mcqs_topic.php) -->
@@ -266,6 +300,9 @@ $jsonLD = [
                         </div>
 
                         <br>
+                        <br>
+                        <br>
+                        <br><br>
                         <?= renderAd('banner', 'Results Section Banner', 'ad-results-banner') ?>
                     </div>
                 </div>
@@ -444,7 +481,7 @@ window.switchMode = (mode) => {
 
     // Update placeholder
     if (els.topicSearch) {
-        els.topicSearch.placeholder = `Search for ${MODE_LABELS[mode]} topics...`;
+        els.topicSearch.placeholder = `search ${MODE_LABELS[mode]} topics`;
         els.topicSearch.value = '';
     }
 

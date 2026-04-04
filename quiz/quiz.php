@@ -237,6 +237,7 @@ if (is_dir($incorrectDir)) {
 <html lang="en">
 <head>
     <!-- Google tag (gtag.js) -->
+    <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
 

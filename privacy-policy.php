@@ -10,6 +10,7 @@
 
     $assetBase = ""; // Adjusted if needed
     ?>
+    <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Privacy Policy for Ahmad Learning Hub. Learn how we handle your data and protect your privacy on our AI-powered exam preparation platform.">

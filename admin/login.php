@@ -81,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
   
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <meta charset="UTF-8">

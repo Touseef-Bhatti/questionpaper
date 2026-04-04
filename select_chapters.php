@@ -59,6 +59,14 @@ function getPatternDefaults($classId, $book_name) {
 // Get pattern defaults
 $patternDefaults = getPatternDefaults($classId, $book_name);
 
+// Check if we are coming from a submission to show select_question.php content
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chapters'])) {
+    // We are submitting chapters, so we should show the question selection page
+    // but keep the current pretty URL.
+    include 'select_question.php';
+    exit;
+}
+
 // Fetch chapters with available question counts (OPTIMIZED)
 $chapterQuery = "SELECT 
                     c.chapter_id, 
@@ -93,6 +101,7 @@ while ($row = $result->fetch_assoc()) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <link rel="stylesheet" href="css/main.css">
@@ -810,7 +819,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
         <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
-		<form action="select_question.php" method="POST">
+		<form action="<?= htmlspecialchars($_SERVER['REQUEST_URI']) ?>" method="POST">
 			<input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">
 			<input type="hidden" name="book_name" value="<?= htmlspecialchars($book_name) ?>">
 

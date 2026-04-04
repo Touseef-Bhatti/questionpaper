@@ -36,6 +36,9 @@ $adminUrl = $baseUrl . 'admin/';
     <link rel="stylesheet" href="<?= $baseUrl ?>css/admin.css">
     <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-header.css">
     <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-footer.css">
+
+    <!-- Favicons -->
+    <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
 </head>
 <body>
     <nav class="admin-navbar">

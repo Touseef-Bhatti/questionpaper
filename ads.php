@@ -18,7 +18,7 @@ require_once __DIR__ . '/middleware/SubscriptionCheck.php';
 // ==========================================
 
 // 1. Adsterra (Banner and Skyscraper Ads)
-// include_once __DIR__ . '/includes/adsterra_ads.php';
+include_once __DIR__ . '/includes/adsterra_ads.php';
 
 // 2. Monetag (Popunder and Vignette Ads)
 // (Controlled in renderMonetagScripts below)

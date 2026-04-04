@@ -5,6 +5,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Access free digital textbooks for 9th and 10th class Punjab Board students. Read Physics, Chemistry, Biology, Mathematics, and Computer Science textbooks online. Study materials for exam preparation.">
