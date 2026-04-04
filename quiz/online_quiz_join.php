@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta property="og:type" content="article">
   <meta property="og:title" content="Join Live AI Quiz Room | Ahmad Learning Hub">
   <meta property="og:description" content="Enter room code to compete in a live MCQ session. Optimized for Matric, FSc, and MDCAT students.">
-  <meta property="og:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-join-og.jpg">
+  <meta property="og:image" content="https://ahmadlearninghub.com.pk/assets/images/quiz-join-og.jpg">
 
   <!-- JSON-LD Structured Data -->
   <script type="application/ld+json">

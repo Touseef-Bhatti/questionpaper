@@ -7,7 +7,7 @@ require_once __DIR__ . '/config/env.php';
 
 $fromName = 'Ahmad Learning Hub';
 $testToken = 'sample_token_for_preview_12345';
-$baseUrl = 'paper.bhattichemicalsindustry.com.pk';
+$baseUrl = 'ahmadlearninghub.com.pk';
 $verifyUrl = 'https://' . $baseUrl . '/verify_email.php?token=' . urlencode($testToken);
 
 echo '<!DOCTYPE html>

@@ -387,7 +387,7 @@ if (!empty($selectedQuestions)) {
     $ins->close();
 }
 
-$baseUrl = rtrim(EnvLoader::get('BASE_URL', 'https://paper.bhattichemicalsindustry.com.pk'), '/');
+$baseUrl = rtrim(EnvLoader::get('BASE_URL', 'https://ahmadlearninghub.com.pk'), '/');
 $joinUrl = $baseUrl . '/quiz/online_quiz_join.php?room=' . urlencode($room_code);
 ?>
 <!DOCTYPE html>

@@ -89,6 +89,8 @@ $adminUrl = $baseUrl . 'admin/';
                 </li>
                 <li><a href="<?= $adminUrl ?>deleted_questions.php" class="nav-link-deleted">🗑️ Deleted</a></li>
                 <li><a href="<?= $adminUrl ?>contact_messages.php" class="nav-link-contact">💌 Contact Messages</a></li>
+                <li><a href="<?= $adminUrl ?>search_queries.php" class="nav-link-search-queries">🔍 Search Logs</a></li>
+                <li><a href="<?= $adminUrl ?>promotional_emails.php" class="nav-link-promotional">📣 Promotion Email</a></li>
                 <li><a href="<?= $adminUrl ?>manage_admins.php" class="nav-link-users">👥 Admins</a></li>
                 <li><a href="<?= $adminUrl ?>settings.php" class="nav-link-settings">⚙️ Settings</a></li>
                 <li class="admin-user-info">

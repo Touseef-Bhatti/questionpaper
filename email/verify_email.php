@@ -253,6 +253,15 @@ a:focus-visible {
                                 
                                 error_log("Email verification completed successfully for: " . $row['email']);
                                 echo '<div class="success"><h2>Email verified successfully! You can now <a href="../auth/login.php">login</a></h2></div>';
+                                
+                                // Send welcome email after successful verification
+                                try {
+                                    require_once '../email/phpmailer_mailer.php';
+                                    sendWelcomeEmail($row['email'], $row['name']);
+                                } catch (Exception $e) {
+                                    error_log('Welcome email sending failed: ' . $e->getMessage());
+                                    // Don't show error to user as verification was successful
+                                }
                             } else {
                                 error_log("Email verification - Insert failed: " . $conn->error . " | Email: " . $row['email']);
                                 $insertStmt->close();

@@ -8,6 +8,10 @@
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once __DIR__ . '/../db_connect.php';
 
 // Input validation
@@ -21,6 +25,19 @@ if ($search === '' || strlen($search) < 2) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Search term must be at least 2 characters', 'topics' => []]);
     exit;
+}
+
+// Record search history for question paper topic search
+try {
+    $userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : 0;
+    $insertHistoryStmt = $conn->prepare("INSERT INTO question_paper_topic_search_history (user_id, query_text) VALUES (?, ?)");
+    if ($insertHistoryStmt) {
+        $insertHistoryStmt->bind_param('is', $userId, $search);
+        $insertHistoryStmt->execute();
+        $insertHistoryStmt->close();
+    }
+} catch (Exception $e) {
+    error_log("Failed to log question paper topic search: " . $e->getMessage());
 }
 
 // Build LIKE search term

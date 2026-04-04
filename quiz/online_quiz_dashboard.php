@@ -16,7 +16,7 @@ function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
 // Helper: get join URL
 function join_url($code){ 
-    $baseUrl = rtrim(EnvLoader::get('BASE_URL', 'https://paper.bhattichemicalsindustry.com.pk'), '/');
+    $baseUrl = rtrim(EnvLoader::get('BASE_URL', 'https://ahmadlearninghub.com.pk'), '/');
     return $baseUrl . '/quiz/online_quiz_join.php?room=' . urlencode($code); 
 }
 

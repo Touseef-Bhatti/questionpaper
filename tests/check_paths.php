@@ -16,7 +16,7 @@ require_once __DIR__ . '/config/env.php';
 
 // Get the application root directory
 $appRoot = __DIR__;
-$appUrl = EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk');
+$appUrl = EnvLoader::get('APP_URL', 'https://ahmadlearninghub.com.pk');
 
 echo "Application Root: $appRoot\n";
 echo "Application URL: $appUrl\n\n";

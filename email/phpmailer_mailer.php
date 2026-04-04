@@ -10,6 +10,56 @@ require __DIR__ . '/../PHPMailer-master/src/Exception.php';
 require __DIR__ . '/../PHPMailer-master/src/PHPMailer.php';
 require __DIR__ . '/../PHPMailer-master/src/SMTP.php';
 
+/**
+ * Load and normalize email settings from environment variables.
+ */
+function getMailerFromAddress() {
+    return EnvLoader::get('SMTP_FROM_EMAIL', EnvLoader::get('SMTP_USERNAME', 'paper@bhattichemicalsindustry.com.pk'));
+}
+
+function getMailerFromName() {
+    return EnvLoader::get('SMTP_FROM_NAME', EnvLoader::get('APP_NAME', 'Ahmad Learning Hub'));
+}
+
+function getAppUrl() {
+    $baseUrl = EnvLoader::get('APP_URL', EnvLoader::get('SITE_URL', 'https://paper.bhattichemicalsindustry.com.pk'));
+    if (!preg_match('/^https?:\/\//', $baseUrl)) {
+        $baseUrl = 'https://' . $baseUrl;
+    }
+    return rtrim($baseUrl, '/');
+}
+
+function configureMailerSmtp(PHPMailer $mail) {
+    $mail->isSMTP();
+    $mail->Host       = EnvLoader::get('SMTP_HOST', 'mailhog');
+
+    $smtpPassword = EnvLoader::get('SMTP_PASSWORD', '');
+    $smtpUsername = EnvLoader::get('SMTP_USERNAME', '');
+    $smtpAuth = EnvLoader::getBool('SMTP_AUTH', !empty($smtpPassword));
+
+    $mail->SMTPAuth = $smtpAuth;
+    if ($smtpAuth) {
+        $mail->Username = $smtpUsername;
+        $mail->Password = $smtpPassword;
+    } else {
+        $mail->Username = '';
+        $mail->Password = '';
+    }
+
+    $smtpSecure = EnvLoader::get('SMTP_SECURE', 'none');
+    if (strtolower($smtpSecure) === 'tls') {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    } elseif (strtolower($smtpSecure) === 'ssl') {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    } else {
+        $mail->SMTPSecure = '';
+        $mail->SMTPAutoTLS = false;
+    }
+
+    $mail->Port = EnvLoader::getInt('SMTP_PORT', 1025);
+    $mail->SMTPDebug = EnvLoader::getInt('SMTP_DEBUG', 0);
+}
+
 function sendVerificationEmail($to, $token) {
     // Basic email validation
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
@@ -22,24 +72,22 @@ function sendVerificationEmail($to, $token) {
 }
 
 /**
- * Fast HTML email function using PHP's built-in mail()
- * This bypasses PHPMailer timeouts and sends immediately
+ * Send HTML verification email using PHPMailer with MailHog
  */
 function sendHtmlEmail($to, $token) {
     try {
-        $fromEmail = EnvLoader::get('SMTP_USERNAME', 'paper@bhattichemicalsindustry.com.pk');
-        $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
-        
-        // Fix URL formatting issue - properly handle the base URL
-        $baseUrl = EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk');
-        
-        // Ensure proper URL format
-        if (!preg_match('/^https?:\/\//', $baseUrl)) {
-            $baseUrl = 'https://' . $baseUrl;
-        }
-        
-        // Clean and build the verification URL
-$verifyUrl = rtrim($baseUrl, '/') . '/email/verify_email.php?token=' . urlencode($token);
+        $mail = new PHPMailer(true);
+
+        configureMailerSmtp($mail);
+
+        // Recipients
+        $mail->setFrom(getMailerFromAddress(), getMailerFromName());
+        $mail->addAddress($to);
+
+        // Content
+        $mail->isHTML(true);
+        $fromName = getMailerFromName();
+        $verifyUrl = getAppUrl() . '/email/verify_email.php?token=' . urlencode($token);
         
         $subject = 'Verify your email address - ' . $fromName;
         
@@ -121,26 +169,16 @@ $verifyUrl = rtrim($baseUrl, '/') . '/email/verify_email.php?token=' . urlencode
 </body>
 </html>';
         
-        // Headers for HTML email
-        $headers = "From: " . $fromName . " <" . $fromEmail . ">\r\n" .
-                  "Reply-To: " . $fromEmail . "\r\n" .
-                  "X-Mailer: PHP/" . phpversion() . "\r\n" .
-                  "MIME-Version: 1.0\r\n" .
-                  "Content-Type: text/html; charset=UTF-8\r\n";
-        
-        // Send the email
-        $result = mail($to, $subject, $htmlMessage, $headers);
-        
-        if ($result) {
-            error_log('HTML email sent successfully to: ' . $to);
-            return true;
-        } else {
-            error_log('HTML email failed for: ' . $to . ', trying fallback');
-            return sendFallbackEmail($to, $token);
-        }
-        
+        $mail->Subject = $subject;
+        $mail->Body    = $htmlMessage;
+        $mail->AltBody = "Welcome to " . $fromName . "!\n\nPlease verify your email address by clicking this link:\n" . $verifyUrl . "\n\nIf you did not create this account, please ignore this email.\n\nBest regards,\nThe " . $fromName . " Team";
+
+        $mail->send();
+        error_log('Verification email sent successfully to: ' . $to);
+        return true;
+
     } catch (Exception $e) {
-        error_log('HTML email error: ' . $e->getMessage());
+        error_log('PHPMailer verification email error: ' . $e->getMessage());
         return sendFallbackEmail($to, $token);
     }
 }
@@ -151,14 +189,9 @@ $verifyUrl = rtrim($baseUrl, '/') . '/email/verify_email.php?token=' . urlencode
  */
 function sendFallbackEmail($to, $token) {
     try {
-        $fromEmail = EnvLoader::get('SMTP_USERNAME', 'paper@bhattichemicalsindustry.com.pk');
-        $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
-        // Fix URL formatting for fallback too
-        $baseUrl = EnvLoader::get('APP_URL', 'https://paper.bhattichemicalsindustry.com.pk');
-        if (!preg_match('/^https?:\/\//', $baseUrl)) {
-            $baseUrl = 'https://' . $baseUrl;
-        }
-$verifyUrl = rtrim($baseUrl, '/') . '/email/verify_email.php?token=' . urlencode($token);
+        $fromEmail = getMailerFromAddress();
+        $fromName = getMailerFromName();
+        $verifyUrl = getAppUrl() . '/email/verify_email.php?token=' . urlencode($token);
         
         $subject = 'Verify your email address - ' . $fromName;
         $message = "Welcome to " . $fromName . "!\n\n" .
@@ -204,31 +237,11 @@ function sendAdminActionVerificationEmail($to, $actionType, $token, $details = '
         }
 
         $mail = new PHPMailer(true);
-        
-        // Server settings
-        $mail->isSMTP();
-        $mail->Host       = EnvLoader::get('SMTP_HOST', 'mailhog');
-        $mail->SMTPAuth   = false; // MailHog doesn't require authentication
-        $mail->Username   = '';
-        $mail->Password   = '';
-        
-        // Handle SSL vs TLS vs none
-        $smtpSecure = EnvLoader::get('SMTP_SECURE', 'none');
-        if (strtolower($smtpSecure) === 'tls') {
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        } elseif (strtolower($smtpSecure) === 'ssl') {
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        } else {
-            $mail->SMTPSecure = ''; // No encryption for MailHog
-            $mail->SMTPAutoTLS = false;
-        }
-        
-        $mail->Port       = EnvLoader::getInt('SMTP_PORT', 1025);
+        configureMailerSmtp($mail);
 
         // Recipients
-        $fromEmail = EnvLoader::get('SMTP_FROM_EMAIL', 'test@ahmadlearninghub.com.pk');
-        $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
-        $mail->setFrom($fromEmail, $fromName);
+        $fromName = getMailerFromName();
+        $mail->setFrom(getMailerFromAddress(), $fromName);
         $mail->addAddress($to);
 
         // Content
@@ -254,11 +267,7 @@ function sendAdminActionVerificationEmail($to, $actionType, $token, $details = '
         $actionDesc = $actionDescriptions[$actionType] ?? 'Please verify this admin action by clicking the button below.';
 
         // Build verification URL
-        $baseUrl = EnvLoader::get('APP_URL', 'http://localhost:8000');
-        if (!preg_match('/^https?:\/\//', $baseUrl)) {
-            $baseUrl = 'https://' . $baseUrl;
-        }
-        $verifyUrl = rtrim($baseUrl, '/') . '/admin/verify_admin_action.php?token=' . urlencode($token);
+        $verifyUrl = getAppUrl() . '/admin/verify_admin_action.php?token=' . urlencode($token);
 
         // Beautiful HTML email with action details
         $htmlMessage = '
@@ -350,6 +359,160 @@ function sendAdminActionVerificationEmail($to, $actionType, $token, $details = '
         
     } catch (Exception $e) {
         error_log('Admin action verification email error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Send Welcome Email to New User After Verification
+ * @param string $to - Email recipient
+ * @param string $userName - User's name
+ */
+function sendWelcomeEmail($to, $userName) {
+    try {
+        $fromEmail = getMailerFromAddress();
+        $fromName = getMailerFromName();
+        $baseUrl = getAppUrl();
+
+        $loginUrl = rtrim($baseUrl, '/') . '/auth/login.php';
+        $dashboardUrl = rtrim($baseUrl, '/') . '/select_class.php';
+
+        $subject = '🎉 Welcome to ' . $fromName . ' - Your Learning Journey Begins!';
+
+        // Professional and engaging HTML welcome email
+        $htmlMessage = '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to ' . htmlspecialchars($fromName) . '</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); overflow: hidden;">
+                    <!-- Hero Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #4f6ef7 0%, #6ac1ff 100%); padding: 60px 40px; text-align: center; position: relative;">
+                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url(\'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDYwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxnIGNsaXBwYXRoPSJ1cmwoI2NsaXAwXzBfXzE5NDUpIj4KPHBhdGggZD0iTTAgMEg2MDBWMjAwSDBWMFoiIGZpbGw9InVybCgjZ3JhZGllbnQwX2xpbmVhcl8wXzBfXzE5NDUpIi8+CjwvZz4KPGRlZnM+CjxsaW5lYXJHcmFkaWVudCBpZD0iZ3JhZGllbnQwX2xpbmVhcl8wXzBfXzE5NDUiIGcxeD0iMCUiIGcxeT0iMCUiIGcyeD0iMTAwJSIgZzJ5PSIxMDAlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzRGNkVGNyIgc3RvcC1vcGFjaXR5PSIwLjEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNmFjMWZmIiBzdG9wLW9wYWNpdHk9IjAuMSIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPg==\') no-repeat center; opacity: 0.1;"></div>
+                            <h1 style="color: #ffffff; margin: 0; font-size: 36px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 1; position: relative;">🎉 Welcome Aboard!</h1>
+                            <p style="color: #ffffff; margin: 15px 0 0 0; font-size: 18px; opacity: 0.95; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">Your learning adventure starts here</p>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 50px 40px;">
+                            <!-- Personal Greeting -->
+                            <h2 style="color: #2d3748; margin: 0 0 25px 0; font-size: 28px; font-weight: 600;">Hello ' . htmlspecialchars($userName) . ',</h2>
+
+                            <p style="color: #4a5568; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">Welcome to <strong style="color: #4f6ef7;">' . htmlspecialchars($fromName) . '</strong>! We\'re absolutely thrilled to have you join our community of learners. Your account has been successfully verified, and you\'re now ready to embark on an exciting educational journey.</p>
+
+                            <!-- What We Offer -->
+                            <div style="background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border-radius: 12px; padding: 30px; margin: 30px 0; border-left: 4px solid #4f6ef7;">
+                                <h3 style="color: #2d3748; margin: 0 0 20px 0; font-size: 22px; font-weight: 600;">🚀 What You Can Do Right Now:</h3>
+                                <ul style="color: #4a5568; font-size: 16px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                                    <li><strong>Generate Custom Question Papers:</strong> Create personalized test papers for classes 9th and 10th</li>
+                                    <li><strong>Access Free Study Materials:</strong> Download comprehensive notes and textbooks</li>
+                                    <li><strong>Take Online Quizzes:</strong> Test your knowledge with interactive assessments</li>
+                                    <li><strong>Explore Educational Resources:</strong> Access a vast library of learning materials</li>
+                                </ul>
+                            </div>
+
+                            <!-- Quick Start Guide -->
+                            <h3 style="color: #2d3748; margin: 35px 0 20px 0; font-size: 22px; font-weight: 600;">📚 Quick Start Guide</h3>
+                            <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; margin: 20px 0;">
+                                <ol style="color: #4a5568; font-size: 15px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                                    <li><strong>Choose Your Class:</strong> Select 9th or 10th grade to get started</li>
+                                    <li><strong>Select Subjects:</strong> Pick the subjects you want to study</li>
+                                    <li><strong>Generate Papers:</strong> Create custom question papers instantly</li>
+                                    <li><strong>Download & Study:</strong> Access notes, textbooks, and practice materials</li>
+                                </ol>
+                            </div>
+
+                            <!-- Call to Action Buttons -->
+                            <table width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 40px 0;">
+                                <tr>
+                                    <td align="center" style="padding: 10px;">
+                                        <a href="' . $dashboardUrl . '" style="
+                                            background: linear-gradient(135deg, #4f6ef7 0%, #6ac1ff 100%);
+                                            color: #ffffff !important;
+                                            padding: 16px 32px;
+                                            text-decoration: none !important;
+                                            border-radius: 12px;
+                                            font-weight: 600;
+                                            font-size: 16px;
+                                            display: inline-block;
+                                            box-shadow: 0 8px 20px rgba(79, 110, 247, 0.3);
+                                            transition: all 0.3s ease;
+                                            text-align: center;
+                                            min-width: 180px;
+                                        ">🚀 Start Learning Now</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="padding: 10px;">
+                                        <a href="' . $loginUrl . '" style="
+                                            background: #ffffff;
+                                            color: #4f6ef7 !important;
+                                            padding: 14px 30px;
+                                            text-decoration: none !important;
+                                            border-radius: 12px;
+                                            font-weight: 600;
+                                            font-size: 16px;
+                                            display: inline-block;
+                                            border: 2px solid #4f6ef7;
+                                            transition: all 0.3s ease;
+                                            text-align: center;
+                                            min-width: 180px;
+                                        ">🔑 Login to Your Account</a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Community & Support -->
+                            <div style="background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%); border-radius: 12px; padding: 25px; margin: 30px 0; border-left: 4px solid #38b2ac;">
+                                <h4 style="color: #234e52; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">🤝 Join Our Learning Community</h4>
+                                <p style="color: #2d3748; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">Connect with thousands of students and teachers who are already benefiting from our platform. Share your experiences, ask questions, and grow together!</p>
+                                <p style="color: #2d3748; font-size: 15px; line-height: 1.6; margin: 0;"><strong>Need Help?</strong> Our support team is here for you. Contact us anytime at <a href="mailto:support@bhattichemicalsindustry.com.pk" style="color: #38b2ac; text-decoration: none;">support@bhattichemicalsindustry.com.pk</a></p>
+                            </div>
+
+                            <!-- Footer -->
+                            <hr style="border: none; height: 1px; background: linear-gradient(90deg, #e2e8f0 0%, #cbd5e0 50%, #e2e8f0 100%); margin: 40px 0;">
+                            <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0; text-align: center;">Thank you for choosing <strong>' . htmlspecialchars($fromName) . '</strong> as your learning partner!</p>
+                            <p style="color: #a0aec0; font-size: 12px; margin: 0; text-align: center;">This is an automated message. Please do not reply to this email.</p>
+                            <p style="color: #a0aec0; font-size: 12px; margin: 10px 0 0 0; text-align: center;">© ' . date('Y') . ' ' . htmlspecialchars($fromName) . '. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>';
+
+        // Headers for HTML email
+        $headers = "From: " . $fromName . " <" . $fromEmail . ">\r\n" .
+                  "Reply-To: " . $fromEmail . "\r\n" .
+                  "X-Mailer: PHP/" . phpversion() . "\r\n" .
+                  "MIME-Version: 1.0\r\n" .
+                  "Content-Type: text/html; charset=UTF-8\r\n";
+
+        // Send the email
+        $result = mail($to, $subject, $htmlMessage, $headers);
+
+        if ($result) {
+            error_log('Welcome email sent successfully to: ' . $to);
+            return true;
+        } else {
+            error_log('Welcome email failed for: ' . $to);
+            return false;
+        }
+
+    } catch (Exception $e) {
+        error_log('Welcome email error: ' . $e->getMessage());
         return false;
     }
 }

@@ -3,6 +3,15 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 include '../db_connect.php';
 
+// PHPMailer classes for email functionality
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require '../PHPMailer-master/src/Exception.php';
+require '../PHPMailer-master/src/PHPMailer.php';
+require '../PHPMailer-master/src/SMTP.php';
+require '../config/env.php';
+
 $submitted = false;
 
 function get_site_url() {
@@ -22,17 +31,140 @@ function get_site_url() {
 }
 
 function send_reset_email($to, $reset_link) {
-    $subject = 'Reset your Ahmad Learning Hub password';
-    $message = "Hello,\n\nWe received a request to reset your password. Click the link below to set a new password:\n\n$reset_link\n\nIf you didn't request this, please ignore this email.\n\nThanks,\nAhmad Learning Hub";
-    // From header using configured domain
-    $fromDomain = parse_url(get_site_url(), PHP_URL_HOST) ?: 'Ahmad Learning Hub.local';
-    $headers = 'From: Ahmad Learning Hub <no-reply@' . $fromDomain . ">\r\n" . 'Reply-To: no-reply@' . $fromDomain . "\r\n" . 'X-Mailer: PHP/' . phpversion();
-    // Attempt to send via mail(); production servers typically configure this
-    @mail($to, $subject, $message, $headers);
-    // Also log to file for troubleshooting
-    $logDir = __DIR__ . DIRECTORY_SEPARATOR . 'logs';
-    if (!is_dir($logDir)) @mkdir($logDir, 0777, true);
-    @file_put_contents($logDir . DIRECTORY_SEPARATOR . 'password_reset_links.log', date('c') . "\t" . $to . "\t" . $reset_link . "\n", FILE_APPEND);
+    try {
+        // Use PHPMailer with MailHog configuration
+        require_once __DIR__ . '/../email/phpmailer_mailer.php';
+
+        $mail = new PHPMailer(true);
+
+        // Server settings for MailHog
+        $mail->isSMTP();
+        $mail->Host       = EnvLoader::get('SMTP_HOST', 'mailhog');
+        $mail->SMTPAuth   = false; // MailHog doesn't require authentication
+        $mail->Username   = '';
+        $mail->Password   = '';
+
+        // Handle SSL vs TLS vs none
+        $smtpSecure = EnvLoader::get('SMTP_SECURE', 'none');
+        if (strtolower($smtpSecure) === 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif (strtolower($smtpSecure) === 'ssl') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        } else {
+            $mail->SMTPSecure = ''; // No encryption for MailHog
+            $mail->SMTPAutoTLS = false;
+        }
+
+        $mail->Port       = EnvLoader::getInt('SMTP_PORT', 1025);
+
+        // Recipients
+        $fromEmail = EnvLoader::get('SMTP_FROM_EMAIL', 'test@ahmadlearninghub.com.pk');
+        $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
+        $mail->setFrom($fromEmail, $fromName);
+        $mail->addAddress($to);
+
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = 'Reset your password - ' . $fromName;
+
+        // Professional HTML email template for password reset
+        $htmlMessage = '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Reset</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); overflow: hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 60px 40px; text-align: center; position: relative;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 36px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 1; position: relative;">🔐 Password Reset</h1>
+                            <p style="color: #ffffff; margin: 15px 0 0 0; font-size: 18px; opacity: 0.95; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">Secure your account</p>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 50px 40px;">
+                            <h2 style="color: #2d3748; margin: 0 0 25px 0; font-size: 28px; font-weight: 600;">Reset Your Password</h2>
+
+                            <p style="color: #4a5568; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">We received a request to reset your password for your <strong style="color: #4f6ef7;">' . htmlspecialchars($fromName) . '</strong> account. Don\'t worry, it happens to the best of us!</p>
+
+                            <p style="color: #4a5568; font-size: 16px; line-height: 1.7; margin: 0 0 35px 0;">Click the button below to securely reset your password. This link will expire in 1 hour for your security.</p>
+
+                            <!-- Reset Password Button -->
+                            <table width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 40px 0;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="' . $reset_link . '" target="_blank" rel="noopener noreferrer" style="
+                                            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+                                            color: #ffffff !important;
+                                            padding: 16px 32px;
+                                            text-decoration: none !important;
+                                            border-radius: 12px;
+                                            font-weight: 600;
+                                            font-size: 16px;
+                                            display: inline-block;
+                                            box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+                                            transition: all 0.3s ease;
+                                            text-align: center;
+                                            min-width: 200px;
+                                        ">🔑 Reset My Password</a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="color: #666; font-size: 14px; line-height: 1.5; margin: 30px 0 10px 0;">If the button doesn\'t work, copy and paste this link into your browser:</p>
+                            <p style="color: #dc3545; font-size: 14px; word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 0 0 30px 0; border-left: 4px solid #dc3545;">' . $reset_link . '</p>
+
+                            <!-- Security Notice -->
+                            <div style="background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%); border-radius: 12px; padding: 25px; margin: 30px 0; border-left: 4px solid #dc3545;">
+                                <h4 style="color: #c53030; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">🛡️ Security Notice</h4>
+                                <ul style="color: #4a5568; font-size: 15px; line-height: 1.6; margin: 0; padding-left: 20px;">
+                                    <li>This password reset link will expire in 1 hour</li>
+                                    <li>Only click this link if you requested a password reset</li>
+                                    <li>Never share this link with anyone</li>
+                                    <li>If you didn\'t request this reset, please ignore this email</li>
+                                </ul>
+                            </div>
+
+                            <!-- Footer -->
+                            <hr style="border: none; height: 1px; background: linear-gradient(90deg, #e2e8f0 0%, #cbd5e0 50%, #e2e8f0 100%); margin: 40px 0;">
+                            <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0; text-align: center;">Need help? Contact our support team at <a href="mailto:support@bhattichemicalsindustry.com.pk" style="color: #4f6ef7; text-decoration: none;">support@bhattichemicalsindustry.com.pk</a></p>
+                            <p style="color: #a0aec0; font-size: 12px; margin: 0; text-align: center;">© ' . date('Y') . ' ' . htmlspecialchars($fromName) . '. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>';
+
+        $mail->Body    = $htmlMessage;
+        $mail->AltBody = "Hello,\n\nWe received a request to reset your password. Click the link below to set a new password:\n\n$reset_link\n\nIf you didn't request this, please ignore this email.\n\nThanks,\n" . $fromName;
+
+        $mail->send();
+        error_log('Password reset email sent successfully to: ' . $to);
+        return true;
+
+    } catch (Exception $e) {
+        error_log('Password reset email failed for: ' . $to . ' - Error: ' . $e->getMessage());
+        // Fallback to basic mail function if PHPMailer fails
+        $subject = 'Reset your ' . EnvLoader::get('APP_NAME', 'Ahmad Learning Hub') . ' password';
+        $message = "Hello,\n\nWe received a request to reset your password. Click the link below to set a new password:\n\n$reset_link\n\nIf you didn't request this, please ignore this email.\n\nThanks,\n" . EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
+        $fromDomain = parse_url(EnvLoader::get('APP_URL', 'http://localhost:8000'), PHP_URL_HOST) ?: 'localhost';
+        $headers = 'From: ' . EnvLoader::get('APP_NAME', 'Ahmad Learning Hub') . ' <no-reply@' . $fromDomain . ">\r\n" . 'Reply-To: no-reply@' . $fromDomain . "\r\n" . 'X-Mailer: PHP/' . phpversion();
+        @mail($to, $subject, $message, $headers);
+        error_log('Fallback password reset email sent to: ' . $to);
+        return false;
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

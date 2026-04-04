@@ -4,6 +4,7 @@
  * Loads environment variables from .env file
  */
 
+if (!class_exists('EnvLoader')) {
 class EnvLoader
 {
     private static $loaded = false;
@@ -234,6 +235,7 @@ class EnvLoader
     {
         return !self::isProduction();
     }
+}
 }
 
 // Auto-load environment variables

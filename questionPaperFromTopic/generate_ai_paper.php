@@ -249,7 +249,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
             'Authorization: Bearer ' . $apiKey,
-            'HTTP-Referer: https://paper.bhattichemicalsindustry.com.pk',
+            'HTTP-Referer: https://ahmadlearninghub.com.pk',
             'X-Title: Ahmad Learning Hub AI Generation'
         ]);
         curl_setopt($ch, CURLOPT_TIMEOUT, $curlTimeout);

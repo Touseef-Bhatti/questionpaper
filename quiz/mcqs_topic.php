@@ -131,6 +131,19 @@ $studyLevel = $_POST['study_level'] ?? 'medium';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !empty(trim($_POST['topic_search']))) {
     $searchQuery = trim($_POST['topic_search']);
     $studyLevel = $_POST['study_level'] ?? 'medium';
+
+    // Track user topic search history
+    try {
+        $userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : 0;
+        $insertHistoryStmt = $conn->prepare("INSERT INTO mcqs_topic_search_history (user_id, query_text) VALUES (?, ?)");
+        if ($insertHistoryStmt) {
+            $insertHistoryStmt->bind_param('is', $userId, $searchQuery);
+            $insertHistoryStmt->execute();
+            $insertHistoryStmt->close();
+        }
+    } catch (Exception $e) {
+        error_log("Failed to log mcqs_topic search: " . $e->getMessage());
+    }
     
     if (!empty($searchQuery)) {
         $cacheKey = null; $usedCache = false;
@@ -321,10 +334,10 @@ if (isset($_POST['start_quiz'])) {
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://paper.bhattichemicalsindustry.com.pk/quiz/mcqs_topic.php">
+    <meta property="og:url" content="https://ahmadlearninghub.com.pk/quiz/mcqs_topic.php">
     <meta property="og:title" content="AI-Powered MCQ Search by Topic | Ahmad Learning Hub">
     <meta property="og:description" content="Type any educational topic and let our AI find or generate the best MCQs for your exam practice.">
-    <meta property="og:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/topic-search-og.jpg">
+    <meta property="og:image" content="https://ahmadlearninghub.com.pk/assets/images/topic-search-og.jpg">
 
     <!-- JSON-LD Structured Data for Search Function -->
     <script type="application/ld+json">
@@ -335,7 +348,7 @@ if (isset($_POST['start_quiz'])) {
       "description": "An AI-powered tool to search and generate multiple choice questions based on specific educational topics.",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://paper.bhattichemicalsindustry.com.pk/quiz/mcqs_topic.php?topic_search={search_term_string}",
+        "target": "https://ahmadlearninghub.com.pk/quiz/mcqs_topic.php?topic_search={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }
@@ -846,12 +859,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loadBtn) {
         loadBtn.addEventListener('click', function() {
             const btn = this;
+            // Prevent rapid double clicks
+            if (btn.disabled) return;
+            btn.disabled = true;
+            setTimeout(() => { btn.disabled = false; }, 5000);
+
             const loader = document.getElementById('loadMoreLoader');
             const progressBar = document.getElementById('loadMoreProgressBar');
             const searchQuery = document.getElementById('topic_search').value;
             const topicList = document.getElementById('topicList');
             const resultsHeader = document.getElementById('resultsHeader');
-            if (!searchQuery) return;
+            if (!searchQuery) {
+                btn.disabled = false;
+                return;
+            }
             const excludeTopics = [];
             document.querySelectorAll('.topic-item[data-topic-data]').forEach(item => {
                 try {

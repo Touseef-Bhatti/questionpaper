@@ -7,11 +7,23 @@ requireSuperAdmin();
 $message = '';
 $error = '';
 
+// Handle flash messages from session
+if (isset($_SESSION['admin_success'])) {
+    $message = $_SESSION['admin_success'];
+    unset($_SESSION['admin_success']);
+}
+if (isset($_SESSION['admin_error'])) {
+    $error = $_SESSION['admin_error'];
+    unset($_SESSION['admin_error']);
+}
+
 $verificationEmail = 'touseef12345bhatti@gmail.com';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
-        $message = 'Invalid CSRF token.';
+        $_SESSION['admin_error'] = 'Invalid CSRF token.';
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit;
     } else {
         $action = $_POST['action'] ?? '';
         
@@ -30,7 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->store_result();
                 
                 if ($stmt->num_rows > 0) {
-                    $message = 'Admin with this email already exists.';
+                    $_SESSION['admin_error'] = 'Admin with this email already exists.';
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
                 } else {
                     $stmt->close();
                     
@@ -44,24 +58,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($stmt->execute()) {
                         $details = "<strong>Name:</strong> $name<br><strong>Email:</strong> $email<br><strong>Role:</strong> " . ucfirst($role);
                         if (sendAdminActionVerificationEmail($verificationEmail, 'create', $token, $details)) {
-                            $message = 'A verification email has been sent to ' . $verificationEmail . '. Please verify to complete admin creation.';
+                            $_SESSION['admin_success'] = 'A verification email has been sent to ' . $verificationEmail . '. Please verify to complete admin creation.';
+                            header('Location: ' . $_SERVER['PHP_SELF']);
+                            exit;
                         } else {
-                            $message = 'Pending action created, but failed to send verification email.';
+                            $_SESSION['admin_error'] = 'Pending action created, but failed to send verification email.';
+                            header('Location: ' . $_SERVER['PHP_SELF']);
+                            exit;
                         }
                     } else {
-                        $message = 'Error creating pending action.';
+                        $_SESSION['admin_error'] = 'Error creating pending action.';
+                        header('Location: ' . $_SERVER['PHP_SELF']);
+                        exit;
                     }
                 }
                 $stmt->close();
             } else {
-                $message = 'Please fill all fields correctly.';
+                $_SESSION['admin_error'] = 'Please fill all fields correctly.';
+                header('Location: ' . $_SERVER['PHP_SELF']);
+                exit;
             }
         } elseif ($action === 'delete') {
             $id = intval($_POST['id'] ?? 0);
             if ($id > 0) {
                 $currentAdminId = $_SESSION['id'] ?? $_SESSION['admin_id'] ?? null;
                 if ($id === $currentAdminId) {
-                    $message = 'You cannot delete your own account.';
+                    $_SESSION['admin_error'] = 'You cannot delete your own account.';
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
                 } else {
                     // Fetch admin details for the email
                     $stmt = $conn->prepare("SELECT name, email FROM admins WHERE id = ?");
@@ -81,15 +105,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($stmt->execute()) {
                             $details = "<strong>Admin to Delete:</strong> " . htmlspecialchars($adminToDelete['name']) . " (" . htmlspecialchars($adminToDelete['email']) . ")";
                             if (sendAdminActionVerificationEmail($verificationEmail, 'delete', $token, $details)) {
-                                $message = 'A verification email has been sent to ' . $verificationEmail . '. Please verify to complete admin deletion.';
+                                $_SESSION['admin_success'] = 'A verification email has been sent to ' . $verificationEmail . '. Please verify to complete admin deletion.';
+                                header('Location: ' . $_SERVER['PHP_SELF']);
+                                exit;
                             } else {
-                                $message = 'Pending deletion created, but failed to send verification email.';
+                                $_SESSION['admin_error'] = 'Pending deletion created, but failed to send verification email.';
+                                header('Location: ' . $_SERVER['PHP_SELF']);
+                                exit;
                             }
                         } else {
-                            $message = 'Error creating pending deletion action.';
+                            $_SESSION['admin_error'] = 'Error creating pending deletion action.';
+                            header('Location: ' . $_SERVER['PHP_SELF']);
+                            exit;
                         }
                     } else {
-                        $message = 'Admin not found.';
+                        $_SESSION['admin_error'] = 'Admin not found.';
+                        header('Location: ' . $_SERVER['PHP_SELF']);
+                        exit;
                     }
                 }
             }
@@ -98,7 +130,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newPassword = $_POST['new_password'] ?? '';
             
             if ($id <= 0 || $newPassword === '') {
-                $message = 'Invalid request. Please ensure all fields are filled.';
+                $_SESSION['admin_error'] = 'Invalid request. Please ensure all fields are filled.';
+                header('Location: ' . $_SERVER['PHP_SELF']);
+                exit;
             } else {
                 $currentAdminId = $_SESSION['id'] ?? $_SESSION['admin_id'] ?? null;
                 $currentAdminRole = $_SESSION['role'] ?? '';
@@ -114,7 +148,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 if (!$canChange) {
-                    $message = 'You do not have permission to change this admin\'s password.';
+                    $_SESSION['admin_error'] = 'You do not have permission to change this admin\'s password.';
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit;
                 } else {
                     // Fetch admin details
                     $stmt = $conn->prepare("SELECT id, name, email, password FROM admins WHERE id = ?");
@@ -141,16 +177,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                       "<br><strong>Action:</strong> Password Change Request";
                             
                             if (sendAdminActionVerificationEmail($verificationEmail, 'password_change', $token, $details)) {
-                                $message = 'A verification email has been sent to ' . $verificationEmail . '. Please verify to complete password change.';
+                                $_SESSION['admin_success'] = 'A verification email has been sent to ' . $verificationEmail . '. Please verify to complete password change.';
+                                header('Location: ' . $_SERVER['PHP_SELF']);
+                                exit;
                             } else {
-                                $message = 'Pending action created, but failed to send verification email.';
+                                $_SESSION['admin_error'] = 'Pending action created, but failed to send verification email.';
+                                header('Location: ' . $_SERVER['PHP_SELF']);
+                                exit;
                             }
                         } else {
-                            $message = 'Error creating password change request.';
+                            $_SESSION['admin_error'] = 'Error creating password change request.';
+                            header('Location: ' . $_SERVER['PHP_SELF']);
+                            exit;
                         }
                         $stmt->close();
                     } else {
-                        $message = 'Admin not found.';
+                        $_SESSION['admin_error'] = 'Admin not found.';
+                        header('Location: ' . $_SERVER['PHP_SELF']);
+                        exit;
                     }
                 }
             }
@@ -209,6 +253,9 @@ include_once __DIR__ . '/header.php';
         <h1>👨‍💼 Manage Admins</h1>
         <?php if ($message): ?>
             <p class="msg"><?= htmlspecialchars($message) ?></p>
+        <?php endif; ?>
+        <?php if ($error): ?>
+            <p class="error"><?= htmlspecialchars($error) ?></p>
         <?php endif; ?>
 
         <!-- Pending Actions Section -->

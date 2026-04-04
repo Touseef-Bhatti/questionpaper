@@ -37,7 +37,7 @@ function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 18000, $timeout =
         CURLOPT_HTTPHEADER => [
             'Content-Type: application/json',
             'Authorization: Bearer ' . $apiKey,
-            'HTTP-Referer: https://paper.bhattichemicalsindustry.com.pk',
+            'HTTP-Referer: https://ahmadlearninghub.com.pk',
             'X-Title: Ahmad Learning Hub',
         ],
         CURLOPT_TIMEOUT => $timeout,

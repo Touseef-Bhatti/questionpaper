@@ -404,6 +404,31 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS admin_logs (
     FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: admin_logs");
 
+runQuery($conn, "CREATE TABLE IF NOT EXISTS mcqs_topic_search_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    query_text VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_mcqs_search_user (user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: mcqs_topic_search_history");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS question_paper_topic_search_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    query_text VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_question_paper_search_user (user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: question_paper_topic_search_history");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS promotional_email_campaigns (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    subject VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    recipient_emails TEXT NOT NULL,
+    sent_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: promotional_email_campaigns");
+
 runQuery($conn, "CREATE TABLE IF NOT EXISTS pending_admin_actions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     action_type ENUM('create', 'delete', 'login', 'password_change') NOT NULL,
