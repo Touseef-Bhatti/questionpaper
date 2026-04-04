@@ -68,7 +68,7 @@ if (isset($_POST['send_test'])) {
                 <li><strong>SMTP Host:</strong> <?= htmlspecialchars(EnvLoader::get('SMTP_HOST', 'mailhog')) ?></li>
                 <li><strong>SMTP Port:</strong> <?= htmlspecialchars(EnvLoader::get('SMTP_PORT', '1025')) ?></li>
                 <li><strong>Web Interface:</strong> <a href="http://localhost:8025" target="_blank">http://localhost:8025</a></li>
-                <li><strong>From Email:</strong> <?= htmlspecialchars(EnvLoader::get('SMTP_FROM_EMAIL', 'test@ahmadlearninghub.com.pk')) ?></li>
+                <li><strong>From Email:</strong> <?= htmlspecialchars(getMailerFromAddress()) ?></li>
             </ul>
             <p><strong>Note:</strong> Make sure Docker containers are running with <code>docker compose --env-file config/.env.local up -d</code></p>
         </div>

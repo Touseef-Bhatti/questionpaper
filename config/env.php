@@ -12,6 +12,16 @@ class EnvLoader
     // Define default values if not present in .env
     private static $defaults = [
         'BASE_URL' => 'https://ahmadlearninghub.com.pk/',
+        'APP_NAME' => 'Ahmad Learning Hub',
+        'APP_URL' => 'https://paper.bhattichemicalsindustry.com.pk',
+        'SMTP_HOST' => 'mailhog',
+        'SMTP_PORT' => '1025',
+        'SMTP_SECURE' => 'none',
+        'SMTP_USERNAME' => 'paper@bhattichemicalsindustry.com.pk',
+        'SMTP_FROM_EMAIL' => 'paper@bhattichemicalsindustry.com.pk',
+        'SMTP_FROM_NAME' => 'Ahmad Learning Hub',
+        'SMTP_AUTH' => 'false',
+        'SMTP_DEBUG' => '0',
         'AI_DEFAULT_MODEL' => 'gpt-4-turbo',
         'AI_FALLBACK_MODEL' => 'gpt-3.5-turbo',
         'AI_DAILY_QUOTA_PER_KEY' => '100000',

@@ -73,26 +73,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $toEmail = $user['email'];
                 if (!filter_var($toEmail, FILTER_VALIDATE_EMAIL)) continue;
 
-                // Setup PHPMailer directly to mirror sendAdminActionVerificationEmail settings
+                // Setup PHPMailer using shared SMTP configuration helpers
                 $mail = new PHPMailer(true);
                 try {
-                    $mail->isSMTP();
-                    $mail->Host = EnvLoader::get('SMTP_HOST', 'mailhog');
-                    $mail->SMTPAuth = false;
-                    $mail->Port = EnvLoader::getInt('SMTP_PORT', 1025);
-                    $smtpSecure = EnvLoader::get('SMTP_SECURE', 'none');
-                    if (strtolower($smtpSecure) === 'tls') {
-                        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                    } elseif (strtolower($smtpSecure) === 'ssl') {
-                        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-                    } else {
-                        $mail->SMTPSecure = '';
-                        $mail->SMTPAutoTLS = false;
-                    }
-
-                    $fromEmail = EnvLoader::get('SMTP_FROM_EMAIL', 'test@ahmadlearninghub.com.pk');
-                    $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
-                    $mail->setFrom($fromEmail, $fromName);
+                    configureMailerSmtp($mail);
+                    $mail->setFrom(getMailerFromAddress(), getMailerFromName());
                     $mail->addAddress($toEmail, $user['name'] ?? '');
                     $mail->isHTML(true);
                     $mail->Subject = $subject;

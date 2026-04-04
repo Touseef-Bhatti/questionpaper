@@ -37,30 +37,9 @@ function send_reset_email($to, $reset_link) {
 
         $mail = new PHPMailer(true);
 
-        // Server settings for MailHog
-        $mail->isSMTP();
-        $mail->Host       = EnvLoader::get('SMTP_HOST', 'mailhog');
-        $mail->SMTPAuth   = false; // MailHog doesn't require authentication
-        $mail->Username   = '';
-        $mail->Password   = '';
-
-        // Handle SSL vs TLS vs none
-        $smtpSecure = EnvLoader::get('SMTP_SECURE', 'none');
-        if (strtolower($smtpSecure) === 'tls') {
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        } elseif (strtolower($smtpSecure) === 'ssl') {
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        } else {
-            $mail->SMTPSecure = ''; // No encryption for MailHog
-            $mail->SMTPAutoTLS = false;
-        }
-
-        $mail->Port       = EnvLoader::getInt('SMTP_PORT', 1025);
-
-        // Recipients
-        $fromEmail = EnvLoader::get('SMTP_FROM_EMAIL', 'test@ahmadlearninghub.com.pk');
-        $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
-        $mail->setFrom($fromEmail, $fromName);
+        configureMailerSmtp($mail);
+        $fromName = getMailerFromName();
+        $mail->setFrom(getMailerFromAddress(), $fromName);
         $mail->addAddress($to);
 
         // Content
