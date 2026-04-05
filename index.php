@@ -49,14 +49,16 @@ include 'db_connect.php';
 </div>
 
                     <div class="hero-actions">
+                        <a href="login" class="button accent hero-login-btn"><i class="fas fa-sign-in-alt"></i> Login Now</a>
                         <a href="select_class" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
                         <a href="quiz_setup" class="button secondary"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
-                    
                     </div>
 
             </div>
         </section>
 
+        <br><br><br>
+        
         <?= renderAd('banner', 'Place Top Banner Here') ?>
 <br>
        <!-- Exam preparations section -->

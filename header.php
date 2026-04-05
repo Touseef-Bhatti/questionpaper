@@ -379,6 +379,11 @@ foreach ($gen_paper_pages as $p) {
     align-items: center;
 }
 
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 .navbar-container {
     min-width: 100%;
     margin: 0 auto;
@@ -591,11 +596,11 @@ html.dark-mode .quota-badge {
     100% { box-shadow: 0 0 0 0   rgba(253,230,138,0);   }
 }
 
-/* Mobile: collapse to dot circle */
+/* Mobile: ensure plan label is visible */
 @media (max-width: 768px) {
-    .plan-chip .plan-label { display: none; }
-    .plan-chip { padding: 9px; border-radius: 50%; gap: 0; }
-    .plan-chip .plan-dot { width: 9px; height: 9px; }
+    .plan-chip .plan-label { display: inline-block; }
+    .plan-chip { padding: 6px 14px 6px 9px; border-radius: 50px; gap: 7px; }
+    .plan-chip .plan-dot { width: 7px; height: 7px; }
 }
 
 /* Hamburger Icon */
@@ -603,11 +608,12 @@ html.dark-mode .quota-badge {
     display: none; /* Hidden by default on desktop */
     flex-direction: column;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     cursor: pointer;
     z-index: 1100;
     margin-left: 1rem;
+    touch-action: manipulation;
 }
 
 .nav-toggle span {
@@ -635,8 +641,7 @@ html.dark-mode .quota-badge {
 /* Smooth scroll behavior when mobile menu is open */
 body.menu-open {
     overflow: hidden;
-    position: fixed;
-    width: 100%;
+    height: 100vh;
 }
 
 /* Responsive Adjustments */
@@ -660,7 +665,8 @@ body.menu-open {
 @media (max-width: 768px) {
     
     .navbar {
-        max-width: 90%;
+        width: calc(100% - 1rem);
+        max-width: none;
         border-radius: 80px;
         margin: 0 auto;
         padding: 0.8rem 0;
@@ -671,27 +677,32 @@ body.menu-open {
     }
 
     .navbar-container {
-        width: 75%;
+        width: 100%;
         padding: 0 1rem;
         flex-direction: row;
         align-items: center;
+        gap: 0.5rem;
     }
 
     .nav-logo {
-        font-size: 1.1rem;
+        font-size: clamp(0.95rem, 3.6vw, 1.1rem);
         font-weight: 700;
         z-index: 1100;
-        order: 2;
-        margin-right: 100%;
+        order: 1;
+        margin-right: auto;
+        max-width: calc(100% - 64px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         letter-spacing: 0.5px;
         color: var(--primary);
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 
     .nav-toggle {
-        order: 1;
+        order: 2;
         margin-left: 0;
-        margin-right: 1rem;
+        margin-right: 0;
         padding: 0.5rem;
         border-radius: 12px;
         background: rgba(255, 255, 255, 0.1);
@@ -708,9 +719,12 @@ body.menu-open {
     .nav-menu {
         position: fixed;
         top: 0;
-        margin-left: -10%;
+        left: 0;
+        margin-left: 0;
         height: 100vh;
-        width: 70%;
+        height: 100dvh;
+        width: min(86vw, 360px);
+        max-width: calc(100vw - 0.75rem);
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
         backdrop-filter: blur(25px);
         -webkit-backdrop-filter: blur(25px);
@@ -720,14 +734,17 @@ body.menu-open {
         flex-direction: column;
         gap: 0.5rem;
         align-items: flex-start;
-        padding: 6rem 2rem 2rem 2rem;
+        padding: calc(5.5rem + env(safe-area-inset-top, 0px)) 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)) 1rem;
         box-shadow: 12px 0 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1);
         overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
         transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         z-index: 1050;
         visibility: hidden;
         opacity: 0;
-        transform: translateX(-100%);
+        transform: translateX(calc(-100% - 24px));
         order: 3;
     }
 
@@ -744,7 +761,6 @@ body.menu-open {
     }
     
     .nav-menu.open {
-        left: 0;
         visibility: visible;
         opacity: 1;
         transform: translateX(0);
@@ -781,12 +797,13 @@ body.menu-open {
         display: flex;
         align-items: center;
         width: 100%;
-        padding: 1.2rem 1.5rem;
+        padding: 0.9rem 1rem;
+        min-height: 46px;
         border-radius: 16px;
         border: none;
         background: transparent;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        font-size: 1.1rem;
+        font-size: clamp(0.96rem, 3.8vw, 1.06rem);
         font-weight: 500;
         color: #374151;
         text-decoration: none;
@@ -860,7 +877,7 @@ body.menu-open {
         box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.2);
         font-weight: 600;
-        font-size: 1.1rem;
+        font-size: clamp(1rem, 4vw, 1.08rem);
         letter-spacing: 0.5px;
         position: relative;
         overflow: hidden;
@@ -890,8 +907,8 @@ body.menu-open {
     }
 
     .navbar-container {
-        width: 98%;
-        padding: 0 0.5rem;
+        width: 100%;
+        padding: 0 0.75rem;
     }
 
     .nav-logo {
@@ -903,10 +920,9 @@ body.menu-open {
     }
 
     .nav-menu {
-        width: 90vw;
-        left: -90vw;
+        width: min(92vw, 320px);
         border-radius: 0 20px 20px 0;
-        padding: 5.5rem 1.5rem 2rem 1.5rem;
+        padding: calc(5rem + env(safe-area-inset-top, 0px)) 0.85rem calc(1.4rem + env(safe-area-inset-bottom, 0px)) 0.85rem;
     }
 
     .nav-menu::before {
@@ -914,8 +930,8 @@ body.menu-open {
     }
 
     .nav-menu li a {
-        padding: 1rem 1.2rem;
-        font-size: 1rem;
+        padding: 0.85rem 0.95rem;
+        font-size: 0.96rem;
     }
 
     .nav-menu li a i {
@@ -1001,8 +1017,9 @@ body.menu-open {
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         min-width: unset;
-        width: calc(100% - 1.5rem);
-        margin-left: 1.5rem;
+        width: calc(100% - 1rem);
+        margin-left: 1rem;
+        margin-right: 0.5rem;
         padding: 0.5rem 0;
         top: 0;
         transform: translateY(0);
@@ -1010,7 +1027,8 @@ body.menu-open {
     }
 
     .dropdown-content a {
-        padding: 0.8rem 1.2rem;
+        padding: 0.8rem 1rem;
+        min-height: 44px;
         font-size: 1rem;
         font-weight: 500;
         color: #4b5563;
@@ -1233,7 +1251,7 @@ html.dark-mode .user-header-info .text-muted {
 <nav class="navbar">
   <div class="navbar-container">
     <a href="<?= $assetBase ?>index.php" class="nav-logo">AhmadLearningHub</a>
-    <div class="nav-toggle" id="navToggle">
+    <div class="nav-toggle" id="navToggle" role="button" tabindex="0" aria-label="Toggle navigation menu" aria-controls="navMenu" aria-expanded="false">
       <span></span>
       <span></span>
       <span></span>
@@ -1391,20 +1409,20 @@ html.dark-mode .user-header-info .text-muted {
     });
 </script>
 
-</body>
-</html>
-
     <script>
     // Responsive Navbar Toggle
     const navToggle = document.getElementById('navToggle');
     const navMenu = document.getElementById('navMenu');
     const navOverlay = document.getElementById('navOverlay');
+    const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches;
     
     function closeMenu() {
+        if (!navMenu || !navToggle || !navOverlay) return;
         navMenu.classList.remove('open');
         navToggle.classList.remove('open');
         navOverlay.classList.remove('open');
         document.body.classList.remove('menu-open');
+        navToggle.setAttribute('aria-expanded', 'false');
         // Close all dropdowns when mobile menu is closed
         document.querySelectorAll('.dropdown-content').forEach(content => {
             content.classList.remove('show');
@@ -1412,10 +1430,12 @@ html.dark-mode .user-header-info .text-muted {
     }
     
     function openMenu() {
+        if (!navMenu || !navToggle || !navOverlay) return;
         navMenu.classList.add('open');
         navToggle.classList.add('open');
         navOverlay.classList.add('open');
         document.body.classList.add('menu-open');
+        navToggle.setAttribute('aria-expanded', 'true');
     }
     
     if (navToggle) {
@@ -1424,6 +1444,16 @@ html.dark-mode .user-header-info .text-muted {
                 closeMenu();
             } else {
                 openMenu();
+            }
+        });
+        navToggle.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (navMenu.classList.contains('open')) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
             }
         });
     }
@@ -1435,7 +1465,7 @@ html.dark-mode .user-header-info .text-muted {
     // Close the mobile menu when clicking outside the menu area (sides of the page)
     document.addEventListener('click', function(e) {
         // Only active when menu open and on small screens
-        if (!navMenu.classList.contains('open') || window.innerWidth > 768) return;
+        if (!navMenu.classList.contains('open') || !isMobileViewport()) return;
 
         // If click inside the menu or on the toggle, ignore
         if (navMenu.contains(e.target) || (navToggle && navToggle.contains(e.target))) return;
@@ -1453,7 +1483,7 @@ html.dark-mode .user-header-info .text-muted {
         navMenu.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', function() {
                 // Only close if it's not a dropdown toggle
-                if (!link.classList.contains('dropbtn') && window.innerWidth <= 768) {
+                if (!link.classList.contains('dropbtn') && isMobileViewport()) {
                     closeMenu();
                 }
             });
@@ -1463,7 +1493,7 @@ html.dark-mode .user-header-info .text-muted {
     // Dropdown functionality (desktop hover, mobile click)
     document.querySelectorAll('.dropdown > .dropbtn').forEach(dropbtn => {
         dropbtn.addEventListener('click', function(e) {
-            if (window.innerWidth <= 768) { // Only for mobile
+            if (isMobileViewport()) { // Only for mobile
                 e.preventDefault();
                 e.stopPropagation(); // Prevent closing the mobile menu if it's open
                 const dropdownContent = this.nextElementSibling;
@@ -1482,10 +1512,16 @@ html.dark-mode .user-header-info .text-muted {
 
     // Close dropdowns when clicking outside (only for mobile click dropdowns)
     window.addEventListener('click', function(e) {
-        if (window.innerWidth <= 768 && !e.target.matches('.dropbtn')) {
+        if (isMobileViewport() && !e.target.matches('.dropbtn')) {
             document.querySelectorAll('.dropdown-content.show').forEach(content => {
                 content.classList.remove('show');
             });
+        }
+    });
+
+    window.addEventListener('resize', function() {
+        if (!isMobileViewport()) {
+            closeMenu();
         }
     });
 
@@ -1613,4 +1649,7 @@ html.dark-mode .user-header-info .text-muted {
     // Initial UI update
     updateModeUI();
     </script>
+  
+</body>
+</html>
   
