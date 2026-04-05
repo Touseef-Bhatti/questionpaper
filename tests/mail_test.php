@@ -29,8 +29,8 @@ require_once $phpmailerDir . '/src/SMTP.php';
 echo "🚀 Ahmad Learning Hub Mail Test<br><br>";
 
 // Load SMTP credentials from environment (.env.local)
-$smtpHost = EnvLoader::get('SMTP_HOST', 'bhattichemicalsindustry.com.pk');
-$smtpUsername = EnvLoader::get('SMTP_USERNAME', 'paper@bhattichemicalsindustry.com.pk');
+$smtpHost = EnvLoader::get('SMTP_HOST', 'mail.ahmadlearninghub.com.pk');
+$smtpUsername = EnvLoader::get('SMTP_USERNAME', 'admin@ahmadlearninghub.com.pk');
 $smtpPassword = EnvLoader::get('SMTP_PASSWORD', '');
 $smtpPort = EnvLoader::getInt('SMTP_PORT', 465);
 $smtpSecure = EnvLoader::get('SMTP_SECURE', 'ssl'); // 'ssl' or 'tls'
