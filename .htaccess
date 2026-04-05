@@ -50,8 +50,22 @@ Options -Indexes
     RewriteRule ^([^/]+)$ auth/$1 [L]
 
     # 5. Handle SEO pattern for class/book question paper generator
+    # Matches patterns like: 10th-class-physics-chapter-1-2-mcqs-12-short-24-long-3-question-paper-generator
+    RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-(?:chapter-([a-zA-Z0-9,%\s\-]+)-)?mcqs-([0-9]+)-short-([0-9]+)-long-([0-9]+)-question-paper-generator/?$ generate_question_paper.php?class_id=$1&book_name=$2&chapters_from_url=$3&total_mcqs=$4&total_shorts=$5&total_longs=$6 [QSA,NC,L]
+
     # Matches patterns like: 10th-class-physics-question-paper-generator
     RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-question-paper-generator/?$ select_chapters.php?class_id=$1&book_name=$2 [QSA,NC,L]
+
+    # Matches patterns like: 10th-class-physics-chapter-1-2-question-paper-generator or 10th-class-physics-all-chapter-question-paper-generator
+    # These point to question selection
+    RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-chapter-([a-zA-Z0-9,%\s\-]+)-question-paper-generator/?$ select_question.php?class_id=$1&book_name=$2&chapters_from_url=$3 [QSA,NC,L]
+    RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-all-chapter-question-paper-generator/?$ select_question.php?class_id=$1&book_name=$2&chapters_from_url=all [QSA,NC,L]
+
+    # Specific SEO rule for select_class.php
+    RewriteRule ^class-9th-and-10th-online-question-paper-generator/?$ select_class.php [NC,L]
+
+    # Specific SEO rule for select_book.php (per class)
+    RewriteRule ^class-([0-9]+)-online-question-paper-generator/?$ select_book.php?class_id=$1 [QSA,NC,L]
 
     # 6. Handle SEO pattern for MCQs page
     # Matches patterns like: mcqs/9th-class/physics

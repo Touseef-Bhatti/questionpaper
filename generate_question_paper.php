@@ -8,6 +8,103 @@ require_once 'services/QuestionService.php';
 
 // Initialize question service
 $questionService = new QuestionService($conn);
+
+// Support for SEO URLs
+if (isset($_GET['total_mcqs']) || isset($_GET['total_shorts']) || isset($_GET['total_longs'])) {
+    $classId = intval($_GET['class_id'] ?? 0);
+    $bookName = trim($_GET['book_name'] ?? '');
+    $chaptersFromUrl = $_GET['chapters_from_url'] ?? '';
+    
+    // Total counts from URL
+    $totalMcqs = intval($_GET['total_mcqs'] ?? 0);
+    $totalShorts = intval($_GET['total_shorts'] ?? 0);
+    $totalLongs = intval($_GET['total_longs'] ?? 0);
+
+    // If chapters are "all", we need to fetch all chapter IDs for this book
+    $chapterIds = [];
+    if ($chaptersFromUrl === 'all') {
+        $stmt = $conn->prepare("SELECT chapter_id FROM chapter WHERE class_id = ? AND book_name = ?");
+        $stmt->bind_param("is", $classId, $bookName);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $chapterIds[] = intval($row['chapter_id']);
+        }
+        $stmt->close();
+    } elseif (!empty($chaptersFromUrl)) {
+        $rawChapters = explode('-', $chaptersFromUrl);
+        $numbers = [];
+        $names = [];
+        foreach ($rawChapters as $ch) {
+            $d = urldecode($ch);
+            if (preg_match('/^\d+$/', $d)) {
+                $numbers[] = intval($d);
+            } elseif ($d !== '') {
+                $names[] = $d;
+            }
+        }
+        if (!empty($numbers)) {
+            $placeholders = str_repeat('?,', count($numbers) - 1) . '?';
+            $sql = "SELECT chapter_id FROM chapter WHERE class_id = ? AND book_name = ? AND chapter_no IN ($placeholders)";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $types = 'is' . str_repeat('i', count($numbers));
+                $stmt->bind_param($types, $classId, $bookName, ...$numbers);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $chapterIds[] = intval($row['chapter_id']);
+                }
+                $stmt->close();
+            }
+        }
+        if (!empty($names)) {
+            $map = [];
+            $stmt = $conn->prepare("SELECT chapter_id, chapter_name FROM chapter WHERE class_id = ? AND book_name = ?");
+            if ($stmt) {
+                $stmt->bind_param('is', $classId, $bookName);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $cid = intval($row['chapter_id']);
+                    $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $row['chapter_name']));
+                    $slug = preg_replace('/-+/', '-', $slug);
+                    $map[$slug] = $cid;
+                }
+                $stmt->close();
+            }
+            foreach ($names as $n) {
+                $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $n));
+                $slug = preg_replace('/-+/', '-', $slug);
+                if (isset($map[$slug])) {
+                    $chapterIds[] = $map[$slug];
+                }
+            }
+        }
+    }
+
+    // Populate $_POST to simulate standard form submission if not already present
+    // This ensures compatibility with the existing logic that relies on $_POST
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['class_id'])) {
+        $_POST['class_id'] = $classId;
+        $_POST['book_name'] = $bookName;
+        $_POST['chapter_ids'] = $chapterIds;
+        $_POST['total_mcqs'] = $totalMcqs;
+        $_POST['total_shorts'] = $totalShorts;
+        $_POST['total_longs'] = $totalLongs;
+        
+        // We need to provide something for the mcqs/short_questions/long_questions arrays
+        // so the generation logic has something to iterate over.
+        // We'll distribute the total count to the first chapter as a fallback
+        if (!empty($chapterIds)) {
+            $firstId = $chapterIds[0];
+            $_POST['mcqs'] = [$firstId => $totalMcqs];
+            $_POST['short_questions'] = [$firstId => $totalShorts];
+            $_POST['long_questions'] = [$firstId => $totalLongs];
+        }
+    }
+}
+
 function toRoman($num) {
     $map = [
         'm' => 1000, 'cm' => 900, 'd' => 500, 'cd' => 400,
@@ -49,7 +146,13 @@ function displayShortSection($questions, &$idx, $marksPerSq = 2) {
 // Validate POST data
 $isTopicSource = (isset($_POST['source']) && $_POST['source'] === 'topics');
 
-if (!$isTopicSource && !isset($_POST['class_id'], $_POST['book_name'], $_POST['chapters'])) {
+if (
+    !$isTopicSource &&
+    (
+        !isset($_POST['class_id'], $_POST['book_name']) ||
+        (!isset($_POST['chapters']) && !isset($_POST['chapter_ids']))
+    )
+) {
     echo "<script>
         alert('Required data is missing. Please go back and try again.');
         window.location.href = 'select_class.php';
@@ -577,7 +680,7 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
     <?php 
     $instituteName = "OPF SCHOOL SKP"; // Default institute name
     ?>
-
+<!-- 
     <div class="design-selector">
         <h4>Header Design</h4>
         <div class="design-option active" onclick="changeHeader(1, this)">Design 1 (Formal)</div>
@@ -586,7 +689,7 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
         <div class="design-option" onclick="changeHeader(4, this)">Design 4 (Elegant)</div>
         <div class="design-option" onclick="changeHeader(5, this)">Design 5 (Boxed)</div>
         <div class="design-option" onclick="changeHeader(6, this)">Design 6 (AI Style)</div>
-    </div>
+    </div> -->
 
     <div class="paper-container" id="paper"> 
         <div class="header" id="dynamic-header"> 

@@ -14,7 +14,7 @@
             <h3>Quick Links</h3>
             <ul class="footer-menu">
                 <li><a href="<?= $assetBase ?? '' ?>index"><i class="fas fa-home"></i> Home</a></li>
-                <li><a href="<?= $assetBase ?? '' ?>select_class"><i class="fas fa-file-alt"></i> Generate Paper</a></li>
+                <li><a href="<?= $assetBase ?? '' ?>class-9th-and-10th-online-question-paper-generator"><i class="fas fa-file-alt"></i> Generate Paper</a></li>
                 <li><a href="<?= $assetBase ?? '' ?>quiz_setup"><i class="fas fa-question-circle"></i> Online Quiz</a></li>
                 <li><a href="<?= $assetBase ?? '' ?>note"><i class="fas fa-book"></i> Notes</a></li>
             </ul>

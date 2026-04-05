@@ -149,7 +149,7 @@ Generator MCQs tests, school exams, and practice papers instantly or attempt onl
             alert('Coming soon!');
             return;
         }
-        window.location.href = 'select_book.php?class_id=' + encodeURIComponent(classId);
+        window.location.href = 'class-' + encodeURIComponent(classId) + '-online-question-paper-generator';
     }
 </script>
 

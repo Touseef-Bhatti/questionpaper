@@ -50,7 +50,7 @@ include 'db_connect.php';
 
                     <div class="hero-actions">
                         <a href="login" class="button accent hero-login-btn"><i class="fas fa-sign-in-alt"></i> Login Now</a>
-                        <a href="select_class" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                        <a href="class-9th-and-10th-online-question-paper-generator" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
                         <a href="quiz_setup" class="button secondary"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
                     </div>
 
@@ -75,7 +75,7 @@ include 'db_connect.php';
                         <div class="card">
                             <h3>Teacher tools</h3>
                             <p>Create Online Question papers and Host Online Quizez .</p>
-                            <a class="btn btn-primary" href="select_class">Generate Question Paper</a>
+                            <a class="btn btn-primary" href="class-9th-and-10th-online-question-paper-generator">Generate Question Paper</a>
                             <a class="btn btn-outline" href="online_quiz_host_new">Host a Quiz</a>
                             
                             <a class="btn btn-ghost" href="note">View Notes</a>
@@ -115,7 +115,7 @@ include 'db_connect.php';
             </p>
             
             <div class="cta-actions">
-                <a href="select_class" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                <a href="class-9th-and-10th-online-question-paper-generator" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
                 <a href="quiz_setup" class="button ghost"><i class="fas fa-laptop-code"></i> Start Test</a>
             </div>
         </div>

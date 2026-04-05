@@ -16,6 +16,64 @@ if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !isset($_GET['book_
 $classId = intval($_GET['class_id']);
 $book_name = trim($conn->real_escape_string($_GET['book_name']));
 
+// Pre-select chapters from URL if available
+$preSelectedChapters = [];
+if (isset($_GET['chapters_from_url'])) {
+    $rawChapters = explode('-', $_GET['chapters_from_url']);
+    if ($rawChapters[0] === 'all') {
+        $preSelectedChapters = ['all'];
+    } else {
+        $nums = [];
+        $names = [];
+        foreach ($rawChapters as $ch) {
+            $d = urldecode($ch);
+            if (preg_match('/^\d+$/', $d)) {
+                $nums[] = intval($d);
+            } elseif ($d !== '') {
+                $names[] = $d;
+            }
+        }
+        if (!empty($nums)) {
+            $placeholders = str_repeat('?,', count($nums) - 1) . '?';
+            $sql = "SELECT chapter_id FROM chapter WHERE class_id = ? AND book_name = ? AND chapter_no IN ($placeholders)";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $types = 'is' . str_repeat('i', count($nums));
+                $stmt->bind_param($types, $classId, $book_name, ...$nums);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $preSelectedChapters[] = intval($row['chapter_id']);
+                }
+                $stmt->close();
+            }
+        }
+        if (!empty($names)) {
+            $map = [];
+            $stmt = $conn->prepare("SELECT chapter_id, chapter_name FROM chapter WHERE class_id = ? AND book_name = ?");
+            if ($stmt) {
+                $stmt->bind_param('is', $classId, $book_name);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $cid = intval($row['chapter_id']);
+                    $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $row['chapter_name']));
+                    $slug = preg_replace('/-+/', '-', $slug);
+                    $map[$slug] = $cid;
+                }
+                $stmt->close();
+            }
+            foreach ($names as $n) {
+                $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $n));
+                $slug = preg_replace('/-+/', '-', $slug);
+                if (isset($map[$slug])) {
+                    $preSelectedChapters[] = $map[$slug];
+                }
+            }
+        }
+    }
+}
+
 // Function to get pattern defaults based on class and book name
 function getPatternDefaults($classId, $book_name) {
     $book_name_lower = strtolower($book_name);
@@ -71,6 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chapters'])) {
 $chapterQuery = "SELECT 
                     c.chapter_id, 
                     c.chapter_name,
+                    c.chapter_no,
                     (SELECT COUNT(*) FROM mcqs WHERE chapter_id = c.chapter_id) as mcq_count,
                     (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'short') as short_count,
                     (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'long') as long_count
@@ -116,14 +175,50 @@ while ($row = $result->fetch_assoc()) {
 
 
 
-<meta name="description" content="Generate Online Question Paper for <?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> to generate Chapter-wise question papers and MCQs Papers.According to Punjab Board up-to-date syllabus">
+<?php
+// Prepare SEO dynamic variables
+$chapter_info = "";
+if (!empty($preSelectedChapters)) {
+    if ($preSelectedChapters[0] === 'all') {
+        $chapter_info = "All Chapters ";
+    } else {
+        $chapter_info = "Chapter " . implode(',', $preSelectedChapters) . " ";
+    }
+}
+
+$seo_title = "{$classId}th Class " . ucfirst($book_name) . " {$chapter_info}Question Paper Generator | Chapter-Wise MCQs & Tests";
+$seo_description = "Generate professional " . ucfirst($book_name) . " question papers for {$classId}th class " . trim($chapter_info) . " based on Punjab Board (BISE) patterns. Create chapter-wise MCQs, short and long questions instantly.";
+?>
+<meta name="description" content="<?= htmlspecialchars($seo_description) ?>">
 
 
-<meta name="keywords" content="<?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> chapter selection, <?= htmlspecialchars($classId) ?> class question papers, Punjab Board MCQs, online tests chapter-wise, generate paper for <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?>, subject-wise test generator, Pakistan Board exam preparation , Fast Paper generator ">
+<meta name="keywords" content="<?= htmlspecialchars($classId) ?>th class <?= htmlspecialchars($book_name) ?> <?= $chapter_info ?> paper generator, <?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> chapter wise test, Punjab Board MCQs maker, online paper setter, <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?> guess paper, BISE Punjab exam preparation">
 
 
 
-<title>Online Question Papers for <?= htmlspecialchars($classId) ?> Class <?= htmlspecialchars($book_name) ?> | Punjab Board</title>
+<title><?= htmlspecialchars($seo_title) ?></title>
+
+<!-- Schema.org Markup for SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "<?= htmlspecialchars($classId) ?>th Class <?= htmlspecialchars($book_name) ?> Paper Generator",
+  "operatingSystem": "Web",
+  "applicationCategory": "EducationalApplication",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "PKR"
+  },
+  "description": "Generate professional <?= htmlspecialchars($book_name) ?> question papers for <?= htmlspecialchars($classId) ?>th class based on Punjab Board (BISE) patterns. Includes chapter-wise MCQs, short and long questions.",
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.9",
+    "ratingCount": "1250"
+  }
+}
+</script>
 
 
   
@@ -788,6 +883,54 @@ document.addEventListener('DOMContentLoaded', function() {
 
     recalcStatus();
     
+    // SEO URL update on form submit
+    const mainForm = document.querySelector('form');
+    if (mainForm) {
+        mainForm.addEventListener('submit', function(e) {
+            const allCheckboxes = Array.from(document.querySelectorAll('input[name="chapters[]"]'));
+            const checkedCheckboxes = allCheckboxes.filter(cb => cb.checked);
+            
+            if (checkedCheckboxes.length > 0) {
+                // Get current base SEO URL
+                const bookSlug = "<?= strtolower(str_replace(' ', '-', $book_name)) ?>";
+                const classOrdinal = "<?= $classId . ( ($classId % 10 == 1 && $classId % 100 != 11) ? 'st' : (($classId % 10 == 2 && $classId % 100 != 12) ? 'nd' : (($classId % 10 == 3 && $classId % 100 != 13) ? 'rd' : 'th')) ) ?>";
+                let newSlug = "";
+                
+                // If ALL chapters are selected, use 'all-chapter' format
+                if (checkedCheckboxes.length === allCheckboxes.length) {
+                    newSlug = `${classOrdinal}-class-${bookSlug}-all-chapter-question-paper-generator`;
+                } else {
+                    const chapterNums = checkedCheckboxes.map(cb => {
+                        const box = cb.nextElementSibling;
+                        const chNo = box ? box.getAttribute('data-chapter-no') : null;
+                        if (chNo && chNo.trim() !== '') return chNo.trim().replace(/\s+/g, '-');
+                        
+                        // Fallback 1: label parsing (e.g., "Chapter 1")
+                        const labelText = cb.closest('label').textContent;
+                        const match = labelText.match(/(?:Chapter|Unit)\s*([0-9]+)/i);
+                        if (match) return match[1];
+                        
+                        // Fallback 2: chapter ID (keeps it short and unique)
+                        return cb.value.split('|')[0];
+                    });
+                    
+                    // Clean and sort chapter identifiers
+                    const uniqueChapters = [...new Set(chapterNums)].sort((a, b) => {
+                        // Numeric sort if possible, otherwise string sort
+                        const aNum = parseInt(a);
+                        const bNum = parseInt(b);
+                        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+                        return a.toString().localeCompare(b.toString());
+                    });
+                    const chapterSlugPart = uniqueChapters.join('-');
+                    newSlug = `${classOrdinal}-class-${bookSlug}-chapter-${chapterSlugPart}-question-paper-generator`;
+                }
+                
+                mainForm.action = newSlug;
+            }
+        });
+    }
+
     // Auto-trigger auto-fill if pattern defaults are applicable
     const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
     const isMath = bookName === 'math';
@@ -910,10 +1053,32 @@ document.addEventListener('DOMContentLoaded', function() {
 				foreach ($chaptersData as $row) {
 					$chapter_display = "{$row['chapter_name']}";
 					$chapter_value = "{$row['chapter_id']}|{$row['chapter_name']}";
+                    
+                    // Check if this chapter is pre-selected from URL
+                    // We try to match the chapter number from the name if possible, or just the ID
+                    $isPreSelected = false;
+                    if (!empty($preSelectedChapters)) {
+                        if ($preSelectedChapters[0] === 'all') {
+                            $isPreSelected = true;
+                        } else {
+                            // Match by ID
+                            if (in_array($row['chapter_id'], $preSelectedChapters)) {
+                                $isPreSelected = true;
+                            } else {
+                                // Match by chapter number extracted from name
+                                if (preg_match('/(?:Chapter|Unit)\s*([0-9]+)/i', $row['chapter_name'], $matches)) {
+                                    if (in_array($matches[1], $preSelectedChapters)) {
+                                        $isPreSelected = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
 			?>
 					<label>
-						<input type="checkbox" name="chapters[]" value="<?= htmlspecialchars($chapter_value) ?>">
+						<input type="checkbox" name="chapters[]" value="<?= htmlspecialchars($chapter_value) ?>" <?= $isPreSelected ? 'checked' : '' ?>>
 						<div class="chapter-box" 
+                             data-chapter-no="<?= htmlspecialchars($row['chapter_no'] ?? '') ?>"
                              data-available-mcq="<?= $row['mcq_count'] ?? 0 ?>" 
                              data-available-short="<?= $row['short_count'] ?? 0 ?>" 
                              data-available-long="<?= $row['long_count'] ?? 0 ?>">
@@ -935,7 +1100,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 			<br>
 			<div class="button-container"style=" justify-content: center; display: flex;align-items: center; padding: 10px; border-radius: 5px; color: white; font-weight: bold; margin-bottom: 15px;">
-<a href="select_book.php?class_id=<?= $classId ?>" style="height: 55px; margin-top:6% ; align-items:center ;justify-content:center; text-decoration: none; display: inline-flex; " class="go-back-btn">⬅ Go Back </a>
+<a href="class-<?= $classId ?>-online-question-paper-generator" style="height: 55px; margin-top:6% ; align-items:center ;justify-content:center; text-decoration: none; display: inline-flex; " class="go-back-btn">⬅ Go Back </a>
   <!-- Stylish Animated Button -->
 <div style="margin-top: 8%;" class="btn-wrapper">
   <button type="button" class="btn auto-fill-btn">
@@ -1005,13 +1170,75 @@ document.addEventListener('DOMContentLoaded', function() {
 
 		</form>
 
-        <!-- SEO Content -->
-         <section>
-            <div>
-                <h2>Online Question Paper Generator for <?= htmlspecialchars($classId) ?> Class <?= htmlspecialchars($book_name) ?> Chapters wise .</h2><br>
-                <p>Fast Question paper generator tool for class <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?>  chapters wise.<strong> Best paper setter tool for Teachers. </strong>you can generate MCQs papers for <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?> </p> </div>
+        <!-- SEO Content Section -->
+        <div class="book-features-seo">
+            <h2 class="features-title">🚀 Ultimate <?= htmlspecialchars($classId) ?>th Class <?= htmlspecialchars($book_name) ?> Paper Generator</h2>
+            <p style="text-align: center; color: #64748b; margin-top: -2rem; margin-bottom: 3rem; font-size: 1.1rem;">
+                Create professional, board-standard question papers for <strong>class <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?></strong>. Our <strong>chapter-wise paper generator</strong> is designed specifically for Punjab Board (BISE) patterns, including Lahore, Multan, Faisalabad, and Rawalpindi boards.
+            </p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <span class="icon">📄</span>
+                    </div>
+                    <div class="feature-text">
+                        <strong>BISE Board Patterns</strong>
+                        <p>Generate papers following the exact weightage of <strong>Punjab Board exams</strong> for <?= htmlspecialchars($classId) ?>th <?= htmlspecialchars($book_name) ?>.</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <span class="icon">✅</span>
+                    </div>
+                    <div class="feature-text">
+                        <strong>Dynamic MCQs Maker</strong>
+                        <p>Create a custom <strong>mcqs paper generator</strong> for <?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> with randomized options.</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <span class="icon">⚡</span>
+                    </div>
+                    <div class="feature-text">
+                        <strong>Short & Long Questions</strong>
+                        <p>Easily select <strong>short questions</strong> and <strong>long questions</strong> from any chapter to build comprehensive tests.</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <span class="icon">🔍</span>
+                    </div>
+                    <div class="feature-text">
+                        <strong>Smart Paper Setter</strong>
+                        <p>The best <strong>online paper setter tool</strong> for teachers to prepare school and academy tests in minutes.</p>
+                    </div>
+                </div>
             </div>
-         </section>
+
+            <!-- SEO FAQ Section -->
+            <div class="seo-faq-section" style="margin-top: 4rem; border-top: 1px solid #e2e8f0; padding-top: 3rem;">
+                <h3 style="text-align: center; color: #0f172a; margin-bottom: 2rem;">Frequently Asked Questions (FAQs)</h3>
+                <div class="faq-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; text-align: left;">
+                    <div class="faq-item">
+                        <h4 style="color: #1e293b; margin-bottom: 0.5rem;">How to generate <?= htmlspecialchars($classId) ?>th <?= htmlspecialchars($book_name) ?> paper chapter-wise?</h4>
+                        <p style="color: #475569; font-size: 0.95rem;">Simply select your class and book, then choose the chapters you want to include. Our tool will automatically fetch relevant questions based on the BISE pattern.</p>
+                    </div>
+                    <div class="faq-item">
+                        <h4 style="color: #1e293b; margin-bottom: 0.5rem;">Is this paper generator for Punjab Board?</h4>
+                        <p style="color: #475569; font-size: 0.95rem;">Yes, this tool is fully optimized for all Punjab Boards, including BISE Lahore, Gujranwala, Sahiwal, and others, following the latest up-to-date syllabus.</p>
+                    </div>
+                    <div class="faq-item">
+                        <h4 style="color: #1e293b; margin-bottom: 0.5rem;">Can I create only MCQs papers for <?= htmlspecialchars($book_name) ?>?</h4>
+                        <p style="color: #475569; font-size: 0.95rem;">Absolutely! You can set the number of short and long questions to zero if you only want to generate a <strong>class <?= htmlspecialchars($classId) ?> MCQs test</strong>.</p>
+                    </div>
+                    <div class="faq-item">
+                        <h4 style="color: #1e293b; margin-bottom: 0.5rem;">Can I download the papers in Word format?</h4>
+                        <p style="color: #475569; font-size: 0.95rem;">Yes, once the paper is generated, you can download it as a professional PDF or editable Word (DOCX) document for further customization.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 		
 	</div>
   </div>

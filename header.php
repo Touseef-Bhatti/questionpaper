@@ -1261,7 +1261,7 @@ html.dark-mode .user-header-info .text-muted {
       <li class="dropdown">
         <a class="dropbtn <?= $is_gen_paper_active ? 'active' : '' ?>">Generate Paper <i class="fas fa-caret-down"></i></a>
         <div class="dropdown-content">
-             <a href="<?= $assetBase ?>select_class" class="<?= is_active('select_class.php') ?>"><i class="fas fa-file-alt"></i> Create Question Paper</a>
+             <a href="<?= $assetBase ?>class-9th-and-10th-online-question-paper-generator" class="<?= is_active('select_class.php') ?>"><i class="fas fa-file-alt"></i> Create Question Paper</a>
           <a href="<?= $assetBase ?>online_quiz_host_new" class="<?= is_active('online_quiz_host_new.php') ?>"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
           <a href="<?= $assetBase ?>quiz_setup" class="<?= is_active('quiz_setup.php') ?>"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
           <a href="<?= $assetBase ?>online_quiz_join" class="<?= is_active('online_quiz_join.php') ?>"><i class="fas fa-gamepad"></i> Join Quiz</a>
