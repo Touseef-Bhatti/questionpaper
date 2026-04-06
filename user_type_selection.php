@@ -203,6 +203,9 @@
         const updates = [];
         
         links.forEach(link => {
+            // SKIP links marked as bypass
+            if (link.classList.contains('bypass-user-type')) return;
+
             const href = link.getAttribute('href');
             if (!href) return;
 

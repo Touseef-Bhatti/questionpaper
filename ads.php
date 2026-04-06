@@ -18,7 +18,7 @@ require_once __DIR__ . '/middleware/SubscriptionCheck.php';
 // ==========================================
 
 // 1. Adsterra (Banner and Skyscraper Ads)
-// include_once __DIR__ . '/includes/adsterrqa_ads.php';
+include_once __DIR__ . '/includes/adsterra_ads.php';
 
 // 2. Monetag (Popunder and Vignette Ads)
 // (Controlled in renderMonetagScripts below)
@@ -73,7 +73,7 @@ function renderMonetagScripts() {
     // 3. Render Monetag scripts from includes
     // To disable Monetag completely, you can comment out the include below
     ob_start();
-    // include __DIR__ . '/includes/monetag_ads.php';
+    include __DIR__ . '/includes/monetag_ads.php';
     return ob_get_clean();
 }
 

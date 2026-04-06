@@ -33,7 +33,7 @@ include 'db_connect.php';
     <div class="main-content" style="margin-top: -10%;">
 
         <!-- HERO: Futuristic & Clean -->
-        <section class="hero-section" style="background: url(8617761.jpg) no-repeat center center fixed; background-size: cover ;height: 100vh;">
+        <section class="hero-section">
             <div class="container hero-grid">
                 
                <div class="hero-content">
@@ -57,17 +57,74 @@ include 'db_connect.php';
             </div>
         </section>
 
-        <br><br><br>
+        <br><br>
         
         <?= renderAd('banner', 'Place Top Banner Here') ?>
 <br>
-       <!-- Exam preparations section -->
- 
 
         <br>
         <?= renderAd('banner', 'Place Middle Banner Here') ?>
         <br>
-        <!-- TEACHERS & TOOLS -->
+
+        <div class="container">
+            <div class="hero-prep-section" role="region" aria-label="Exam preparation categories">
+                <h2 class="hero-prep-title">Professional Exam Preparation for School, Board, College & University</h2>
+               <br>
+                <p class="hero-prep-description">
+                    Start focused exam preparation with class-wise papers, board-pattern practice, and chapter-wise MCQs for class 9, class 10, and advanced levels.
+                </p>
+
+                <div class="hero-prep-grid">
+                    <a href="class-9-online-question-paper-generator" class="hero-prep-card">
+                        <span class="hero-prep-icon"><i class="fas fa-graduation-cap"></i></span>
+                        <h3>Class 9 Exam Preparation</h3>
+                        <p>Generate chapter-wise tests and build strong fundamentals with exam-style practice.</p>
+                        <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
+                    </a>
+                    <a href="class-10-online-question-paper-generator" class="hero-prep-card">
+                        <span class="hero-prep-icon"><i class="fas fa-award"></i></span>
+                        <h3>Class 10 Exam Preparation</h3>
+                        <p>Practice model papers, short questions, long questions, and final revision tests.</p>
+                        <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
+                    </a>
+                    <a href="quiz_setup" class="hero-prep-card">
+                        <span class="hero-prep-icon"><i class="fas fa-clipboard-check"></i></span>
+                        <h3>MCQs Preparation Class 9 & 10</h3>
+                        <p>Take topic-wise MCQs tests with instant scoring and smart performance tracking.</p>
+                        <span class="prep-card-cta">Start Test <i class="fas fa-arrow-right"></i></span>
+                    </a>
+                    <a href="class-9th-and-10th-online-question-paper-generator" class="hero-prep-card">
+                        <span class="hero-prep-icon"><i class="fas fa-file-signature"></i></span>
+                        <h3>Board Exam Preparation</h3>
+                        <p>Prepare with board-oriented formats, realistic paper structure, and balanced difficulty.</p>
+                        <span class="prep-card-cta">Generate Paper <i class="fas fa-arrow-right"></i></span>
+                    </a>
+                    <a href="home" class="hero-prep-card bypass-user-type">
+                        <span class="hero-prep-icon"><i class="fas fa-university"></i></span>
+                        <h3>College & University Exams</h3>
+                        <p>Create professional tests for intermediate, college, and university exam preparation.</p>
+                        <span class="prep-card-cta">Get Started <i class="fas fa-arrow-right"></i></span>
+                    </a>
+                    <a href="mcqs_topic" class="hero-prep-card bypass-user-type">
+                        <span class="hero-prep-icon"><i class="fas fa-brain"></i></span>
+                        <h3>MCQs Practice Hub</h3>
+                        <p>Practice objective questions regularly to improve speed, accuracy, and confidence.</p>
+                        <span class="prep-card-cta">Practice Now <i class="fas fa-arrow-right"></i></span>
+                    </a>
+                </div>
+
+                <ul class="hero-keywords" aria-label="Popular exam preparation topics">
+                    <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-book-open"></i> Exam Preparation</a></li>
+                    <li><a href="class-9-online-question-paper-generator"><i class="fas fa-school"></i> Class 9 Exam Preparation</a></li>
+                    <li><a href="class-10-online-question-paper-generator"><i class="fas fa-graduation-cap"></i> Class 10 Exam Preparation</a></li>
+                    <li><a href="quiz_setup"><i class="fas fa-check-circle"></i> Class 9 & 10 MCQs Preparation</a></li>
+                    <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-file-alt"></i> Board Exam Preparation</a></li>
+                    <li><a href="home" class="bypass-user-type"><i class="fas fa-university"></i> College University Exam Preparation</a></li>
+                    <li><a href="mcqs_topic" class="bypass-user-type"><i class="fas fa-pencil-alt"></i> MCQs Practice</a></li>
+                </ul>
+            </div>
+        </div>
+
         <section class="teachers-section">
             <div class="container">
                 <div class="split-grid">
@@ -93,6 +150,7 @@ include 'db_connect.php';
                 </div>
             </div>
         </section>
+        
         <br>
 
         <?= renderAd('banner', 'Place Bottom Banner Here') ?>
