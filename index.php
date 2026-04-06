@@ -1,6 +1,24 @@
 <?php
 session_start();
 include 'db_connect.php';
+
+$latestReviews = [];
+$reviewsTableExists = false;
+$reviewsTableCheck = $conn->query("SHOW TABLES LIKE 'user_reviews'");
+if ($reviewsTableCheck && $reviewsTableCheck->num_rows > 0) {
+    $reviewsTableExists = true;
+    $latestReviewsResult = $conn->query("SELECT reviewer_name, rating, feedback, created_at, is_anonymous FROM user_reviews WHERE is_approved = 1 ORDER BY created_at DESC LIMIT 3");
+    if ($latestReviewsResult) {
+        while ($reviewRow = $latestReviewsResult->fetch_assoc()) {
+            $latestReviews[] = $reviewRow;
+        }
+    }
+}
+
+function homeReviewStars(int $rating): string {
+    $full = max(0, min(5, $rating));
+    return str_repeat('★', $full) . str_repeat('☆', 5 - $full);
+}
 ?>
 
 <!DOCTYPE html>
@@ -124,7 +142,10 @@ include 'db_connect.php';
                 </ul>
             </div>
         </div>
+<br><br><br><br>
+<?= renderAd('banner', 'Place Bottom Banner Here') ?>
 
+<br><br><br><br>
         <section class="teachers-section">
             <div class="container">
                 <div class="split-grid">
@@ -147,6 +168,47 @@ include 'db_connect.php';
                             <a class="btn btn-ghost" href="note">View Notes</a>
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="home-reviews-section">
+            <div class="container">
+                <div class="home-reviews-header">
+                    <h2>What Learners Say About Our Platform</h2>
+                    <p>Real feedback from students and teachers after using our quiz system, MCQs tools, and question paper generator.</p>
+                </div>
+
+                <?php if ($reviewsTableExists && !empty($latestReviews)): ?>
+                    <div class="home-reviews-grid">
+                        <?php foreach ($latestReviews as $review): ?>
+                            <?php
+                                $name = trim((string)($review['reviewer_name'] ?? ''));
+                                if ($name === '') {
+                                    $name = ((int)($review['is_anonymous'] ?? 0) === 1) ? 'Anonymous User' : 'User';
+                                }
+                                $feedback = trim((string)($review['feedback'] ?? ''));
+                                $snippet = strlen($feedback) > 180 ? substr($feedback, 0, 180) . '...' : $feedback;
+                                $reviewTime = strtotime((string)($review['created_at'] ?? 'now'));
+                            ?>
+                            <article class="home-review-card">
+                                <div class="home-review-stars"><?= htmlspecialchars(homeReviewStars((int)$review['rating'])) ?></div>
+                                <p class="home-review-feedback"><?= htmlspecialchars($snippet) ?></p>
+                                <div class="home-review-footer">
+                                    <strong><?= htmlspecialchars($name) ?></strong>
+                                    <span><?= date('d M Y', $reviewTime) ?></span>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="home-review-empty">
+                        Reviews will appear here after students submit feedback at the end of quizzes.
+                    </div>
+                <?php endif; ?>
+
+                <div class="home-reviews-actions">
+                    <a class="button primary" href="reviews.php"><i class="fas fa-star"></i> View All Reviews</a>
                 </div>
             </div>
         </section>

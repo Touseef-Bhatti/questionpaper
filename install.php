@@ -383,6 +383,24 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS user_generated_papers_log (
     INDEX idx_user_generated (user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: user_generated_papers_log");
 
+runQuery($conn, "CREATE TABLE IF NOT EXISTS user_reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    reviewer_name VARCHAR(191) NOT NULL,
+    reviewer_email VARCHAR(191) NULL,
+    rating TINYINT UNSIGNED NOT NULL,
+    feedback TEXT NOT NULL,
+    source_page VARCHAR(100) NOT NULL DEFAULT 'website',
+    is_anonymous TINYINT(1) NOT NULL DEFAULT 0,
+    is_approved TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_user_reviews_rating CHECK (rating BETWEEN 1 AND 5),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_reviews_created (created_at),
+    INDEX idx_reviews_rating (rating),
+    INDEX idx_reviews_approved (is_approved, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: user_reviews");
+
 // 22. Admin Management (admins, admin_logs, pending_admin_actions)
 runQuery($conn, "CREATE TABLE IF NOT EXISTS admins (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -591,6 +609,11 @@ createIndexIfNotExists($conn, "usage_tracking", "idx_usage_tracking_user_action_
 
 // User Generated Papers Log Indexes
 createIndexIfNotExists($conn, "user_generated_papers_log", "idx_papers_log_user_date", "user_id, created_at");
+
+// User Reviews Indexes
+createIndexIfNotExists($conn, "user_reviews", "idx_user_reviews_created", "created_at");
+createIndexIfNotExists($conn, "user_reviews", "idx_user_reviews_rating", "rating");
+createIndexIfNotExists($conn, "user_reviews", "idx_user_reviews_approved", "is_approved, created_at");
 
 // API Keys Indexes
 createIndexIfNotExists($conn, "api_keys", "idx_api_keys_status", "status");

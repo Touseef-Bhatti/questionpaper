@@ -1,10 +1,77 @@
 <?php
 // Authentication will be checked only when user wants to download or print
 // require_once 'auth_check.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 include 'db_connect.php';
 $pageTitle = "Generated Question Paper";
-include 'header.php';
 require_once 'services/QuestionService.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_site_review') {
+    header('Content-Type: application/json');
+
+    $rating = intval($_POST['rating'] ?? 0);
+    $feedback = trim((string)($_POST['feedback'] ?? ''));
+    $isAnonymousRequested = intval($_POST['is_anonymous'] ?? 0) === 1;
+
+    if ($rating < 1 || $rating > 5) {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Please select a valid rating.']);
+        exit;
+    }
+    if ($feedback === '' || strlen($feedback) < 3) {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Please write your feedback in the textbox.']);
+        exit;
+    }
+
+    $feedback = substr($feedback, 0, 1000);
+    $isLoggedIn = isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0;
+    $userId = $isLoggedIn ? intval($_SESSION['user_id']) : null;
+    $isAnonymous = ($isLoggedIn && !$isAnonymousRequested) ? 0 : 1;
+    $reviewerName = ($isLoggedIn && !$isAnonymousRequested) ? trim((string)($_SESSION['name'] ?? 'User')) : 'Anonymous User';
+    $reviewerEmail = ($isLoggedIn && !$isAnonymousRequested) ? trim((string)($_SESSION['email'] ?? '')) : null;
+
+    $stmt = $conn->prepare("INSERT INTO user_reviews (user_id, reviewer_name, reviewer_email, rating, feedback, source_page, is_anonymous) VALUES (?, ?, ?, ?, ?, 'generate_question_paper', ?)");
+    if (!$stmt) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Unable to save feedback right now.']);
+        exit;
+    }
+    $stmt->bind_param('issisi', $userId, $reviewerName, $reviewerEmail, $rating, $feedback, $isAnonymous);
+    $saved = $stmt->execute();
+    $stmt->close();
+
+    if (!$saved) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Unable to save feedback right now.']);
+        exit;
+    }
+
+    $_SESSION['site_review_submitted'] = true;
+    echo json_encode(['status' => 'success', 'message' => 'Thank you for your review.']);
+    exit;
+}
+
+$isLoggedIn = isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0;
+$hasAlreadyReviewed = false;
+if ($isLoggedIn) {
+    if (!empty($_SESSION['site_review_submitted']) || !empty($_SESSION['quiz_review_submitted'])) {
+        $hasAlreadyReviewed = true;
+    } else {
+        $stmt = $conn->prepare("SELECT id FROM user_reviews WHERE user_id = ? LIMIT 1");
+        if ($stmt) {
+            $userIdCheck = intval($_SESSION['user_id']);
+            $stmt->bind_param('i', $userIdCheck);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result && $result->num_rows > 0) {
+                $hasAlreadyReviewed = true;
+                $_SESSION['site_review_submitted'] = true;
+            }
+            $stmt->close();
+        }
+    }
+}
 
 // Initialize question service
 $questionService = new QuestionService($conn);
@@ -513,6 +580,7 @@ if ($patternMode === 'with') {
 
 // Finally, update $patternQCount to ensure the display loop goes up to the highest re-numbered question
 $patternQCount = max($patternQCount, $maxNewQNumGenerated);
+include 'header.php';
 ?>
 <!-- All your HTML output code starts here -->
 <head>
@@ -671,8 +739,139 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
                 color: #4f46e5;
             }
 
+            .review-modal {
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.6);
+                display: none;
+                align-items: center;
+                justify-content: center;
+                z-index: 4000;
+                padding: 18px;
+            }
+            .review-modal.open { display: flex; }
+            .review-modal-card {
+                width: 100%;
+                max-width: 540px;
+                background: #ffffff;
+                border-radius: 20px;
+                border: 1px solid #dbe3ef;
+                box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+                overflow: hidden;
+            }
+            .review-modal-header {
+                background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                color: #ffffff;
+                padding: 20px 22px 16px;
+            }
+            .review-modal-title {
+                margin: 0 0 6px;
+                font-size: 1.35rem;
+                font-weight: 900;
+            }
+            .review-modal-subtitle {
+                margin: 0;
+                font-size: 0.95rem;
+                color: #eef2ff;
+            }
+            .review-modal-body {
+                padding: 18px 22px 10px;
+            }
+            .star-row {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 14px;
+            }
+            .star-btn {
+                width: 46px;
+                height: 46px;
+                border-radius: 10px;
+                border: 1px solid #cbd5e1;
+                background: #f8fafc;
+                color: #94a3b8;
+                font-size: 1.25rem;
+                cursor: pointer;
+                transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+            }
+            .star-btn:hover {
+                transform: translateY(-1px);
+                color: #f59e0b;
+                border-color: #f59e0b;
+                background: #fff7ed;
+            }
+            .star-btn.active {
+                color: #f59e0b;
+                border-color: #f59e0b;
+                background: #fff7ed;
+            }
+            .review-modal textarea {
+                width: 100%;
+                min-height: 120px;
+                border-radius: 12px;
+                border: 1px solid #cbd5e1;
+                padding: 12px;
+                font-family: 'Inter', sans-serif;
+                font-size: 0.95rem;
+                color: #0f172a;
+                background: #ffffff;
+                resize: vertical;
+                outline: none;
+            }
+            .review-modal textarea:focus {
+                border-color: #6366f1;
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+            }
+            .review-modal-message {
+                margin-top: 8px;
+                min-height: 24px;
+                font-size: 0.88rem;
+                font-weight: 700;
+                color: #dc2626;
+            }
+            .review-modal-message.success { color: #166534; }
+            .review-modal-actions {
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+                padding: 0 22px 18px;
+                flex-wrap: wrap;
+            }
+            .review-btn {
+                min-width: 130px;
+                height: 44px;
+                border-radius: 10px;
+                border: 1px solid #cbd5e1;
+                font-weight: 700;
+                cursor: pointer;
+                color: #0f172a;
+                background: #f8fafc;
+            }
+            .review-btn.primary {
+                border-color: #4f46e5;
+                background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                color: #ffffff;
+            }
+            .review-char-count {
+                font-size: 0.76rem;
+                color: #64748b;
+                font-weight: 600;
+                text-align: right;
+                margin-top: 4px;
+            }
+
             @media print {
-                .print-buttons, .design-selector, .navbar, footer, .alert { display: none !important; }
+                .print-buttons, .design-selector, .navbar, footer, .alert, .review-modal { display: none !important; }
+            }
+
+            @media (max-width: 640px) {
+                .review-modal-header, .review-modal-body, .review-modal-actions {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                }
+                .review-btn { width: 100%; }
+                .star-row {
+                    justify-content: space-between;
+                }
             }
 
         </style>
@@ -913,7 +1112,159 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
                 </button>
         </div>
 
+        <div class="review-modal" id="reviewModal">
+            <div class="review-modal-card">
+                <div class="review-modal-header">
+                    <h3 class="review-modal-title">Rate Your Experience</h3>
+                    <p class="review-modal-subtitle">Share quick feedback about the generated paper.</p>
+                </div>
+                <div class="review-modal-body">
+                    <div class="star-row" id="starRow">
+                        <button type="button" class="star-btn" data-rating="1"><i class="fas fa-star"></i></button>
+                        <button type="button" class="star-btn" data-rating="2"><i class="fas fa-star"></i></button>
+                        <button type="button" class="star-btn" data-rating="3"><i class="fas fa-star"></i></button>
+                        <button type="button" class="star-btn" data-rating="4"><i class="fas fa-star"></i></button>
+                        <button type="button" class="star-btn" data-rating="5"><i class="fas fa-star"></i></button>
+                    </div>
+                    <textarea id="reviewFeedback" maxlength="1000" placeholder="How can we improve this paper generation experience?" oninput="updateReviewCharCount()"></textarea>
+                    <div class="review-char-count" id="reviewCharCount">0 / 1000</div>
+                    <?php if ($isLoggedIn): ?>
+                    <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="reviewAnonymous" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="reviewAnonymous" style="font-size: 0.9rem; color: #334155; cursor: pointer; font-weight: 600;">Post review anonymously</label>
+                    </div>
+                    <?php endif; ?>
+                    <div class="review-modal-message" id="reviewMessage"></div>
+                </div>
+                <div class="review-modal-actions">
+                    <button type="button" class="review-btn" onclick="closeReviewModal()">Skip</button>
+                    <button type="button" class="review-btn primary" id="submitReviewBtn" onclick="submitReview()">Submit Review</button>
+                </div>
+            </div>
+        </div>
+
     <script> 
+const hasAlreadyReviewedServer = <?= json_encode($hasAlreadyReviewed) ?>;
+const isLoggedIn = <?= json_encode($isLoggedIn) ?>;
+let selectedReviewRating = 0;
+
+function openReviewModal() {
+    const modal = document.getElementById('reviewModal');
+    if (modal) modal.classList.add('open');
+}
+
+function closeReviewModal() {
+    const modal = document.getElementById('reviewModal');
+    if (modal) modal.classList.remove('open');
+}
+
+function refreshReviewStars(hoverRating = 0) {
+    const displayRating = hoverRating || selectedReviewRating;
+    document.querySelectorAll('#starRow .star-btn').forEach(star => {
+        const val = Number(star.dataset.rating || 0);
+        star.classList.toggle('active', val <= displayRating);
+    });
+}
+
+function setReviewMessage(message, isSuccess = false) {
+    const node = document.getElementById('reviewMessage');
+    if (!node) return;
+    node.textContent = message;
+    node.classList.toggle('success', isSuccess);
+}
+
+function updateReviewCharCount() {
+    const feedbackEl = document.getElementById('reviewFeedback');
+    const countEl = document.getElementById('reviewCharCount');
+    if (!feedbackEl || !countEl) return;
+    const len = feedbackEl.value.length;
+    countEl.textContent = `${len} / 1000`;
+    countEl.style.color = len >= 900 ? '#b91c1c' : (len >= 750 ? '#b45309' : '#64748b');
+}
+
+async function submitReview() {
+    const feedbackEl = document.getElementById('reviewFeedback');
+    const submitBtn = document.getElementById('submitReviewBtn');
+    if (!feedbackEl || !submitBtn) return;
+
+    const feedback = feedbackEl.value.trim();
+    const anonCheckbox = document.getElementById('reviewAnonymous');
+    const isAnon = anonCheckbox ? (anonCheckbox.checked ? 1 : 0) : 1;
+
+    if (selectedReviewRating < 1 || selectedReviewRating > 5) {
+        setReviewMessage('Please select your star rating first.');
+        return;
+    }
+    if (feedback.length < 3) {
+        setReviewMessage('Please write your feedback in the textbox.');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    setReviewMessage('');
+
+    try {
+        const body = new URLSearchParams();
+        body.append('action', 'submit_site_review');
+        body.append('rating', selectedReviewRating.toString());
+        body.append('feedback', feedback);
+        body.append('is_anonymous', isAnon.toString());
+
+        const response = await fetch('generate_question_paper.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: body.toString()
+        });
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            setReviewMessage(data.message || 'Unable to submit review right now.');
+            submitBtn.disabled = false;
+            return;
+        }
+
+        localStorage.setItem('site_review_submitted', 'true');
+        localStorage.setItem('quiz_review_submitted', 'true');
+        if (!isLoggedIn) {
+            const guestReviews = JSON.parse(localStorage.getItem('guest_site_reviews') || '[]');
+            guestReviews.push({
+                rating: selectedReviewRating,
+                feedback: feedback,
+                source_page: 'generate_question_paper',
+                date: new Date().toISOString()
+            });
+            localStorage.setItem('guest_site_reviews', JSON.stringify(guestReviews));
+        }
+
+        setReviewMessage('Thank you for your feedback!', true);
+        setTimeout(() => closeReviewModal(), 900);
+    } catch (error) {
+        setReviewMessage('Network issue. Please try again.');
+        submitBtn.disabled = false;
+    }
+}
+
+document.querySelectorAll('#starRow .star-btn').forEach(star => {
+    star.addEventListener('click', function () {
+        selectedReviewRating = Number(this.dataset.rating || 0);
+        refreshReviewStars();
+        setReviewMessage('');
+    });
+    star.addEventListener('mouseenter', function () {
+        refreshReviewStars(Number(this.dataset.rating || 0));
+    });
+    star.addEventListener('mouseleave', function () {
+        refreshReviewStars();
+    });
+});
+
+window.addEventListener('load', () => {
+    updateReviewCharCount();
+    const hasReviewedLocally = localStorage.getItem('site_review_submitted') === 'true' || localStorage.getItem('quiz_review_submitted') === 'true';
+    if (!hasAlreadyReviewedServer && !hasReviewedLocally) {
+        setTimeout(() => openReviewModal(), 3000);
+    }
+});
+
 function makeEditable(button) {
     const listItem = button.closest('li');
     // Find all question text spans within the list item

@@ -3,6 +3,87 @@ if (session_status() === PHP_SESSION_NONE) session_start(); // Must be the very 
 include '../db_connect.php';
 require_once 'mcq_generator.php';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $rawInput = file_get_contents('php://input');
+    $jsonInput = json_decode($rawInput, true);
+    $action = $_POST['action'] ?? ($jsonInput['action'] ?? '');
+
+    if ($action === 'submit_quiz_review') {
+        header('Content-Type: application/json');
+
+        $rating = intval($_POST['rating'] ?? ($jsonInput['rating'] ?? 0));
+        $feedback = trim((string)($_POST['feedback'] ?? ($jsonInput['feedback'] ?? '')));
+
+        if ($rating < 1 || $rating > 5) {
+            http_response_code(422);
+            echo json_encode(['status' => 'error', 'message' => 'Please select a valid rating.']);
+            exit;
+        }
+
+        if ($feedback === '' || strlen($feedback) < 3) {
+            http_response_code(422);
+            echo json_encode(['status' => 'error', 'message' => 'Please share your feedback in the textbox.']);
+            exit;
+        }
+
+        $feedback = substr($feedback, 0, 1000);
+        $isLoggedIn = isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0;
+        $isAnonymousRequested = intval($jsonInput['is_anonymous'] ?? 0) === 1;
+
+        $userId = $isLoggedIn ? intval($_SESSION['user_id']) : null;
+        $isAnonymous = ($isLoggedIn && !$isAnonymousRequested) ? 0 : 1;
+        $reviewerName = ($isLoggedIn && !$isAnonymousRequested) ? trim((string)($_SESSION['name'] ?? 'User')) : 'Anonymous User';
+        $reviewerEmail = ($isLoggedIn && !$isAnonymousRequested) ? trim((string)($_SESSION['email'] ?? '')) : null;
+
+        $stmt = $conn->prepare("INSERT INTO user_reviews (user_id, reviewer_name, reviewer_email, rating, feedback, source_page, is_anonymous) VALUES (?, ?, ?, ?, ?, 'quiz', ?)");
+        if (!$stmt) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Unable to save feedback right now.']);
+            exit;
+        }
+
+        $stmt->bind_param('issisi', $userId, $reviewerName, $reviewerEmail, $rating, $feedback, $isAnonymous);
+        $saved = $stmt->execute();
+        $stmt->close();
+
+        if (!$saved) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Unable to save feedback right now.']);
+            exit;
+        }
+
+        $_SESSION['quiz_review_submitted'] = true;
+        $_SESSION['site_review_submitted'] = true;
+
+        echo json_encode(['status' => 'success', 'message' => 'Thank you for your review.']);
+        exit;
+    }
+}
+
+
+// Check if user has already reviewed
+$isLoggedIn = isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0;
+$hasAlreadyReviewed = false;
+if ($isLoggedIn) {
+    if (
+        (isset($_SESSION['quiz_review_submitted']) && $_SESSION['quiz_review_submitted'] === true) ||
+        (isset($_SESSION['site_review_submitted']) && $_SESSION['site_review_submitted'] === true)
+    ) {
+        $hasAlreadyReviewed = true;
+    } else {
+        $stmt = $conn->prepare("SELECT id FROM user_reviews WHERE user_id = ? LIMIT 1");
+        $stmt->bind_param('i', $_SESSION['user_id']);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result && $result->num_rows > 0) {
+            $hasAlreadyReviewed = true;
+            $_SESSION['quiz_review_submitted'] = true;
+            $_SESSION['site_review_submitted'] = true;
+        }
+        $stmt->close();
+    }
+}
+
 
 // Validate POST or GET data (GET for topic-based redirects)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -707,6 +788,133 @@ if (is_dir($incorrectDir)) {
         }
 
         .hidden { display: none !important; }
+
+        .review-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 18px;
+        }
+        .review-modal.open { display: flex; }
+        .review-modal-card {
+            width: 100%;
+            max-width: 560px;
+            background: #ffffff;
+            border-radius: 20px;
+            border: 1px solid #dbe3ef;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+            overflow: hidden;
+        }
+        .review-modal-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: #ffffff;
+            padding: 24px 26px 20px;
+        }
+        .review-modal-title {
+            margin: 0 0 8px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            line-height: 1.2;
+        }
+        .review-modal-subtitle {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #eef2ff;
+        }
+        .review-modal-body {
+            padding: 24px 26px 10px;
+        }
+        .star-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .star-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #94a3b8;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        }
+        .star-btn:hover {
+            transform: translateY(-1px);
+            border-color: #f59e0b;
+            color: #f59e0b;
+            background: #fff7ed;
+        }
+        .star-btn.active {
+            border-color: #f59e0b;
+            background: #fff7ed;
+            color: #f59e0b;
+        }
+        .review-modal textarea {
+            width: 100%;
+            min-height: 125px;
+            border-radius: 12px;
+            border: 1px solid #cbd5e1;
+            padding: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            color: #0f172a;
+            resize: vertical;
+            outline: none;
+        }
+        .review-modal textarea:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+        }
+        .review-modal-message {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            min-height: 24px;
+        }
+        .review-modal-message.error { color: #b91c1c; }
+        .review-modal-message.success { color: #166534; }
+        .review-modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding: 0 26px 24px;
+            flex-wrap: wrap;
+        }
+        .review-modal-actions .btn-quiz {
+            min-width: 130px;
+            justify-content: center;
+        }
+
+        @media (max-width: 640px) {
+            .review-modal-card {
+                border-radius: 18px;
+            }
+            .review-modal-header,
+            .review-modal-body,
+            .review-modal-actions {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+            .review-modal-actions {
+                justify-content: stretch;
+            }
+            .review-modal-actions .btn-quiz {
+                width: 100%;
+            }
+            .star-row {
+                justify-content: space-between;
+            }
+            .star-btn {
+                width: 44px;
+                height: 44px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -796,6 +1004,39 @@ if (is_dir($incorrectDir)) {
         </div>
     </div>
 
+    <div class="review-modal" id="reviewModal">
+        <div class="review-modal-card">
+            <div class="review-modal-header">
+                <h3 class="review-modal-title">Rate Your Quiz Experience</h3>
+                <p class="review-modal-subtitle">Your review helps us improve the platform for students and teachers.</p>
+            </div>
+            <div class="review-modal-body">
+                <div class="star-row" id="starRow">
+                    <button type="button" class="star-btn" data-rating="1"><i class="fas fa-star"></i></button>
+                    <button type="button" class="star-btn" data-rating="2"><i class="fas fa-star"></i></button>
+                    <button type="button" class="star-btn" data-rating="3"><i class="fas fa-star"></i></button>
+                    <button type="button" class="star-btn" data-rating="4"><i class="fas fa-star"></i></button>
+                    <button type="button" class="star-btn" data-rating="5"><i class="fas fa-star"></i></button>
+                </div>
+                <textarea id="reviewFeedback" maxlength="1000" placeholder="Share your experience about this quiz..." oninput="updateCharCount()"></textarea>
+                <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+                    <span id="charCount" style="font-size: 0.75rem; color: #94a3b8; font-weight: 500;">0 / 1000</span>
+                </div>
+                <?php if ($isLoggedIn): ?>
+                <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="reviewAnonymous" style="width: 18px; height: 18px; cursor: pointer;">
+                    <label for="reviewAnonymous" style="font-size: 0.9rem; color: #334155; cursor: pointer; font-weight: 600;">Post review anonymously</label>
+                </div>
+                <?php endif; ?>
+                <div class="review-modal-message" id="reviewMessage"></div>
+            </div>
+            <div class="review-modal-actions">
+                <button type="button" class="btn-quiz outline" onclick="closeReviewModal()">Skip</button>
+                <button type="button" class="btn-quiz primary" id="submitReviewBtn" onclick="submitReview()">Submit Review</button>
+            </div>
+        </div>
+    </div>
+
     <!-- BOTTOM AD BANNER -->
     <div style="margin-top: 30px;">
         <?= renderAd('banner', 'Quiz Page Bottom Banner') ?>
@@ -809,6 +1050,8 @@ FunnyAudioManager.setBasePath('<?= $assetBase ?>');
 
 // ─── Data ──────────────────────────────────────────────────────────
 const questions = <?= json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const hasAlreadyReviewedServer = <?= json_encode($hasAlreadyReviewed) ?>;
+const isLoggedIn = <?= json_encode($isLoggedIn) ?>;
 let currentQuestion = 0;
 let score = 0;
 let answers = [];
@@ -816,6 +1059,8 @@ let startTime = Date.now();
 let questionStartTime = Date.now();
 let quizStarted = false;
 let quizCompleted = false;
+let selectedReviewRating = 0;
+let reviewPopupShown = false;
 
 // Funny Mode Sounds
 const funnySounds = {
@@ -1237,6 +1482,115 @@ function showResults() {
             </div>
         `;
     }).join('');
+
+    const hasReviewedLocally = localStorage.getItem('site_review_submitted') === 'true' || localStorage.getItem('quiz_review_submitted') === 'true';
+    
+    if (!reviewPopupShown && !hasAlreadyReviewedServer && !hasReviewedLocally) {
+        reviewPopupShown = true;
+        setTimeout(() => {
+            openReviewModal();
+        }, 800);
+    }
+}
+
+function openReviewModal() {
+    const modal = document.getElementById('reviewModal');
+    if (!modal) return;
+    modal.classList.add('open');
+}
+
+function closeReviewModal() {
+    const modal = document.getElementById('reviewModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+}
+
+function refreshStars(hoverRating = 0) {
+    const stars = document.querySelectorAll('#starRow .star-btn');
+    stars.forEach(star => {
+        const val = Number(star.dataset.rating || 0);
+        const displayRating = hoverRating || selectedReviewRating;
+        star.classList.toggle('active', val <= displayRating);
+    });
+}
+
+function updateCharCount() {
+    const textarea = document.getElementById('reviewFeedback');
+    const countEl = document.getElementById('charCount');
+    if (!textarea || !countEl) return;
+    const len = textarea.value.length;
+    countEl.textContent = `${len} / 1000`;
+    countEl.style.color = len >= 900 ? '#dc2626' : (len >= 750 ? '#f59e0b' : '#94a3b8');
+}
+
+function setReviewMessage(message, isSuccess = false) {
+    const messageEl = document.getElementById('reviewMessage');
+    if (!messageEl) return;
+    messageEl.className = 'review-modal-message ' + (isSuccess ? 'success' : 'error');
+    messageEl.textContent = message;
+}
+
+async function submitReview() {
+    const feedbackEl = document.getElementById('reviewFeedback');
+    const submitBtn = document.getElementById('submitReviewBtn');
+    const anonCheckbox = document.getElementById('reviewAnonymous');
+    if (!feedbackEl || !submitBtn) return;
+
+    const feedback = feedbackEl.value.trim();
+    const isAnon = anonCheckbox ? (anonCheckbox.checked ? 1 : 0) : 1;
+
+    if (selectedReviewRating < 1 || selectedReviewRating > 5) {
+        setReviewMessage('Please select your star rating first.');
+        return;
+    }
+    if (feedback.length < 3) {
+        setReviewMessage('Please write your feedback in the textbox.');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    setReviewMessage('');
+
+    try {
+        const response = await fetch('quiz.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'submit_quiz_review',
+                rating: selectedReviewRating,
+                feedback: feedback,
+                is_anonymous: isAnon
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            setReviewMessage(data.message || 'Unable to submit review right now.');
+            submitBtn.disabled = false;
+            return;
+        }
+
+        localStorage.setItem('site_review_submitted', 'true');
+        localStorage.setItem('quiz_review_submitted', 'true');
+
+        if (!isLoggedIn) {
+            let guestReviews = JSON.parse(localStorage.getItem('guest_site_reviews') || '[]');
+            guestReviews.push({
+                rating: selectedReviewRating,
+                feedback: feedback,
+                source_page: 'quiz',
+                date: new Date().toISOString()
+            });
+            localStorage.setItem('guest_site_reviews', JSON.stringify(guestReviews));
+        }
+
+        setReviewMessage('Thank you for your feedback!', true);
+        setTimeout(() => {
+            closeReviewModal();
+        }, 900);
+    } catch (error) {
+        setReviewMessage('Network issue. Please try again.');
+        submitBtn.disabled = false;
+    }
 }
 
 // ─── Navigation Guards ─────────────────────────────────────────────
@@ -1262,6 +1616,19 @@ document.addEventListener('keydown', e => {
     if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) e.preventDefault();
 });
 document.addEventListener('contextmenu', e => e.preventDefault());
+document.querySelectorAll('#starRow .star-btn').forEach(star => {
+    star.addEventListener('click', function () {
+        selectedReviewRating = Number(this.dataset.rating || 0);
+        refreshStars();
+        setReviewMessage('');
+    });
+    star.addEventListener('mouseenter', function() {
+        refreshStars(Number(this.dataset.rating));
+    });
+    star.addEventListener('mouseleave', function() {
+        refreshStars();
+    });
+});
 
 // ─── Start ─────────────────────────────────────────────────────────
 quizStarted = true;
