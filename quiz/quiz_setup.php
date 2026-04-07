@@ -23,7 +23,7 @@ include '../db_connect.php';
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://ahmadlearninghub.com.pk/quiz/quiz_setup.php">
+    <meta property="og:url" content="https://ahmadlearninghub.com.pk/online-mcqs-test-for-9th-and-10th-board-exams">
     <meta property="og:title" content="Online MCQs Test For 9th and 10th Board Exams - Ahmad Learning Hub">
     <meta property="og:description" content="Generate 100% accurate MCQs based on the latest 2026 syllabus using advanced AI. All subjects covered - science and arts.">
     <meta property="og:image" content="https://ahmadlearninghub.com.pk/assets/images/quiz-og.jpg">
@@ -55,7 +55,7 @@ include '../db_connect.php';
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://paper.bhattichemicalsindustry.com.pk/quiz/quiz_setup.php">
+    <meta property="twitter:url" content="https://paper.bhattichemicalsindustry.com.pk/online-mcqs-test-for-9th-and-10th-board-exams">
     <meta property="twitter:title" content="Online MCQs Test For 9th and 10th Board Exams - Ahmad Learning Hub">
     <meta property="twitter:description" content="Tailor your study sessions with our advanced MCQ generator. Practice by class, book, or specific chapters.">
     <meta property="twitter:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-og.jpg">
@@ -108,7 +108,7 @@ include '../db_connect.php';
                         <select id="book_id" name="book_id" required disabled>
                             <option value="">Select a book</option>
                         </select>
-                        <button type="button" class="btn topic-btn" onclick="window.location.href='mcqs_topic.php'">Topic</button>
+                        <button type="button" class="btn topic-btn" onclick="window.location.href='topic-wise-mcqs-test'">Topic</button>
                     </div>
                     <div class="hint">Books are filtered by class.</div>
                 </div>

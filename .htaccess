@@ -21,6 +21,18 @@ Options -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Specific SEO rule for quiz_setup.php
+    RewriteCond %{THE_REQUEST} /quiz/quiz_setup\.php [NC,OR]
+    RewriteCond %{THE_REQUEST} /quiz_setup [NC]
+    RewriteRule ^(quiz/)?quiz_setup(\.php)?$ /online-mcqs-test-for-9th-and-10th-board-exams [R=301,L]
+    RewriteRule ^online-mcqs-test-for-9th-and-10th-board-exams/?$ quiz/quiz_setup.php [NC,L]
+
+    # Specific SEO rule for mcqs_topic.php
+    RewriteCond %{THE_REQUEST} /quiz/mcqs_topic\.php [NC,OR]
+    RewriteCond %{THE_REQUEST} /mcqs_topic [NC]
+    RewriteRule ^(quiz/)?mcqs_topic(\.php)?$ /topic-wise-mcqs-test [R=301,L]
+    RewriteRule ^topic-wise-mcqs-test/?$ quiz/mcqs_topic.php [NC,L]
+
     # 1. Map root-level requests to 'quiz/' folder
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
@@ -66,6 +78,17 @@ Options -Indexes
 
     # Specific SEO rule for select_book.php (per class)
     RewriteRule ^class-([0-9]+)-online-question-paper-generator/?$ select_book.php?class_id=$1 [QSA,NC,L]
+
+    # Specific SEO rule for AI Topic Paper Generator (questionPaperFromTopic/home.php)
+    RewriteCond %{THE_REQUEST} /questionPaperFromTopic/home\.php [NC]
+    RewriteRule ^questionPaperFromTopic/home\.php$ /online-question-paper-generator [R=301,L]
+    RewriteRule ^online-question-paper-generator/?$ questionPaperFromTopic/home.php [NC,L]
+
+    # Specific SEO rules for AI Topic Paper Finalizer (questionPaperFromTopic/finalize_paper.php)
+    RewriteRule ^online-mcqs-question-paper-generator/?$ questionPaperFromTopic/finalize_paper.php [NC,L]
+    RewriteRule ^online-short-question-paper-generator/?$ questionPaperFromTopic/finalize_paper.php [NC,L]
+    RewriteRule ^online-long-question-paper-generator/?$ questionPaperFromTopic/finalize_paper.php [NC,L]
+    RewriteRule ^online-mcqs-short-and-long-question-paper-generator/?$ questionPaperFromTopic/finalize_paper.php [NC,L]
 
     # 6. Handle SEO pattern for MCQs page
     # Matches patterns like: mcqs/9th-class/physics

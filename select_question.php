@@ -212,6 +212,9 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
 
 <meta name="keywords" content="<?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> paper generator, mcqs paper maker, chapter wise paper generator, short questions long questions generator, Punjab Board test setter">
 
+<!-- monetag vegenate Banner -->
+<script>(function(s){s.dataset.zone='10835874',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<!-- monetag vegenate Banner -->
 
 <title><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> Paper Generator | MCQs & Questions</title>
 
@@ -239,6 +242,8 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
     <!-- SIDE SKYSCRAPER ADS -->
     <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
 
+
+   
 <div class="question-container">
     <h3>Generate Question Paper for Book: <?= htmlspecialchars($book_name) ?> (<?= htmlspecialchars($className) ?>)</h3>
     
@@ -511,6 +516,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
         background: white;
         border-radius: 8px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        margin-top: 20%;
     }
 
     @media (max-width: 768px) {
@@ -519,6 +525,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
             min-width: 95%;
             padding: 15px;
             margin: 5% auto;
+            margin-top: 50%;
         }
     }
     .topic_btn {

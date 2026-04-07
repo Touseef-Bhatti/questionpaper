@@ -85,7 +85,7 @@ Generator MCQs tests, school exams, and practice papers instantly or attempt onl
                     <?= htmlspecialchars($row['class_name']); ?>
                 </div>
             <?php } ?>
-            <div class="class-box other-class-box" onclick="window.location.href = 'questionPaperFromTopic/home.php'">
+            <div class="class-box other-class-box" onclick="window.location.href = 'online-question-paper-generator'">
               College & University
             </div>
         </div>

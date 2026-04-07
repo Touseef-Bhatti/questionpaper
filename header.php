@@ -24,7 +24,7 @@ if (!function_exists('is_active')) {
 }
 
 // Special check for Generate Paper dropdown
-$gen_paper_pages = ['select_class.php', 'select_book.php', 'select_chapters.php', 'mcqs_topic.php', 'quiz_setup.php', 'online_quiz_host', 'online_quiz_lobby.php', 'quiz.php'];
+$gen_paper_pages = ['select_class.php', 'select_book.php', 'select_chapters.php', 'topic-wise-mcqs-test', 'quiz_setup.php', 'online_quiz_host', 'online_quiz_lobby.php', 'quiz.php'];
 $is_gen_paper_active = false;
 foreach ($gen_paper_pages as $p) {
     if (strpos($current_page, $p) !== false) {
@@ -368,7 +368,7 @@ foreach ($gen_paper_pages as $p) {
     color: var(--text-primary);
     padding: 0.7rem 0;
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-    position: sticky;
+    position: fixed;
     top: 0;
     z-index: 1000;
     border-bottom: 1px solid rgba(255, 255, 255, 0.18);
@@ -1263,7 +1263,7 @@ html.dark-mode .user-header-info .text-muted {
         <div class="dropdown-content">
              <a href="<?= $assetBase ?>class-9th-and-10th-online-question-paper-generator" class="<?= is_active('select_class.php') ?>"><i class="fas fa-file-alt"></i> Create Question Paper</a>
           <a href="<?= $assetBase ?>online_quiz_host_new" class="<?= is_active('online_quiz_host_new.php') ?>"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
-          <a href="<?= $assetBase ?>quiz_setup" class="<?= is_active('quiz_setup.php') ?>"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
+          <a href="<?= $assetBase ?>online-mcqs-test-for-9th-and-10th-board-exams" class="<?= is_active('quiz_setup.php') ?>"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
           <a href="<?= $assetBase ?>online_quiz_join" class="<?= is_active('online_quiz_join.php') ?>"><i class="fas fa-gamepad"></i> Join Quiz</a>
         </div>
       </li>

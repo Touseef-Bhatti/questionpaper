@@ -22,56 +22,96 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $email = $_POST["email"] ?? '';
     $password = $_POST["password"] ?? '';
 
-    // Prepared statement with mysqli
-    if ($stmt = $conn->prepare("SELECT id, name, email, password FROM users WHERE email = ? LIMIT 1")) {
-        $stmt->bind_param('s', $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $user = $result ? $result->fetch_assoc() : null;
-        $stmt->close();
+    // Create login_attempts table if not exists
+    $conn->query("CREATE TABLE IF NOT EXISTS login_attempts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(191) NOT NULL,
+        attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_email_time (email, attempted_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-        if ($user && isset($user["password"]) && password_verify($password, $user["password"])) {
-            // Regenerate session to prevent session fixation
-            session_regenerate_id(true);
+    // Check rate limit: max 5 failed attempts per hour
+    $stmt_rl = $conn->prepare("SELECT COUNT(*) AS cnt FROM login_attempts WHERE email = ? AND attempted_at > (NOW() - INTERVAL 1 HOUR)");
+    if ($stmt_rl) {
+        $stmt_rl->bind_param('s', $email);
+        $stmt_rl->execute();
+        $res_rl = $stmt_rl->get_result();
+        $row_rl = $res_rl->fetch_assoc();
+        $failed_attempts = (int)($row_rl['cnt'] ?? 0);
+        $stmt_rl->close();
 
-            // Store session data
-            $_SESSION["user_id"] = $user["id"];
-            $_SESSION["name"] = $user["name"];
-            $_SESSION["email"] = $user["email"];
-            // Normal site users don't use role; set a default
-            $_SESSION["role"] = $_SESSION["role"] ?? 'user';
-            
-            // Auto-cleanup expired subscriptions on login
-            try {
-                $subService = new SubscriptionService($conn);
-                $subService->cleanupExpiredSubscriptions($user["id"]);
-            } catch (Exception $e) {
-                // Log the error but don't block login
-                error_log('Subscription cleanup error during login: ' . $e->getMessage());
-            }
-            
-            // Handle remember me functionality
-            if (isset($_POST['remember_me']) && $_POST['remember_me']) {
-                // Set cookies for 30 days
-                $expiry = time() + (30 * 24 * 60 * 60);
-                setcookie('remember_email', $email, $expiry, '/', '', true, true);
-                setcookie('remember_user', $user['name'], $expiry, '/', '', true, true);
-            } else {
-                // Clear remember me cookies if unchecked
-                setcookie('remember_email', '', time() - 3600, '/', '', true, true);
-                setcookie('remember_user', '', time() - 3600, '/', '', true, true);
-            }
-
-            // Redirect to intended page or default to site root index.php
-            $redirectTo = $_SESSION['redirect_after_login'] ?? '../index.php';
-            unset($_SESSION['redirect_after_login']); // Clean up the redirect session variable
-            header("Location: " . $redirectTo);
-            exit;
-        } else {
-            $error = "Invalid email or password";
+        if ($failed_attempts >= 5) {
+            $error = "Too many tries try again later";
         }
-    } else {
-        $error = "Login unavailable. Please try again later.";
+    }
+
+    if ($error === '') {
+        // Prepared statement with mysqli
+        if ($stmt = $conn->prepare("SELECT id, name, email, password FROM users WHERE email = ? LIMIT 1")) {
+            $stmt->bind_param('s', $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $user = $result ? $result->fetch_assoc() : null;
+            $stmt->close();
+
+            if ($user && isset($user["password"]) && password_verify($password, $user["password"])) {
+                // Login successful - clear attempts
+                $stmt_clear = $conn->prepare("DELETE FROM login_attempts WHERE email = ?");
+                if ($stmt_clear) {
+                    $stmt_clear->bind_param('s', $email);
+                    $stmt_clear->execute();
+                    $stmt_clear->close();
+                }
+
+                // Regenerate session to prevent session fixation
+                session_regenerate_id(true);
+
+                // Store session data
+                $_SESSION["user_id"] = $user["id"];
+                $_SESSION["name"] = $user["name"];
+                $_SESSION["email"] = $user["email"];
+                // Normal site users don't use role; set a default
+                $_SESSION["role"] = $_SESSION["role"] ?? 'user';
+                
+                // Auto-cleanup expired subscriptions on login
+                try {
+                    $subService = new SubscriptionService($conn);
+                    $subService->cleanupExpiredSubscriptions($user["id"]);
+                } catch (Exception $e) {
+                    // Log the error but don't block login
+                    error_log('Subscription cleanup error during login: ' . $e->getMessage());
+                }
+                
+                // Handle remember me functionality
+                if (isset($_POST['remember_me']) && $_POST['remember_me']) {
+                    // Set cookies for 30 days
+                    $expiry = time() + (30 * 24 * 60 * 60);
+                    setcookie('remember_email', $email, $expiry, '/', '', true, true);
+                    setcookie('remember_user', $user['name'], $expiry, '/', '', true, true);
+                } else {
+                    // Clear remember me cookies if unchecked
+                    setcookie('remember_email', '', time() - 3600, '/', '', true, true);
+                    setcookie('remember_user', '', time() - 3600, '/', '', true, true);
+                }
+
+                // Redirect to intended page or default to site root index.php
+                $redirectTo = $_SESSION['redirect_after_login'] ?? '../index.php';
+                unset($_SESSION['redirect_after_login']); // Clean up the redirect session variable
+                header("Location: " . $redirectTo);
+                exit;
+            } else {
+                // Login failed - record attempt
+                $stmt_record = $conn->prepare("INSERT INTO login_attempts (email) VALUES (?)");
+                if ($stmt_record) {
+                    $stmt_record->bind_param('s', $email);
+                    $stmt_record->execute();
+                    $stmt_record->close();
+                }
+                $error = "Invalid email or password";
+            }
+        } else {
+            $error = "Login unavailable. Please try again later.";
+        }
     }
 }
 ?>

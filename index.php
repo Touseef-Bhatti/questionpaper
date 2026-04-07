@@ -93,13 +93,13 @@ function homeReviewStars(int $rating): string {
                 </p>
 
                 <div class="hero-prep-grid">
-                    <a href="class-9-online-question-paper-generator" class="hero-prep-card">
+                    <a href="class-9th-and-10th-online-question-paper-generator" class="hero-prep-card">
                         <span class="hero-prep-icon"><i class="fas fa-graduation-cap"></i></span>
                         <h3>Class 9 Exam Preparation</h3>
                         <p>Generate chapter-wise tests and build strong fundamentals with exam-style practice.</p>
                         <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="class-10-online-question-paper-generator" class="hero-prep-card">
+                    <a href="class-9th-and-10th-online-question-paper-generator" class="hero-prep-card">
                         <span class="hero-prep-icon"><i class="fas fa-award"></i></span>
                         <h3>Class 10 Exam Preparation</h3>
                         <p>Practice model papers, short questions, long questions, and final revision tests.</p>
@@ -117,13 +117,13 @@ function homeReviewStars(int $rating): string {
                         <p>Prepare with board-oriented formats, realistic paper structure, and balanced difficulty.</p>
                         <span class="prep-card-cta">Generate Paper <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="home" class="hero-prep-card bypass-user-type">
+                    <a href="online-question-paper-generator" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-university"></i></span>
                         <h3>College & University Exams</h3>
                         <p>Create professional tests for intermediate, college, and university exam preparation.</p>
                         <span class="prep-card-cta">Get Started <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="mcqs_topic" class="hero-prep-card bypass-user-type">
+                    <a href="topic-wise-mcqs-test" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-brain"></i></span>
                         <h3>MCQs Practice Hub</h3>
                         <p>Practice objective questions regularly to improve speed, accuracy, and confidence.</p>
@@ -133,12 +133,12 @@ function homeReviewStars(int $rating): string {
 
                 <ul class="hero-keywords" aria-label="Popular exam preparation topics">
                     <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-book-open"></i> Exam Preparation</a></li>
-                    <li><a href="class-9-online-question-paper-generator"><i class="fas fa-school"></i> Class 9 Exam Preparation</a></li>
-                    <li><a href="class-10-online-question-paper-generator"><i class="fas fa-graduation-cap"></i> Class 10 Exam Preparation</a></li>
+                    <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-school"></i> Class 9 Exam Preparation</a></li>
+                    <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-graduation-cap"></i> Class 10 Exam Preparation</a></li>
                     <li><a href="quiz_setup"><i class="fas fa-check-circle"></i> Class 9 & 10 MCQs Preparation</a></li>
                     <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-file-alt"></i> Board Exam Preparation</a></li>
-                    <li><a href="home" class="bypass-user-type"><i class="fas fa-university"></i> College University Exam Preparation</a></li>
-                    <li><a href="mcqs_topic" class="bypass-user-type"><i class="fas fa-pencil-alt"></i> MCQs Practice</a></li>
+                    <li><a href="online-question-paper-generator" class="bypass-user-type"><i class="fas fa-university"></i> College University Exam Preparation</a></li>
+                    <li><a href="topic-wise-mcqs-test" class="bypass-user-type"><i class="fas fa-pencil-alt"></i> MCQs Practice</a></li>
                 </ul>
             </div>
         </div>

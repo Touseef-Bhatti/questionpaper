@@ -877,9 +877,26 @@ window.finalizePaper = () => {
         );
     }
 
+    const mcqs  = selectionMatrix.mcqs.size;
+    const short = selectionMatrix.short.size;
+    const long  = selectionMatrix.long.size;
+
+    let finalAction = 'finalize_paper.php'; // Default
+
+    if (mcqs > 0 && short === 0 && long === 0) {
+        finalAction = 'online-mcqs-question-paper-generator';
+    } else if (mcqs === 0 && short > 0 && long === 0) {
+        finalAction = 'online-short-question-paper-generator';
+    } else if (mcqs === 0 && short === 0 && long > 0) {
+        finalAction = 'online-long-question-paper-generator';
+    } else if (mcqs > 0 || short > 0 || long > 0) {
+        // Any combination of more than one type or all three
+        finalAction = 'online-mcqs-short-and-long-question-paper-generator';
+    }
+
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = 'finalize_paper.php';
+    form.action = finalAction;
 
     ['mcqs', 'short', 'long'].forEach(type => {
         selectionMatrix[type].forEach(t => {

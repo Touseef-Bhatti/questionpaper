@@ -144,7 +144,7 @@
 
     function setupLinkInterception() {
         document.body.addEventListener('click', function(e) {
-            const link = e.target.closest('a[href*="select_class"], a[href*="quiz_setup"], a[href*="mcqs_topic"], a[href*="home"]');
+            const link = e.target.closest('a[href*="select_class"], a[href*="quiz_setup"], a[href*="mcqs_topic"], a[href*="online-question-paper-generator"], a[href*="online-mcqs-test-for-9th-and-10th-board-exams"], a[href*="topic-wise-mcqs-test"]');
             
             if (link) {
                 const userType = localStorage.getItem('user_type_preference');
@@ -197,7 +197,7 @@
     function updateLinks(type) {
         // Only target links in nav and footer to minimize iteration
         // Also target links that explicitly point to our target files
-        const links = document.querySelectorAll('nav a, footer a, a[href*="select_class"], a[href*="quiz_setup"], a[href*="mcqs_topic"], a[href*="home"]');
+        const links = document.querySelectorAll('nav a, footer a, a[href*="select_class"], a[href*="quiz_setup"], a[href*="mcqs_topic"], a[href*="online-question-paper-generator"], a[href*="online-mcqs-test-for-9th-and-10th-board-exams"], a[href*="topic-wise-mcqs-test"]');
         
         // Batch the updates to avoid layout thrashing
         const updates = [];
@@ -213,18 +213,35 @@
             const targetQuizSetup = 'quiz_setup.php';
 
             if (type === 'Other') {
-                // Change 'Select Class' to 'Home' (AI Generator) and 'Quiz Setup' to 'MCQs Topic'
-                if (href.includes('select_class')) {
-                    updates.push(() => { link.href = link.href.replace('select_class', 'home'); });
-                } else if (href.includes('quiz_setup')) {
-                    updates.push(() => { link.href = link.href.replace('quiz_setup', 'mcqs_topic'); });
+                // Change 'Select Class' to 'Online Question Paper Generator' (AI Generator) and 'Quiz Setup' to 'MCQs Topic'
+                if (href.includes('class-9th-and-10th-online-question-paper-generator')) {
+                    updates.push(() => { link.href = link.href.replace('class-9th-and-10th-online-question-paper-generator', 'online-question-paper-generator'); });
+                } else if (href.includes('select_class.php')) {
+                    updates.push(() => { link.href = link.href.replace('select_class.php', 'online-question-paper-generator'); });
+                } else if (href.includes('select_class')) {
+                    updates.push(() => { link.href = link.href.replace('select_class', 'online-question-paper-generator'); });
+                }
+                
+                if (href.includes('quiz_setup')) {
+                    updates.push(() => { link.href = link.href.replace('quiz_setup', 'topic-wise-mcqs-test'); });
+                } else if (href.includes('online-mcqs-test-for-9th-and-10th-board-exams')) {
+                    updates.push(() => { link.href = link.href.replace('online-mcqs-test-for-9th-and-10th-board-exams', 'topic-wise-mcqs-test'); });
+                } else if (href.includes('mcqs_topic')) {
+                    updates.push(() => { link.href = link.href.replace('mcqs_topic', 'topic-wise-mcqs-test'); });
                 }
             } else if (type === 'School') {
-                // Change 'Home' (AI Generator) back to 'Select Class' and 'MCQs Topic' back to 'Quiz Setup'
-                if (href.includes('home')) {
-                    updates.push(() => { link.href = link.href.replace('home', 'select_class'); });
+                // Change 'Online Question Paper Generator' (AI Generator) back to 'Select Class' and 'MCQs Topic' back to the Quiz SEO slug
+                // BUT carefully handle the class-specific SEO URL
+                if (href.endsWith('online-question-paper-generator') && !href.includes('class-9th-and-10th-')) {
+                    updates.push(() => { link.href = link.href.replace('online-question-paper-generator', 'class-9th-and-10th-online-question-paper-generator'); });
+                } else if (href.includes('select_class.php')) {
+                    updates.push(() => { link.href = link.href.replace('select_class.php', 'class-9th-and-10th-online-question-paper-generator'); });
+                } else if (href.includes('select_class')) {
+                    updates.push(() => { link.href = link.href.replace('select_class', 'class-9th-and-10th-online-question-paper-generator'); });
                 } else if (href.includes('mcqs_topic')) {
-                    updates.push(() => { link.href = link.href.replace('mcqs_topic', 'quiz_setup'); });
+                    updates.push(() => { link.href = link.href.replace('mcqs_topic', 'online-mcqs-test-for-9th-and-10th-board-exams'); });
+                } else if (href.includes('topic-wise-mcqs-test')) {
+                    updates.push(() => { link.href = link.href.replace('topic-wise-mcqs-test', 'online-mcqs-test-for-9th-and-10th-board-exams'); });
                 }
             }
         });

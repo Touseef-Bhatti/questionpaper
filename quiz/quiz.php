@@ -113,7 +113,7 @@ $hasTopics = !empty($topics) || !empty($topic);
 $hasClassBook = ($class_id > 0 && $book_id > 0);
 
 if (!$hasTopics && !$hasClassBook) {
-    die('<h2 style="color:red;">Invalid quiz parameters. Please select a filter criteria.</h2>');
+    die('<h2 style="color:red; text-align:center; margin-top:50px;">Invalid quiz parameters. Redirecting to setup...</h2><script>setTimeout(() => { window.location.href = "online-mcqs-test-for-9th-and-10th-board-exams"; }, 2500);</script>'); 
 }
 
 // Build WHERE clause based on filters
@@ -325,6 +325,7 @@ if (is_dir($incorrectDir)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz - <?= htmlspecialchars($book_name) ?> | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -339,13 +340,14 @@ if (is_dir($incorrectDir)) {
 
         /* ─── Quiz Wrapper ────────────────────────────────────── */
         .quiz-container {
-            max-width: 820px;
+            max-width: 60%;
             margin: 0 auto;
             background: #fff;
             border-radius: 28px;
             box-shadow: 0 20px 60px -10px rgba(79,70,229,0.15);
             overflow: hidden;
             border: 1px solid #e2e8f0;
+            margin-top: 20%;
         }
 
         /* ─── Header ──────────────────────────────────────────── */
@@ -993,10 +995,10 @@ if (is_dir($incorrectDir)) {
             </div>
 
             <div class="review-actions">
-                <button class="btn-quiz outline" onclick="window.location.href='mcqs_topic.php'">
+                <button class="btn-quiz outline" onclick="loadAdAndNavigate('topic-wise-mcqs-test')">
                     <i class="fas fa-search"></i> New Topics
                 </button>
-                <button class="btn-quiz outline" onclick="window.location.href='quiz_setup.php'">
+                <button class="btn-quiz outline" onclick="loadAdAndNavigate('online-mcqs-test-for-9th-and-10th-board-exams')">
                     <i class="fas fa-home"></i> Back to Setup
                 </button>
                 
@@ -1397,6 +1399,9 @@ function showResults() {
     clearInterval(timerInterval);
     quizCompleted = true;
 
+    // Load Monetag Vignette Ad for navigation
+    (function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+
     const totalTime = Math.floor((Date.now() - startTime) / 1000);
     const pct = Math.round((score / questions.length) * 100);
     const incorrect = questions.length - score;
@@ -1593,6 +1598,16 @@ async function submitReview() {
     }
 }
 
+// ─── Load Ad and Navigate ──────────────────────────────────────────
+function loadAdAndNavigate(url) {
+    (function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+    
+    // Redirect after a small delay to allow the script to load/trigger
+    setTimeout(() => {
+        window.location.href = url;
+    }, 300); 
+}
+
 // ─── Navigation Guards ─────────────────────────────────────────────
 window.addEventListener('beforeunload', e => {
     if (quizStarted && !quizCompleted) {
@@ -1604,7 +1619,7 @@ window.addEventListener('popstate', () => {
     if (quizStarted && !quizCompleted) {
         history.pushState(null, null, location.href);
         if (confirm('Leave quiz? Your progress will be lost.')) {
-            quizCompleted = true; window.location.href = 'quiz_setup.php';
+            quizCompleted = true; window.location.href = 'online-mcqs-test-for-9th-and-10th-board-exams';
         }
     }
 });

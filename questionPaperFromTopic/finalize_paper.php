@@ -44,7 +44,7 @@ $topicsLong = $_POST['topics_long'] ?? [];
 
 if (empty($topics)) {
     // Redirect back if accessed directly without data
-    echo "<script>window.location.href = 'index.php';</script>";
+    echo "<script>window.location.href = '" . ($assetBase ?? '../') . "index.php';</script>";
     exit;
 }
 

@@ -366,7 +366,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
             const duration = document.getElementById('quiz_duration').value;
             
             // Redirect to topic search with host context
-            window.location.href = `mcqs_topic.php?source=host&mcq_count=${mcqCount}&quiz_duration=${duration}`;
+            window.location.href = `topic-wise-mcqs-test?source=host&mcq_count=${mcqCount}&quiz_duration=${duration}`;
         }
 
         let customQuestions = [];

@@ -60,7 +60,7 @@ include 'db_connect.php';
             <div class="container">
                 <h2 class="text-center mb-4">Our Powerful Features</h2>
                 <div class="features-grid">
-                    <a href="reset_and_go.php?redirect=questionPaperFromTopic/index.php" class="feature-card animate-on-scroll">
+                    <a href="online-question-paper-generator" class="feature-card animate-on-scroll">
                         <div class="feature-icon"><i class="fas fa-robot"></i></div>
                         <h3>AI-Powered Questions</h3>
                         <p>Leverage our advanced AI to generate targeted <strong>questions prep</strong> materials, ensuring you cover every important topic for your board exams.</p>
@@ -72,7 +72,7 @@ include 'db_connect.php';
                         <p>Teachers can easily <strong>host online quizzes</strong> for their students, making classroom assessment interactive and data-driven.</p>
                         <div class="feature-link">Get Started <i class="fas fa-arrow-right"></i></div>
                     </a>
-                    <a href="quiz/mcqs_topic.php" class="feature-card animate-on-scroll">
+                    <a href="topic-wise-mcqs-test" class="feature-card animate-on-scroll">
                         <div class="feature-icon"><i class="fas fa-bolt"></i></div>
                         <h3>Online MCQs Test</h3>
                         <p>Prepare with our comprehensive <strong>online MCQs test</strong> series, designed to mirror the actual exam patterns of Punjab and Federal Boards.</p>

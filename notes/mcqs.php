@@ -745,7 +745,7 @@ if ($viewMcqs) {
                 return;
             }
             
-            // Build URL to quiz_setup.php with parameters
+            // Build URL to the SEO slug with parameters
             const params = new URLSearchParams();
             params.append('class_id', classId);
             params.append('book_id', bookId);
@@ -753,7 +753,7 @@ if ($viewMcqs) {
                 params.append('chapter_id', chapterId);
             }
             
-            window.location.href = '../quiz/quiz_setup.php?' + params.toString();
+            window.location.href = '../online-mcqs-test-for-9th-and-10th-board-exams?' + params.toString();
         }
 
         // Toggle correct answers visibility

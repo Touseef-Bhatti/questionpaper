@@ -335,7 +335,7 @@ if (isset($_POST['start_quiz'])) {
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://ahmadlearninghub.com.pk/quiz/mcqs_topic.php">
+    <meta property="og:url" content="https://ahmadlearninghub.com.pk/topic-wise-mcqs-test">
     <meta property="og:title" content="AI-Powered MCQ Search by Topic | Ahmad Learning Hub">
     <meta property="og:description" content="Type any educational topic and let our AI find or generate the best MCQs for your exam practice.">
     <meta property="og:image" content="https://ahmadlearninghub.com.pk/assets/images/topic-search-og.jpg">
@@ -349,7 +349,7 @@ if (isset($_POST['start_quiz'])) {
       "description": "An AI-powered tool to search and generate multiple choice questions based on specific educational topics.",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://ahmadlearninghub.com.pk/quiz/mcqs_topic.php?topic_search={search_term_string}",
+        "target": "https://ahmadlearninghub.com.pk/topic-wise-mcqs-test?topic_search={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }
@@ -379,10 +379,10 @@ if (isset($_POST['start_quiz'])) {
         $backText = ($source === 'host') ? '← Back to Host Quiz' : '← Back to Quiz Setup';
         ?>
         <div class="top-nav">
-            <a href="javascript:void(0)" onclick="ignoreModeAndNavigate('quiz_setup.php')" class="back-btn">
+            <a href="javascript:void(0)" onclick="ignoreModeAndNavigate('online-mcqs-test-for-9th-and-10th-board-exams')" class="back-btn">
                 <i class="fas fa-arrow-left"></i> Back to Setup
             </a>
-            <a href="javascript:void(0)" onclick="ignoreModeAndNavigate('quiz_setup.php')" class="school-mode-btn">
+            <a href="javascript:void(0)" onclick="ignoreModeAndNavigate('online-mcqs-test-for-9th-and-10th-board-exams')" class="school-mode-btn">
                 <i class="fas fa-school"></i> School Mode
             </a>
         </div>
@@ -888,7 +888,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 width = Math.min(width + 5, 90);
                 if (progressBar) progressBar.style.width = width + '%';
             }, 300);
-            fetch(`mcqs_topic.php?ajax=1&q=${encodeURIComponent(searchQuery)}&exclude=${encodeURIComponent(JSON.stringify(excludeTopics))}`)
+            fetch(`topic-wise-mcqs-test?ajax=1&q=${encodeURIComponent(searchQuery)}&exclude=${encodeURIComponent(JSON.stringify(excludeTopics))}`)
             .then(r => r.json())
             .then(data => {
                 if (progressBar) progressBar.style.width = '100%';

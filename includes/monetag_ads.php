@@ -25,6 +25,7 @@ $allowedPages = [
     'select_question.php',
     'quiz_setup.php',
     'mcqs_topic.php',
+    'topic-wise-mcqs-test',
     'quiz.php',
     'about.php',
     'contact.php',
@@ -49,8 +50,10 @@ if (!empty($allowedPages)) {
     }
 }
 ?>
-<!-- Monetag MultiTag -->
-<!-- <script>(function(s){s.dataset.zone='10752105',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script> -->
+<!-- Monetag in page push  -->
+<script>(function(s){s.dataset.zone='10752105',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<script>(function(s){s.dataset.zone='10846120',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
 
 <!-- Monetag Vignette -->
 <script>(function(s){s.dataset.zone='10752115',s.src='https://izcle.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>

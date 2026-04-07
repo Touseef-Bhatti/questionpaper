@@ -954,14 +954,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 	<!-- SIDE SKYSCRAPER ADS (Double Vertical) -->
 	<?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 15%;') ?>
-	<?= renderAd('skyscraper', 'Right Skyscraper 2', 'right', 'margin-top: 90%;') ?>
-
-	<h1>Select Chapters from "<?= htmlspecialchars($book_name) ?> (Class <?= htmlspecialchars($classId) ?>)"</h1>
+	
+	
 	
 	<div class="chapter-container">
         <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
         <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
-
+<h1>Select Chapters from "<?= htmlspecialchars($book_name) ?> (Class <?= htmlspecialchars($classId) ?>)"</h1></form></form></form>
 		<form action="<?= htmlspecialchars($_SERVER['REQUEST_URI']) ?>" method="POST">
 			<input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">
 			<input type="hidden" name="book_name" value="<?= htmlspecialchars($book_name) ?>">

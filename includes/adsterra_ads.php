@@ -34,6 +34,7 @@ function renderAdsterraAdUnit($type, $placement = '', $class = '', $style = '') 
     'select_question.php',
     'quiz_setup.php',
     'mcqs_topic.php',
+    'topic-wise-mcqs-test',
     'quiz.php',
     'about.php',
     'contact.php',
