@@ -1,7 +1,7 @@
 <?php
 // online_quiz_host_new.php - Professional quiz room creation
 if (session_status() === PHP_SESSION_NONE) session_start();
-require_once '../auth/auth_check.php';
+// require_once '../auth/auth_check.php';
 include '../db_connect.php';
 
 // Handle clearing of selected topics
@@ -13,42 +13,31 @@ if (isset($_GET['clear_topics'])) {
 
 // Get user info for personalized experience
 $user_name = $_SESSION['name'] ?? 'Instructor';
+
+$pageTitle = "Host Live AI Quiz - Teacher Dashboard - Ahmad Learning Hub";
+$metaDescription = "Professional live quiz hosting tool for teachers. Generate board exam standard MCQs using AI, host live classroom competitions, and track student performance with real-time analytics.";
+$metaKeywords = "host live quiz, online classroom tool, AI test generator for teachers, Ahmad Learning Hub instructor, live leaderboard, digitizing education Pakistan";
+
+include_once '../header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-   
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <title>Host Live AI Quiz - Teacher Dashboard - Ahmad Learning Hub</title>
-    <!-- SEO & AI Optimization Meta Tags -->
-    <meta name="description" content="Professional live quiz hosting tool for teachers. Generate board exam standard MCQs using AI, host live classroom competitions, and track student performance with real-time analytics.">
-    <meta name="keywords" content="host live quiz, online classroom tool, AI test generator for teachers, Ahmad Learning Hub instructor, live leaderboard, digitizing education Pakistan">
-    <meta name="author" content="Ahmad Learning Hub">
-    
-    <!-- JSON-LD Structured Data for Teachers -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Live Quiz Hosting Tool",
-      "operatingSystem": "Web",
-      "applicationCategory": "EducationSupport",
-      "description": "An interactive digital classroom tool to host live MCQ competitions and assessments."
-    }
-    </script>
 
-    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
-    <link rel="stylesheet" href="<?= $assetBase ?>css/online_quiz_host_new.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-   
-     <?php include_once '../header.php'; ?>
-</head>
+<!-- JSON-LD Structured Data for Teachers -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Live Quiz Hosting Tool",
+  "operatingSystem": "Web",
+  "applicationCategory": "EducationSupport",
+  "description": "An interactive digital classroom tool to host live MCQ competitions and assessments."
+}
+</script>
 
-<body>
-        <div class="quiz-creator">
-        <div class="creator-header">
+<link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
+<link rel="stylesheet" href="<?= $assetBase ?>css/online_quiz_host_new.css">
+
+<div class="quiz-creator">
+    <div class="creator-header">
             <div>
                 <h1>🚀 Create Quiz Room</h1>
                 <p class="subtitle">Welcome back, <?= htmlspecialchars($user_name) ?>! Let's create an amazing quiz experience.</p>
@@ -278,7 +267,7 @@ $user_name = $_SESSION['name'] ?? 'Instructor';
                 </div>
                 
                 <!-- SEO Informational Section for Teachers -->
-                <div style="margin-top: 60px; padding: 40px; background: #f8fafc; border-radius: 20px; border: 1px solid #e2e8f0;">
+                <div style="margin-top: 60px; padding: 40px; background: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0;">
                     <h2 style="color: #1e293b; font-size: 1.5rem; font-weight: 800; margin-bottom: 24px; text-align: center;">Enhanced Teaching with AI-Driven Assessments</h2>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 30px;">
                         <div>

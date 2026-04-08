@@ -28,7 +28,7 @@ Disallow: /*.txt
 Disallow: /db_connect.php
 
 # Sitemap location
-Sitemap: https://yourdomain.com/questionpaper/generate_sitemap.php
+Sitemap: https://ahmadlearninghub.com.pk/generate_sitemap.php
 
 # Crawl delay (be respectful)
 Crawl-delay: 1

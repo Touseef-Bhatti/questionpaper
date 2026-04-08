@@ -24,11 +24,11 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #0f172a;
+    background: #f8fafc;
     background-image: 
-        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0, transparent 50%), 
-        radial-gradient(at 50% 0%, rgba(139, 92, 246, 0.15) 0, transparent 50%), 
-        radial-gradient(at 100% 0%, rgba(217, 70, 239, 0.15) 0, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0, transparent 50%), 
+        radial-gradient(at 50% 0%, rgba(139, 92, 246, 0.05) 0, transparent 50%), 
+        radial-gradient(at 100% 0%, rgba(217, 70, 239, 0.05) 0, transparent 50%);
     background-attachment: fixed;
     min-height: 100vh;
     margin: 0;
@@ -43,7 +43,8 @@ body {
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl);
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    margin-top: 100px;
 }
 
 .creator-header {
@@ -882,6 +883,9 @@ body {
 
 /* Mobile AI Loader Fix */
 @media (max-width: 768px) {
+    .quiz-creator{
+        margin-top: 50%;
+    }
     .ai-loader-card {
         padding: 30px 20px;
         width: 95%;
