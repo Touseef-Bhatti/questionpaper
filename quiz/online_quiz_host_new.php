@@ -1,7 +1,7 @@
 <?php
 // online_quiz_host_new.php - Professional quiz room creation
 if (session_status() === PHP_SESSION_NONE) session_start();
-// require_once '../auth/auth_check.php';
+require_once '../auth/auth_check.php';
 include '../db_connect.php';
 
 // Handle clearing of selected topics
