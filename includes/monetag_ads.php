@@ -41,6 +41,7 @@ $allowedPages = [
     'online_quiz_take.php',
     'textbooks.php',
     'mcqs.php' ,
+    'reviews.php'
 ];
 
 if (!empty($allowedPages)) {
