@@ -84,7 +84,7 @@ function homeReviewStars(int $rating): string {
 
         <br>
         <?= renderAd('banner', 'Place Middle Banner Here') ?>
-        <br>
+        
 
         <div class="container">
             <div class="hero-prep-section" role="region" aria-label="Exam preparation categories">
