@@ -73,6 +73,10 @@ function h($str) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- ads monetag_ads -->
+<script>(function(s){s.dataset.zone='10788340',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<!-- end ads monetag_ads -->
+ 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Lobby - <?= h($room['room_code']) ?> | Ahmad Learning Hub</title>

@@ -60,6 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- ads monetag_ads -->
+<script>(function(s){s.dataset.zone='10788340',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<!-- end ads monetag_ads -->
   <title>Join Live AI Quiz - Competition & Board Prep - Ahmad Learning Hub</title>
   <!-- SEO & AI Optimization Meta Tags -->
   <meta name="description" content="Join a live AI-powered quiz room at Ahmad Learning Hub. Compete with students on new syllabus board exam MCQs, view real-time leaderboards, and get instant AI-driven performance assessment.">

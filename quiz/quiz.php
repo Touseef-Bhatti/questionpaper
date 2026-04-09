@@ -1033,6 +1033,7 @@ if (is_dir($incorrectDir)) {
                 <div class="review-modal-message" id="reviewMessage"></div>
             </div>
             <div class="review-modal-actions">
+                <a href="../reviews.php" class="btn-quiz outline" style="text-decoration: none;"><i class="fas fa-comments"></i> All Reviews</a>
                 <button type="button" class="btn-quiz outline" onclick="closeReviewModal()">Skip</button>
                 <button type="button" class="btn-quiz primary" id="submitReviewBtn" onclick="submitReview()">Submit Review</button>
             </div>

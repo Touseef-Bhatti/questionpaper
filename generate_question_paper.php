@@ -1137,6 +1137,7 @@ include 'header.php';
                     <div class="review-modal-message" id="reviewMessage"></div>
                 </div>
                 <div class="review-modal-actions">
+                    <a href="reviews.php" class="review-btn" style="text-decoration: none; display: flex; align-items: center; justify-content: center;"><i class="fas fa-comments"></i> All Reviews</a>
                     <button type="button" class="review-btn" onclick="closeReviewModal()">Skip</button>
                     <button type="button" class="review-btn primary" id="submitReviewBtn" onclick="submitReview()">Submit Review</button>
                 </div>
