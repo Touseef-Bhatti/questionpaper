@@ -176,8 +176,9 @@ function renderStars(int $rating): string {
         }
         .reviews-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(70%, 1fr));
             gap: 1.2rem;
+            margin: auto;
         }
         .review-card {
             background: #fff;
@@ -188,6 +189,7 @@ function renderStars(int $rating): string {
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
+            /* width: 70%; */
         }
         .review-top {
             display: flex;
