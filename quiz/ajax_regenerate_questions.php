@@ -33,7 +33,8 @@ try {
     $generated = [];
     $errors = [];
     try {
-        $generated = generateMCQsBulkWithGemini($topics, $totalCount);
+        // Use skipVerify = true for instant response
+        $generated = generateMCQsBulkWithGemini($topics, $totalCount, '', true);
     } catch (Exception $e) {
         $errors[] = "Error generating: " . $e->getMessage();
     }

@@ -1,7 +1,13 @@
 <?php
 require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../../config/env.php';
+require_once __DIR__ . '/../../quiz/mcq_generator.php';
 require_once __DIR__ . '/../security.php';
 requireAdminAuth();
+
+if (isset($conn) && function_exists('ensureMcqExplanationColumns')) {
+    ensureMcqExplanationColumns($conn);
+}
 
 // Auto-fix schema for missing columns (Self-healing)
 // Moved to install.php
@@ -17,41 +23,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
     
     if ($sourceTable === 'mcqs') {
         $mainTable = 'mcqs';
-        $verifyTable = 'MCQsVerification';
         $pk = 'mcq_id';
-        $fk = 'mcq_id';
     } else {
         $mainTable = 'AIGeneratedMCQs';
-        $verifyTable = 'AIMCQsVerification';
         $pk = 'id';
-        $fk = 'mcq_id';
     }
 
+    $vSrc = mcqVerificationSourceValue($sourceTable);
+
     if ($_POST['action'] === 'approve') {
-        $sql = "INSERT INTO $verifyTable ($fk, verification_status, last_checked_at) 
-                VALUES (?, 'verified', NOW()) 
-                ON DUPLICATE KEY UPDATE 
-                verification_status = 'verified', last_checked_at = NOW()";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('i', $id);
+        if ($sourceTable === 'mcqs') {
+            $sql = "INSERT INTO MCQsVerification (mcq_id, verification_status, last_checked_at) 
+                    VALUES (?, 'verified', NOW()) 
+                    ON DUPLICATE KEY UPDATE 
+                    verification_status = 'verified', last_checked_at = NOW()";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('i', $id);
+        } else {
+            $sql = "INSERT INTO MCQVerification (source, mcq_id, verification_status, last_checked_at) 
+                    VALUES (?, ?, 'verified', NOW()) 
+                    ON DUPLICATE KEY UPDATE 
+                    verification_status = 'verified', last_checked_at = NOW()";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('si', $vSrc, $id);
+        }
         $success = $stmt->execute();
         $stmt->close();
         echo json_encode(['success' => $success]);
     } elseif ($_POST['action'] === 'flag') {
-        $sql = "INSERT INTO $verifyTable ($fk, verification_status, last_checked_at) 
-                VALUES (?, 'flagged', NOW()) 
-                ON DUPLICATE KEY UPDATE 
-                verification_status = 'flagged', last_checked_at = NOW()";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('i', $id);
+        if ($sourceTable === 'mcqs') {
+            $sql = "INSERT INTO MCQsVerification (mcq_id, verification_status, last_checked_at) 
+                    VALUES (?, 'flagged', NOW()) 
+                    ON DUPLICATE KEY UPDATE 
+                    verification_status = 'flagged', last_checked_at = NOW()";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('i', $id);
+        } else {
+            $sql = "INSERT INTO MCQVerification (source, mcq_id, verification_status, last_checked_at) 
+                    VALUES (?, ?, 'flagged', NOW()) 
+                    ON DUPLICATE KEY UPDATE 
+                    verification_status = 'flagged', last_checked_at = NOW()";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('si', $vSrc, $id);
+        }
         $success = $stmt->execute();
         $stmt->close();
         echo json_encode(['success' => $success]);
     } elseif ($_POST['action'] === 'delete_mcq') {
         $conn->begin_transaction();
         try {
-            $stmt1 = $conn->prepare("DELETE FROM $verifyTable WHERE $fk = ?");
-            $stmt1->bind_param('i', $id);
+            if ($sourceTable === 'mcqs') {
+                $stmt1 = $conn->prepare('DELETE FROM MCQsVerification WHERE mcq_id = ?');
+                $stmt1->bind_param('i', $id);
+            } else {
+                $stmt1 = $conn->prepare('DELETE FROM MCQVerification WHERE source = ? AND mcq_id = ?');
+                $stmt1->bind_param('si', $vSrc, $id);
+            }
             $stmt1->execute();
             
             $stmt2 = $conn->prepare("DELETE FROM $mainTable WHERE $pk = ?");
@@ -70,8 +97,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 
 // Handle AJAX Request for Verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'check_ai_mcqs') {
-    require_once __DIR__ . '/../../quiz/mcq_generator.php';
-    
     $sourceTable = isset($_POST['source_table']) ? $_POST['source_table'] : 'AIGeneratedMCQs';
     if (!in_array($sourceTable, ['AIGeneratedMCQs', 'mcqs'])) {
         $sourceTable = 'AIGeneratedMCQs';
@@ -109,15 +134,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     if ($sourceTable === 'mcqs') {
         $mainTable = 'mcqs';
-        $verifyTable = 'MCQsVerification';
         $pk = 'mcq_id';
-        $fk = 'mcq_id';
     } else {
         $mainTable = 'AIGeneratedMCQs';
-        $verifyTable = 'AIMCQsVerification';
         $pk = 'id';
-        $fk = 'mcq_id';
     }
+
+    $verifyJoinFetch = ($sourceTable === 'mcqs')
+        ? "JOIN MCQsVerification v ON m.$pk = v.mcq_id"
+        : "JOIN MCQVerification v ON v.source = 'AIGeneratedMCQs' AND v.mcq_id = m.$pk";
 
     // Sanitize IDs
     $ids = array_map('intval', $ids);
@@ -125,10 +150,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     
     $questionColumn = ($sourceTable === 'mcqs') ? 'question' : 'question_text';
     $topicColumn = ($sourceTable === 'mcqs') ? "CONCAT('Class ', COALESCE(m.class_id, 'Unknown'), ' - Book ', COALESCE(m.book_id, 'Unknown'), ' - Chapter ', COALESCE(m.chapter_id, 'Unknown'))" : 'm.topic';
+    $explanationSelect = ($sourceTable === 'mcqs')
+        ? 'v.explanation AS explanation'
+        : 'COALESCE(NULLIF(TRIM(v.explanation), ""), NULLIF(TRIM(m.explanation), "")) AS explanation';
     $sql = "SELECT m.$pk as id, $topicColumn as topic, m.$questionColumn as question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option as current_correct, 
-            v.verification_status, v.suggested_correct_option, v.original_correct_option, v.ai_notes, v.last_checked_at
+            v.verification_status, v.suggested_correct_option, v.original_correct_option, v.ai_notes, v.last_checked_at, $explanationSelect
             FROM $mainTable m
-            JOIN $verifyTable v ON m.$pk = v.$fk
+            $verifyJoinFetch
             WHERE m.$pk IN ($idsList)
             ORDER BY v.last_checked_at DESC";
             
@@ -137,9 +165,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     if ($result && $result->num_rows > 0) {
         echo '<div class="table-responsive mt-4"><table class="table table-hover table-bordered align-middle"><thead class="table-light"><tr>
                 <th style="width: 5%">ID</th>
-                <th style="width: 35%">Question & Options</th>
-                <th style="width: 10%">Status</th>
-                <th style="width: 25%">AI Notes / Correction</th>
+                <th style="width: 32%">Question & Options</th>
+                <th style="width: 8%">Status</th>
+                <th style="width: 20%">AI Notes / Correction</th>
+                <th style="width: 35%">Explanation (learning)</th>
               </tr></thead><tbody>';
               
         while($row = $result->fetch_assoc()) {
@@ -191,6 +220,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 echo '<div class="ai-note mt-1">' . htmlspecialchars($row['ai_notes']) . '</div>';
             }
             echo '</td>';
+            echo '<td class="small">';
+            if (!empty($row['explanation'])) {
+                echo '<div class="ai-note-box">' . nl2br(htmlspecialchars($row['explanation'])) . '</div>';
+            } else {
+                echo '<span class="text-muted">—</span>';
+            }
+            echo '</td>';
             echo '</tr>';
         }
         echo '</tbody></table></div>';
@@ -212,39 +248,18 @@ if (!in_array($sourceTable, ['AIGeneratedMCQs', 'mcqs'])) {
 
 if ($sourceTable === 'mcqs') {
     $mainTable = 'mcqs';
-    $verifyTable = 'MCQsVerification';
     $pk = 'mcq_id';
-    $fk = 'mcq_id';
 } else {
     $mainTable = 'AIGeneratedMCQs';
-    $verifyTable = 'AIMCQsVerification';
     $pk = 'id';
-    $fk = 'mcq_id';
 }
 
-// Ensure table exists for report view as well
-// Tables are primarily created in install.php, but with safety fallback here
-if ($sourceTable === 'mcqs') {
-    $conn->query("CREATE TABLE IF NOT EXISTS MCQsVerification (
-        mcq_id INT PRIMARY KEY,
-        verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
-        last_checked_at DATETIME,
-        suggested_correct_option TEXT,
-        original_correct_option TEXT,
-        ai_notes TEXT,
-        FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-} else {
-    $conn->query("CREATE TABLE IF NOT EXISTS AIMCQsVerification (
-        mcq_id INT PRIMARY KEY,
-        verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
-        last_checked_at DATETIME,
-        suggested_correct_option TEXT,
-        original_correct_option TEXT,
-        ai_notes TEXT,
-        FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-}
+$vSrcSql = mcqVerificationSourceValue($sourceTable);
+ensureMcqVerificationTable($conn);
+
+$verifyJoinReport = ($sourceTable === 'mcqs')
+    ? "LEFT JOIN MCQsVerification v ON m.$pk = v.mcq_id"
+    : "LEFT JOIN MCQVerification v ON v.source = 'AIGeneratedMCQs' AND v.mcq_id = m.$pk";
 
 // Pagination
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -277,7 +292,7 @@ if (!empty($search)) {
 }
 
 // Count for Pagination
-$countSql = "SELECT COUNT(*) as cnt FROM $mainTable m LEFT JOIN $verifyTable v ON m.$pk = v.$fk $whereClause";
+$countSql = "SELECT COUNT(*) as cnt FROM $mainTable m $verifyJoinReport $whereClause";
 $countRes = $conn->query($countSql);
 $totalRows = $countRes ? $countRes->fetch_assoc()['cnt'] : 0;
 $totalPages = ceil($totalRows / $perPage);
@@ -285,10 +300,13 @@ $totalPages = ceil($totalRows / $perPage);
     // Fetch Report Data
     $questionColumn = ($sourceTable === 'mcqs') ? 'question' : 'question_text';
     $topicColumn = ($sourceTable === 'mcqs') ? "CONCAT('Class ', COALESCE(m.class_id, 'Unknown'), ' - Book ', COALESCE(m.book_id, 'Unknown'), ' - Chapter ', COALESCE(m.chapter_id, 'Unknown'))" : 'm.topic';
+    $explanationSelect = ($sourceTable === 'mcqs')
+        ? 'v.explanation AS explanation'
+        : 'COALESCE(NULLIF(TRIM(v.explanation), ""), NULLIF(TRIM(m.explanation), "")) AS explanation';
     $reportSql = "SELECT m.$pk as id, $topicColumn as topic, m.$questionColumn as question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option as current_correct, 
-            v.verification_status, v.suggested_correct_option, v.original_correct_option, v.ai_notes, v.last_checked_at
+            v.verification_status, v.suggested_correct_option, v.original_correct_option, v.ai_notes, v.last_checked_at, $explanationSelect
             FROM $mainTable m
-            LEFT JOIN $verifyTable v ON m.$pk = v.$fk
+            $verifyJoinReport
             $whereClause
             ORDER BY COALESCE(v.last_checked_at, '1000-01-01') DESC, m.$pk DESC
             LIMIT $offset, $perPage";
@@ -310,8 +328,12 @@ if ($res && $row = $res->fetch_assoc()) {
     $globalStats['total'] = intval($row['cnt']);
 }
 
-// Verification Stats
-$res = $conn->query("SELECT verification_status, COUNT(*) as cnt FROM $verifyTable GROUP BY verification_status");
+// Verification Stats (per selected source)
+if ($sourceTable === 'mcqs') {
+    $res = $conn->query('SELECT verification_status, COUNT(*) as cnt FROM MCQsVerification GROUP BY verification_status');
+} else {
+    $res = $conn->query("SELECT verification_status, COUNT(*) as cnt FROM MCQVerification WHERE source = '" . $conn->real_escape_string($vSrcSql) . "' GROUP BY verification_status");
+}
 if ($res) {
     while ($row = $res->fetch_assoc()) {
         $status = $row['verification_status'];
@@ -606,6 +628,12 @@ if (isset($_GET['filter']) || isset($_GET['page'])) {
 
                 <div id="setup-phase" class="card shadow-sm border-0 p-4">
                     <h5 class="card-title border-bottom pb-3 mb-4"><i class="fas fa-cog me-2"></i>Verification Settings</h5>
+                    <p class="text-muted small mb-4">
+                        Batch verification uses <code>RECHECK_API_KEY</code> (or <code>GENERATING_KEYWORDS_KEY</code> if empty) from
+                        <code>.env.local</code> / <code>.env.production</code>.
+                        <code>nvapi-</code> keys use NVIDIA <code>integrate.api.nvidia.com</code> (same as keyword generation); other keys use OpenRouter.
+                        Optional <code>RECHECK_MODEL</code>: if unset, NVIDIA defaults to <code>qwen/qwen3-next-80b-a3b-instruct</code>, OpenRouter to <code>AI_DEFAULT_MODEL</code>.
+                    </p>
                     
                     <div class="row g-3 align-items-center justify-content-center mb-4">
                         <div class="col-auto">
@@ -751,8 +779,9 @@ if (isset($_GET['filter']) || isset($_GET['page'])) {
                             <th style="width: 12%">Topic</th>
                             <th style="width: 35%">Question & Options</th>
                             <th style="width: 10%">Status</th>
-                            <th style="width: 23%">AI Findings</th>
-                            <th style="width: 15%">Actions</th>
+                            <th style="width: 18%">AI Findings</th>
+                            <th style="width: 20%">Explanation</th>
+                            <th style="width: 12%">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -839,6 +868,15 @@ if (isset($_GET['filter']) || isset($_GET['page'])) {
                                             </div>
                                         <?php endif; ?>
                                     </td>
+                                    <td class="small">
+                                        <?php if (!empty($row['explanation'])): ?>
+                                            <div class="ai-note-box" style="max-height: 200px; overflow-y: auto;">
+                                                <?= nl2br(htmlspecialchars($row['explanation'])) ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="text-muted">—</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <div class="action-btns">
                                             <button onclick="reverifySingle(<?= $row['id'] ?>)" class="btn btn-action btn-outline-info" title="Recheck with AI">
@@ -871,7 +909,7 @@ if (isset($_GET['filter']) || isset($_GET['page'])) {
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="8" class="text-center py-5 text-muted">
                                     <i class="fas fa-search fa-3x mb-3 opacity-25"></i>
                                     <p>No records found matching your criteria.</p>
                                 </td>

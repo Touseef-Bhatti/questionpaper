@@ -271,27 +271,34 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS AIGeneratedMCQs (
     option_c TEXT NOT NULL,
     option_d TEXT NOT NULL,
     correct_option TEXT NOT NULL,
+    explanation TEXT NULL,
     generated_at DATETIME NOT NULL,
     FOREIGN KEY (topic_id) REFERENCES AIQuestionsTopic(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIGeneratedMCQs");
 
-runQuery($conn, "CREATE TABLE IF NOT EXISTS AIMCQsVerification (
-    mcq_id INT PRIMARY KEY,
+runQuery($conn, "CREATE TABLE IF NOT EXISTS MCQVerification (
+    source ENUM('AIGeneratedMCQs', 'mcqs') NOT NULL,
+    mcq_id INT NOT NULL,
     verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
-    last_checked_at DATETIME,
+    last_checked_at DATETIME NULL,
     suggested_correct_option TEXT,
     original_correct_option TEXT,
     ai_notes TEXT,
-    FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIMCQsVerification");
+    explanation TEXT,
+    PRIMARY KEY (source, mcq_id),
+    KEY idx_mv_status (source, verification_status),
+    KEY idx_mv_checked (source, last_checked_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: MCQVerification");
 
+// Manual MCQs verification (canonical; never dropped by install migrations)
 runQuery($conn, "CREATE TABLE IF NOT EXISTS MCQsVerification (
     mcq_id INT PRIMARY KEY,
     verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
-    last_checked_at DATETIME,
+    last_checked_at DATETIME NULL,
     suggested_correct_option TEXT,
     original_correct_option TEXT,
     ai_notes TEXT,
+    explanation TEXT,
     FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: MCQsVerification");
 
@@ -480,16 +487,62 @@ if (!$result || $result->num_rows == 0) {
     runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN host_id INT NOT NULL DEFAULT 1", "Column: quiz_rooms.host_id");
 }
 
-// Check if AIMCQsVerification has original_correct_option
-$result = $conn->query("SHOW COLUMNS FROM AIMCQsVerification LIKE 'original_correct_option'");
-if (!$result || $result->num_rows == 0) {
-    runQuery($conn, "ALTER TABLE AIMCQsVerification ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option", "Column: AIMCQsVerification.original_correct_option");
+// Legacy: migrate old AI verification tables into MCQVerification, then drop them (MCQsVerification is never dropped)
+$legacyMigrate = [
+    ['AIMCQsVerification', 'AIGeneratedMCQs'],
+    ['AIGeneratedMCQsVerification', 'AIGeneratedMCQs'],
+];
+foreach ($legacyMigrate as $lm) {
+    $leg = preg_replace('/[^A-Za-z0-9_]/', '', $lm[0]);
+    $srcEnum = $lm[1];
+    if ($srcEnum !== 'mcqs' && $srcEnum !== 'AIGeneratedMCQs') {
+        continue;
+    }
+    $chk = $conn->query("SHOW TABLES LIKE '" . $conn->real_escape_string($leg) . "'");
+    if (!$chk || $chk->num_rows == 0) {
+        continue;
+    }
+    $hasExp = $conn->query("SHOW COLUMNS FROM `$leg` LIKE 'explanation'");
+    $withExp = ($hasExp && $hasExp->num_rows > 0);
+    if ($withExp) {
+        $sql = "INSERT IGNORE INTO MCQVerification (source, mcq_id, verification_status, last_checked_at, suggested_correct_option, original_correct_option, ai_notes, explanation)
+                SELECT '$srcEnum', mcq_id, verification_status, last_checked_at, suggested_correct_option, original_correct_option, ai_notes, explanation FROM `$leg`";
+    } else {
+        $sql = "INSERT IGNORE INTO MCQVerification (source, mcq_id, verification_status, last_checked_at, suggested_correct_option, original_correct_option, ai_notes)
+                SELECT '$srcEnum', mcq_id, verification_status, last_checked_at, suggested_correct_option, original_correct_option, ai_notes FROM `$leg`";
+    }
+    runQuery($conn, $sql, "Migrate verification rows from $leg");
+    runQuery($conn, "DROP TABLE IF EXISTS `$leg`", "Drop legacy table $leg");
 }
 
-// Check if MCQsVerification has original_correct_option
+// MCQVerification: explanation column (older unified installs)
+$result = $conn->query("SHOW COLUMNS FROM MCQVerification LIKE 'explanation'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE MCQVerification ADD COLUMN explanation TEXT NULL AFTER ai_notes", "Column: MCQVerification.explanation");
+}
+
 $result = $conn->query("SHOW COLUMNS FROM MCQsVerification LIKE 'original_correct_option'");
 if (!$result || $result->num_rows == 0) {
     runQuery($conn, "ALTER TABLE MCQsVerification ADD COLUMN original_correct_option TEXT AFTER suggested_correct_option", "Column: MCQsVerification.original_correct_option");
+}
+$result = $conn->query("SHOW COLUMNS FROM MCQsVerification LIKE 'explanation'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE MCQsVerification ADD COLUMN explanation TEXT NULL AFTER ai_notes", "Column: MCQsVerification.explanation");
+}
+
+// Copy manual verification rows from MCQVerification (source=mcqs) into MCQsVerification if both exist (recovery)
+$result = $conn->query("SHOW TABLES LIKE 'MCQVerification'");
+$result2 = $conn->query("SHOW TABLES LIKE 'MCQsVerification'");
+if ($result && $result->num_rows > 0 && $result2 && $result2->num_rows > 0) {
+    $hasExpMv = $conn->query("SHOW COLUMNS FROM MCQVerification LIKE 'explanation'");
+    $hasExpMs = $conn->query("SHOW COLUMNS FROM MCQsVerification LIKE 'explanation'");
+    if ($hasExpMv && $hasExpMv->num_rows > 0 && $hasExpMs && $hasExpMs->num_rows > 0) {
+        runQuery($conn, "INSERT IGNORE INTO MCQsVerification (mcq_id, verification_status, last_checked_at, suggested_correct_option, original_correct_option, ai_notes, explanation)
+            SELECT mcq_id, verification_status, last_checked_at, suggested_correct_option, original_correct_option, ai_notes, explanation FROM MCQVerification WHERE source = 'mcqs'", "Sync MCQVerification(mcqs) → MCQsVerification");
+    } else {
+        runQuery($conn, "INSERT IGNORE INTO MCQsVerification (mcq_id, verification_status, last_checked_at, suggested_correct_option, original_correct_option, ai_notes)
+            SELECT mcq_id, verification_status, last_checked_at, suggested_correct_option, original_correct_option, ai_notes FROM MCQVerification WHERE source = 'mcqs'", "Sync MCQVerification(mcqs) → MCQsVerification");
+    }
 }
 
 // Check if pending_admin_actions table exists and update ENUM for login/password_change features
@@ -522,6 +575,12 @@ if (!$result || $result->num_rows == 0) {
 $result = $conn->query("SHOW COLUMNS FROM AIGeneratedMCQs LIKE 'topic_id'");
 if (!$result || $result->num_rows == 0) {
     runQuery($conn, "ALTER TABLE AIGeneratedMCQs ADD COLUMN topic_id INT NULL AFTER id", "Column: AIGeneratedMCQs.topic_id");
+}
+
+// MCQ recheck / educational explanation columns
+$result = $conn->query("SHOW COLUMNS FROM AIGeneratedMCQs LIKE 'explanation'");
+if ($result && $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE AIGeneratedMCQs ADD COLUMN explanation TEXT NULL AFTER correct_option", "Column: AIGeneratedMCQs.explanation");
 }
 
 // Quiz Lobby System Enhancements

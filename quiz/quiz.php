@@ -117,19 +117,19 @@ if (!$hasTopics && !$hasClassBook) {
 }
 
 // Build WHERE clause based on filters
-$whereConditions = ['correct_option IS NOT NULL', 'correct_option != ""'];
+$whereConditions = ['m.correct_option IS NOT NULL', 'm.correct_option != ""'];
 $params = [];
 $types = '';
 
 // Add class/book filters only if provided
 if ($class_id > 0) {
-    $whereConditions[] = 'class_id = ?';
+    $whereConditions[] = 'm.class_id = ?';
     $params[] = $class_id;
     $types .= 'i';
 }
 
 if ($book_id > 0) {
-    $whereConditions[] = 'book_id = ?';
+    $whereConditions[] = 'm.book_id = ?';
     $params[] = $book_id;
     $types .= 'i';
 }
@@ -138,7 +138,7 @@ if (!empty($chapter_ids)) {
     $chapterIdsArray = array_filter(array_map('intval', explode(',', $chapter_ids)));
     if (!empty($chapterIdsArray)) {
         $placeholders = str_repeat('?,', count($chapterIdsArray) - 1) . '?';
-        $whereConditions[] = "chapter_id IN ($placeholders)";
+        $whereConditions[] = "m.chapter_id IN ($placeholders)";
         $params = array_merge($params, $chapterIdsArray);
         $types .= str_repeat('i', count($chapterIdsArray));
     }
@@ -157,14 +157,16 @@ if (!empty($topics)) {
         $topicsArray = array_filter(array_map('trim', $exploded));
     }
 } else if (!empty($topic)) {
-    // Single topic (backward compatibility)
+    // Single topic (backward compatibility or pretty URL)
+    // Replace dashes with spaces for database matching (common SEO practice)
+    $topic = str_replace('-', ' ', $topic);
     $topicsArray = [$topic];
 }
 
 if (!empty($topicsArray)) {
     // Use IN clause for multiple topics
     $placeholders = str_repeat('?,', count($topicsArray) - 1) . '?';
-    $whereConditions[] = "topic IN ($placeholders)";
+    $whereConditions[] = "m.topic IN ($placeholders)";
     $params = array_merge($params, $topicsArray);
     $types .= str_repeat('s', count($topicsArray));
 }
@@ -176,8 +178,10 @@ if (empty($whereConditions)) {
 $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
 
 // Fetch random MCQs
-$sql = "SELECT mcq_id, question, option_a, option_b, option_c, option_d, correct_option 
-        FROM mcqs $whereClause 
+$sql = "SELECT m.mcq_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation
+        FROM mcqs m
+        LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id
+        $whereClause 
         ORDER BY RAND() 
         LIMIT ?";
 $params[] = $mcq_count;
@@ -211,7 +215,7 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
     $params[] = $needed;
     $types .= 'i';
     
-    $aiSql = "SELECT mcq_id, question, option_a, option_b, option_c, option_d, correct_option 
+    $aiSql = "SELECT id as mcq_id, question_text as question, option_a, option_b, option_c, option_d, correct_option, explanation 
               FROM AIGeneratedMCQs 
               WHERE topic IN ($placeholders) 
               ORDER BY RAND() 
@@ -231,7 +235,8 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
                 'option_b' => $row['option_b'],
                 'option_c' => $row['option_c'],
                 'option_d' => $row['option_d'],
-                'correct_option' => $row['correct_option']
+                'correct_option' => $row['correct_option'],
+                'explanation' => $row['explanation']
             ];
         }
         $stmt->close();
@@ -243,17 +248,21 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
 // If still don't have enough questions, auto-generate in 1 API request
 if (count($questions) < $mcq_count && !empty($topicsArray)) {
     $neededCount = $mcq_count - count($questions);
-    $generatedMCQs = generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel ?? '');
+    $generatedMCQs = generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel ?? '', true);
     if (!empty($generatedMCQs)) {
         foreach ($generatedMCQs as $genMCQ) {
+            $id = $genMCQ['id'] ?? $genMCQ['mcq_id'] ?? null;
+            $fullId = 'ai_' . ($id ?? uniqid());
+            
             $questions[] = [
-                'mcq_id' => 'ai_' . ($genMCQ['id'] ?? $genMCQ['mcq_id'] ?? uniqid()),
+                'mcq_id' => $fullId,
                 'question' => $genMCQ['question'],
                 'option_a' => $genMCQ['option_a'],
                 'option_b' => $genMCQ['option_b'],
                 'option_c' => $genMCQ['option_c'],
                 'option_d' => $genMCQ['option_d'],
-                'correct_option' => $genMCQ['correct_option']
+                'correct_option' => $genMCQ['correct_option'],
+                'explanation' => $genMCQ['explanation'] ?? null
             ];
         }
     }
@@ -268,9 +277,22 @@ if (empty($questions)) {
 shuffle($questions);
 $questions = array_slice($questions, 0, $mcq_count);
 
+// Identify questions missing explanations in the FINAL quiz to verify in background
+$missingExplanationIds = [];
+foreach ($questions as $q) {
+    if (empty($q['explanation'])) {
+        $missingExplanationIds[] = $q['mcq_id'];
+    }
+}
+
 // Get class and book names for display
 $class_name = 'Unknown Class';
 $book_name = 'Unknown Book';
+
+// If topics are present, use the first topic as the name
+if (!empty($topicsArray)) {
+    $book_name = $topicsArray[0];
+}
 
 $stmt = $conn->prepare("SELECT class_name FROM class WHERE class_id = ?");
 $stmt->bind_param('i', $class_id);
@@ -730,6 +752,77 @@ if (is_dir($incorrectDir)) {
         .review-option.opt-wrong .review-option-text { color: #7f1d1d; }
         .review-option.opt-wrong .review-option-tag { background: #fee2e2; color: #b91c1c; }
 
+        /* ─── Explanation ────────────────────────────────────── */
+        .explanation-container {
+            margin-top: 18px;
+            padding: 20px;
+            background: #fdfaff;
+            border-radius: 16px;
+            border: 1px solid #e9d5ff;
+            border-left: 5px solid #7c3aed;
+            display: none;
+            animation: slideDownFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: inset 0 2px 4px rgba(124, 58, 237, 0.03);
+        }
+        .explanation-title {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: #7c3aed;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.05em;
+        }
+        .explanation-text {
+            font-size: 1rem;
+            color: #475569;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+        .btn-explanation {
+            margin-top: 16px;
+            background: #ffffff;
+            color: #6366f1;
+            border: 2px solid #e0e7ff;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);
+        }
+        .btn-explanation i {
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+        }
+        .btn-explanation:hover {
+            background: #f5f7ff;
+            border-color: #6366f1;
+            color: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+        }
+        .btn-explanation.active {
+            background: #6366f1;
+            color: #ffffff;
+            border-color: #4f46e5;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+        }
+        .btn-explanation.active i {
+            transform: rotate(180deg);
+        }
+
+        @keyframes slideDownFade {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .review-actions {
             padding: 24px 32px;
             background: #f8fafc;
@@ -742,40 +835,66 @@ if (is_dir($incorrectDir)) {
 
         /* ─── Funny Mode ─────────────────────────────────────── */
         .funny-mode-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            color: white;
-            padding: 10px 22px;
+            background: linear-gradient(135deg, #ff0080 0%, #7928ca 100%);
+            color: #ffffff;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 28px;
             border-radius: 50px;
-            font-size: 0.9rem;
-            font-weight: 800;
+            font-size: 0.85rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 12px;
-            margin-top: 12px;
+            margin-top: 14px;
             backdrop-filter: blur(12px);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
-            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 0, 128, 0.3), 0 4px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .funny-mode-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+            z-index: -1;
         }
         .funny-mode-btn:hover {
-            background: rgba(255, 255, 255, 0.35);
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.3);
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 12px 25px rgba(255, 0, 128, 0.4), 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-color: rgba(255, 255, 255, 0.5);
         }
+        .funny-mode-btn:hover::before {
+            transform: translateX(100%);
+        }
+        
+        /* Redesigned ON State: Ultra Neon Cyan Glow */
         .funny-mode-btn.active {
-            background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
-            color: #1e1b4b;
-            border-color: #fef08a;
-            box-shadow: 0 0 25px rgba(250, 204, 21, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.3);
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            color: #0f172a;
+            border-color: #ffffff;
+            box-shadow: 0 0 35px rgba(0, 242, 254, 0.8), 0 0 15px rgba(79, 172, 254, 0.5);
+            animation: pulse-glow-neon 1.5s infinite alternate;
         }
+        
+        @keyframes pulse-glow-neon {
+            from { box-shadow: 0 0 20px rgba(0, 242, 254, 0.5); }
+            to { box-shadow: 0 0 50px rgba(0, 242, 254, 0.9), 0 0 25px rgba(79, 172, 254, 0.7); }
+        }
+
         .funny-mode-btn.active i {
-            animation: bounce 0.5s infinite alternate;
+            animation: bounce-spin-extra 0.6s infinite alternate;
         }
-        @keyframes bounce {
-            from { transform: translateY(0); }
-            to { transform: translateY(-2px); }
+        @keyframes bounce-spin-extra {
+            from { transform: translateY(0) rotate(-25deg) scale(1); }
+            to { transform: translateY(-8px) rotate(25deg) scale(1.25); }
         }
 
         /* ─── Responsive ──────────────────────────────────────── */
@@ -1053,6 +1172,7 @@ FunnyAudioManager.setBasePath('<?= $assetBase ?>');
 
 // ─── Data ──────────────────────────────────────────────────────────
 const questions = <?= json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const missingExplanationIds = <?= json_encode($missingExplanationIds) ?>;
 const hasAlreadyReviewedServer = <?= json_encode($hasAlreadyReviewed) ?>;
 const isLoggedIn = <?= json_encode($isLoggedIn) ?>;
 let currentQuestion = 0;
@@ -1332,6 +1452,7 @@ function selectOption(letter) {
         correctText: q['option_' + (correctLetter || 'a').toLowerCase()],
         isCorrect,
         question: q.question,
+        explanation: q.explanation || '',
         options: { A: q.option_a, B: q.option_b, C: q.option_c, D: q.option_d },
         timeSpent: Math.floor((Date.now() - questionStartTime) / 1000)
     };
@@ -1389,6 +1510,7 @@ function skipQuestion() {
         correct: correctLetter, 
         correctText: q['option_' + (correctLetter || 'a').toLowerCase()], 
         question: q.question,
+        explanation: q.explanation || '',
         options: { A: q.option_a, B: q.option_b, C: q.option_c, D: q.option_d },
         timeSpent: 0
     };
@@ -1401,7 +1523,7 @@ function showResults() {
     quizCompleted = true;
 
     // Load Monetag Vignette Ad for navigation
-    (function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+    // (function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
 
     const totalTime = Math.floor((Date.now() - startTime) / 1000);
     const pct = Math.round((score / questions.length) * 100);
@@ -1484,6 +1606,18 @@ function showResults() {
                             </div>
                         `;
                     }).join('')}
+                    
+                    ${ans.explanation ? `
+                        <button class="btn-explanation" onclick="toggleExplanation(${i})">
+                            <i class="fas fa-lightbulb"></i> View Explanation
+                        </button>
+                        <div class="explanation-container" id="explanation-${i}">
+                            <div class="explanation-title">
+                                <i class="fas fa-info-circle"></i> Explanation
+                            </div>
+                            <div class="explanation-text">${ans.explanation}</div>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -1495,7 +1629,7 @@ function showResults() {
         reviewPopupShown = true;
         setTimeout(() => {
             openReviewModal();
-        }, 800);
+        }, 5000); // 5 seconds delay
     }
 }
 
@@ -1509,6 +1643,20 @@ function closeReviewModal() {
     const modal = document.getElementById('reviewModal');
     if (!modal) return;
     modal.classList.remove('open');
+}
+
+function toggleExplanation(index) {
+    const container = document.getElementById(`explanation-${index}`);
+    const btn = container.previousElementSibling;
+    if (container.style.display === 'block') {
+        container.style.display = 'none';
+        btn.classList.remove('active');
+        btn.innerHTML = '<i class="fas fa-lightbulb"></i> View Explanation';
+    } else {
+        container.style.display = 'block';
+        btn.classList.add('active');
+        btn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Explanation';
+    }
 }
 
 function refreshStars(hoverRating = 0) {
@@ -1650,6 +1798,56 @@ document.querySelectorAll('#starRow .star-btn').forEach(star => {
 quizStarted = true;
 FunnyAudioManager.playStartSound();
 renderQuestion();
+
+// Trigger background verification for MCQs missing explanations after a short delay
+if (missingExplanationIds.length > 0) {
+    setTimeout(() => {
+        triggerBackgroundVerification(missingExplanationIds);
+    }, 3000); // 3 seconds delay to ensure quiz UI is interactive
+}
+
+async function triggerBackgroundVerification(ids) {
+    try {
+        const response = await fetch('ajax_verify_background.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                mcq_ids: ids
+            })
+        });
+        const data = await response.json();
+        if (data.success && data.explanations) {
+            console.log('Background verification completed:', data.stats);
+            
+            // Update the 'questions' array with corrected answers and explanations
+            data.explanations.forEach(upd => {
+                const fullId = (upd.source === 'ai' ? 'ai_' : '') + upd.id;
+                const qIdx = questions.findIndex(q => q.mcq_id === fullId || q.mcq_id == fullId);
+                if (qIdx !== -1) {
+                    questions[qIdx].explanation = upd.explanation || '';
+                    if (upd.correct_option) {
+                        questions[qIdx].correct_option = upd.correct_option;
+                    }
+                    
+                    // If the question was already answered or skipped, update its entry in 'answers'
+                    // so the results screen shows the newly fetched explanation
+                    if (answers[qIdx]) {
+                        answers[qIdx].explanation = upd.explanation || '';
+                        
+                        // If it was corrected, update correct info for results (doesn't affect past UI feedback)
+                        if (upd.correct_option) {
+                            const newCorrectLetter = getCorrectLetter(questions[qIdx]);
+                            answers[qIdx].correct = newCorrectLetter;
+                            answers[qIdx].correctText = questions[qIdx]['option_' + (newCorrectLetter || 'a').toLowerCase()];
+                        }
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Background verification failed:', error);
+    }
+}
 </script>
 
 <?php include '../footer.php'; ?>

@@ -1,20 +1,15 @@
 <?php
 require_once __DIR__ . '/../../db_connect.php';
+require_once __DIR__ . '/../../config/env.php';
+require_once __DIR__ . '/../../quiz/mcq_generator.php';
 require_once __DIR__ . '/../security.php';
 requireAdminAuth();
 
 include_once __DIR__ . '/../header.php';
 
-// AIMCQsVerification table is created in install.php - with safety fallback for runtime
-$conn->query("CREATE TABLE IF NOT EXISTS AIMCQsVerification (
-    mcq_id INT PRIMARY KEY,
-    verification_status ENUM('pending', 'verified', 'corrected', 'flagged') DEFAULT 'pending',
-    last_checked_at DATETIME,
-    suggested_correct_option TEXT,
-    original_correct_option TEXT,
-    ai_notes TEXT,
-    FOREIGN KEY (mcq_id) REFERENCES AIGeneratedMCQs(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+if (isset($conn) && function_exists('ensureMcqVerificationTable')) {
+    ensureMcqVerificationTable($conn);
+}
 
 $message = '';
 $error = '';
@@ -89,6 +84,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'delete') {
             $id = intval($_POST['id'] ?? 0);
             if ($id > 0) {
+                $src = 'AIGeneratedMCQs';
+                $delV = $conn->prepare('DELETE FROM MCQVerification WHERE source = ? AND mcq_id = ?');
+                if ($delV) {
+                    $delV->bind_param('si', $src, $id);
+                    $delV->execute();
+                    $delV->close();
+                }
                 $stmt = $conn->prepare("DELETE FROM AIGeneratedMCQs WHERE id = ?");
                 if ($stmt) {
                     $stmt->bind_param('i', $id);
@@ -223,7 +225,7 @@ $mcqs = [];
 if ($whereSql === '') {
     $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.generated_at, v.verification_status, v.last_checked_at 
             FROM AIGeneratedMCQs m
-            LEFT JOIN AIMCQsVerification v ON m.id = v.mcq_id
+            LEFT JOIN MCQVerification v ON v.source = 'AIGeneratedMCQs' AND v.mcq_id = m.id
             ORDER BY m.generated_at DESC" . $limitSql;
     $result = $conn->query($sql);
     if ($result) {
@@ -234,7 +236,7 @@ if ($whereSql === '') {
 } else {
     $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.generated_at, v.verification_status, v.last_checked_at 
             FROM AIGeneratedMCQs m
-            LEFT JOIN AIMCQsVerification v ON m.id = v.mcq_id
+            LEFT JOIN MCQVerification v ON v.source = 'AIGeneratedMCQs' AND v.mcq_id = m.id
             $whereSql 
             ORDER BY m.generated_at DESC" . $limitSql;
     $stmt = $conn->prepare($sql);

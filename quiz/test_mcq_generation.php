@@ -63,6 +63,88 @@ if (isset($_GET['action']) && $_GET['action'] === 'test_key' && isset($_POST['ap
     exit;
 }
 
+/**
+ * Test RECHECK_API_KEY against OpenRouter (MCQ verification only).
+ *
+ * @return array{ok:bool, message?:string, http_code?:int, model?:string, snippet?:string}
+ */
+function testMcqRecheckApiKeyConnection() {
+    $key = getRecheckApiKey();
+    if ($key === '') {
+        return ['ok' => false, 'message' => 'No recheck key: set RECHECK_API_KEY or GENERATING_KEYWORDS_KEY in config/.env.local or .env.production.'];
+    }
+    $model = getRecheckModel();
+    list($text, $code) = callRecheckAi($key, $model, "Reply with exactly one token on one line: RECHECK_OK", 50, 25);
+    if ($code !== 200) {
+        return ['ok' => false, 'message' => 'OpenRouter HTTP ' . $code, 'http_code' => $code, 'model' => $model];
+    }
+    if ($text === null || trim((string) $text) === '') {
+        return ['ok' => false, 'message' => 'Empty model response', 'model' => $model];
+    }
+    if (stripos($text, 'RECHECK_OK') === false) {
+        return [
+            'ok' => false,
+            'message' => 'Response did not contain RECHECK_OK',
+            'snippet' => function_exists('mb_substr') ? mb_substr($text, 0, 400) : substr($text, 0, 400),
+            'model' => $model,
+        ];
+    }
+    return ['ok' => true, 'message' => 'RECHECK_API_KEY works with model: ' . $model, 'model' => $model];
+}
+
+/**
+ * Run recheck verification on the latest AIGeneratedMCQs row; checks MCQVerification + explanation.
+ *
+ * @return array<string, mixed>
+ */
+function testMcqRecheckVerificationPipeline(mysqli $conn) {
+    ensureMcqVerificationTable($conn);
+    ensureMcqExplanationColumns($conn);
+    if (getRecheckApiKey() === '') {
+        return ['ok' => false, 'message' => 'RECHECK_API_KEY not set; cannot verify MCQs'];
+    }
+    $res = $conn->query('SELECT id, topic, question_text, option_a, option_b, option_c, option_d, correct_option FROM AIGeneratedMCQs ORDER BY id DESC LIMIT 1');
+    if (!$res || !($row = $res->fetch_assoc())) {
+        return ['ok' => false, 'message' => 'No rows in AIGeneratedMCQs — run Test 3 (generate) first'];
+    }
+    $run = verifyMcqsWithRecheckApi($conn, [$row], 'AIGeneratedMCQs');
+    if (empty($run['success'])) {
+        return ['ok' => false, 'message' => $run['message'] ?? 'verifyMcqsWithRecheckApi failed', 'verify' => $run];
+    }
+    $id = (int) $row['id'];
+    $stmt = $conn->prepare('SELECT verification_status, suggested_correct_option, original_correct_option, CHAR_LENGTH(COALESCE(explanation,\'\')) AS explanation_len, LEFT(explanation, 500) AS explanation_preview FROM MCQVerification WHERE source = ? AND mcq_id = ?');
+    $src = 'AIGeneratedMCQs';
+    $stmt->bind_param('si', $src, $id);
+    $stmt->execute();
+    $vrow = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    $stmt2 = $conn->prepare('SELECT CHAR_LENGTH(COALESCE(explanation,\'\')) AS elen FROM AIGeneratedMCQs WHERE id = ?');
+    $stmt2->bind_param('i', $id);
+    $stmt2->execute();
+    $aiRow = $stmt2->get_result()->fetch_assoc();
+    $stmt2->close();
+    $vLen = $vrow ? (int) ($vrow['explanation_len'] ?? 0) : 0;
+    $mLen = (int) ($aiRow['elen'] ?? 0);
+    return [
+        'ok' => true,
+        'message' => 'Verification finished; items checked: ' . (int) ($run['stats']['checked'] ?? 0),
+        'mcq_id' => $id,
+        'stats' => $run['stats'],
+        'verification_row' => $vrow,
+        'ai_explanation_chars' => $mLen,
+        'explanation_in_verification_table' => $vLen > 0,
+        'explanation_on_ai_row' => $mLen > 0,
+        'explanation_ok' => ($vLen > 0 || $mLen > 0),
+    ];
+}
+
+if (isset($_GET['action']) && $_GET['action'] === 'test_recheck_key') {
+    header('Content-Type: application/json');
+    $r = testMcqRecheckApiKeyConnection();
+    echo json_encode(['success' => !empty($r['ok']), 'data' => $r]);
+    exit;
+}
+
 $cacheManager = null;
 if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
     require_once __DIR__ . '/../services/CacheManager.php';
@@ -257,6 +339,28 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
             btnAll.disabled = false;
             btnAll.textContent = 'Check All API Keys';
         }
+
+        async function testRecheckKeyFromEnv() {
+            const el = document.getElementById('recheck-env-status');
+            if (!el) return;
+            el.textContent = 'Testing...';
+            el.style.color = '#17a2b8';
+            try {
+                const r = await fetch('?action=test_recheck_key', { method: 'POST' });
+                const j = await r.json();
+                const d = j.data || {};
+                if (j.success) {
+                    el.textContent = '✓ ' + (d.message || 'OK');
+                    el.style.color = '#28a745';
+                } else {
+                    el.textContent = '✗ ' + (d.message || 'Failed');
+                    el.style.color = '#dc3545';
+                }
+            } catch (e) {
+                el.textContent = '✗ ' + e.message;
+                el.style.color = '#dc3545';
+            }
+        }
     </script>
 </head>
 <body>
@@ -329,6 +433,19 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
                 echo '<div class="success">✓ mcqs table exists</div>';
             } else {
                 echo '<div class="error">✗ mcqs table does not exist!</div>';
+            }
+
+            $mvCheck = $conn->query("SHOW TABLES LIKE 'MCQVerification'");
+            if ($mvCheck && $mvCheck->num_rows > 0) {
+                echo '<div class="success">✓ MCQVerification table exists (AI MCQ verification)</div>';
+            } else {
+                echo '<div class="warning">⚠ MCQVerification missing — run install.php or load admin verify once</div>';
+            }
+            $msvCheck = $conn->query("SHOW TABLES LIKE 'MCQsVerification'");
+            if ($msvCheck && $msvCheck->num_rows > 0) {
+                echo '<div class="success">✓ MCQsVerification table exists (manual <code>mcqs</code> verification; preserved by install)</div>';
+            } else {
+                echo '<div class="warning">⚠ MCQsVerification missing — run install.php</div>';
             }
         } else {
             echo '<div class="error">✗ Database connection failed: ' . ($conn->connect_error ?? 'Unknown error') . '</div>';
@@ -561,9 +678,45 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
         }
         echo '</div>';
 
-        // Test 6: Database Statistics
+        // Test 6: RECHECK API (verification + explanations)
         echo '<div class="test-section">';
-        echo '<h2>Test 6: Database Statistics</h2>';
+        echo '<h2>Test 6: RECHECK_API_KEY &amp; MCQ verification</h2>';
+        echo '<p class="info" style="margin:0 0 12px 0;">Uses <code>RECHECK_API_KEY</code> (or <code>GENERATING_KEYWORDS_KEY</code> if empty) and <code>RECHECK_MODEL</code>. Keys starting with <code>nvapi-</code> call NVIDIA (<code>integrate.api.nvidia.com</code>) like keyword generation; OpenRouter keys use <code>openrouter.ai</code>.</p>';
+
+        echo '<p><button type="button" class="test-btn" onclick="testRecheckKeyFromEnv()" id="btn-recheck-env">Test RECHECK key (from .env)</button> <span id="recheck-env-status" class="test-status"></span></p>';
+
+        if (isset($_POST['test_recheck_pipeline'])) {
+            $pipe = testMcqRecheckVerificationPipeline($conn);
+            if (!empty($pipe['ok'])) {
+                echo '<div class="success">✓ ' . htmlspecialchars($pipe['message']) . '</div>';
+                echo '<div class="info">MCQ id: <strong>' . (int) ($pipe['mcq_id'] ?? 0) . '</strong></div>';
+                if (!empty($pipe['stats'])) {
+                    echo '<div class="info">Stats: checked=' . (int) ($pipe['stats']['checked'] ?? 0) . ', verified=' . (int) ($pipe['stats']['verified'] ?? 0) . ', corrected=' . (int) ($pipe['stats']['corrected'] ?? 0) . ', flagged=' . (int) ($pipe['stats']['flagged'] ?? 0) . '</div>';
+                }
+                $expOk = !empty($pipe['explanation_ok']);
+                echo $expOk
+                    ? '<div class="success">✓ Explanation stored (verification table: ' . (!empty($pipe['explanation_in_verification_table']) ? 'yes' : 'no') . ', AIGeneratedMCQs.explanation chars: ' . (int) ($pipe['ai_explanation_chars'] ?? 0) . ')</div>'
+                    : '<div class="warning">⚠ No explanation text found in MCQVerification or AIGeneratedMCQs for this row</div>';
+                if (!empty($pipe['verification_row'])) {
+                    echo '<details class="info" style="margin-top:10px;"><summary>Verification row (preview)</summary><pre>' . htmlspecialchars(json_encode($pipe['verification_row'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) . '</pre></details>';
+                }
+            } else {
+                echo '<div class="error">✗ ' . htmlspecialchars($pipe['message'] ?? 'Failed') . '</div>';
+                if (!empty($pipe['verify'])) {
+                    echo '<pre class="info">' . htmlspecialchars(json_encode($pipe['verify'], JSON_PRETTY_PRINT)) . '</pre>';
+                }
+            }
+        }
+
+        echo '<form method="POST" action="" style="margin-top:12px;">';
+        echo '<button type="submit" name="test_recheck_pipeline" value="1">🔁 Run full pipeline (latest AI MCQ → verify → check explanation)</button>';
+        echo '</form>';
+        echo '<p class="warning" style="font-size:13px;">Requires at least one row in AIGeneratedMCQs (use Test 3 first) and a valid <code>RECHECK_API_KEY</code>.</p>';
+        echo '</div>';
+
+        // Test 7: Database Statistics
+        echo '<div class="test-section">';
+        echo '<h2>Test 7: Database Statistics</h2>';
         
         // Count total MCQs
         $totalMcqs = $conn->query("SELECT COUNT(*) as cnt FROM mcqs")->fetch_assoc()['cnt'];
@@ -580,6 +733,12 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
         // Recent AI-generated MCQs
         $recentAi = $conn->query("SELECT COUNT(*) as cnt FROM AIGeneratedMCQs WHERE generated_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)")->fetch_assoc()['cnt'];
         echo '<div class="info">AI-Generated MCQs (Last 24 hours): <strong>' . $recentAi . '</strong></div>';
+
+        $mvExists = $conn->query("SHOW TABLES LIKE 'MCQVerification'");
+        if ($mvExists && $mvExists->num_rows > 0) {
+            $mvTotal = $conn->query('SELECT COUNT(*) AS c FROM MCQVerification')->fetch_assoc()['c'] ?? 0;
+            echo '<div class="info">MCQVerification rows (all sources): <strong>' . (int) $mvTotal . '</strong></div>';
+        }
         
         echo '</div>';
         ?>
@@ -590,7 +749,8 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
                 <li>This test page helps verify that the OpenAI API (via OpenRouter) integration is working correctly</li>
                 <li>If generation fails, check the error logs in your server</li>
                 <li>Make sure your API key has sufficient quota/credits</li>
-                <li>Generated MCQs are stored in both <code>mcqs</code> and <code>AIGeneratedMCQs</code> tables</li>
+                <li>AI MCQs: <code>AIGeneratedMCQs</code> + verification in <code>MCQVerification</code> (<code>source</code> = <code>AIGeneratedMCQs</code>)</li>
+                <li>Manual MCQs: verification in <code>MCQsVerification</code> — <code>install.php</code> creates this table and does <strong>not</strong> drop it; old AI tables <code>AIMCQsVerification</code> / <code>AIGeneratedMCQsVerification</code> may still be migrated into <code>MCQVerification</code> and removed</li>
                 <li>You can delete this test file after verification</li>
             </ul>
         </div>

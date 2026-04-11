@@ -307,8 +307,15 @@ if (isset($_POST['start_quiz'])) {
                 generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel);
             }
             
-            $topicsParam = urlencode(json_encode($topicsArray));
-            header('Location: quiz.php?class_id=0&book_id=0&topics=' . $topicsParam . '&mcq_count=' . $mcqCount . '&study_level=' . urlencode($studyLevel));
+            if (count($topicsArray) === 1) {
+                // Prettify URL for single topic: topicName-MCQs-Quiz
+                $prettyTopic = str_replace(' ', '-', $topicsArray[0]);
+                // Construct relative path to root for the pretty URL
+                header('Location: ../' . $prettyTopic . '-MCQs-Quiz');
+            } else {
+                $topicsParam = urlencode(json_encode($topicsArray));
+                header('Location: quiz.php?class_id=0&book_id=0&topics=' . $topicsParam . '&mcq_count=' . $mcqCount . '&study_level=' . urlencode($studyLevel));
+            }
             exit;
         } else {
             $error = empty($topicsArray) ? "Please select at least one topic." : "Please specify the number of MCQs (1-10).";

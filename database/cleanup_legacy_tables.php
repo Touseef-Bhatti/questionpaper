@@ -17,7 +17,9 @@ echo "<hr>\n";
 $legacyTables = [
     'api_keys' => 'Old API keys table (replaced by ai_api_keys)',
     'AIGeneratedQuestion' => 'Legacy AI question table',
-    'AIMCQsVerification' => 'Legacy MCQs verification table',
+    'AIMCQsVerification' => 'Superseded by MCQVerification (safe to drop after migrate)',
+    'MCQsVerification' => 'Manual MCQ verification (keep; do not drop)',
+    'AIGeneratedMCQsVerification' => 'Legacy/duplicate name; superseded by MCQVerification',
     'AIQuestionsTopic' => 'Legacy questions/topics table'
 ];
 

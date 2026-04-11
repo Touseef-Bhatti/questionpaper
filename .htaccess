@@ -94,6 +94,10 @@ Options -Indexes
     # Matches patterns like: mcqs/9th-class/physics
     RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ notes/mcqs.php?class_id=$1&book_name=$2&view=1 [QSA,NC,L]
 
+    # 7. Handle SEO pattern for Topic-based Quiz
+    # Matches patterns like: Thread-Concepts-MCQs-Quiz
+    RewriteRule ^([^/]+)-MCQs-Quiz/?$ quiz/quiz.php?topic=$1&mcq_count=10&study_level=medium [QSA,NC,L]
+
     # 4. Hide .php extensions for a cleaner URL structure (General Root Files)
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME}.php -f

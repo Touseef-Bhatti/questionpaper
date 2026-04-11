@@ -28,6 +28,8 @@ class EnvLoader
         'AI_MAX_RETRIES' => '3',
         'AI_RETRY_DELAY_MS' => '100',
         'GENERATING_KEYWORDS_KEY' => '',
+        'RECHECK_API_KEY' => '',
+        'RECHECK_MODEL' => '',
     ];
 
     /**
