@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $optionB = sanitizeInput($_POST['option_b'] ?? '');
                 $optionC = sanitizeInput($_POST['option_c'] ?? '');
                 $optionD = sanitizeInput($_POST['option_d'] ?? '');
+                $explanation = sanitizeInput($_POST['explanation'] ?? '');
                 $correctLetter = strtoupper(trim($_POST['correct_option'] ?? ''));
 
                 $correctText = '';
@@ -52,12 +53,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $stmt = $conn->prepare(
                         "UPDATE AIGeneratedMCQs 
-                         SET topic = ?, question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_option = ?
+                         SET topic = ?, question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_option = ?, explanation = ?
                          WHERE id = ?"
                     );
                     if ($stmt) {
                         $stmt->bind_param(
-                            'sssssssi',
+                            'ssssssssi',
                             $topic,
                             $question,
                             $optionA,
@@ -65,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $optionC,
                             $optionD,
                             $correctText,
+                            $explanation,
                             $id
                         );
                         if ($stmt->execute()) {
@@ -223,7 +225,7 @@ $limitSql = $viewAll ? '' : " LIMIT $offset, $perPage";
 
 $mcqs = [];
 if ($whereSql === '') {
-    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.generated_at, v.verification_status, v.last_checked_at 
+    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.explanation, m.generated_at, v.verification_status, v.last_checked_at 
             FROM AIGeneratedMCQs m
             LEFT JOIN MCQVerification v ON v.source = 'AIGeneratedMCQs' AND v.mcq_id = m.id
             ORDER BY m.generated_at DESC" . $limitSql;
@@ -234,7 +236,7 @@ if ($whereSql === '') {
         }
     }
 } else {
-    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.generated_at, v.verification_status, v.last_checked_at 
+    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.explanation, m.generated_at, v.verification_status, v.last_checked_at 
             FROM AIGeneratedMCQs m
             LEFT JOIN MCQVerification v ON v.source = 'AIGeneratedMCQs' AND v.mcq_id = m.id
             $whereSql 
@@ -751,6 +753,7 @@ $csrfToken = generateCSRFToken();
                     <th>Topic</th>
                     <th>Question</th>
                     <th>Options</th>
+                    <th>Explanation</th>
                     <th>Correct</th>
                     <th>Status</th>
                     <th>Last Checked</th>
@@ -761,7 +764,7 @@ $csrfToken = generateCSRFToken();
             <tbody>
                 <?php if (empty($mcqs)): ?>
                     <tr>
-                        <td colspan="9">No AI MCQs found for the selected filters.</td>
+                        <td colspan="10">No AI MCQs found for the selected filters.</td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($mcqs as $mcq): ?>
@@ -791,6 +794,15 @@ $csrfToken = generateCSRFToken();
                                     <div><strong>C:</strong> <?= htmlspecialchars($mcq['option_c'] ?? '') ?></div>
                                     <div><strong>D:</strong> <?= htmlspecialchars($mcq['option_d'] ?? '') ?></div>
                                 </div>
+                            </td>
+                            <td>
+                                <?php if (!empty($mcq['explanation'])): ?>
+                                    <div style="font-style: italic; color: #555; font-size: 0.85rem; max-width: 250px;">
+                                        <?= htmlspecialchars($mcq['explanation']) ?>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="text-muted" style="font-size: 0.8rem;">-</span>
+                                <?php endif; ?>
                             </td>
                             <td class="mcq-correct">
                                 <?php if ($label !== ''): ?>
@@ -834,7 +846,7 @@ $csrfToken = generateCSRFToken();
                             </td>
                         </tr>
                         <tr id="edit-ai-<?= (int)$mcq['id'] ?>" class="edit-row" style="display:none;">
-                            <td colspan="9">
+                            <td colspan="10">
                                 <form method="POST">
                                     <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                     <input type="hidden" name="action" value="update">
@@ -879,6 +891,10 @@ $csrfToken = generateCSRFToken();
                                             <option value="C" <?= $selC ?>>Option C</option>
                                             <option value="D" <?= $selD ?>>Option D</option>
                                         </select>
+                                    </div>
+                                    <div style="grid-column: 1 / -1;">
+                                        <label>Explanation (Why this is correct)</label>
+                                        <textarea name="explanation" style="width:100%; min-height: 80px;"><?= htmlspecialchars($mcq['explanation'] ?? '') ?></textarea>
                                     </div>
                                     <div style="grid-column: 1 / -1; margin-top: 0.5rem;">
                                         <button type="submit" class="btn btn-edit">Save</button>

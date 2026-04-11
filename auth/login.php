@@ -134,7 +134,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <body>
 <?php include '../header.php'; ?>
 
-<div class="main-content">
+<div class="main-content" style="margin-top:13%"  >
   <div class="auth-page">
     <div class="auth-card">
       <h1 class="auth-title">Welcome back</h1>

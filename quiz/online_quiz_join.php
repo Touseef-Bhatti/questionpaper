@@ -116,7 +116,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       align-items: center;
       justify-content: center;
       padding: 2rem 1rem;
+      margin-top: 10%;
     }
+
 
     .join-card {
       width: 100%;

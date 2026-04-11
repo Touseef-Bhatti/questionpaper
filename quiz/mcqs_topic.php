@@ -534,6 +534,12 @@ if (isset($_POST['start_quiz'])) {
                 </div>
                 
                 <div class="load-more-btn-container">
+                     <div id="loadMoreLoader" style="display:none;">
+                         <div class="loader-progress">
+                             <div class="loader-progress-bar" id="loadMoreProgressBar"></div>
+                         </div>
+                         <div class="load-more-text">Our AI is exploring the knowledge graph...</div>
+                    </div>
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
                         <button type="button" id="loadMoreTopicsBtn" class="btn-secondary" style="width: 100%; max-width: 400px;">
                             <i class="fas fa-magic"></i> Explore More Topics (AI)
@@ -542,12 +548,7 @@ if (isset($_POST['start_quiz'])) {
                             <i class="fas fa-bolt"></i> Start Quiz
                         </button>
                     </div>
-                    <div id="loadMoreLoader" style="display:none;">
-                         <div class="loader-progress">
-                             <div class="loader-progress-bar" id="loadMoreProgressBar"></div>
-                         </div>
-                         <div class="load-more-text">Our AI is exploring the knowledge graph...</div>
-                    </div>
+                   
                 </div>
             </div>
         <?php endif; ?>
@@ -874,8 +875,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = this;
             // Prevent rapid double clicks
             if (btn.disabled) return;
+            
+            // Disable button for 10 seconds to avoid double click
             btn.disabled = true;
-            setTimeout(() => { btn.disabled = false; }, 5000);
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exploring...';
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'not-allowed';
+
+            setTimeout(() => { 
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            }, 10000);
 
             const loader = document.getElementById('loadMoreLoader');
             const progressBar = document.getElementById('loadMoreProgressBar');
@@ -884,6 +897,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const resultsHeader = document.getElementById('resultsHeader');
             if (!searchQuery) {
                 btn.disabled = false;
+                btn.innerHTML = originalContent;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
                 return;
             }
             const excludeTopics = [];
@@ -893,7 +909,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (d && d.topic) excludeTopics.push(d.topic);
                 } catch(e) {}
             });
-            btn.style.display = 'none';
+            
             if (loader) loader.style.display = 'block';
             let width = 0;
             const interval = setInterval(() => {
@@ -932,7 +948,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(interval);
                 setTimeout(() => { 
                     if (loader) loader.style.display = 'none'; 
-                    btn.style.display = 'inline-block';
                 }, 500);
             });
         });

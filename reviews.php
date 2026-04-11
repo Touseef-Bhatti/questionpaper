@@ -200,7 +200,20 @@ function renderStars(int $rating): string {
         .reviewer {
             font-weight: 800;
             color: #0f172a;
-            font-size: 1rem;
+            font-size: 1.05rem;
+        }
+        .reviewer-avatar {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
         }
         .review-form-wrap {
             background: #ffffff;
@@ -455,6 +468,9 @@ function renderStars(int $rating): string {
                 ?>
                 <article class="review-card">
                     <div class="review-top">
+                        <div class="reviewer-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
                         <div class="reviewer"><?= htmlspecialchars($displayName) ?></div>
                     </div>
                     <div class="review-stars"><?= htmlspecialchars(renderStars((int)$review['rating'])) ?></div>

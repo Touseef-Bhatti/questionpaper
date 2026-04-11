@@ -755,67 +755,67 @@ if (is_dir($incorrectDir)) {
         /* ─── Explanation ────────────────────────────────────── */
         .explanation-container {
             margin-top: 18px;
-            padding: 20px;
-            background: #fdfaff;
-            border-radius: 16px;
-            border: 1px solid #e9d5ff;
-            border-left: 5px solid #7c3aed;
+            padding: 24px;
+            background: #f8fafc;
+            border-radius: 20px;
+            border: 2px solid #e2e8f0;
+            border-left: 6px solid #4f46e5;
             display: none;
             animation: slideDownFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: inset 0 2px 4px rgba(124, 58, 237, 0.03);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
         }
         .explanation-title {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             font-weight: 800;
-            color: #7c3aed;
+            color: #4f46e5;
             text-transform: uppercase;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            letter-spacing: 0.05em;
+            gap: 10px;
+            letter-spacing: 0.06em;
         }
         .explanation-text {
-            font-size: 1rem;
-            color: #475569;
-            line-height: 1.6;
+            font-size: 1.05rem;
+            color: #334155;
+            line-height: 1.7;
             font-weight: 500;
         }
         .btn-explanation {
-            margin-top: 16px;
-            background: #ffffff;
-            color: #6366f1;
-            border: 2px solid #e0e7ff;
-            padding: 10px 20px;
-            border-radius: 12px;
-            font-size: 0.9rem;
+            margin-top: 20px;
+            background: #4f46e5;
+            color: #ffffff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 14px;
+            font-size: 0.95rem;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+            width: fit-content;
         }
         .btn-explanation i {
-            font-size: 1.1rem;
-            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .btn-explanation:hover {
-            background: #f5f7ff;
-            border-color: #6366f1;
-            color: #4f46e5;
+            background: #4338ca;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+        }
+        .btn-explanation:active {
+            transform: translateY(1px);
         }
         .btn-explanation.active {
-            background: #6366f1;
-            color: #ffffff;
-            border-color: #4f46e5;
-            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+            background: #1e293b;
+            box-shadow: 0 4px 12px rgba(30, 41, 59, 0.2);
         }
         .btn-explanation.active i {
-            transform: rotate(180deg);
+            transform: rotate(180deg) scale(1.1);
         }
 
         @keyframes slideDownFade {
@@ -835,66 +835,57 @@ if (is_dir($incorrectDir)) {
 
         /* ─── Funny Mode ─────────────────────────────────────── */
         .funny-mode-btn {
-            background: linear-gradient(135deg, #ff0080 0%, #7928ca 100%);
-            color: #ffffff;
-            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: #facc15; /* Yellow-400 */
+            color: #1e293b; /* Slate-800 */
+            border: 3px solid #eab308; /* Yellow-500 */
             padding: 12px 28px;
             border-radius: 50px;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.08em;
             cursor: pointer;
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 12px;
             margin-top: 14px;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 4px 15px rgba(255, 0, 128, 0.3), 0 4px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 6px 0 #ca8a04, 0 8px 15px rgba(234, 179, 8, 0.3);
             position: relative;
-            overflow: hidden;
             z-index: 1;
         }
-        .funny-mode-btn::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transform: translateX(-100%);
-            transition: transform 0.6s ease;
-            z-index: -1;
-        }
+        
         .funny-mode-btn:hover {
-            transform: translateY(-4px) scale(1.03);
-            box-shadow: 0 12px 25px rgba(255, 0, 128, 0.4), 0 4px 10px rgba(0, 0, 0, 0.1);
-            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+            background: #fde047; /* Yellow-300 */
+            box-shadow: 0 4px 0 #ca8a04, 0 6px 12px rgba(234, 179, 8, 0.4);
         }
-        .funny-mode-btn:hover::before {
-            transform: translateX(100%);
+
+        .funny-mode-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #ca8a04, 0 2px 5px rgba(234, 179, 8, 0.5);
         }
         
-        /* Redesigned ON State: Ultra Neon Cyan Glow */
+        /* Active (ON) State */
         .funny-mode-btn.active {
-            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
-            color: #0f172a;
-            border-color: #ffffff;
-            box-shadow: 0 0 35px rgba(0, 242, 254, 0.8), 0 0 15px rgba(79, 172, 254, 0.5);
-            animation: pulse-glow-neon 1.5s infinite alternate;
+            background: #fbbf24; /* Amber-400 */
+            border-color: #f59e0b; /* Amber-500 */
+            box-shadow: 0 4px 0 #b45309, 0 0 20px rgba(251, 191, 36, 0.6);
+            animation: bounce-small 2s infinite;
         }
-        
-        @keyframes pulse-glow-neon {
-            from { box-shadow: 0 0 20px rgba(0, 242, 254, 0.5); }
-            to { box-shadow: 0 0 50px rgba(0, 242, 254, 0.9), 0 0 25px rgba(79, 172, 254, 0.7); }
+
+        @keyframes bounce-small {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
         }
 
         .funny-mode-btn.active i {
-            animation: bounce-spin-extra 0.6s infinite alternate;
+            animation: rotate-emoji 1s infinite alternate;
         }
-        @keyframes bounce-spin-extra {
-            from { transform: translateY(0) rotate(-25deg) scale(1); }
-            to { transform: translateY(-8px) rotate(25deg) scale(1.25); }
+        @keyframes rotate-emoji {
+            from { transform: rotate(-15deg) scale(1.2); }
+            to { transform: rotate(15deg) scale(1.4); }
         }
 
         /* ─── Responsive ──────────────────────────────────────── */
@@ -1629,7 +1620,7 @@ function showResults() {
         reviewPopupShown = true;
         setTimeout(() => {
             openReviewModal();
-        }, 5000); // 5 seconds delay
+        }, 10000); // 10 seconds delay as requested
     }
 }
 

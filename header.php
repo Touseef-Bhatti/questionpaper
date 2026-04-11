@@ -1269,7 +1269,13 @@ html.dark-mode .user-header-info .text-muted {
       </li>
       <li><a href="<?= $assetBase ?>note" class="<?= is_active('note.php') ?>"><i class="fas fa-book"></i> Notes</a></li>
       <li><a href="<?= $assetBase ?>online_quiz_join" class="btn-join"><i class="fas fa-gamepad" ></i> Join</a></li>
-      <li><a href="<?= $assetBase ?>about" class="<?= is_active('about.php') ?>"><i class="fas fa-info-circle"></i> About</a></li>
+      <li class="dropdown">
+        <a class="dropbtn <?= is_active('about.php') || is_active('reviews.php') ? 'active' : '' ?>"><i class="fas fa-info-circle"></i> About <i class="fas fa-caret-down"></i></a>
+        <div class="dropdown-content">
+          <a href="<?= $assetBase ?>about" class="<?= is_active('about.php') ?>"><i class="fas fa-info-circle"></i> About Us</a>
+          <a href="<?= $assetBase ?>reviews" class="<?= is_active('reviews.php') ?>"><i class="fas fa-star"></i> Reviews</a>
+        </div>
+      </li>
       <!-- <li><a href="<?= $assetBase ?>contact.php" class="<?= is_active('contact.php') ?>"><i class="fas fa-envelope"></i> Contact</a></li> -->
 
                 <?php if (isset($_SESSION['user_id'])): ?>

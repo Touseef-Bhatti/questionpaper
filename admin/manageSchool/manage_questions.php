@@ -298,6 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $optionB = trim($_POST['option_b'] ?? '');
         $optionC = trim($_POST['option_c'] ?? '');
         $optionD = trim($_POST['option_d'] ?? '');
+        $explanation = trim($_POST['explanation'] ?? '');
         // We accept a letter (A/B/C/D) but store the actual option text in DB
         $correctOptionLetter = strtoupper(trim($_POST['correct_option'] ?? ''));
         $correctOptionText = '';
@@ -309,9 +310,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         if ($mcqId > 0 && $classId > 0 && $chapterId > 0 && $question !== '' && $optionA !== '' && $optionB !== '' && $optionC !== '' && $optionD !== '') {
-            $updateStmt = $conn->prepare("UPDATE mcqs SET class_id=?, book_id=?, chapter_id=?, topic=?, question=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=? WHERE mcq_id=?");
+            $updateStmt = $conn->prepare("UPDATE mcqs SET class_id=?, book_id=?, chapter_id=?, topic=?, question=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=?, explanation=? WHERE mcq_id=?");
             if ($updateStmt) {
-                $updateStmt->bind_param('iiiisssssi', $classId, $bookId, $chapterId, $topic, $question, $optionA, $optionB, $optionC, $optionD, $correctOptionText, $mcqId);
+                $updateStmt->bind_param('iiiisssssssi', $classId, $bookId, $chapterId, $topic, $question, $optionA, $optionB, $optionC, $optionD, $correctOptionText, $explanation, $mcqId);
                 if ($updateStmt->execute()) {
                     $updateStmt->close();
                     header('Location: manage_questions.php?msg=mcq_updated');
@@ -458,7 +459,7 @@ $mcqTotalCount = $mcqCountResult ? $mcqCountResult->fetch_assoc()['total'] : 0;
 $mcqTotalPages = ($mcqsPerPage === 'all') ? 1 : ceil($mcqTotalCount / $mcqsPerPage);
 
 // Get MCQs with pagination
-$mcqs = $conn->query("SELECT m.mcq_id, m.class_id, m.book_id, m.chapter_id, m.topic, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, c.chapter_name, b.book_name FROM mcqs m LEFT JOIN chapter c ON c.chapter_id = m.chapter_id LEFT JOIN book b ON b.book_id = m.book_id $mcqWhere ORDER BY m.mcq_id DESC" . ($mcqsLimit ? " $mcqsLimit" : ""));
+$mcqs = $conn->query("SELECT m.mcq_id, m.class_id, m.book_id, m.chapter_id, m.topic, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.explanation, c.chapter_name, b.book_name FROM mcqs m LEFT JOIN chapter c ON c.chapter_id = m.chapter_id LEFT JOIN book b ON b.book_id = m.book_id $mcqWhere ORDER BY m.mcq_id DESC" . ($mcqsLimit ? " $mcqsLimit" : ""));
 
 // Keep the old mcqsData for backward compatibility
 $mcqsData = [];
@@ -859,6 +860,11 @@ include_once __DIR__ . '/../header.php';
                                 <div><strong>B:</strong> <?= htmlspecialchars($mcqData['option_b'] ?? '') ?></div>
                                 <div><strong>C:</strong> <?= htmlspecialchars($mcqData['option_c'] ?? '') ?></div>
                                 <div><strong>D:</strong> <?= htmlspecialchars($mcqData['option_d'] ?? '') ?></div>
+                                <?php if (!empty($mcqData['explanation'])): ?>
+                                    <div style="margin-top: 5px; font-style: italic; color: #666; border-top: 1px solid #eee; padding-top: 3px;">
+                                        <strong>Why:</strong> <?= htmlspecialchars($mcqData['explanation']) ?>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         <?php endif; endif; ?>
                     </td>
@@ -937,14 +943,15 @@ include_once __DIR__ . '/../header.php';
                                     $selC = (strcasecmp($coText, $mcqData['option_c'] ?? '') === 0) ? 'selected' : '';
                                     $selD = (strcasecmp($coText, $mcqData['option_d'] ?? '') === 0) ? 'selected' : '';
                                 ?>
-                                <select name="correct_option">
-                                    <option value="">Select Correct Option</option>
-                                    <option value="A" <?= $selA ?>>Option A</option>
-                                    <option value="B" <?= $selB ?>>Option B</option>
-                                    <option value="C" <?= $selC ?>>Option C</option>
-                                    <option value="D" <?= $selD ?>>Option D</option>
-                                </select>
-                            </div>
+                                    <select name="correct_option">
+                                        <option value="">Select Correct Option</option>
+                                        <option value="A" <?= $selA ?>>Option A</option>
+                                        <option value="B" <?= $selB ?>>Option B</option>
+                                        <option value="C" <?= $selC ?>>Option C</option>
+                                        <option value="D" <?= $selD ?>>Option D</option>
+                                    </select>
+                                    <textarea name="explanation" placeholder="Explanation (Why this is correct)" style="margin-top: 5px;"><?= htmlspecialchars($mcqData['explanation'] ?? '') ?></textarea>
+                                </div>
                             <button type="submit">Save</button>
                             <button type="button" onclick="document.getElementById('edit-<?= (int)$row['id'] ?>').style.display='none'">Cancel</button>
                         </form>
@@ -1074,8 +1081,13 @@ include_once __DIR__ . '/../header.php';
                             <div><strong>A:</strong> <?= htmlspecialchars($mcq['option_a'] ?? '') ?></div>
                             <div><strong>B:</strong> <?= htmlspecialchars($mcq['option_b'] ?? '') ?></div>
                             <div><strong>C:</strong> <?= htmlspecialchars($mcq['option_c'] ?? '') ?></div>
-                            <div><strong>D:</strong> <?= htmlspecialchars($mcq['option_d'] ?? '') ?></div>
-                        </div>
+                                <div><strong>D:</strong> <?= htmlspecialchars($mcq['option_d'] ?? '') ?></div>
+                                <?php if (!empty($mcq['explanation'])): ?>
+                                    <div style="margin-top: 5px; font-style: italic; color: #666; border-top: 1px solid #eee; padding-top: 3px;">
+                                        <strong>Why:</strong> <?= htmlspecialchars($mcq['explanation']) ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                     </td>
                     <td style="text-align: center; font-weight: bold; color: #28a745;"><?= htmlspecialchars($mcq['correct_option'] ?? 'Not Set') ?></td>
                     <td>
@@ -1131,6 +1143,7 @@ include_once __DIR__ . '/../header.php';
                                 <option value="C" <?= $selC ?>>Option C</option>
                                 <option value="D" <?= $selD ?>>Option D</option>
                             </select>
+                            <textarea name="explanation" placeholder="Explanation (Why this is correct)" style="margin-top: 5px;"><?= htmlspecialchars($mcq['explanation'] ?? '') ?></textarea>
                             <button type="submit">Save</button>
                             <button type="button" onclick="document.getElementById('edit-mcq-<?= (int)$mcq['mcq_id'] ?>').style.display='none'">Cancel</button>
                         </form>

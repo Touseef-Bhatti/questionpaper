@@ -292,6 +292,7 @@ function ensureMcqExplanationColumns($conn) {
 
     $targets = [
         ['AIGeneratedMCQs', 'ADD COLUMN explanation TEXT NULL AFTER correct_option'],
+        ['mcqs', 'ADD COLUMN explanation TEXT NULL AFTER correct_option'],
         ['MCQVerification', 'ADD COLUMN explanation TEXT NULL AFTER ai_notes'],
         ['MCQsVerification', 'ADD COLUMN explanation TEXT NULL AFTER ai_notes'],
     ];
@@ -479,8 +480,8 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
         $stmt->execute();
         $stmt->close();
 
-        if ($sourceTable === 'AIGeneratedMCQs' && ($status === 'verified' || $status === 'corrected' || $status === 'flagged') && $explanation !== '') {
-            $updEx = $conn->prepare("UPDATE AIGeneratedMCQs SET explanation = ? WHERE id = ?");
+        if (($sourceTable === 'AIGeneratedMCQs' || $sourceTable === 'mcqs') && ($status === 'verified' || $status === 'corrected' || $status === 'flagged') && $explanation !== '') {
+            $updEx = $conn->prepare("UPDATE $mainTable SET explanation = ? WHERE $pk = ?");
             if ($updEx) {
                 $updEx->bind_param('si', $explanation, $id);
                 $updEx->execute();
@@ -839,8 +840,7 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questi
         $excludeHint = " Do NOT include these (already shown): {$excludeList}. Return DIFFERENT topics.";
     }
  $prompt = "i have an exam and it's Topic: \"{$searchQuery}\". Return EXACTLY 4 topics related to \"{$searchQuery}\" that can come in the exam as a JSON array of objects. 
-Each object must have: 
-- \"topic\": (string) The topic name. 2-3 topics must closely match the text of \"{$searchQuery}\". {$excludeHint}. 
+Each object must have: - \"topic\": (string) The topic name. 2-3 topics must closely match the text of \"{$searchQuery}\". {$excludeHint}. 
 - \"keywords\": (string) A comma-separated list of 3 highly relevant, specific, and searchable phrases that capture the core meaning, concepts, and real-world use of the topic. Avoid vague words. Use clear terms that help in search and filtering. 
 
 Return ONLY the JSON array. No extra text.";

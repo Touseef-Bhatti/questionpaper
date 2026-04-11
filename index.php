@@ -147,7 +147,100 @@ function homeReviewStars(int $rating): string {
 <br><br><br><br>
 <?= renderAd('banner', 'Place Bottom Banner Here') ?>
 
-<br><br><br><br>
+<br><br>
+
+        <!-- Host Online Quiz Showcase Section -->
+        <section class="quiz-showcase-section" id="host-quiz-section">
+            <div class="container">
+                <!-- Section Header -->
+                <div class="quiz-showcase-header">
+                    <div class="quiz-showcase-badge"><i class="fas fa-bolt"></i> Live Quiz Platform</div>
+                    <h2>Host <span class="gradient-text">Online Quizzes</span> in Real-Time</h2>
+                    <p>Create interactive quiz rooms, invite students with a unique code, and watch them compete live. Perfect for classrooms, exams, and fun learning sessions.</p>
+                </div>
+
+                <!-- Main Content Grid -->
+                <div class="quiz-showcase-grid">
+
+                    <!-- Left: Features List -->
+                    <div class="quiz-showcase-features">
+                        <div class="qf-card">
+                            <div class="qf-icon"><i class="fas fa-link"></i></div>
+                            <div class="qf-content">
+                                <h4>Shareable Room Code</h4>
+                                <p>Students join instantly with a unique quiz code — no signup required.</p>
+                            </div>
+                        </div>
+                        <div class="qf-card">
+                            <div class="qf-icon"><i class="fas fa-chart-bar"></i></div>
+                            <div class="qf-content">
+                                <h4>Real-Time Leaderboard</h4>
+                                <p>Live rank tracking keeps engagement high and learning competitive.</p>
+                            </div>
+                        </div>
+                        <div class="qf-card">
+                            <div class="qf-icon"><i class="fas fa-stopwatch"></i></div>
+                            <div class="qf-content">
+                                <h4>Timed Questions</h4>
+                                <p>Set per-question timers for a real exam feel with auto-submit.</p>
+                            </div>
+                        </div>
+                        <div class="qf-card">
+                            <div class="qf-icon"><i class="fas fa-trophy"></i></div>
+                            <div class="qf-content">
+                                <h4>Instant Results</h4>
+                                <p>Scores, rankings, and detailed analytics — available the moment the quiz ends.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Visual Quiz Mockup -->
+                    <div class="quiz-showcase-visual">
+                        <div class="quiz-mockup">
+                            <div class="quiz-mockup-header">
+                                <div class="mockup-dot red"></div>
+                                <div class="mockup-dot yellow"></div>
+                                <div class="mockup-dot green"></div>
+                                <span class="mockup-title">Live Quiz Room</span>
+                            </div>
+                            <div class="quiz-mockup-body">
+                                <div class="mockup-question-badge">Question 3 of 10</div>
+                                <div class="mockup-question">What is the SI unit of force?</div>
+                                <div class="mockup-options">
+                                    <div class="mockup-option">A. Joule</div>
+                                    <div class="mockup-option correct">B. Newton <i class="fas fa-check-circle"></i></div>
+                                    <div class="mockup-option">C. Watt</div>
+                                    <div class="mockup-option">D. Pascal</div>
+                                </div>
+                                <div class="mockup-timer">
+                                    <div class="timer-bar"><div class="timer-fill"></div></div>
+                                    <span>18s remaining</span>
+                                </div>
+                                <div class="mockup-participants">
+                                    <div class="participant-avatar"><i class="fas fa-user"></i></div>
+                                    <div class="participant-avatar"><i class="fas fa-user"></i></div>
+                                    <div class="participant-avatar"><i class="fas fa-user"></i></div>
+                                    <div class="participant-avatar more">+12</div>
+                                    <span class="participant-label">15 students competing</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Floating badges -->
+                        <div class="quiz-float-badge badge-top"><i class="fas fa-users"></i> 15 Online</div>
+                        <div class="quiz-float-badge badge-bottom"><i class="fas fa-star"></i> 98% Accuracy</div>
+                    </div>
+
+                </div>
+
+                <!-- Bottom CTA -->
+                <div class="quiz-showcase-cta">
+                    <a href="online_quiz_host_new" class="button primary large quiz-host-btn"><i class="fas fa-play-circle"></i> Host a Quiz Now</a>
+                    <a href="online_quiz_join" class="button secondary large quiz-join-btn"><i class="fas fa-gamepad"></i> Join a Quiz</a>
+                </div>
+            </div>
+        </section>
+
+<br><br>
         <section class="teachers-section">
             <div class="container">
                 <div class="split-grid">
@@ -197,7 +290,12 @@ function homeReviewStars(int $rating): string {
                                 <div class="home-review-stars"><?= htmlspecialchars(homeReviewStars((int)$review['rating'])) ?></div>
                                 <p class="home-review-feedback"><?= htmlspecialchars($snippet) ?></p>
                                 <div class="home-review-footer">
-                                    <strong><?= htmlspecialchars($name) ?></strong>
+                                    <div class="home-reviewer-info">
+                                        <div class="home-reviewer-avatar">
+                                            <i class="fas fa-user-circle"></i>
+                                        </div>
+                                        <strong><?= htmlspecialchars($name) ?></strong>
+                                    </div>
                                     <span><?= date('d M Y', $reviewTime) ?></span>
                                 </div>
                             </article>
