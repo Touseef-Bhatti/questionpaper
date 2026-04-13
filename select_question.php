@@ -509,14 +509,15 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
 </html>
 <style>
     .question-container {
-        max-width: 65%;
-        width: 95%;
-        margin: 5% auto 5% 5%;
+        max-width: 80%;
+        
+        margin: auto;
+
         padding: 20px;
         background: white;
         border-radius: 8px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        margin-top: 20%;
+        margin-top: 10%;
     }
 
     @media (max-width: 768px) {

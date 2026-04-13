@@ -124,8 +124,9 @@
 			text-align: center;
 		}
 		.chapter-container {
-			max-width: 65%;	
-			margin: 5% auto 5% 5%;
+			max-width: 80%;	
+			margin: auto;
+            margin-top: 10%;
 			padding: 20px;
 			background: white;
 			border-radius: 8px;

@@ -1,6 +1,9 @@
+ .main-content {
+          margin-top: 10%;
+        }
  .select-class-content {
-            max-width: 60%;
-            margin: 5% auto 5% 5%;
+            max-width: 80%;
+            margin: auto;
             padding: 2rem 1rem;
             text-align: center;
             background: var(--white);

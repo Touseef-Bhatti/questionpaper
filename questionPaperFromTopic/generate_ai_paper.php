@@ -1274,7 +1274,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
             updateReviewCharCount();
             const hasReviewedLocally = localStorage.getItem('site_review_submitted') === 'true' || localStorage.getItem('quiz_review_submitted') === 'true';
             if (!hasAlreadyReviewedServer && !hasReviewedLocally) {
-                setTimeout(() => openReviewModal(), 3000);
+                setTimeout(() => openReviewModal(), 15000);
             }
         });
         </script>

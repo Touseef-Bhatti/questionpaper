@@ -1467,7 +1467,7 @@ window.addEventListener('load', () => {
     updateReviewCharCount();
     const hasReviewedLocally = localStorage.getItem('site_review_submitted') === 'true' || localStorage.getItem('quiz_review_submitted') === 'true';
     if (!hasAlreadyReviewedServer && !hasReviewedLocally) {
-        setTimeout(() => openReviewModal(), 3000);
+        setTimeout(() => openReviewModal(), 15000);
     }
 });
 
@@ -2036,4 +2036,6 @@ async function downloadDOCX() {
 
 
 </script>
-<?php include 'footer.php'; ?>
+<div style="margin-top: 10%;">
+    <?php include 'footer.php'; ?>
+</div>

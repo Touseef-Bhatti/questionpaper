@@ -15,10 +15,11 @@ body {
 
 }
 .main-container {
-    width: 70%;
-    margin: 5% auto 5% 5%;
+    width: 80%;
+    margin: auto;
     padding: 2rem;
    background-color: --white;
+   margin-top: 10%;
 }
 @media (max-width: 768px) {
     .main-container {
