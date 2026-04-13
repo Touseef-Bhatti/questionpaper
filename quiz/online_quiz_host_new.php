@@ -11,12 +11,13 @@ if (isset($_GET['clear_topics'])) {
     exit;
 }
 
-// Get user info for personalized experience
-$user_name = $_SESSION['name'] ?? 'Instructor';
+// // Get user info for personalized experience
+// $user_name = $_SESSION['name'] ?? 'Instructor';
+// $pageTitle = "Live Quiz Maker for Teachers | AI-Powered Quiz Generator";
 
-$pageTitle = "Host Live AI Quiz - Teacher Dashboard - Ahmad Learning Hub";
-$metaDescription = "Professional live quiz hosting tool for teachers. Generate board exam standard MCQs using AI, host live classroom competitions, and track student performance with real-time analytics.";
-$metaKeywords = "host live quiz, online classroom tool, AI test generator for teachers, Ahmad Learning Hub instructor, live leaderboard, digitizing education Pakistan";
+// $metaDescription = "Create and host live quizzes using AI or your own questions. Conduct real-time classroom assessments with instant results, interactive leaderboards, and performance tracking for students.";
+
+// $metaKeywords = "live quiz maker for teachers, AI quiz generator, host live quiz online, classroom assessment tool, MCQ quiz maker, online test platform, live leaderboard quizzes, teacher dashboard tool, digital learning platform";
 
 include_once '../header.php';
 ?>
@@ -33,8 +34,34 @@ include_once '../header.php';
 }
 </script>
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
 <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
 <link rel="stylesheet" href="<?= $assetBase ?>css/online_quiz_host_new.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Live Quiz Maker for Teachers | AI-Powered Quiz Generator</title>
+
+<meta name="description" content="Create and host live quizzes using AI or your own questions. Conduct real-time classroom assessments with instant results, interactive leaderboards, and performance tracking for students.">
+
+<meta name="keywords" content="live quiz maker for teachers, AI quiz generator, host live quiz online, classroom assessment tool, MCQ quiz maker, online test platform, live leaderboard quizzes, teacher dashboard tool, digital learning platform">
+<!-- monetag ads -->
+<script>(function(s){s.dataset.zone='10788340',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
+<!-- monetag ads -->
+
+</head>
+
+<body>
+    
+
+
+
+
 
 <div class="quiz-creator">
     <div class="creator-header">

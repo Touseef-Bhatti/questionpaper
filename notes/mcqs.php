@@ -209,7 +209,13 @@ if ($viewMcqs) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    
+
+    <!-- monetag ads -->
+     <script>(function(s){s.dataset.zone='10752115',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <!-- monetag ads -->
+
+
+
     <?php
     // Dynamic SEO content based on filters
     $pageTitle = "9th & 10th Class All MCQs | Ahmad Learning Hub";

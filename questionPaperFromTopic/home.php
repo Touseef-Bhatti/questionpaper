@@ -1,161 +1,189 @@
 <?php
 session_start();
 // require_once __DIR__ . '/../auth/auth_check.php';
-$pageTitle = "Create Custom Question Papers | AI-Powered Paper Generator";
-$metaDescription = "Generate customized question papers from topics. AI-powered curriculum mapping for MCQs, short and long questions. Free and premium plans available.";
-$metaKeywords = "question paper generator, custom MCQ papers, assessment builder, question bank, educational tools";
+$pageTitle = "Free AI Question Paper Generator for Any Topic (MCQs, Short & Long Questions)";
 
-require_once __DIR__ . '/../header.php';
-require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
-require_once __DIR__ . '/../services/CacheManager.php';
-require_once __DIR__ . '/../services/DatabaseQueryService.php';
+$metaDescription = "Instantly generate MCQs, short and long questions from any topic using AI. Perfect for 9th, 10th, GCSE, and university students. Create exam-ready question papers in seconds.";
 
-// Initialize services
-$cache = new CacheManager();
-$dbService = new DatabaseQueryService($conn, $cache);
-
-// Subscription Info
-$subscriptionStatus = getSubscriptionInfo();
-$isPremium = $subscriptionStatus && $subscriptionStatus['is_premium'];
-$userPlan = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
-
-// Prepare JSON-LD structured data
-$jsonLD = [
-    "@context" => "https://schema.org",
-    "@type" => "WebApplication",
-    "name" => "Question Paper Generator",
-    "description" => "AI-powered tool to create custom question papers",
-    "url" => "https://" . $_SERVER['HTTP_HOST'] . "/questionPaperFromTopic/",
-    "applicationCategory" => "EducationalApplication",
-    "offers" => [
-        [
-            "@type" => "Offer",
-            "priceCurrency" => "PKR",
-            "price" => "0",
-            "name" => "Free Plan"
-        ]
-    ]
-];
+$metaKeywords = "AI question generator free, MCQ generator by topic, generate exam questions online, AI paper generator, biology MCQs chapter wise, 9th class MCQs, GCSE question generator, quiz maker AI, assignment question generator";
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= htmlspecialchars($pageTitle) ?></title>
+    <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
+    <meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
+    
+    <!-- monetag ads -->
+    <script>(function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
-<!-- Link Professional CSS -->
-<link rel="stylesheet" href="<?= $assetBase ?>css/paper-builder.css?v=<?= time() . rand(7000, 8000) ?>">
-<link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
-<link rel="stylesheet" href="<?= $assetBase ?>css/search-results.css?v=<?= time() . rand(1, 1000) ?>">
-<link rel="stylesheet" href="<?= $assetBase ?>css/ai_loader.css?v=<?= time() ?>">
+      <!-- monetag ads -->
 
-<style>
-/* Honeycomb & Progress Loader Styles (Matched with mcqs_topic.php) */
-#inlineLoader {
-    display: none;
-    padding: 60px 0;
-    text-align: center;
-    background: #ffffff; /* Solid sharp background */
-    border-radius: 30px;
-    margin: 40px 0;
-    border: 1px solid var(--border, #e2e8f0);
-    box-shadow: var(--sh-subtle);
-    animation: loaderFadeIn 0.5s ease;
-}
+    <?php 
+    $only_head = true;
+    require __DIR__ . '/../header.php'; 
+    ?>
 
-@keyframes loaderFadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+    <!-- Link Professional CSS -->
+    <link rel="stylesheet" href="<?= $assetBase ?>css/paper-builder.css?v=<?= time() . rand(7000, 8000) ?>">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/search-results.css?v=<?= time() . rand(1, 1000) ?>">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/ai_loader.css?v=<?= time() ?>">
 
-#loaderText {
-    color: var(--primary);
-    font-weight: 900;
-    font-size: 1.4rem;
-    margin-top: 24px;
-    letter-spacing: -0.02em;
-}
+    <style>
+    /* Honeycomb & Progress Loader Styles (Matched with mcqs_topic.php) */
+    #inlineLoader {
+        display: none;
+        padding: 60px 0;
+        text-align: center;
+        background: #ffffff; /* Solid sharp background */
+        border-radius: 30px;
+        margin: 40px 0;
+        border: 1px solid var(--border, #e2e8f0);
+        box-shadow: var(--sh-subtle);
+        animation: loaderFadeIn 0.5s ease;
+    }
 
-.honeycomb {
-    display: inline-flex;
-    gap: 8px;
-    align-items: center;
-    justify-content: center;
-    height: 40px;
-}
+    @keyframes loaderFadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
-.honeycomb div {
-    width: 12px;
-    height: 32px;
-    background: var(--primary);
-    border-radius: 100px;
-    animation: honeyWave 1.2s ease-in-out infinite;
-}
+    #loaderText {
+        color: var(--primary);
+        font-weight: 900;
+        font-size: 1.4rem;
+        margin-top: 24px;
+        letter-spacing: -0.02em;
+    }
 
-.honeycomb div:nth-child(1) { animation-delay: 0.1s; background: #6366f1; }
-.honeycomb div:nth-child(2) { animation-delay: 0.2s; background: #818cf8; }
-.honeycomb div:nth-child(3) { animation-delay: 0.3s; background: #a855f7; }
-.honeycomb div:nth-child(4) { animation-delay: 0.4s; background: #c084fc; }
-.honeycomb div:nth-child(5) { animation-delay: 0.5s; background: #a855f7; }
-.honeycomb div:nth-child(6) { animation-delay: 0.6s; background: #818cf8; }
-.honeycomb div:nth-child(7) { animation-delay: 0.7s; background: #6366f1; }
+    .honeycomb {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+    }
 
-@keyframes honeyWave {
-    0%, 100% { transform: scaleY(0.4); opacity: 0.5; }
-    50% { transform: scaleY(1); opacity: 1; }
-}
+    .honeycomb div {
+        width: 12px;
+        height: 32px;
+        background: var(--primary);
+        border-radius: 100px;
+        animation: honeyWave 1.2s ease-in-out infinite;
+    }
 
-.loader-progress {
-    width: 100%;
-    max-width: 400px;
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 100px;
-    margin: 32px auto 0;
-    overflow: hidden;
-    position: relative;
-}
+    .honeycomb div:nth-child(1) { animation-delay: 0.1s; background: #6366f1; }
+    .honeycomb div:nth-child(2) { animation-delay: 0.2s; background: #818cf8; }
+    .honeycomb div:nth-child(3) { animation-delay: 0.3s; background: #a855f7; }
+    .honeycomb div:nth-child(4) { animation-delay: 0.4s; background: #c084fc; }
+    .honeycomb div:nth-child(5) { animation-delay: 0.5s; background: #a855f7; }
+    .honeycomb div:nth-child(6) { animation-delay: 0.6s; background: #818cf8; }
+    .honeycomb div:nth-child(7) { animation-delay: 0.7s; background: #6366f1; }
 
-.loader-progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary), #818cf8);
-    width: 0%;
-    border-radius: 100px;
-    transition: width 0.4s ease;
-    position: relative;
-    overflow: hidden;
-}
+    @keyframes honeyWave {
+        0%, 100% { transform: scaleY(0.4); opacity: 0.5; }
+        50% { transform: scaleY(1); opacity: 1; }
+    }
 
-.loader-progress-bar::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    animation: loaderShimmer 1.5s infinite;
-}
+    .loader-progress {
+        width: 100%;
+        max-width: 400px;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 100px;
+        margin: 32px auto 0;
+        overflow: hidden;
+        position: relative;
+    }
 
-@keyframes loaderShimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
+    .loader-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), #818cf8);
+        width: 0%;
+        border-radius: 100px;
+        transition: width 0.4s ease;
+        position: relative;
+        overflow: hidden;
+    }
 
-/* Load More Loader */
-#loadMoreLoader {
-    display: none;
-    margin-top: 20px;
-}
+    .loader-progress-bar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        animation: loaderShimmer 1.5s infinite;
+    }
 
-.load-more-text {
-    margin-top: 12px;
-    font-weight: 600;
-    color: var(--primary);
-}
-</style>
+    @keyframes loaderShimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
 
-<script src="<?= $assetBase ?>js/ai_loader.js" defer></script>
+    /* Load More Loader */
+    #loadMoreLoader {
+        display: none;
+        margin-top: 20px;
+    }
 
-<!-- SEO: JSON-LD Structured Data -->
-<script type="application/ld+json">
-<?= json_encode($jsonLD, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
-</script>
+    .load-more-text {
+        margin-top: 12px;
+        font-weight: 600;
+        color: var(--primary);
+    }
+    </style>
+
+    <script src="<?= $assetBase ?>js/ai_loader.js" defer></script>
+
+    <!-- SEO: JSON-LD Structured Data -->
+    <?php
+    // Prepare JSON-LD structured data
+    $jsonLD = [
+        "@context" => "https://schema.org",
+        "@type" => "WebApplication",
+        "name" => "Question Paper Generator",
+        "description" => "AI-powered tool to create custom question papers",
+        "url" => "https://" . $_SERVER['HTTP_HOST'] . "/questionPaperFromTopic/",
+        "applicationCategory" => "EducationalApplication",
+        "offers" => [
+            [
+                "@type" => "Offer",
+                "priceCurrency" => "PKR",
+                "price" => "0",
+                "name" => "Free Plan"
+            ]
+        ]
+    ];
+    ?>
+    <script type="application/ld+json">
+    <?= json_encode($jsonLD, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
+    </script>
+</head>
+<body>
+    <?php 
+    $only_navbar = true;
+    require __DIR__ . '/../header.php'; 
+    ?>
+    
+    <?php
+    require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
+    require_once __DIR__ . '/../services/CacheManager.php';
+    require_once __DIR__ . '/../services/DatabaseQueryService.php';
+
+    // Initialize services
+    $cache = new CacheManager();
+    $dbService = new DatabaseQueryService($conn, $cache);
+
+    // Subscription Info
+    $subscriptionStatus = getSubscriptionInfo();
+    $isPremium = $subscriptionStatus && $subscriptionStatus['is_premium'];
+    $userPlan = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
+    ?>
 
 <main class="main-content">
 
@@ -969,3 +997,5 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <?php require_once __DIR__ . '/../footer.php'; ?>
+</body>
+</html>

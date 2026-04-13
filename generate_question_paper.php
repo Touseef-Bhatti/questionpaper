@@ -874,6 +874,211 @@ include 'header.php';
                 }
             }
 
+            /* ===== MOBILE RESPONSIVE — Question Paper Web View ===== */
+            @media (max-width: 768px) {
+                body {
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    font-size: 14px;
+                }
+
+                .paper-container {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    margin: 10px auto !important;
+                    padding: 12px !important;
+                    border-radius: 6px !important;
+                    box-shadow: none !important;
+                    border: 1px solid #e2e8f0;
+                }
+
+                /* Header section inside paper */
+                .header input {
+                    font-size: 13px;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+
+                /* MCQ grid: single column on mobile */
+                .mcq-compact .mcq-grid {
+                    grid-template-columns: 1fr !important;
+                    gap: 10px;
+                    font-size: 13px;
+                }
+
+                .mcq-item {
+                    padding: 10px;
+                }
+
+                .mcq-question {
+                    font-size: 13px;
+                    line-height: 1.4;
+                }
+
+                .mcq-options div {
+                    margin: 3px 0;
+                    font-size: 12.5px;
+                }
+
+                /* Question rows: stack question + marks vertically */
+                .question-row {
+                    flex-direction: column;
+                    gap: 4px;
+                    align-items: flex-start;
+                }
+
+                .question-content {
+                    padding-right: 0;
+                    width: 100%;
+                    font-size: 13.5px;
+                    line-height: 1.5;
+                    word-break: break-word;
+                }
+
+                .marks-container {
+                    align-self: flex-end;
+                    min-width: unset;
+                }
+
+                .marks-input {
+                    width: 55px;
+                    font-size: 12px;
+                    padding: 3px 4px;
+                }
+
+                .marks-display {
+                    float: none;
+                    padding-right: 0;
+                    font-size: 12px;
+                }
+
+                /* Section headings */
+                h3, .section h3 {
+                    font-size: 15px !important;
+                }
+
+                h4, .section h4 {
+                    font-size: 14px !important;
+                    line-height: 1.4;
+                }
+
+                /* Action buttons */
+                .action-buttons {
+                    float: none;
+                    margin-right: 0;
+                    margin-top: 6px;
+                    text-align: right;
+                }
+
+                .btn.edit {
+                    font-size: 0.8rem !important;
+                    padding: 4px 8px !important;
+                    min-height: 28px !important;
+                }
+
+                /* List spacing */
+                .paper-container ol {
+                    padding-left: 10px;
+                }
+
+                .paper-container li {
+                    margin-bottom: 8px;
+                    padding-bottom: 6px;
+                }
+
+                /* Section spacing */
+                .section {
+                    margin-top: 18px;
+                }
+
+                /* Print / download buttons bar */
+                .print-buttons {
+                    left: 0 !important;
+                    right: 0 !important;
+                    transform: none !important;
+                    width: 100% !important;
+                    border-radius: 0 !important;
+                    bottom: 0 !important;
+                    gap: 6px;
+                    padding: 8px 10px;
+                    box-sizing: border-box;
+                    justify-content: center;
+                    flex-wrap: nowrap;
+                }
+
+                .print-buttons .go-back-btn {
+                    height: 38px;
+                    padding: 0 10px;
+                    font-size: 13px;
+                }
+
+                .print-buttons .cssbuttons-io-button {
+                    font-size: 13px;
+                    padding: 0 10px;
+                    height: 38px;
+                }
+
+                .print-buttons button,
+                .print-buttons a {
+                    font-size: 13px;
+                }
+
+                /* Design selector hidden on mobile */
+                .design-selector {
+                    display: none !important;
+                }
+
+                /* Extra bottom padding so content isn't hidden behind fixed buttons */
+                #paper {
+                    padding-bottom: 70px;
+                }
+
+                /* Textarea styling */
+                textarea#note {
+                    font-size: 16px;
+                    padding: 8px;
+                }
+            }
+
+            /* Extra small screens (≤ 400px) */
+            @media (max-width: 400px) {
+                .paper-container {
+                    padding: 8px !important;
+                }
+
+                .mcq-question {
+                    font-size: 12px;
+                }
+
+                .mcq-options div {
+                    font-size: 11.5px;
+                }
+
+                .question-content {
+                    font-size: 12.5px;
+                }
+
+                h3, .section h3 {
+                    font-size: 14px !important;
+                }
+
+                h4, .section h4 {
+                    font-size: 13px !important;
+                }
+
+                .print-buttons {
+                    gap: 4px;
+                    padding: 6px 6px;
+                }
+
+                .print-buttons .go-back-btn,
+                .print-buttons .cssbuttons-io-button {
+                    font-size: 11.5px;
+                    padding: 0 8px;
+                    height: 34px;
+                }
+            }
+
         </style>
 
     <?php 

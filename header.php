@@ -30,12 +30,20 @@ foreach ($gen_paper_pages as $p) {
     if (strpos($current_page, $p) !== false) {
         $is_gen_paper_active = true;
         break;
-    }
+// If only navbar is requested, skip all head logic
+if (isset($only_navbar) && $only_navbar) {
+    goto navbar_start;
 }
 ?>
+<?php if (!isset($skip_shell) && !isset($only_head)): ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<?php elseif (isset($only_head) && $only_head): ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<?php endif; ?>
 
 <?php include_once __DIR__ . '/includes/favicons.php'; ?>
 
@@ -1237,13 +1245,25 @@ html.dark-mode .user-header-info .text-muted {
 
 .auth-modal-footer {
     margin-top: 2rem;
-    font-size: 0.85rem;
     color: #94a3b8;
 }
    </style>
-  
+
+    <?php if (isset($extraHead)) echo $extraHead; ?>
+
+<?php if (isset($only_head) && $only_head): ?>
+</head>
+<?php return; // Stop here if only head was requested ?>
+<?php endif; ?>
+
+<?php if (!isset($skip_shell)): ?>
 </head>
 <body>
+<?php endif; ?>
+
+<?php 
+navbar_start: 
+?>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 
