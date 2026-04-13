@@ -19,10 +19,11 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
     <!-- monetag ads -->
     <script>(function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
-      <!-- monetag ads -->
+    <!-- monetag ads --> 
 
     <?php 
     $only_head = true;
+    $skip_shell = true;
     require __DIR__ . '/../header.php'; 
     ?>
 

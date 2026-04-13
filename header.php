@@ -30,16 +30,15 @@ foreach ($gen_paper_pages as $p) {
     if (strpos($current_page, $p) !== false) {
         $is_gen_paper_active = true;
         break;
+    }
+}
+
 // If only navbar is requested, skip all head logic
 if (isset($only_navbar) && $only_navbar) {
     goto navbar_start;
 }
 ?>
-<?php if (!isset($skip_shell) && !isset($only_head)): ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<?php elseif (isset($only_head) && $only_head): ?>
+<?php if (!isset($skip_shell)): ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1252,11 +1251,13 @@ html.dark-mode .user-header-info .text-muted {
     <?php if (isset($extraHead)) echo $extraHead; ?>
 
 <?php if (isset($only_head) && $only_head): ?>
+<?php if (!isset($skip_shell)): ?>
 </head>
+<?php endif; ?>
 <?php return; // Stop here if only head was requested ?>
 <?php endif; ?>
 
-<?php if (!isset($skip_shell)): ?>
+<?php if (!isset($skip_shell) && !isset($only_navbar)): ?>
 </head>
 <body>
 <?php endif; ?>
@@ -1671,11 +1672,10 @@ navbar_start:
              updateModeUI();
         }
     });
-
+                
     // Initial UI update
     updateModeUI();
     </script>
   
 </body>
 </html>
-  
