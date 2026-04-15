@@ -14,29 +14,20 @@ if ($hostPart === 'localhost' || $hostPart === '127.0.0.1') {
 */
 
 // --- PAGE SPECIFIC ADS (MONETAG ADS) ---
-// Add the filenames where you want Monetag ads to appear (e.g., 'index.php', 'mcqs.php').
+// Add the filenames where you want Monetag ads to appear.
 // Leave the array empty to show Monetag ads on ALL pages.
 $allowedPages = [
-
-
-    'index.php',
+    
     'select_book.php',
     'select_question.php',
-
     'topic-wise-mcqs-test',
-    'quiz.php',
-
     'home.php',
-
     'settings.php',
-
     'online_quiz_join.php',
     'online_quiz_lobby.php',
-
     'textbooks.php',
-    'mcqs.php' ,
+    'mcqs.php',
     'reviews.php',
-
     'about.php',
     'contact.php',
     'privacy-policy.php',
@@ -50,10 +41,14 @@ if (!empty($allowedPages)) {
     }
 }
 ?>
-<!-- Monetag in page push  -->
-<script>(function(s){s.dataset.zone='10752105',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+
+<!-- Monetag Centralized Scripts -->
+<!-- In-page push -->
+
 <script>(function(s){s.dataset.zone='10846120',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
-
-<!-- Monetag Vignette -->
+<!-- Monetag Vignettes (Consolidated from multiple pages) -->
 <script>(function(s){s.dataset.zone='10752115',s.src='https://izcle.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<script>(function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<script>(function(s){s.dataset.zone='10835874',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<script>(function(s){s.dataset.zone='10788340',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>

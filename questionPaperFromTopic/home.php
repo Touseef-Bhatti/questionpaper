@@ -16,10 +16,6 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
     <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
     <meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
     
-    <!-- monetag ads -->
-    <script>(function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-
-    <!-- monetag ads --> 
 
     <?php 
     $only_head = true;
@@ -34,16 +30,16 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
     <link rel="stylesheet" href="<?= $assetBase ?>css/ai_loader.css?v=<?= time() ?>">
 
     <style>
-    /* Honeycomb & Progress Loader Styles (Matched with mcqs_topic.php) */
+    /* Honeycomb & Progress Loader Styles */
     #inlineLoader {
         display: none;
         padding: 60px 0;
         text-align: center;
-        background: #ffffff; /* Solid sharp background */
-        border-radius: 30px;
-        margin: 40px 0;
-        border: 1px solid var(--border, #e2e8f0);
-        box-shadow: var(--sh-subtle);
+        background: #ffffff;
+        border-radius: var(--radius-xl, 28px);
+        margin: 2.5rem 0;
+        border: 1.5px solid var(--ink-800, #e2e8f0);
+        box-shadow: var(--sh-card);
         animation: loaderFadeIn 0.5s ease;
     }
 
@@ -54,35 +50,36 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
 
     #loaderText {
         color: var(--primary);
-        font-weight: 900;
-        font-size: 1.4rem;
+        font-weight: 800;
+        font-size: 1.3rem;
         margin-top: 24px;
         letter-spacing: -0.02em;
+        font-family: var(--font-heading);
     }
 
     .honeycomb {
         display: inline-flex;
-        gap: 8px;
+        gap: 6px;
         align-items: center;
         justify-content: center;
         height: 40px;
     }
 
     .honeycomb div {
-        width: 12px;
+        width: 10px;
         height: 32px;
         background: var(--primary);
         border-radius: 100px;
         animation: honeyWave 1.2s ease-in-out infinite;
     }
 
-    .honeycomb div:nth-child(1) { animation-delay: 0.1s; background: #6366f1; }
-    .honeycomb div:nth-child(2) { animation-delay: 0.2s; background: #818cf8; }
-    .honeycomb div:nth-child(3) { animation-delay: 0.3s; background: #a855f7; }
-    .honeycomb div:nth-child(4) { animation-delay: 0.4s; background: #c084fc; }
-    .honeycomb div:nth-child(5) { animation-delay: 0.5s; background: #a855f7; }
-    .honeycomb div:nth-child(6) { animation-delay: 0.6s; background: #818cf8; }
-    .honeycomb div:nth-child(7) { animation-delay: 0.7s; background: #6366f1; }
+    .honeycomb div:nth-child(1) { animation-delay: 0.1s; background: hsl(245, 75%, 58%); }
+    .honeycomb div:nth-child(2) { animation-delay: 0.2s; background: hsl(245, 75%, 68%); }
+    .honeycomb div:nth-child(3) { animation-delay: 0.3s; background: hsl(270, 70%, 60%); }
+    .honeycomb div:nth-child(4) { animation-delay: 0.4s; background: hsl(280, 80%, 65%); }
+    .honeycomb div:nth-child(5) { animation-delay: 0.5s; background: hsl(270, 70%, 60%); }
+    .honeycomb div:nth-child(6) { animation-delay: 0.6s; background: hsl(245, 75%, 68%); }
+    .honeycomb div:nth-child(7) { animation-delay: 0.7s; background: hsl(245, 75%, 58%); }
 
     @keyframes honeyWave {
         0%, 100% { transform: scaleY(0.4); opacity: 0.5; }
@@ -92,17 +89,17 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
     .loader-progress {
         width: 100%;
         max-width: 400px;
-        height: 8px;
-        background: #e2e8f0;
+        height: 6px;
+        background: var(--ink-800, #e2e8f0);
         border-radius: 100px;
-        margin: 32px auto 0;
+        margin: 28px auto 0;
         overflow: hidden;
         position: relative;
     }
 
     .loader-progress-bar {
         height: 100%;
-        background: linear-gradient(90deg, var(--primary), #818cf8);
+        background: linear-gradient(90deg, var(--primary), hsl(280, 80%, 58%));
         width: 0%;
         border-radius: 100px;
         transition: width 0.4s ease;
@@ -117,7 +114,7 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
         left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
         animation: loaderShimmer 1.5s infinite;
     }
 
@@ -134,8 +131,10 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
 
     .load-more-text {
         margin-top: 12px;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--primary);
+        font-family: var(--font-heading);
+        font-size: 0.95rem;
     }
     </style>
 
@@ -191,8 +190,22 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
 
 <div class="hero-builder mb-4">
     <div class="container text-center animate-fade-up">
-        <h1 class="hero-title">Create Custom Question Papers</h1>
-        <p class="hero-subtitle">AI-Powered curriculum mapping and custom question paper generator. Empowering educators with precision-built academic resources.</p>
+        <h1 class="hero-title">Create <span class="hero-accent">Custom</span> Question Papers</h1>
+        <p class="hero-subtitle">AI-Powered curriculum mapping and question paper generator. Precision-built academic resources for educators and students.</p>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-value">10K+</div>
+                <div class="hero-stat-label">Topics</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value">50K+</div>
+                <div class="hero-stat-label">Students</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value">3</div>
+                <div class="hero-stat-label">Question Types</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -209,37 +222,37 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
                 </div>
                 <div class="pro-guide-content">
                     <div class="pro-step">
-                        <div class="pro-step-icon"><i class="fas fa-list-ol"></i></div>
+                        <div class="pro-step-icon" data-step="1"><i class="fas fa-list-ol"></i></div>
                         <div class="pro-step-text">
-                            <strong>1. Select Type</strong>
-                            <p>Choose between MCQs, Short, or Long questions from the selector above.</p>
+                            <strong>Select Type</strong>
+                            <p>Choose between MCQs, Short, or Long questions from the selector below.</p>
                         </div>
                     </div>
                     <div class="pro-step">
-                        <div class="pro-step-icon"><i class="fas fa-search"></i></div>
+                        <div class="pro-step-icon" data-step="2"><i class="fas fa-search"></i></div>
                         <div class="pro-step-text">
-                            <strong>2. Search Topic</strong>
+                            <strong>Search Topic</strong>
                             <p>Search for your topic. Use "Suggest More Topics" if you need AI help.</p>
                         </div>
                     </div>
                     <div class="pro-step">
-                        <div class="pro-step-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="pro-step-icon" data-step="3"><i class="fas fa-check-circle"></i></div>
                         <div class="pro-step-text">
-                            <strong>3. Pick Topics</strong>
+                            <strong>Pick Topics</strong>
                             <p>Click the topics you want. You can mix and match from different types.</p>
                         </div>
                     </div>
                     <div class="pro-step">
-                        <div class="pro-step-icon"><i class="fas fa-file-export"></i></div>
+                        <div class="pro-step-icon" data-step="4"><i class="fas fa-file-export"></i></div>
                         <div class="pro-step-text">
-                            <strong>4. Finalize</strong>
+                            <strong>Finalize</strong>
                             <p>Review your selection and click "Generate Question Paper" to build it.</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <br><br><br>
+
 
             <!-- Mode Selector -->
             <div class="text-center mb-5">
@@ -259,14 +272,12 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
                 </div>
             </div>
 
-            <br><br><br><br><br>
                 <!-- Search Bar with Info -->
                 <div class="search-section mb-5 animate-fade-up">
-                    <div class="search-intro text-center mb-5">
-                        <h3 class="fw-bold mb-2" style="color: #0f172a; font-family: 'Outfit', sans-serif;">Find Topics to Build From</h3>
-                        <p class="text-muted small">Search for specific topics or let AI suggest related topics</p>
+                    <div class="search-intro text-center mb-4">
+                        <h3 class="fw-bold mb-2">Find Topics to Build From</h3>
+                        <p class="text-muted small">Search for specific topics or let AI suggest related ones</p>
                     </div>
-<br><br><br><br>
                     <!-- Search Bar -->
                     <form class="search-wrapper mb-4" id="searchForm" role="search" onsubmit="handleSearch(event)">
                         <div class="search-card">
@@ -328,10 +339,6 @@ $metaKeywords = "AI question generator free, MCQ generator by topic, generate ex
                              <div class="load-more-text">Our AI is exploring the knowledge graph...</div>
                         </div>
 
-                        <br>
-                        <br>
-                        <br>
-                        <br><br>
                         <?= renderAd('banner', 'Results Section Banner', 'ad-results-banner') ?>
                     </div>
                 </div>

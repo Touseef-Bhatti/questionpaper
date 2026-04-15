@@ -344,10 +344,10 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
         . "For each item, determine if the marked correct answer is accurate.\n"
         . "- If correct: status \"verified\".\n"
         . "- If another option (A, B, C, or D) is correct: status \"corrected\". Identify the correct letter.\n"
-        . "- If NO option is correct: status \"corrected\". Rewrite the text of the option currently marked as correct (the \"Marked correct\" column) to be factually accurate.\n"
+        . "- If the question or any options are incorrect, misleading, or poorly phrased: status \"corrected\". You MUST rewrite the question text and ANY or ALL options (option_a, option_b, option_c, option_d) to ensure the entire MCQ is factually accurate and high quality. Ensure exactly ONE option is correct.\n"
         . "Explanation: Write only 2-3 lines explaining ONLY why the correct option is right. Do NOT explain why others are wrong.\n"
-        . "Return ONLY a JSON array. If status is \"corrected\", return the correct letter and the texts for ALL options (option_a, option_b, option_c, option_d).\n"
-        . "Format: [{\"id\": <number>, \"status\": \"verified\"|\"corrected\"|\"flagged\", \"correct_option\": \"A\"|\"B\"|\"C\"|\"D\", \"option_a\": \"...\", \"option_b\": \"...\", \"option_c\": \"...\", \"option_d\": \"...\", \"explanation\": \"<2-3 lines explanation>\"}]\n\n"
+        . "Return ONLY a JSON array. If status is \"corrected\", return the correct letter, the question text, and the texts for ALL options (option_a, option_b, option_c, option_d).\n"
+        . "Format: [{\"id\": <number>, \"status\": \"verified\"|\"corrected\"|\"flagged\", \"correct_option\": \"A\"|\"B\"|\"C\"|\"D\", \"question\": \"...\", \"option_a\": \"...\", \"option_b\": \"...\", \"option_c\": \"...\", \"option_d\": \"...\", \"explanation\": \"<2-3 lines explanation>\"}]\n\n"
         . "MCQs:\n";
 
     foreach ($mcqs as $m) {
@@ -409,6 +409,7 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
             'option_c' => $res['option_c'] ?? null,
             'option_d' => $res['option_d'] ?? null,
         ];
+        $newQuestion = $res['question'] ?? null;
 
         if ($id <= 0) {
             continue;
@@ -490,6 +491,14 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
         }
 
         if ($status === 'corrected') {
+            // Update question text if returned
+            if ($newQuestion !== null && !empty($newQuestion)) {
+                $stmt = $conn->prepare("UPDATE $mainTable SET $qCol = ? WHERE $pk = ?");
+                $stmt->bind_param('si', $newQuestion, $id);
+                $stmt->execute();
+                $stmt->close();
+            }
+
             // Update correct_option letter/text
             if ($sourceTable === 'mcqs') {
                 $letter = !empty($correctOptionLetter) ? strtoupper($correctOptionLetter) : '';
@@ -646,7 +655,7 @@ function getAiKeyAndModel($cacheManager) {
 /**
  * Shared helper to save generated MCQs to DB
  */
-function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $cacheKey = null, $skipVerify = false) {
+function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $cacheKey = null, $skipVerify = true) {
     if (empty($mcqs)) return [];
 
     $now = date('Y-m-d H:i:s');
@@ -689,7 +698,7 @@ function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $c
         if (empty($recheck['success'])) {
             error_log('verifyInsertedAIGeneratedMcqs: ' . ($recheck['message'] ?? 'failed'));
         }
-        $ref = $conn->prepare('SELECT correct_option, explanation FROM AIGeneratedMCQs WHERE id = ?');
+        $ref = $conn->prepare('SELECT question_text, option_a, option_b, option_c, option_d, correct_option, explanation FROM AIGeneratedMCQs WHERE id = ?');
         if ($ref) {
             foreach ($inserted as &$insRow) {
                 $rid = (int) ($insRow['id'] ?? 0);
@@ -700,6 +709,11 @@ function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $c
                 $ref->execute();
                 $upd = $ref->get_result();
                 if ($upd && ($u = $upd->fetch_assoc())) {
+                    $insRow['question'] = $u['question_text'];
+                    $insRow['option_a'] = $u['option_a'];
+                    $insRow['option_b'] = $u['option_b'];
+                    $insRow['option_c'] = $u['option_c'];
+                    $insRow['option_d'] = $u['option_d'];
                     $insRow['correct_option'] = $u['correct_option'];
                     if (!empty($u['explanation'])) {
                         $insRow['explanation'] = $u['explanation'];
@@ -709,12 +723,6 @@ function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $c
             unset($insRow);
             $ref->close();
         }
-    }
-
-    if ($cacheManager && $cacheKey && !empty($inserted)) {
-        try {
-            $cacheManager->setex($cacheKey, 86400, json_encode($inserted));
-        } catch (Exception $e) {}
     }
 
     return $inserted;
@@ -728,9 +736,11 @@ function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $c
  * @param int $count Total MCQs to generate
  * @param string $level easy|medium|hard
  * @param bool $skipVerify If true, skip sync verification (background verification should follow)
+ * @param bool $forceAI If true, bypass DB check and call AI directly
+ * @param array $excludeIds Array of AI MCQ IDs to exclude from DB check
  * @return array Generated MCQs
  */
-function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '', $skipVerify = false) {
+function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '', $skipVerify = true, $forceAI = false, $excludeIds = []) {
     global $conn, $cacheManager;
 
     $topics = is_array($topicOrTopics) ? $topicOrTopics : [$topicOrTopics];
@@ -740,7 +750,7 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '', $s
     $lvl = in_array(strtolower($level), ['easy', 'medium', 'hard']) ? strtolower($level) : '';
     $cacheKey = 'ai_mcqs_bulk_' . md5(implode(',', $topics) . '_' . $count . ($lvl ? '_' . $lvl : ''));
 
-    if ($cacheManager) {
+    if (!$forceAI && $cacheManager) {
         $cached = $cacheManager->get($cacheKey);
         if ($cached) {
             $data = json_decode($cached, true);
@@ -748,44 +758,95 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '', $s
         }
     }
 
+    $dbMcqs = [];
+    // Check DB for existing AI questions if cache is empty and not forcing AI
+    if (!$forceAI) {
+        $whereConditions = ["topic IN (" . str_repeat('?,', count($topics) - 1) . "?)"];
+        $params = $topics;
+        $types = str_repeat('s', count($topics));
+
+        if (!empty($excludeIds)) {
+            $excludeClean = array_map('intval', $excludeIds);
+            $whereConditions[] = "id NOT IN (" . implode(',', $excludeClean) . ")";
+        }
+
+        $whereSql = "WHERE " . implode(' AND ', $whereConditions);
+        $sql = "SELECT id as mcq_id, topic, question_text as question, option_a, option_b, option_c, option_d, correct_option, explanation 
+                FROM AIGeneratedMCQs 
+                $whereSql 
+                ORDER BY RAND() 
+                LIMIT ?";
+        
+        $params[] = $count;
+        $types .= 'i';
+        
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $dbMcqs[] = [
+                    'id' => $row['mcq_id'],
+                    'topic' => $row['topic'],
+                    'question' => $row['question'],
+                    'option_a' => $row['option_a'],
+                    'option_b' => $row['option_b'],
+                    'option_c' => $row['option_c'],
+                    'option_d' => $row['option_d'],
+                    'correct_option' => $row['correct_option'],
+                    'explanation' => $row['explanation']
+                ];
+            }
+            $stmt->close();
+            if (count($dbMcqs) >= $count) return array_slice($dbMcqs, 0, $count);
+        }
+    }
+
+    // Determine how many more we actually need to generate via AI
+    $neededFromAi = $count - count($dbMcqs);
+    if ($neededFromAi <= 0) return $dbMcqs;
+
     list($keyItem, $model, $rotator) = getAiKeyAndModel($cacheManager);
-    if (!$keyItem) return [];
+    if (!$keyItem) return $dbMcqs;
 
     $levelHint = $lvl ? "Difficulty: {$lvl}. " : '';
     $topicsStr = implode(', ', $topics);
-    $distHint = count($topics) > 1
-        ? "Distribute across topics: " . $topicsStr . ". Each MCQ must include \"topic\" field with the topic name."
-        : "Topic: {$topicsStr}.";
-
-    $prompt = "i have an exam of topics {$topicsStr} and you have to Generate exactly {$count} MCQs.  {$levelHint}Return ONLY a JSON array.generate correct answer for each MCQs.Make sure correct_option exactly matches the correct option.Each item: {\"topic\":\"...\", \"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. No extra text.";
-    $maxTokens = min(16000, 500 + $count * 400);
+    $prompt = "i have an exam of topics {$topicsStr} and you have to Generate exactly {$neededFromAi} MCQs.  {$levelHint}Return ONLY a JSON array.generate correct answer for each MCQs.Make sure correct_option exactly matches the correct option.Each item: {\"topic\":\"...\", \"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. No extra text.";
+    $maxTokens = min(16000, 500 + $neededFromAi * 400);
 
     list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, 120);
 
     if ($code === 429 || $code === 402 || $code === 503) {
         $rotator->markExhausted($keyItem['key']);
-        return [];
+        return $dbMcqs;
     }
-    if (!$resp) return [];
+    if (!$resp) return $dbMcqs;
 
     $rotator->logSuccess($keyItem['key']);
-    $allMcqs = array_slice(parseMcqJson($resp), 0, $count);
+    $aiMcqs = parseMcqJson($resp);
     
-    return saveGeneratedMcqs($conn, $allMcqs, $topics[0], $cacheManager, $cacheKey, $skipVerify);
+    $savedAiMcqs = saveGeneratedMcqs($conn, $aiMcqs, $topics[0], $cacheManager, null, $skipVerify);
+    
+    // Combine existing DB questions with newly generated ones
+    return array_merge($dbMcqs, $savedAiMcqs);
 }
+
 
 /**
  * Generate MCQs - 1 request, 1 API key, generates all MCQs (single topic).
  * For multiple topics, use generateMCQsBulkWithGemini() to get 1 request total.
  * @param bool $skipVerify If true, skip sync verification
+ * @param bool $forceAI If true, bypass DB check and call AI directly
+ * @param array $excludeIds Array of AI MCQ IDs to exclude from DB check
  */
-function generateMCQsWithGemini($topic, $count = 10, $level = '', $skipVerify = false) {
+function generateMCQsWithGemini($topic, $count = 10, $level = '', $skipVerify = true, $forceAI = false, $excludeIds = []) {
     global $conn, $cacheManager;
 
     $lvl = in_array(strtolower($level), ['easy', 'medium', 'hard']) ? strtolower($level) : '';
     $cacheKey = 'ai_mcqs_' . md5($topic . '_' . $count . ($lvl ? '_' . $lvl : ''));
 
-    if ($cacheManager) {
+    if (!$forceAI && $cacheManager) {
         $cached = $cacheManager->get($cacheKey);
         if ($cached) {
             $data = json_decode($cached, true);
@@ -793,26 +854,72 @@ function generateMCQsWithGemini($topic, $count = 10, $level = '', $skipVerify = 
         }
     }
 
+    $dbMcqs = [];
+    // Check DB for existing AI questions if cache is empty and not forcing AI
+    if (!$forceAI) {
+        $whereConditions = ["topic = ?"];
+        if (!empty($excludeIds)) {
+            $excludeClean = array_map('intval', $excludeIds);
+            $whereConditions[] = "id NOT IN (" . implode(',', $excludeClean) . ")";
+        }
+        $whereSql = "WHERE " . implode(' AND ', $whereConditions);
+
+        $sql = "SELECT id as mcq_id, question_text as question, option_a, option_b, option_c, option_d, correct_option, explanation 
+                FROM AIGeneratedMCQs 
+                $whereSql 
+                ORDER BY RAND() 
+                LIMIT ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param("si", $topic, $count);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $dbMcqs[] = [
+                    'id' => $row['mcq_id'],
+                    'topic' => $topic,
+                    'question' => $row['question'],
+                    'option_a' => $row['option_a'],
+                    'option_b' => $row['option_b'],
+                    'option_c' => $row['option_c'],
+                    'option_d' => $row['option_d'],
+                    'correct_option' => $row['correct_option'],
+                    'explanation' => $row['explanation']
+                ];
+            }
+            $stmt->close();
+            if (count($dbMcqs) >= $count) return array_slice($dbMcqs, 0, $count);
+        }
+    }
+
+    // Determine how many more we actually need to generate via AI
+    $neededFromAi = $count - count($dbMcqs);
+    if ($neededFromAi <= 0) return $dbMcqs;
+
     list($keyItem, $model, $rotator) = getAiKeyAndModel($cacheManager);
-    if (!$keyItem) return [];
+    if (!$keyItem) return $dbMcqs;
 
     $levelHint = $lvl ? "Difficulty: {$lvl}. " : '';
-    $prompt = "Generate exactly {$count} MCQs on topic: {$topic}.{$levelHint}Return ONLY a JSON array. Each item: {\"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. Also recheck the correct answer. No extra text.";
-    $maxTokens = min(18000, 500 + $count * 400);
+    $prompt = "Generate exactly {$neededFromAi} MCQs on topic: {$topic}.{$levelHint}Return ONLY a JSON array. Each item: {\"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. Also recheck the correct answer. No extra text.";
+    $maxTokens = min(18000, 500 + $neededFromAi * 400);
 
     list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, 60);
 
     if ($code === 429 || $code === 402 || $code === 503) {
         $rotator->markExhausted($keyItem['key']);
-        return [];
+        return $dbMcqs;
     }
-    if (!$resp) return [];
+    if (!$resp) return $dbMcqs;
 
     $rotator->logSuccess($keyItem['key']);
-    $allMcqs = array_slice(parseMcqJson($resp), 0, $count);
+    $aiMcqs = parseMcqJson($resp);
     
-    return saveGeneratedMcqs($conn, $allMcqs, $topic, $cacheManager, $cacheKey, $skipVerify);
+    $savedAiMcqs = saveGeneratedMcqs($conn, $aiMcqs, $topic, $cacheManager, null, $skipVerify);
+    
+    // Combine existing DB questions with newly generated ones
+    return array_merge($dbMcqs, $savedAiMcqs);
 }
+
 
 /**
  * Search for topics using AI

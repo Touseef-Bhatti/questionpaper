@@ -49,10 +49,6 @@ include_once '../header.php';
 <meta name="description" content="Create and host live quizzes using AI or your own questions. Conduct real-time classroom assessments with instant results, interactive leaderboards, and performance tracking for students.">
 
 <meta name="keywords" content="live quiz maker for teachers, AI quiz generator, host live quiz online, classroom assessment tool, MCQ quiz maker, online test platform, live leaderboard quizzes, teacher dashboard tool, digital learning platform">
-<!-- monetag ads -->
-<script>(function(s){s.dataset.zone='10788340',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-
-<!-- monetag ads -->
 
 </head>
 

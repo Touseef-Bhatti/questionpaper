@@ -469,7 +469,8 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
             echo '<div class="info">⏳ Generating MCQs... This may take a few seconds...</div>';
             
             $startTime = microtime(true);
-            $generatedMCQs = generateMCQsWithGemini($testTopic, $testCount);
+            // Use skipVerify = true for instant return
+            $generatedMCQs = generateMCQsWithGemini($testTopic, $testCount, '', true);
             $endTime = microtime(true);
             $duration = round($endTime - $startTime, 2);
             

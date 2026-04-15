@@ -109,9 +109,6 @@ function renderStars(int $rating): string {
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
 
     
-    <!-- ads monetag_ads -->
-    <script>(function(s){s.dataset.zone='10835874',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- end ads monetag_ads -->
      
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

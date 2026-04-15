@@ -49,7 +49,7 @@ if (!empty($aiMcqIds)) {
         $results['stats']['processed_ids'] = array_merge($results['stats']['processed_ids'], $aiRes['stats']['processed_ids']);
         
         $idsStr = implode(',', $aiMcqIds);
-        $res = $conn->query("SELECT id, correct_option, explanation FROM AIGeneratedMCQs WHERE id IN ($idsStr)");
+        $res = $conn->query("SELECT id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation FROM AIGeneratedMCQs WHERE id IN ($idsStr)");
         while ($row = $res->fetch_assoc()) {
             $row['source'] = 'ai';
             $results['explanations'][] = $row;
@@ -67,7 +67,7 @@ if (!empty($manualMcqIds)) {
         $results['stats']['processed_ids'] = array_merge($results['stats']['processed_ids'], $manualRes['stats']['processed_ids']);
         
         $idsStr = implode(',', $manualMcqIds);
-        $res = $conn->query("SELECT m.mcq_id as id, m.correct_option, v.explanation 
+        $res = $conn->query("SELECT m.mcq_id as id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation 
                              FROM mcqs m 
                              LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id 
                              WHERE m.mcq_id IN ($idsStr)");

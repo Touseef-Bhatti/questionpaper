@@ -52,9 +52,6 @@ while ($row = $result->fetch_assoc()) {
 <meta name="description" content="Select your <?= htmlspecialchars($classId) ?>th class subject to generate chapter-wise question papers, MCQs tests, and board pattern exams for Punjab Board (BISE Lahore, Multan, Faisalabad, etc.).">
 
 <meta name="keywords" content="<?= htmlspecialchars($classId) ?>th class paper generator, <?= htmlspecialchars($classId) ?> class subjects Punjab Board, online MCQs test <?= htmlspecialchars($classId) ?>, BISE Punjab subject-wise question papers, test generator Pakistan">
-<!-- monetag vegenate Banner -->
-<script>(function(s){s.dataset.zone='10788340',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-   <!-- monetag vegenate Banner -->
 
 
 <title><?= htmlspecialchars($classId) ?>th Class Online Question Paper Generator | All Subjects Punjab Board</title>

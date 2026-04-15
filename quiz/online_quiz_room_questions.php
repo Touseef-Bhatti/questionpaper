@@ -136,8 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($added_count < $needed) {
                 $rem = $needed - $added_count;
                 if (function_exists('generateMCQsWithGemini')) {
-                    // Generate rem + 1 buffer
-                    $gen_mcqs = generateMCQsWithGemini($topic, $rem + 1);
+                    // Generate rem + 1 buffer with skipVerify = true for instant response
+                    $gen_mcqs = generateMCQsWithGemini($topic, $rem + 1, '', true);
                     if (!empty($gen_mcqs)) {
                         foreach ($gen_mcqs as $gen) {
                              if ($added_count >= $needed) break;

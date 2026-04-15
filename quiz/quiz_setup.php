@@ -10,10 +10,6 @@ include '../db_connect.php';
     <!-- Google tag (gtag.js) -->
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
 
-    <!-- ads monetag_ads -->
-
-    <script>(function(s){s.dataset.zone='10752115',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- end ads monetag_ads -->
 
 
     <meta charset="UTF-8">

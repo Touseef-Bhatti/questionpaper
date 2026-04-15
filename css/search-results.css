@@ -1,120 +1,50 @@
 /* ==========================================
    SEARCH RESULTS & TOPIC SELECTION STYLES
+   Premium Redesign - Unified with paper-builder.css
    ========================================== */
 
-:root {
-    --search-border: #e0e0e0;
-    --search-focus: #667eea;
-    --topic-bg: #f8f9fa;
-    --topic-hover: #f0f2ff;
-    --topic-selected: #e7f1ff;
-    --result-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    --result-hover-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
-}
+/* NOTE: Most styles are now defined in paper-builder.css
+   This file only contains overrides and supplemental styles
+   to avoid duplication */
 
 /* ==========================================
-   SEARCH SECTION
+   SEARCH SECTION OVERRIDE
    ========================================== */
 
 .search-section {
-    background: linear-gradient(135deg, #f5f7ff 0%, #f0f4ff 100%);
-    border-radius: 12px;
-    padding: 2.5rem;
-    border: 2px solid rgba(102, 126, 234, 0.1);
-    margin-bottom: 3rem;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    margin-bottom: 0;
 }
 
 .search-intro {
-    margin-bottom: 2rem;
+    margin-bottom: 0;
 }
 
-.search-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #1a202c;
-    margin-bottom: 0.5rem;
-    letter-spacing: -0.5px;
-}
-
-.search-subtitle {
-    color: #718096;
-    font-size: 0.95rem;
-    margin: 0;
-}
+/* ==========================================
+   SEARCH WRAPPER OVERRIDE (no margin duplication)
+   ========================================== */
 
 .search-wrapper {
     margin-bottom: 0 !important;
 }
 
-.search-card {
-    display: flex;
-    gap: 0.75rem;
-    background: white;
-    padding: 0.75rem;
-    border-radius: 10px;
-    border: 2px solid var(--search-border);
-    box-shadow: var(--result-shadow);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* ==========================================
+   TOPIC GRID RESPONSIVE OVERRIDES
+   ========================================== */
 
-.search-card:focus-within {
-    border-color: var(--search-focus);
-    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), var(--result-hover-shadow);
-}
-
-.search-input-wrapper {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: #cbd5e0;
-}
-
-.search-input-wrapper i {
-    font-size: 1.1rem;
-}
-
-.search-input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    font-size: 1rem;
-    color: #2d3748;
-    outline: none;
-    padding: 0;
-}
-
-.search-input::placeholder {
-    color: #cbd5e0;
-    font-style: italic;
-}
-
-.btn-search-main {
-    padding: 0.75rem 1.75rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    white-space: nowrap;
-}
-
-.btn-search-main:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-}
-
-.btn-search-main:active {
-    transform: translateY(0);
+@media (max-width: 768px) {
+    .topics-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
 }
 
 @media (max-width: 576px) {
     .search-section {
-        padding: 1.5rem;
+        padding: 0;
     }
 
     .search-card {
@@ -127,310 +57,17 @@
 }
 
 /* ==========================================
-   RESULTS HEADER
-   ========================================== */
-
-.results-header-section {
-    margin-bottom: 2rem;
-}
-
-.results-header {
-    padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, #e7f1ff 0%, #f0e7ff 100%);
-    border-radius: 10px;
-    border-left: 5px solid #667eea;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #2d3748;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    animation: slideInDown 0.4s ease;
-}
-
-.results-header::before {
-    content: '✨';
-    font-size: 1.25rem;
-}
-
-/* ==========================================
-   TOPICS GRID
-   ========================================== */
-
-.topics-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.25rem;
-    margin-bottom: 2rem;
-    animation: fadeIn 0.5s ease;
-}
-
-@media (max-width: 768px) {
-    .topics-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 1rem;
-    }
-}
-
-@media (max-width: 576px) {
-    .topics-grid {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-    }
-}
-
-/* ==========================================
-   TOPIC ITEMS
-   ========================================== */
-
-.topic-item {
-    background: var(--topic-bg);
-    border: 2px solid var(--search-border);
-    border-radius: 10px;
-    padding: 1.25rem;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    user-select: none;
-    position: relative;
-    overflow: hidden;
-}
-
-.topic-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    transition: left 0.5s ease;
-}
-
-.topic-item:hover::before {
-    left: 100%;
-}
-
-.topic-item:hover {
-    background: var(--topic-hover);
-    border-color: var(--search-focus);
-    box-shadow: var(--result-hover-shadow);
-    transform: translateY(-2px);
-}
-
-.topic-item.selected {
-    background: var(--topic-selected);
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), var(--result-shadow);
-}
-
-.topic-item.selected::after {
-    content: '✓';
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    width: 24px;
-    height: 24px;
-    background: #667eea;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    font-weight: bold;
-    animation: scaleIn 0.3s ease;
-}
-
-.topic-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.topic-name {
-    font-weight: 600;
-    color: #2d3748;
-    font-size: 0.95rem;
-    line-height: 1.4;
-    word-break: break-word;
-    margin: 0;
-    padding: 0;
-}
-
-.topic-similarity {
-    font-size: 0.8rem;
-    color: #48bb78;
-    font-weight: 600;
-    white-space: nowrap;
-    padding: 0.35rem 0.75rem;
-    background: rgba(72, 187, 120, 0.1);
-    border-radius: 20px;
-}
-
-.btn-remove-lite {
-    width: 28px;
-    height: 28px;
-    background: #fc8181;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 1.2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    padding: 0;
-    font-weight: bold;
-    flex-shrink: 0;
-}
-
-.btn-remove-lite:hover {
-    background: #f56565;
-    transform: scale(1.1);
-}
-
-.btn-remove-lite:active {
-    transform: scale(0.95);
-}
-
-/* ==========================================
-   NO TOPICS MESSAGE
-   ========================================== */
-
-#noTopicsHint {
-    grid-column: 1 / -1;
-    padding: 3rem 2rem;
-    text-align: center;
-    color: #718096;
-    font-size: 1rem;
-    line-height: 1.6;
-}
-
-#noTopicsHint::before {
-    content: '🔍';
-    display: block;
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-}
-
-/* ==========================================
-   AI CONTROLS
-   ========================================== */
-
-#aiLoader,
-#aiControl {
-    margin-top: 2.5rem;
-    padding: 2rem;
-    background: rgba(102, 126, 234, 0.05);
-    border-radius: 10px;
-    border: 1px dashed rgba(102, 126, 234, 0.2);
-}
-
-.spinner-border {
-    width: 2rem;
-    height: 2rem;
-    border-width: 3px;
-}
-
-.btn-ai-discovery {
-    padding: 1rem 2rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.btn-ai-discovery:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
-}
-
-.btn-ai-discovery:active {
-    transform: translateY(-1px);
-}
-
-.shimmer {
-    display: inline-block;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-    0% {
-        background-position: -200% 0;
-    }
-    100% {
-        background-position: 200% 0;
-    }
-}
-
-/* ==========================================
-   GENERATE SECTION
+   GENERATE SECTION OVERRIDE
    ========================================== */
 
 .generate-section {
-    margin-top: 3rem;
-    padding: 2rem;
-    background: linear-gradient(135deg, #f0e7ff 0%, #e7efff 100%);
-    border-radius: 12px;
-    border: 2px solid rgba(102, 126, 234, 0.2);
-    box-shadow: var(--result-shadow);
+    margin-top: 2.5rem;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
     animation: slideInUp 0.5s ease;
-}
-
-.generate-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 2rem;
-}
-
-.generate-info {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    flex: 1;
-}
-
-.generate-icon {
-    font-size: 2.5rem;
-    color: #667eea;
-}
-
-.generate-count {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #2d3748;
-    letter-spacing: -0.5px;
-}
-
-.generate-count span {
-    color: #667eea;
-    font-size: 1.75rem;
-}
-
-.generate-label {
-    color: #718096;
-    font-size: 0.95rem;
-    margin-top: 0.25rem;
-}
-
-.generate-action-btn {
-    flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
@@ -451,11 +88,11 @@
 
 .ad-placement-top,
 .ad-placement-results {
-    margin: 2rem auto;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.02);
+    margin: 1.5rem auto;
+    padding: 0.75rem;
+    background: transparent;
     border-radius: 8px;
-    border: 1px dashed rgba(102, 126, 234, 0.15);
+    border: none;
     text-align: center;
     transition: all 0.3s ease;
 }
@@ -479,56 +116,28 @@
    ========================================== */
 
 @keyframes slideInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(-15px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @keyframes scaleIn {
-    from {
-        opacity: 0;
-        transform: scale(0.8);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateX(100%);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 /* ==========================================
@@ -536,12 +145,12 @@
    ========================================== */
 
 .topic-item:focus-visible {
-    outline: 3px solid var(--search-focus);
+    outline: 3px solid hsl(245, 75%, 58%);
     outline-offset: 2px;
 }
 
 .btn-search-main:focus-visible,
 .btn-ai-discovery:focus-visible {
-    outline: 3px solid var(--search-focus);
+    outline: 3px solid hsl(245, 75%, 58%);
     outline-offset: 2px;
 }

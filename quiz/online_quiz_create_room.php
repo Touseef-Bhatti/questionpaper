@@ -250,7 +250,16 @@ if ($remaining_needed > 0) {
         if (count($selectedQuestions) < $target_db_count) {
             $neededCount = $target_db_count - count($selectedQuestions);
             if (function_exists('generateMCQsBulkWithGemini')) {
-                $generatedMCQs = generateMCQsBulkWithGemini($topics, $neededCount);
+                // Extract already selected AI MCQ IDs to avoid duplicates
+                $existingAiIds = [];
+                foreach ($selectedQuestions as $q) {
+                    if (isset($q['is_ai']) && $q['is_ai'] && isset($q['id'])) {
+                        $existingAiIds[] = $q['id'];
+                    }
+                }
+                
+                // Use skipVerify = true for faster room creation
+                $generatedMCQs = generateMCQsBulkWithGemini($topics, $neededCount, '', true, false, $existingAiIds);
                 if (!empty($generatedMCQs)) {
                     foreach ($generatedMCQs as $genMCQ) {
                         $selectedQuestions[] = [

@@ -212,9 +212,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
 
 <meta name="keywords" content="<?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> paper generator, mcqs paper maker, chapter wise paper generator, short questions long questions generator, Punjab Board test setter">
 
-<!-- monetag vegenate Banner -->
-<script>(function(s){s.dataset.zone='10835874',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-<!-- monetag vegenate Banner -->
+
 
 <title><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> Paper Generator | MCQs & Questions</title>
 

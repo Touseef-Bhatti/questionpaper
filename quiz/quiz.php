@@ -58,6 +58,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['status' => 'success', 'message' => 'Thank you for your review.']);
         exit;
     }
+
+    if ($action === 'cache_mcqs') {
+        header('Content-Type: application/json');
+        global $cacheManager;
+        
+        $mcqs = $jsonInput['questions'] ?? [];
+        $key = $jsonInput['cache_key'] ?? '';
+        
+        if ($cacheManager && !empty($mcqs) && !empty($key)) {
+            try {
+                $verifiedMcqs = [];
+                foreach ($mcqs as $q) {
+                    // Only cache MCQs that have been verified (have an explanation)
+                    if (empty($q['explanation'])) continue;
+
+                    $id = $q['mcq_id'];
+                    $isAi = (strpos($id, 'ai_') === 0);
+                    if ($isAi) {
+                        $id = substr($id, 3);
+                    }
+                    
+                    $mcqData = [
+                        'id' => $id,
+                        'question' => $q['question'],
+                        'option_a' => $q['option_a'],
+                        'option_b' => $q['option_b'],
+                        'option_c' => $q['option_c'],
+                        'option_d' => $q['option_d'],
+                        'correct_option' => $q['correct_option'],
+                        'explanation' => $q['explanation'],
+                        'is_ai' => $isAi
+                    ];
+
+                    $verifiedMcqs[] = $mcqData;
+
+                    // Also store individual MCQ separately as requested
+                    $singleKey = ($isAi ? 'ai_mcq_v_' : 'mcq_v_') . $id;
+                    $cacheManager->setex($singleKey, 86400 * 7, json_encode($mcqData)); // Cache for 7 days
+                }
+                
+                // Store the bulk cache for this topic search
+                if (!empty($verifiedMcqs)) {
+                    $cacheManager->setex($key, 86400, json_encode($verifiedMcqs));
+                }
+                
+                echo json_encode(['status' => 'success', 'cached_count' => count($verifiedMcqs)]);
+            } catch (Exception $e) {
+                echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+            }
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Missing data']);
+        }
+        exit;
+    }
 }
 
 
@@ -248,9 +302,20 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
 // If still don't have enough questions, auto-generate in 1 API request
 if (count($questions) < $mcq_count && !empty($topicsArray)) {
     $neededCount = $mcq_count - count($questions);
-    $generatedMCQs = generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel ?? '', true);
+    
+    // Extract already fetched AI MCQ IDs to avoid duplicates from generateMCQsBulkWithGemini
+    $existingAiIds = [];
+    foreach ($questions as $q) {
+        if (isset($q['mcq_id']) && strpos((string)$q['mcq_id'], 'ai_') === 0) {
+            $existingAiIds[] = substr((string)$q['mcq_id'], 3);
+        }
+    }
+
+    $generatedMCQs = generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel ?? '', true, false, $existingAiIds);
     if (!empty($generatedMCQs)) {
         foreach ($generatedMCQs as $genMCQ) {
+            if (count($questions) >= $mcq_count) break; // Safety break
+
             $id = $genMCQ['id'] ?? $genMCQ['mcq_id'] ?? null;
             $fullId = 'ai_' . ($id ?? uniqid());
             
@@ -276,6 +341,16 @@ if (empty($questions)) {
 // Limit to requested count and shuffle
 shuffle($questions);
 $questions = array_slice($questions, 0, $mcq_count);
+
+// Generate the cache key to store these results later (when quiz is over)
+$lvl = in_array(strtolower($studyLevel), ['easy', 'medium', 'hard']) ? strtolower($studyLevel) : '';
+if (count($topicsArray) > 1) {
+    $cacheKeyForFinal = 'ai_mcqs_bulk_' . md5(implode(',', $topicsArray) . '_' . $mcq_count . ($lvl ? '_' . $lvl : ''));
+} else if (!empty($topicsArray)) {
+    $cacheKeyForFinal = 'ai_mcqs_' . md5($topicsArray[0] . '_' . $mcq_count . ($lvl ? '_' . $lvl : ''));
+} else {
+    $cacheKeyForFinal = '';
+}
 
 // Identify questions missing explanations in the FINAL quiz to verify in background
 $missingExplanationIds = [];
@@ -1163,6 +1238,7 @@ FunnyAudioManager.setBasePath('<?= $assetBase ?>');
 
 // ─── Data ──────────────────────────────────────────────────────────
 const questions = <?= json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    const finalCacheKey = <?= json_encode($cacheKeyForFinal) ?>;
 const missingExplanationIds = <?= json_encode($missingExplanationIds) ?>;
 const hasAlreadyReviewedServer = <?= json_encode($hasAlreadyReviewed) ?>;
 const isLoggedIn = <?= json_encode($isLoggedIn) ?>;
@@ -1513,8 +1589,21 @@ function showResults() {
     clearInterval(timerInterval);
     quizCompleted = true;
 
+    // Cache the final verified questions if we have a key
+    if (finalCacheKey) {
+        fetch('quiz.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'cache_mcqs',
+                cache_key: finalCacheKey,
+                questions: questions
+            })
+        }).catch(e => console.error('Caching failed:', e));
+    }
+
     // Load Monetag Vignette Ad for navigation
-    // (function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+ 
 
     const totalTime = Math.floor((Date.now() - startTime) / 1000);
     const pct = Math.round((score / questions.length) * 100);
@@ -1740,7 +1829,7 @@ async function submitReview() {
 
 // ─── Load Ad and Navigate ──────────────────────────────────────────
 function loadAdAndNavigate(url) {
-    (function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+ 
     
     // Redirect after a small delay to allow the script to load/trigger
     setTimeout(() => {
@@ -1815,15 +1904,36 @@ async function triggerBackgroundVerification(ids) {
                 const fullId = (upd.source === 'ai' ? 'ai_' : '') + upd.id;
                 const qIdx = questions.findIndex(q => q.mcq_id === fullId || q.mcq_id == fullId);
                 if (qIdx !== -1) {
+                    // Update ALL fields in case they were corrected
                     questions[qIdx].explanation = upd.explanation || '';
+                    if (upd.question || upd.question_text) {
+                        questions[qIdx].question = upd.question || upd.question_text;
+                    }
+                    if (upd.option_a) questions[qIdx].option_a = upd.option_a;
+                    if (upd.option_b) questions[qIdx].option_b = upd.option_b;
+                    if (upd.option_c) questions[qIdx].option_c = upd.option_c;
+                    if (upd.option_d) questions[qIdx].option_d = upd.option_d;
+                    
                     if (upd.correct_option) {
                         questions[qIdx].correct_option = upd.correct_option;
                     }
                     
+                    // Update UI if we are currently viewing this question AND user hasn't selected an option yet
+                    if (currentQuestion === qIdx && !answers[qIdx]) {
+                        renderQuestion();
+                    }
+                    
                     // If the question was already answered or skipped, update its entry in 'answers'
-                    // so the results screen shows the newly fetched explanation
+                    // so the results screen shows the newly fetched explanation and corrected options
                     if (answers[qIdx]) {
                         answers[qIdx].explanation = upd.explanation || '';
+                        answers[qIdx].question = questions[qIdx].question;
+                        answers[qIdx].options = {
+                            A: questions[qIdx].option_a,
+                            B: questions[qIdx].option_b,
+                            C: questions[qIdx].option_c,
+                            D: questions[qIdx].option_d
+                        };
                         
                         // If it was corrected, update correct info for results (doesn't affect past UI feedback)
                         if (upd.correct_option) {

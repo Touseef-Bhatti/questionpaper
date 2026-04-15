@@ -286,27 +286,6 @@ if (isset($_POST['start_quiz'])) {
                 exit;
             }
             
-            $checkStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM mcqs WHERE topic IN ($placeholders)");
-            $types = str_repeat('s', count($topicsArray));
-            $params = $topicsArray;
-            $checkStmt->bind_param($types, ...$params);
-            $checkStmt->execute();
-            $checkResult = $checkStmt->get_result();
-            if ($row = $checkResult->fetch_assoc()) $existingCount += intval($row['cnt']);
-            $checkStmt->close();
-            
-            $aiCheckStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM AIGeneratedMCQs WHERE topic IN ($placeholders)");
-            $aiCheckStmt->bind_param($types, ...$params);
-            $aiCheckStmt->execute();
-            $aiCheckResult = $aiCheckStmt->get_result();
-            if ($row = $aiCheckResult->fetch_assoc()) $existingCount += intval($row['cnt']);
-            $aiCheckStmt->close();
-            
-            $neededCount = max(0, $mcqCount - $existingCount);
-            if ($neededCount > 0) {
-                generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel);
-            }
-            
             if (count($topicsArray) === 1) {
                 // Prettify URL for single topic: topicName-MCQs-Quiz
                 $prettyTopic = str_replace(' ', '-', $topicsArray[0]);
@@ -332,9 +311,6 @@ if (isset($_POST['start_quiz'])) {
     <!-- Google tag (gtag.js) -->
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
 
-    <!-- ads monetag_ads -->
-<script>(function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- end ads monetag_ads -->
       
     <meta charset="UTF-8">
 
