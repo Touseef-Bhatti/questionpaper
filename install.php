@@ -313,6 +313,8 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_rooms (
     lobby_enabled BOOLEAN DEFAULT TRUE,
     start_time DATETIME NULL,
     active_question_ids TEXT DEFAULT NULL,
+    custom_class VARCHAR(255) DEFAULT NULL,
+    custom_book VARCHAR(255) DEFAULT NULL,
     status ENUM('active', 'completed', 'closed') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (host_id) REFERENCES users(id) ON DELETE CASCADE
@@ -595,7 +597,19 @@ if (!$result || $result->num_rows == 0) {
 // Check if quiz_rooms table has quiz_duration_minutes column
 $result = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'quiz_duration_minutes'");
 if (!$result || $result->num_rows == 0) {
-    runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN quiz_duration_minutes INT DEFAULT 30 AFTER quiz_started", "Column: quiz_rooms.quiz_duration_minutes");
+    runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN quiz_duration_minutes INT DEFAULT 30 AFTER start_time", "Column: quiz_rooms.quiz_duration_minutes");
+}
+
+// Check if quiz_rooms table has custom_class column
+$result = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'custom_class'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN custom_class VARCHAR(255) DEFAULT NULL AFTER quiz_duration_minutes", "Column: quiz_rooms.custom_class");
+}
+
+// Check if quiz_rooms table has custom_book column
+$result = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'custom_book'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE quiz_rooms ADD COLUMN custom_book VARCHAR(255) DEFAULT NULL AFTER custom_class", "Column: quiz_rooms.custom_book");
 }
 
 // Check if quiz_participants table has current_question column

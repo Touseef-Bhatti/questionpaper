@@ -44,9 +44,15 @@ $metaKeywords    = "online question paper generator, online MCQs paper generator
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
     <style>
+    /* Universal Box Sizing to prevent layout overflow */
+    *, *::before, *::after {
+        box-sizing: border-box;
+    }
+
     /* Mode Switcher specific to Generator */
     .qp-modes {
         display: flex;
+        flex-wrap: wrap;
         background: #f8fafc;
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
@@ -55,10 +61,11 @@ $metaKeywords    = "online question paper generator, online MCQs paper generator
         margin-bottom: 24px;
     }
     .qp-mode-btn {
-        flex: 1;
+        flex: 1 1 30%;
+        min-width: 100px;
         border: none;
         background: transparent;
-        padding: 12px 14px;
+        padding: 12px 10px;
         border-radius: var(--radius-sm);
         font-family: 'Outfit',sans-serif;
         font-weight: 600;
@@ -147,9 +154,9 @@ $metaKeywords    = "online question paper generator, online MCQs paper generator
         border: none;
         width: 100%;
         max-width: 400px;
-        padding: 16px 24px;
+        padding: 14px 20px;
         border-radius: var(--radius-md);
-        font-size: 1.15rem;
+        font-size: 1.1rem;
         font-weight: 800;
         font-family: 'Outfit', sans-serif;
         text-transform: uppercase;
@@ -162,6 +169,66 @@ $metaKeywords    = "online question paper generator, online MCQs paper generator
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4), 0 8px 10px -6px rgba(99, 102, 241, 0.1);
         margin: 0 auto;
+    }
+    
+    @media (max-width: 768px) {
+        .professional-generate-btn {
+            font-size: 1rem;
+            padding: 12px 16px;
+        }
+        .qp-modes {
+            padding: 2px;
+        }
+        .qp-mode-btn {
+            font-size: 0.85rem;
+            padding: 10px 6px;
+            min-width: 90px;
+        }
+    }
+    
+    /* Fix header overlap and mobile container sizing */
+    .main-content {
+        padding-top: 100px; /* Accounts for the fixed header */
+        min-height: 100vh;
+    }
+    
+    .topic-search-container {
+        max-width: 800px;
+        width: 100% !important;
+        margin: 0 auto 40px auto !important;
+    }
+    
+    .search-input {
+        padding-right: 65px !important; /* Fix excessive padding */
+    }
+
+    @media (max-width: 768px) {
+        .main-content {
+            padding-top: 85px;
+        }
+        .topic-search-container {
+            max-width: 95% !important;
+            padding: 24px 16px !important;
+            border-radius: 20px !important;
+            margin: 0 auto 32px auto !important;
+        }
+        h1 {
+            font-size: 1.8rem !important;
+            line-height: 1.2 !important;
+            margin-bottom: 12px !important;
+        }
+        .desc {
+            font-size: 0.95rem !important;
+            margin-bottom: 24px !important;
+        }
+        .search-input {
+            padding-right: 55px !important;
+        }
+        .search-btn {
+            width: 44px !important;
+            height: 44px !important;
+            right: 4px !important;
+        }
     }
     
     .professional-generate-btn:hover:not(:disabled) {
@@ -313,9 +380,13 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
                      </div>
                      <div class="load-more-text" style="text-align: center; font-weight: 600; color: var(--primary); margin-top: 10px;">Our AI is exploring the knowledge graph...</div>
                 </div>
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%;">
                     <button type="button" id="loadMoreTopicsBtn" onclick="fetchAiTopics()" class="btn-secondary" style="width: 100%; max-width: 400px; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         <i class="fas fa-magic"></i> Explore More Topics (AI)
+                    </button>
+                    
+                    <button type="button" class="professional-generate-btn" onclick="finalizePaper()" disabled>
+                        <i class="fas fa-file-signature"></i> Generate Paper
                     </button>
                 </div>
             </div>
@@ -341,7 +412,6 @@ const els = {
     topicSearch:       document.getElementById('topicSearch'),
     topicsGrid:        document.getElementById('topicsGrid'),
     resultsSection:    document.getElementById('resultsSection'),
-    generateBtn:       document.getElementById('generateBtn'),
     totalSelectedCount:document.getElementById('totalSelectedCount'),
     selectedSection:   document.getElementById('selectedTopicsSection'),
     selectedList:      document.getElementById('selectedTopicsList'),
@@ -647,7 +717,8 @@ function updateCounts(){
     
     if(els.totalSelectedCount) els.totalSelectedCount.textContent=total;
     
-    if(els.generateBtn) els.generateBtn.disabled = (total === 0);
+    const genBtns = document.querySelectorAll('.professional-generate-btn');
+    genBtns.forEach(btn => btn.disabled = (total === 0));
     
     if(els.selectedSection) {
         if(total > 0) {
@@ -693,7 +764,8 @@ window.finalizePaper = ()=>{
     const allTopics=[...selectionMatrix.mcqs,...selectionMatrix.short,...selectionMatrix.long];
     if(allTopics.length===0){ toast('Please select at least one topic.','error'); return; }
 
-    if(els.generateBtn) els.generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    const genBtns = document.querySelectorAll('.professional-generate-btn');
+    genBtns.forEach(btn => btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...');
 
     if(typeof showAILoader==='function'){
         showAILoader([

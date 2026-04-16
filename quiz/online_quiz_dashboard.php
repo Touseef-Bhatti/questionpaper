@@ -7,6 +7,13 @@ include '../db_connect.php';
 // Current user
 $user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 
+// Ensure necessary columns exist in quiz_rooms
+$checkCols = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'custom_class'");
+if ($checkCols && $checkCols->num_rows == 0) {
+    $conn->query("ALTER TABLE quiz_rooms ADD COLUMN custom_class VARCHAR(255) DEFAULT NULL AFTER quiz_duration_minutes");
+    $conn->query("ALTER TABLE quiz_rooms ADD COLUMN custom_book VARCHAR(255) DEFAULT NULL AFTER custom_class");
+}
+
 $room_code = strtoupper(trim($_GET['room'] ?? ''));
 $status_filter = strtolower(trim($_GET['status'] ?? ''));
 $valid_status = ['active','closed',''];
@@ -31,11 +38,25 @@ function join_url($code){
   <style>
     .container-narrow { max-width: 1100px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); padding: 20px; }
     .flex { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    .btn { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; text-decoration: none; display: inline-block; text-align: center; transition: transform 0.1s; }
-    .btn:active { transform: scale(0.98); }
-    .btn.primary { background: #4f6ef7; color: #fff; }
-    .btn.secondary { background: #e9eef8; color: #2d3e50; }
-    .btn.danger { background: #ef4444; color: #fff; }
+    .btn { padding: 10px 18px; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.95rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .btn:active { transform: translateY(0); box-shadow: none; }
+    .btn i { font-size: 1.1em; }
+    .btn.primary { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #fff; box-shadow: 0 4px 12px rgba(99,102,241,0.25); }
+    .btn.primary:hover { box-shadow: 0 6px 16px rgba(99,102,241,0.35); }
+    .btn.secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+    .btn.secondary:hover { background: #f1f5f9; color: #1e293b; border-color: #cbd5e1; }
+    .btn.danger { background: linear-gradient(135deg, #ef4444 0%, #f87171 100%); color: #fff; box-shadow: 0 4px 12px rgba(239,68,68,0.25); }
+    .btn.danger:hover { box-shadow: 0 6px 16px rgba(239,68,68,0.35); }
+    .btn.info { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: #fff; box-shadow: 0 4px 12px rgba(14,165,233,0.25); }
+    .btn.info:hover { box-shadow: 0 6px 16px rgba(14,165,233,0.35); }
+    .btn.warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; box-shadow: 0 4px 12px rgba(245,158,11,0.25); }
+    .btn.warning:hover { box-shadow: 0 6px 16px rgba(245,158,11,0.35); }
+    .btn.success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 4px 12px rgba(16,185,129,0.25); }
+    .btn.success:hover { box-shadow: 0 6px 16px rgba(16,185,129,0.35); }
+    .btn.purple { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff; box-shadow: 0 4px 12px rgba(139,92,246,0.25); }
+    .btn.purple:hover { box-shadow: 0 6px 16px rgba(139,92,246,0.35); }
+    .mobile-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end; }
     .muted { color: #6b7280; }
     .table-responsive { overflow-x: auto; width: 100%; margin-top: 12px; -webkit-overflow-scrolling: touch; }
     table { width: 100%; border-collapse: collapse; min-width: 600px; } /* Ensure table doesn't squash too much */
@@ -64,9 +85,9 @@ function join_url($code){
         .header-stack h1 { font-size: 1.5rem; margin-bottom: 5px; }
         
         /* Mobile Actions */
-        .mobile-actions { flex-direction: column; gap: 8px; }
-        .mobile-actions .btn, .mobile-actions form, .mobile-actions form button { width: 100%; display: block; }
-        .mobile-actions form { margin: 0; }
+        .mobile-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; margin-top: 10px; }
+        .mobile-actions .btn, .mobile-actions form, .mobile-actions form button { width: 100%; display: flex; margin: 0; flex-basis: 100%; }
+        .mobile-actions .btn { font-size: 0.85rem; padding: 10px 4px; }
         
         /* Larger touch targets */
         .btn { padding: 12px; font-size: 1rem; }
@@ -80,14 +101,14 @@ function join_url($code){
 </head>
 <body>
 <?php include_once '../header.php'; ?>
-<div class="main-content">
+<div class="main-content" style="margin-top: 10%;">
   <div class="container-narrow">
   <?php if ($room_code === ''): ?>
     <div class="flex header-stack" style="justify-content: space-between;">
       <h1 style="margin: 0;">Live Quiz Dashboard</h1>
       <div class="flex mobile-actions">
         <!-- Refresh Button -->
-        <button class="btn secondary" onclick="window.location.reload();">
+        <button class="btn info" onclick="window.location.reload();">
           <i class="fas fa-sync-alt"></i> Refresh
         </button>
 
@@ -98,7 +119,9 @@ function join_url($code){
             <option value="active" <?= $status_filter==='active'?'selected':''; ?>>Active</option>
             <option value="closed" <?= $status_filter==='closed'?'selected':''; ?>>Closed</option>
           </select>
-          <button class="btn secondary" type="submit">Filter</button>
+          <button class="btn info" type="submit" style="padding: 8px 20px;">
+            <i class="fas fa-filter"></i> Filter
+          </button>
         </form>
         <a class="btn primary" href="online_quiz_host_new.php">Create Room</a>
       </div>
@@ -110,6 +133,7 @@ function join_url($code){
         $where .= " AND r.status = '" . $conn->real_escape_string($status_filter) . "'";
       }
       $sql = "SELECT r.id, r.room_code, r.created_at, r.status, r.class_id, r.book_id,
+                     r.custom_class, r.custom_book,
                      c.class_name, b.book_name,
                      (SELECT COUNT(*) FROM quiz_room_questions q WHERE q.room_id = r.id) AS q_count,
                      (SELECT COUNT(*) FROM quiz_participants p WHERE p.room_id = r.id) AS p_count
@@ -141,15 +165,21 @@ function join_url($code){
               <div class="muted"><a href="<?= h(join_url($row['room_code'])) ?>" target="_blank">Join link</a></div>
             </td>
             <td>
-              <div><?= h($row['class_name'] ?? 'Class ' . (int)$row['class_id']) ?></div>
-              <div class="muted"><?= h($row['book_name'] ?? ('Book ' . (int)$row['book_id'])) ?></div>
+              <?php 
+                $display_class = !empty($row['custom_class']) ? $row['custom_class'] : ($row['class_name'] ?? 'Class ' . (int)$row['class_id']);
+                $display_book = !empty($row['custom_book']) ? $row['custom_book'] : ($row['book_name'] ?? ('Book ' . (int)$row['book_id']));
+              ?>
+              <div><?= h($display_class) ?></div>
+              <div class="muted"><?= h($display_book) ?></div>
             </td>
             <td><?= h($row['created_at']) ?></td>
             <td><?= (int)$row['q_count'] ?></td>
             <td><?= (int)$row['p_count'] ?></td>
             <td><span class="badge <?= $row['status']==='active'?'active':'closed' ?>"><?= h(ucfirst($row['status'])) ?></span></td>
             <td class="flex">
-              <a class="btn secondary" href="online_quiz_dashboard.php?room=<?= h($row['room_code']) ?>">View</a>
+              <a class="btn info" href="online_quiz_dashboard.php?room=<?= h($row['room_code']) ?>">
+                <i class="fas fa-eye"></i> View
+              </a>
               <?php if ($row['status']==='active'): ?>
                 <form method="POST" action="online_quiz_room_status.php" style="display:inline;">
                   <input type="hidden" name="room_code" value="<?= h($row['room_code']) ?>" />
@@ -163,8 +193,8 @@ function join_url($code){
                   <button class="btn primary" type="submit">Open</button>
                 </form>
               <?php endif; ?>
-              <a class="btn secondary" href="online_quiz_rehost.php?room=<?= h($row['room_code']) ?>" onclick="return confirm('Create a new room with the same questions?');">Rehost</a>
-              <a class="btn secondary" href="online_quiz_export.php?room=<?= h($row['room_code']) ?>">Download Results </a>
+              <a class="btn warning" href="online_quiz_rehost.php?room=<?= h($row['room_code']) ?>" onclick="return confirm('Create a new room with the same questions?');">Rehost</a>
+              <a class="btn success" href="online_quiz_export.php?room=<?= h($row['room_code']) ?>">Download</a>
               <form method="POST" action="online_quiz_delete_room.php" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete room <?= h($row['room_code']) ?>? This action cannot be undone.');">
                 <input type="hidden" name="room_code" value="<?= h($row['room_code']) ?>" />
                 <button class="btn danger" type="submit">Delete</button>
@@ -180,7 +210,9 @@ function join_url($code){
   <?php else: ?>
     <?php
       // Room detail view - restrict to current user
-      $stmt = $conn->prepare("SELECT r.id, r.room_code, r.created_at, r.status, r.class_id, r.book_id, c.class_name, b.book_name,
+      $stmt = $conn->prepare("SELECT r.id, r.room_code, r.created_at, r.status, r.class_id, r.book_id, 
+                                     r.custom_class, r.custom_book,
+                                     c.class_name, b.book_name,
                                      r.quiz_started, r.lobby_enabled, r.start_time, r.quiz_duration_minutes,
                                      (SELECT COUNT(*) FROM quiz_room_questions q WHERE q.room_id = r.id) AS q_count,
                                      (SELECT COUNT(*) FROM quiz_participants WHERE room_id = r.id AND status = 'waiting') AS waiting_count,
@@ -207,7 +239,38 @@ function join_url($code){
     <div class="flex header-stack" style="justify-content: space-between; align-items: flex-start;">
       <div>
         <h1 style="margin:0;">Room <?= h($room['room_code']) ?> <span class="badge <?= $room['status']==='active'?'active':'closed' ?>"><?= h(ucfirst($room['status'])) ?></span></h1>
-        <div class="muted">Class: <?= h($room['class_name'] ?? 'Class ' . (int)$room['class_id']) ?> • Book: <?= h($room['book_name'] ?? ('Book ' . (int)$room['book_id'])) ?></div>
+        
+        <?php 
+          $class_display = !empty($room['custom_class']) ? $room['custom_class'] : ($room['class_name'] ?? 'Class ' . (int)$room['class_id']);
+          $book_display = !empty($room['custom_book']) ? $room['custom_book'] : ($room['book_name'] ?? ('Book ' . (int)$room['book_id']));
+          $is_customizable = ((int)$room['class_id'] === 0);
+        ?>
+
+        <div class="muted" id="roomContextDisplay">
+          Class: <span id="displayClass"><?= h($class_display) ?></span> • 
+          Book: <span id="displayBook"><?= h($book_display) ?></span>
+          <?php if ($is_customizable): ?>
+            <button class="btn info" style="padding: 6px 15px; font-size: 11.5px; margin-left: 12px; border-radius: 50px; border: none; box-shadow: 0 4px 10px rgba(14, 165, 233, 0.2);" onclick="toggleEditDetails()">
+              <i class="fas fa-edit"></i> Edit Details
+            </button>
+          <?php endif; ?>
+        </div>
+
+        <?php if ($is_customizable): ?>
+        <div id="roomContextEdit" style="display: none; margin-top: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <div class="flex" style="gap: 10px;">
+            <input type="text" id="inputCustomClass" class="inline" placeholder="Custom Class Name" value="<?= h($room['custom_class'] ?? '') ?>" style="width: 150px;">
+            <input type="text" id="inputCustomBook" class="inline" placeholder="Custom Book Name" value="<?= h($room['custom_book'] ?? '') ?>" style="width: 150px;">
+            <button class="btn success" style="padding: 8px 16px; border-radius: 50px;" onclick="saveRoomDetails('<?= h($room['room_code']) ?>')">
+              <i class="fas fa-check"></i> Save
+            </button>
+            <button class="btn secondary" style="padding: 8px 16px; border-radius: 50px;" onclick="toggleEditDetails()">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+          </div>
+        </div>
+        <?php endif; ?>
+
         <div class="muted">Created: <?= h($room['created_at']) ?> • Questions: <?= (int)$room['q_count'] ?></div>
         <div class="field" style="margin-top:8px;">
           <label class="muted">Join link</label>
@@ -216,27 +279,27 @@ function join_url($code){
       </div>
       <div class="flex mobile-actions">
         <!-- Refresh Button -->
-        <button class="btn secondary" onclick="window.location.reload();">
+        <button class="btn info" onclick="window.location.reload();">
           <i class="fas fa-sync-alt"></i> Refresh
         </button>
         
-        <a class="btn secondary" href="online_quiz_dashboard.php">Back</a>
+        <a class="btn secondary" href="online_quiz_dashboard.php"><i class="fas fa-arrow-left"></i> Back</a>
         <?php if ($room['status']==='active'): ?>
           <form method="POST" action="online_quiz_room_status.php" style="display:inline;">
             <input type="hidden" name="room_code" value="<?= h($room['room_code']) ?>" />
             <input type="hidden" name="action" value="close" />
-            <button class="btn danger" type="submit">Close Room</button>
+            <button class="btn danger" type="submit"><i class="fas fa-times-circle"></i> Close Room</button>
           </form>
         <?php else: ?>
           <form method="POST" action="online_quiz_room_status.php" style="display:inline;">
             <input type="hidden" name="room_code" value="<?= h($room['room_code']) ?>" />
             <input type="hidden" name="action" value="open" />
-            <button class="btn primary" type="submit">Open Room</button>
+            <button class="btn primary" type="submit"><i class="fas fa-play-circle"></i> Open Room</button>
           </form>
         <?php endif; ?>
-        <a class="btn secondary" href="online_quiz_rehost.php?room=<?= h($room['room_code']) ?>" onclick="return confirm('Create a new room with the same questions?');">Rehost</a>
-        <a class="btn secondary" href="online_quiz_room_questions.php?room=<?= h($room['room_code']) ?>">View/Edit Questions</a>
-        <a class="btn secondary" href="online_quiz_export.php?room=<?= h($room['room_code']) ?>">Download Results</a>
+        <a class="btn warning" href="online_quiz_rehost.php?room=<?= h($room['room_code']) ?>" onclick="return confirm('Create a new room with the same questions?');"><i class="fas fa-redo"></i> Rehost</a>
+        <a class="btn purple" href="online_quiz_room_questions.php?room=<?= h($room['room_code']) ?>"><i class="fas fa-edit"></i> Edit Questions</a>
+        <a class="btn success" href="online_quiz_export.php?room=<?= h($room['room_code']) ?>"><i class="fas fa-download"></i> Download</a>
       </div>
     </div>
 
@@ -254,8 +317,8 @@ function join_url($code){
             <div style="font-size: 12px; color: #0369a1;">Waiting</div>
           </div>
           <?php if ($room['waiting_count'] > 0): ?>
-          <button class="btn primary" onclick="startQuiz('<?= h($room['room_code']) ?>')" id="startQuizBtn" style="background: #10b981; padding: 12px 24px;">
-            🚀 Start Quiz
+          <button class="btn success" onclick="startQuiz('<?= h($room['room_code']) ?>')" id="startQuizBtn" style="padding: 12px 28px; font-size: 1.1rem; border-radius: 50px;">
+            <i class="fas fa-rocket"></i> Start Quiz
           </button>
           <?php else: ?>
           <button class="btn" disabled style="background: #9ca3af; padding: 12px 24px; cursor: not-allowed;">
@@ -280,8 +343,8 @@ function join_url($code){
             <div style="font-size: 24px; font-weight: bold; color: #15803d;"><?= (int)$room['active_count'] ?></div>
             <div style="font-size: 12px; color: #166534;">Active</div>
           </div>
-          <button class="btn secondary" onclick="refreshParticipants()" style="padding: 12px 20px;">
-            🔄 Refresh
+          <button class="btn info" onclick="refreshParticipants()" style="padding: 12px 24px; border-radius: 50px;">
+            <i class="fas fa-sync-alt"></i> Refresh
           </button>
         </div>
       </div>
@@ -326,7 +389,9 @@ function join_url($code){
             <td><?= h((string)$percent) ?></td>
             <td>
               <?php if ($finished): ?>
-                <a class="btn secondary" href="online_quiz_participant.php?pid=<?= (int)$p['id'] ?>">View</a>
+                <a class="btn info" href="online_quiz_participant.php?pid=<?= (int)$p['id'] ?>">
+                  <i class="fas fa-eye"></i> View
+                </a>
               <?php elseif ($p['status'] === 'waiting'): ?>
                 <span class="muted">Waiting in lobby</span>
               <?php else: ?>
@@ -512,6 +577,43 @@ function refreshParticipants() {
     
     // Reload the page to get updated participant data
     window.location.reload();
+}
+
+function toggleEditDetails() {
+    const display = document.getElementById('roomContextDisplay');
+    const edit = document.getElementById('roomContextEdit');
+    if (edit.style.display === 'none') {
+        edit.style.display = 'block';
+    } else {
+        edit.style.display = 'none';
+    }
+}
+
+function saveRoomDetails(roomCode) {
+    const customClass = document.getElementById('inputCustomClass').value;
+    const customBook = document.getElementById('inputCustomBook').value;
+    
+    fetch('ajax_update_room_details.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `room_code=${encodeURIComponent(roomCode)}&custom_class=${encodeURIComponent(customClass)}&custom_book=${encodeURIComponent(customBook)}`
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('displayClass').textContent = customClass || 'Class 0';
+            document.getElementById('displayBook').textContent = customBook || 'Book 0';
+            toggleEditDetails();
+            // Optional: reload to update other parts of the UI if needed
+            // window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('Failed to save details');
+    });
 }
 
 // Auto-refresh for live updates when quiz is in progress

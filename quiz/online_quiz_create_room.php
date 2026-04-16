@@ -100,14 +100,18 @@ if ($mcq_count <= 0 && !$hasAnyCustom && empty($topics) && empty($selected_mcq_i
 // Calculate if we need to generate random questions
 $custom_count = count($custom_mcqs);
 $selected_count = count($selected_mcq_ids);
-// Always prepare a small buffer of 2 extra random questions for the teacher
-// so they can delete/replace questions before the quiz starts.
-$buffer_extra = 2;
-$random_needed = max(0, $mcq_count + $buffer_extra - $custom_count - $selected_count);
+$actual_manual_count = $custom_count + $selected_count;
 
-if ($random_needed > 0 && (!$class_id || !$book_id) && empty($topics)) {
-    respond_error('Class and Book are required when selecting Random MCQs.');
+// We only REQUIRE Class/Book if the user hasn't provided enough custom/selected questions to meet their target mcq_count
+$random_needed_for_target = max(0, $mcq_count - $actual_manual_count);
+
+if ($random_needed_for_target > 0 && (!$class_id || !$book_id) && empty($topics)) {
+    respond_error('Class and Book (or Topics) are required to generate the remaining ' . $random_needed_for_target . ' random questions.');
 }
+
+// Prepare a small buffer of 2 extra random questions ONLY if Class/Book/Topics are available
+$buffer_extra = ((!$class_id || !$book_id) && empty($topics)) ? 0 : 2;
+$random_needed = max(0, $mcq_count + $buffer_extra - $actual_manual_count);
 
 // Parse chapter IDs if provided
 $chapterIdsArray = [];
@@ -394,6 +398,31 @@ if (!empty($selectedQuestions)) {
         $ins->execute();
     }
     $ins->close();
+}
+
+// Auto-save user's custom questions to their profile
+if (!empty($custom_mcqs) && $user_id > 0) {
+    $saveToProfileStmt = $conn->prepare("INSERT INTO user_saved_questions (user_id, question_text, option_a, option_b, option_c, option_d, correct_option) SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM user_saved_questions WHERE user_id = ? AND question_text = ?)");
+    
+    if ($saveToProfileStmt) {
+        foreach ($custom_mcqs as $mcq) {
+            $q = trim($mcq['question'] ?? '');
+            $a = trim($mcq['option_a'] ?? '');
+            $b = trim($mcq['option_b'] ?? '');
+            $c = trim($mcq['option_c'] ?? '');
+            $d = trim($mcq['option_d'] ?? '');
+            $correctLetter = strtoupper(trim($mcq['correct'] ?? 'A'));
+            
+            if ($q === '' || $a === '' || $b === '' || $c === '' || $d === '') continue;
+
+            $saveToProfileStmt->bind_param('issssssis', 
+                $user_id, $q, $a, $b, $c, $d, $correctLetter,
+                $user_id, $q
+            );
+            $saveToProfileStmt->execute();
+        }
+        $saveToProfileStmt->close();
+    }
 }
 
 $baseUrl = rtrim(EnvLoader::get('BASE_URL', 'https://ahmadlearninghub.com.pk'), '/');

@@ -11,13 +11,13 @@ if (isset($_GET['clear_topics'])) {
     exit;
 }
 
-// // Get user info for personalized experience
-// $user_name = $_SESSION['name'] ?? 'Instructor';
-// $pageTitle = "Live Quiz Maker for Teachers | AI-Powered Quiz Generator";
+// Get user info for personalized experience
+$user_name = $_SESSION['name'] ?? 'Instructor';
+$pageTitle = "Live Quiz Maker for Teachers | AI-Powered Quiz Generator";
 
-// $metaDescription = "Create and host live quizzes using AI or your own questions. Conduct real-time classroom assessments with instant results, interactive leaderboards, and performance tracking for students.";
+$metaDescription = "Create and host live quizzes using AI or your own questions. Conduct real-time classroom assessments with instant results, interactive leaderboards, and performance tracking for students.";
 
-// $metaKeywords = "live quiz maker for teachers, AI quiz generator, host live quiz online, classroom assessment tool, MCQ quiz maker, online test platform, live leaderboard quizzes, teacher dashboard tool, digital learning platform";
+$metaKeywords = "live quiz maker for teachers, AI quiz generator, host live quiz online, classroom assessment tool, MCQ quiz maker, online test platform, live leaderboard quizzes, teacher dashboard tool, digital learning platform";
 
 include_once '../header.php';
 ?>
@@ -146,7 +146,7 @@ include_once '../header.php';
                         </div>
                         <div>
                             <h3 style="margin: 0; font-size: 1.25rem;">✨ Add Custom Questions</h3>
-                            <p style="margin: 5px 0 0; color: #6b7280;">Create your own questions for this quiz</p>
+                            <p style="margin: 5px 0 0; color: #6b7280;">Create your own questions. They will be <b>automatically saved</b> to your profile.</p>
                         </div>
                     </div>
                     
@@ -570,9 +570,6 @@ include_once '../header.php';
                     <div class="mcq-card-header">
                         <h4 class="mcq-card-title">Question ${index + 1}</h4>
                         <div class="mcq-card-actions">
-                            <button type="button" class="btn btn-primary btn-save-profile" onclick="saveCustomQuestionToProfile(${index})">
-                                💾 Save to Profile
-                            </button>
                             <button type="button" class="btn btn-primary btn-remove-question" onclick="removeCustomQuestion(${index})">
                                 🗑️ Remove
                             </button>
@@ -641,13 +638,25 @@ include_once '../header.php';
             const duration = parseInt(document.getElementById('quiz_duration').value) || 0;
             const chapterCount = selectedChapterIds.length;
             
-            // Calculate effective total based on target count vs custom questions
-            const total = Math.max(mcqCount, customCount);
+            const classSelect = document.getElementById('class_id');
+            const bookSelect = document.getElementById('book_id');
+            const hasClassAndBook = classSelect && bookSelect && !classSelect.disabled && classSelect.value && bookSelect.value;
+            
+            const topicsInput = document.querySelector('input[name="topics"]');
+            const hasTopics = topicsInput && topicsInput.value && topicsInput.value !== '[]';
+
+            // Calculate effective total
+            let total = 0;
+            if (hasClassAndBook || hasTopics) {
+                total = Math.max(mcqCount, customCount);
+            } else {
+                total = customCount;
+            }
             
             document.getElementById('totalQuestions').textContent = total;
             document.getElementById('estimatedTime').textContent = duration;
             document.getElementById('customCount').textContent = customCount;
-            document.getElementById('selectedChapters').textContent = chapterCount === 0 ? 'All' : chapterCount;
+            document.getElementById('selectedChapters').textContent = chapterCount === 0 ? (hasClassAndBook ? 'All' : 'None') : chapterCount;
         }
         
         function resetForm() {
