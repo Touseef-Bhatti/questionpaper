@@ -38,7 +38,21 @@ try {
     // Extract user data
     $googleId = $userInfo['id'];
     $email = $userInfo['email'];
-    $name = $userInfo['name'] ?? $email;
+    
+    // Better name extraction: try 'name' first, then 'given_name', finally fallback to email prefix
+    $name = $userInfo['name'] ?? null;
+    
+    // If name is missing or looks like an email, try alternatives
+    if (!$name || filter_var($name, FILTER_VALIDATE_EMAIL)) {
+        if (isset($userInfo['given_name']) && !empty($userInfo['given_name'])) {
+            $name = $userInfo['given_name'] . (isset($userInfo['family_name']) ? ' ' . $userInfo['family_name'] : '');
+        } else {
+            // Fallback: extract name from email (e.g., "john.doe" from "john.doe@gmail.com")
+            $name = explode('@', $email)[0];
+            $name = ucwords(str_replace(['.', '_', '-'], ' ', $name));
+        }
+    }
+    
     $picture = $userInfo['picture'] ?? null;
     
     // Check if user already exists with this Google ID
@@ -49,6 +63,15 @@ try {
     $stmt->close();
     
     if ($user) {
+        // If existing user has an email as their name, update it to the better name we found
+        if (filter_var($user['name'], FILTER_VALIDATE_EMAIL)) {
+            $updateStmt = $conn->prepare("UPDATE users SET name = ? WHERE id = ?");
+            $updateStmt->bind_param('si', $name, $user['id']);
+            $updateStmt->execute();
+            $updateStmt->close();
+            $user['name'] = $name; // Update local variable for session
+        }
+
         // User exists, log them in
         session_regenerate_id(true);
         $_SESSION['user_id'] = $user['id'];
@@ -73,8 +96,15 @@ try {
     
     if ($existingUser) {
         // Link Google account to existing user
-        $stmt = $conn->prepare("UPDATE users SET google_id = ?, oauth_provider = 'google' WHERE id = ?");
-        $stmt->bind_param('si', $googleId, $existingUser['id']);
+        // Also update name if it's currently an email
+        if (filter_var($existingUser['name'], FILTER_VALIDATE_EMAIL)) {
+            $stmt = $conn->prepare("UPDATE users SET google_id = ?, oauth_provider = 'google', name = ? WHERE id = ?");
+            $stmt->bind_param('ssi', $googleId, $name, $existingUser['id']);
+            $existingUser['name'] = $name; // Update for session
+        } else {
+            $stmt = $conn->prepare("UPDATE users SET google_id = ?, oauth_provider = 'google' WHERE id = ?");
+            $stmt->bind_param('si', $googleId, $existingUser['id']);
+        }
         $stmt->execute();
         $stmt->close();
         
