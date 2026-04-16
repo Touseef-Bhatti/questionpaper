@@ -46,7 +46,7 @@ body {
 .hero-section {
     position: relative;
     padding: 6rem 0 5rem 0;
-    background: linear-gradient(180deg, rgba(8,15,38,0.95) 0%, rgba(8,15,38,0.92) 100%), url('../8617761.jpg') no-repeat center center;
+    background: url('../8617761.jpg') no-repeat center center;
     background-size: cover;
     overflow: hidden;
     min-height: 100vh;
@@ -130,7 +130,7 @@ body {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(2,6,23,0.45), rgba(2,6,23,0.35));
+    background: transparent;
     z-index: 0;
     pointer-events: none;
 }

@@ -125,8 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       border-radius: 24px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
       padding: 3rem;
-      transition: transform 0.2s ease; /* Simplified transition: only transform */
-      will-change: transform; /* Hint for hardware acceleration */
+      transition: transform 0.2s ease;
     }
 
     .join-card:hover {

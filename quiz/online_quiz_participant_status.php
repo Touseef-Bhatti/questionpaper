@@ -11,6 +11,9 @@ if (empty($room_code)) {
     exit;
 }
 
+// Optional: participant_id so we can tell if THIS student was force-ended
+$participant_id = isset($_GET['participant_id']) ? (int)$_GET['participant_id'] : 0;
+
 $stmt = $conn->prepare("SELECT id, status, quiz_started, start_time, quiz_duration_minutes FROM quiz_rooms WHERE room_code = ?");
 $stmt->bind_param('s', $room_code);
 $stmt->execute();
@@ -32,13 +35,39 @@ if ($row = $res->fetch_assoc()) {
         // Or if start_time is null, we can assume it hasn't started counting down
         $remaining = $durationSec;
     }
-    
-    echo json_encode([
+
+    $response = [
         'status' => $row['status'],
         'quiz_started' => (bool)$row['quiz_started'],
         'remaining_seconds' => $remaining,
         'server_time' => $nowTs
-    ]);
+    ];
+
+    // If a participant_id is provided, include their current status so we can lock/end just them
+    if ($participant_id > 0) {
+        $lockColCheck = $conn->query("SHOW COLUMNS FROM quiz_participants LIKE 'is_screen_locked'");
+        $hasLockColumns = $lockColCheck && $lockColCheck->num_rows > 0;
+
+        $participantSql = $hasLockColumns
+            ? "SELECT status, is_screen_locked, lock_message FROM quiz_participants WHERE id = ? AND room_id = ?"
+            : "SELECT status, 0 AS is_screen_locked, NULL AS lock_message FROM quiz_participants WHERE id = ? AND room_id = ?";
+
+        $pstmt = $conn->prepare($participantSql);
+        if ($pstmt) {
+            $room_id = (int)$row['id'];
+            $pstmt->bind_param('ii', $participant_id, $room_id);
+            $pstmt->execute();
+            $pRes = $pstmt->get_result();
+            if ($pRow = $pRes->fetch_assoc()) {
+                $response['participant_status'] = $pRow['status'];
+                $response['is_screen_locked'] = (int)($pRow['is_screen_locked'] ?? 0) === 1;
+                $response['lock_message'] = (string)($pRow['lock_message'] ?? '');
+            }
+            $pstmt->close();
+        }
+    }
+
+    echo json_encode($response);
 } else {
     echo json_encode(['error' => 'Room not found']);
 }

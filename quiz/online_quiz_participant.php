@@ -408,7 +408,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 <body>
 <?php include_once '../header.php'; ?>
 
-<main class="main-content">
+<main class="main-content" style="margin-top: 10%;">
     <div class="details-wrapper">
         <a href="online_quiz_dashboard.php?room=<?= h($room_code) ?>" class="back-btn">
             <i class="fas fa-arrow-left"></i> Back to Room Dashboard

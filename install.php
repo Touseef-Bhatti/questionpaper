@@ -340,7 +340,7 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_participants (
     score INT DEFAULT 0,
     question_order TEXT NULL,
     last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('lobby', 'in_progress', 'completed') DEFAULT 'lobby',
+    status ENUM('waiting', 'active', 'finished') DEFAULT 'waiting',
     FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE,
     UNIQUE KEY unique_participant (room_id, roll_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_participants");

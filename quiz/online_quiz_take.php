@@ -475,6 +475,49 @@ $stmt->close();
         }
 
         .hidden { display: none !important; }
+        .screen-lock-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(15, 23, 42, 0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .screen-lock-card {
+            max-width: 560px;
+            width: 100%;
+            background: #fff;
+            border-radius: 24px;
+            padding: 32px;
+            text-align: center;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+            border: 2px solid #fecaca;
+        }
+        .screen-lock-icon {
+            width: 84px;
+            height: 84px;
+            margin: 0 auto 18px;
+            border-radius: 999px;
+            background: #fee2e2;
+            color: #dc2626;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+        .screen-lock-title {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #111827;
+            margin-bottom: 10px;
+        }
+        .screen-lock-text {
+            color: #4b5563;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
@@ -486,7 +529,7 @@ $stmt->close();
   <!-- TOP AD BANNER -->
   <?= renderAd('banner', 'Online Quiz Page Top Banner', 'ad-placement-top', 'margin-bottom: 20px;') ?>
 
-  <div class="quiz-container">
+  <div class="quiz-container" style="margin-top: 10%;">
     <!-- Header with Progress -->
     <div class="quiz-header" id="quizHeader">
       <div class="quiz-header-top">
@@ -495,7 +538,12 @@ $stmt->close();
             <i class="fas fa-bolt" style="color: #fbbf24;"></i>
             <span><?php echo htmlspecialchars($book_name); ?></span>
           </div>
-          <div class="quiz-subtitle"><?php echo htmlspecialchars($class_name); ?> &nbsp;•&nbsp; Room: <?php echo htmlspecialchars($room_code); ?></div>
+          <div class="quiz-subtitle">
+            <?php echo htmlspecialchars($class_name); ?> &nbsp;•&nbsp; Room: <?php echo htmlspecialchars($room_code); ?>
+            <span id="proctorAlertBadge" class="hidden" style="margin-left: 10px; padding: 4px 10px; border-radius: 999px; background:#fee2e2; color:#b91c1c; font-size: 0.75rem; font-weight:700; text-transform:uppercase;">
+              Suspicious activity recorded
+            </span>
+          </div>
         </div>
         <div class="quiz-timer-badge" id="timer">
           <i class="fas fa-clock"></i> 00:00
@@ -564,6 +612,16 @@ $stmt->close();
   </div>
 </div>
 
+<div id="screenLockOverlay" class="screen-lock-overlay hidden">
+  <div class="screen-lock-card">
+    <div class="screen-lock-icon"><i class="fas fa-lock"></i></div>
+    <div class="screen-lock-title">Screen Locked</div>
+    <div class="screen-lock-text" id="screenLockMessage">
+      Your screen has been locked by your teacher. Please wait for further instructions.
+    </div>
+  </div>
+</div>
+
 <script>
 
     // Original functions will be defined below, we'll let them initialize and then we can override if needed, 
@@ -582,15 +640,34 @@ const serverElapsedSec = <?php echo (int)$elapsedSec; ?>;
 let remainingSec = Math.max(0, durationSec - serverElapsedSec);
 let startTime = Date.now(); // For tracking time spent on questions
 let questionStartTime = Date.now();
+let screenLocked = false;
 
 let timerInterval = setInterval(updateTimer, 1000);
 let statusInterval = setInterval(checkServerStatus, 5000);
 
 function checkServerStatus() {
-    fetch('online_quiz_participant_status.php?room_code=' + encodeURIComponent(roomCode))
+    const url = 'online_quiz_participant_status.php?room_code=' + encodeURIComponent(roomCode) +
+                (participantId ? '&participant_id=' + encodeURIComponent(participantId) : '');
+    fetch(url)
     .then(res => res.json())
     .then(data => {
         if (data.error) return;
+
+        if (data.is_screen_locked) {
+            lockStudentScreen(data.lock_message || 'Your screen has been locked by your teacher.');
+        } else {
+            unlockStudentScreen();
+        }
+
+        // If this participant has been force-ended/completed by the teacher, end immediately
+        if (data.participant_status && (data.participant_status === 'completed' || data.participant_status === 'finished')) {
+            if (!document.getElementById('resultsCard').classList.contains('hidden')) return;
+            clearInterval(statusInterval);
+            clearInterval(timerInterval);
+            alert("Your quiz has been ended by your teacher.");
+            showResults();
+            return;
+        }
 
         // If room is closed, force finish
         if (data.status === 'closed') {
@@ -622,6 +699,36 @@ function checkServerStatus() {
         }
     })
     .catch(err => console.error('Status check failed', err));
+}
+
+function lockStudentScreen(message) {
+  screenLocked = true;
+  const overlay = document.getElementById('screenLockOverlay');
+  const messageEl = document.getElementById('screenLockMessage');
+  if (messageEl) {
+    messageEl.textContent = message || 'Your screen has been locked by your teacher.';
+  }
+  if (overlay) {
+    overlay.classList.remove('hidden');
+  }
+  const nextBtn = document.getElementById('nextBtn');
+  if (nextBtn) {
+    nextBtn.disabled = true;
+  }
+}
+
+function unlockStudentScreen() {
+  if (!screenLocked) return;
+  screenLocked = false;
+  const overlay = document.getElementById('screenLockOverlay');
+  if (overlay) {
+    overlay.classList.add('hidden');
+  }
+  const savedAnswer = answers[currentQuestion];
+  const nextBtn = document.getElementById('nextBtn');
+  if (nextBtn) {
+    nextBtn.disabled = !savedAnswer;
+  }
 }
 
 function updateTimer() {
@@ -698,6 +805,7 @@ function renderQuestion() {
 }
 
 function selectOption(option) {
+  if (screenLocked) return;
   const q = questions[currentQuestion];
   let selectedOptionText = '';
   switch(option) {
@@ -772,6 +880,7 @@ function selectOption(option) {
 }
 
 function nextQuestion() {
+  if (screenLocked) return;
   currentQuestion++;
   if (currentQuestion >= questions.length) { showResults(); }
   else {
@@ -814,6 +923,212 @@ async function showResults() {
 // Initialize first question
 restoreProgress();
 renderQuestion();
+
+// --- Cheating Detection System ---
+const cheatingDetection = {
+    lastTabSwitch: 0,
+    lastWindowBlur: 0,
+    isWindowFocused: true,
+    devToolsOpen: false,
+
+    sendPayload: function (payload) {
+        const json = JSON.stringify(payload);
+
+        // Prefer sendBeacon for background/unload style events when available
+        if (navigator.sendBeacon) {
+            try {
+                const blob = new Blob([json], { type: 'application/json' });
+                const ok = navigator.sendBeacon('online_quiz_log_event.php', blob);
+                if (!ok) {
+                    // Fallback to fetch if beacon was rejected
+                    return fetch('online_quiz_log_event.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: json,
+                        keepalive: true
+                    });
+                }
+                return Promise.resolve();
+            } catch (e) {
+                console.warn('Cheating detection sendBeacon failed, falling back to fetch', e);
+            }
+        }
+
+        return fetch('online_quiz_log_event.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: json,
+            keepalive: true
+        });
+    },
+
+    logEvent: function(type, details, options = {}) {
+        if (!roomCode || !participantId) {
+            console.error('[Cheating Detection] Missing roomCode or participantId');
+            return;
+        }
+        console.log(`[Cheating Detection] ${type}: ${details}`);
+
+        // Prevent spamming events (e.g. rapid tab/window switching)
+        const now = Date.now();
+        if (type === 'tab_switch') {
+            if (now - this.lastTabSwitch < 2000) return;
+            this.lastTabSwitch = now;
+        }
+        if (type === 'window_blur') {
+            if (now - this.lastWindowBlur < 2000) return;
+            this.lastWindowBlur = now;
+        }
+
+        const payload = {
+            room_code: roomCode,
+            participant_id: participantId,
+            event_type: type,
+            event_details: details
+        };
+
+        // Show a red proctoring badge to the student once any suspicious activity is recorded
+        if (['tab_switch', 'window_blur', 'copy_text', 'inspect_mode', 'right_click'].includes(type)) {
+            const badge = document.getElementById('proctorAlertBadge');
+            if (badge) {
+                badge.classList.remove('hidden');
+            }
+        }
+
+        const useBeacon = !!options.useBeacon;
+
+        // For explicit beacon usage (visibilitychange / unload-style events), don't wait on the promise
+        if (useBeacon) {
+            this.sendPayload(payload).catch(err => {
+                console.error('Cheating detection beacon error:', err);
+            });
+            return;
+        }
+
+        this.sendPayload(payload)
+            .then(async (res) => {
+                if (!res) return;
+                if (!res.ok) {
+                    let body;
+                    try {
+                        body = await res.json();
+                    } catch (e) {
+                        body = { message: 'Non-JSON response from server' };
+                    }
+                    console.error('Cheating detection server error:', res.status, body);
+                } else {
+                    // Optionally inspect success body for debugging
+                    // const data = await res.json();
+                    // console.debug('Cheating detection logged:', data);
+                }
+            })
+            .catch(err => console.error('Cheating detection error:', err));
+    },
+
+    // Detection for DevTools
+    checkDevTools: function() {
+        const threshold = 160;
+        const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+        const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+
+        if (widthThreshold || heightThreshold) {
+            if (!this.devToolsOpen) {
+                this.devToolsOpen = true;
+                this.logEvent('inspect_mode', 'DevTools (Inspect Mode) detected as open (docked)');
+            }
+        } else {
+            // Check via debugger statement (detects undocked DevTools too)
+            const startTime = performance.now();
+            debugger;
+            const endTime = performance.now();
+            if (endTime - startTime > 100) {
+                if (!this.devToolsOpen) {
+                    this.devToolsOpen = true;
+                    this.logEvent('inspect_mode', 'DevTools (Inspect Mode) detected as open (undocked/debugger)');
+                }
+            } else {
+                this.devToolsOpen = false;
+            }
+        }
+    }
+};
+
+// 1. Detect Tab Switching / Minimizing
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        cheatingDetection.logEvent('tab_switch', 'User switched tab or minimized window', { useBeacon: true });
+    }
+});
+
+// 2. Detect Window Focus Loss (Alt-Tab, separate window)
+window.addEventListener('blur', () => {
+    cheatingDetection.isWindowFocused = false;
+    cheatingDetection.logEvent('window_blur', 'User clicked outside or switched window', { useBeacon: true });
+});
+
+window.addEventListener('focus', () => {
+    cheatingDetection.isWindowFocused = true;
+});
+
+// 2.1 Detect Window Resizing (often happens when DevTools is opened)
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        cheatingDetection.checkDevTools();
+    }, 500);
+});
+
+// 3. Detect Copying Text
+document.addEventListener('copy', (e) => {
+    cheatingDetection.logEvent('copy_text', 'User attempted to copy text from screen');
+});
+
+// 4. Disable Right-Click (Prevent Inspect Element)
+document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    cheatingDetection.logEvent('right_click', 'User attempted to right-click (Context Menu blocked)');
+    alert("Right-click is disabled during the quiz to maintain integrity.");
+});
+
+// 5. Disable DevTools Keyboard Shortcuts
+document.addEventListener('keydown', (e) => {
+    // F12
+    if (e.keyCode === 123) {
+        e.preventDefault();
+        cheatingDetection.logEvent('inspect_mode', 'User pressed F12 (DevTools shortcut)');
+        alert("Inspect mode is disabled.");
+    }
+    // Ctrl+Shift+I (Inspect)
+    if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
+        e.preventDefault();
+        cheatingDetection.logEvent('inspect_mode', 'User pressed Ctrl+Shift+I (Inspect shortcut)');
+        alert("Inspect mode is disabled.");
+    }
+    // Ctrl+Shift+J (Console)
+    if (e.ctrlKey && e.shiftKey && e.keyCode === 74) {
+        e.preventDefault();
+        cheatingDetection.logEvent('inspect_mode', 'User pressed Ctrl+Shift+J (Console shortcut)');
+        alert("Inspect mode is disabled.");
+    }
+    // Ctrl+U (View Source)
+    if (e.ctrlKey && e.keyCode === 85) {
+        e.preventDefault();
+        cheatingDetection.logEvent('inspect_mode', 'User pressed Ctrl+U (View Source shortcut)');
+        alert("View Source is disabled.");
+    }
+    // Ctrl+Shift+C (Element Inspector)
+    if (e.ctrlKey && e.shiftKey && e.keyCode === 67) {
+        e.preventDefault();
+        cheatingDetection.logEvent('inspect_mode', 'User pressed Ctrl+Shift+C (Element Inspector)');
+        alert("Inspect mode is disabled.");
+    }
+});
+
+// 6. Periodic DevTools Detection
+setInterval(() => {
+    cheatingDetection.checkDevTools();
+}, 2000);
 
 function restoreProgress() {
     // Reconstruct answers and score from existingResponses

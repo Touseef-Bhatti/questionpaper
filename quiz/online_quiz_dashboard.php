@@ -14,6 +14,15 @@ if ($checkCols && $checkCols->num_rows == 0) {
     $conn->query("ALTER TABLE quiz_rooms ADD COLUMN custom_book VARCHAR(255) DEFAULT NULL AFTER custom_class");
 }
 
+// Fix quiz_participants status enum if needed
+$checkPStatus = $conn->query("SHOW COLUMNS FROM quiz_participants LIKE 'status'");
+if ($checkPStatus) {
+    $row = $checkPStatus->fetch_assoc();
+    if (strpos($row['Type'], "'waiting'") === false) {
+        $conn->query("ALTER TABLE quiz_participants MODIFY COLUMN status ENUM('waiting', 'active', 'finished') DEFAULT 'waiting'");
+    }
+}
+
 $room_code = strtoupper(trim($_GET['room'] ?? ''));
 $status_filter = strtolower(trim($_GET['status'] ?? ''));
 $valid_status = ['active','closed',''];
@@ -72,6 +81,10 @@ function join_url($code){
     .status-waiting { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
     .status-active { background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
     .status-completed { background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .row-locked { background: #fef2f2; }
+    .row-locked td { border-bottom-color: #fecaca; }
+    .row-locked:hover { background: #fee2e2; }
+    .locked-pill { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800; background: #dc2626; color: #fff; margin-left: 8px; }
 
     /* Mobile Responsive Styles */
     @media (max-width: 768px) {
@@ -230,8 +243,15 @@ function join_url($code){
         echo '<h2 style="color:red;">Room not found.</h2>';
       } else {
         $room_id = (int)$room['id'];
-        $pstmt = $conn->prepare("SELECT id, name, roll_number, started_at, finished_at, score, total_questions, status, current_question, last_activity FROM quiz_participants WHERE room_id = ? ORDER BY score DESC, TIMESTAMPDIFF(SECOND, started_at, COALESCE(finished_at, NOW())) ASC");
-        $pstmt->bind_param('i', $room_id);
+        $pstmt = $conn->prepare("SELECT p.id, p.name, p.roll_number, p.started_at, p.finished_at, p.score, p.total_questions, p.status, p.current_question, p.last_activity,
+                                        COALESCE(p.is_screen_locked, 0) as is_screen_locked,
+                                        (SELECT JSON_ARRAYAGG(JSON_OBJECT('type', event_type, 'data', event_data, 'at', created_at)) 
+                                         FROM live_quiz_events e 
+                                         WHERE e.participant_id = p.id AND e.room_id = ? AND e.event_type IN ('tab_switch', 'window_blur', 'copy_text', 'inspect_mode', 'right_click')) as alerts
+                                 FROM quiz_participants p 
+                                 WHERE p.room_id = ? 
+                                 ORDER BY p.score DESC, TIMESTAMPDIFF(SECOND, p.started_at, COALESCE(p.finished_at, NOW())) ASC");
+        $pstmt->bind_param('ii', $room_id, $room_id);
         $pstmt->execute();
         $participants = $pstmt->get_result();
         $pstmt->close();
@@ -371,11 +391,40 @@ function join_url($code){
               $score = is_null($p['score']) ? '-' : (int)$p['score'];
               $total = is_null($p['total_questions']) ? '-' : (int)$p['total_questions'];
               $percent = ($score!=='-' && $total!=='-' && $total>0) ? round(($score/$total)*100) . '%' : '-';
+              $alerts = json_decode($p['alerts'] ?? '[]', true);
+              $has_alerts = !empty($alerts);
+              $is_locked = !empty($p['is_screen_locked']);
         ?>
-          <tr>
+          <tr class="<?= $is_locked ? 'row-locked' : '' ?>">
             <td>
-              <?= h($p['name']) ?>
+              <div class="flex" style="gap: 8px; align-items: center;">
+                <?= h($p['name']) ?>
+                <?php if ($is_locked): ?>
+                  <span class="locked-pill" title="Student screen is locked">LOCKED</span>
+                <?php endif; ?>
+                <?php if ($has_alerts): ?>
+                  <span class="badge danger" style="font-size: 10px; padding: 2px 6px; cursor: help;" title="<?= count($alerts) ?> Suspicious activities detected">
+                    ⚠️ ALERT
+                  </span>
+                <?php endif; ?>
+              </div>
               <div><span class="status-<?= h($p['status']) ?>"><?= ucfirst(h($p['status'])) ?></span></div>
+              <?php if ($has_alerts): ?>
+                <div style="font-size: 10px; color: #ef4444; margin-top: 4px; max-width: 200px;">
+                  <?php 
+                    $unique_types = array_unique(array_column($alerts, 'type'));
+                    foreach($unique_types as $type) {
+                        $type_label = '';
+                        if ($type === 'tab_switch') $type_label = 'Tab Changed';
+                        elseif ($type === 'window_blur') $type_label = 'Window Switched';
+                        elseif ($type === 'copy_text') $type_label = 'Text Copied';
+                        elseif ($type === 'inspect_mode') $type_label = 'Inspect Mode / DevTools';
+                        elseif ($type === 'right_click') $type_label = 'Right Click';
+                        echo '• ' . $type_label . ' ';
+                    }
+                  ?>
+                </div>
+              <?php endif; ?>
             </td>
             <td><?= h($p['roll_number']) ?></td>
             <td><?= h($p['started_at']) ?></td>
@@ -387,7 +436,7 @@ function join_url($code){
             </td>
             <td><?= h((string)$score) ?> / <?= h((string)$total) ?></td>
             <td><?= h((string)$percent) ?></td>
-            <td>
+            <td class="flex" style="gap: 6px; flex-wrap: wrap;">
               <?php if ($finished): ?>
                 <a class="btn info" href="online_quiz_participant.php?pid=<?= (int)$p['id'] ?>">
                   <i class="fas fa-eye"></i> View
@@ -396,6 +445,33 @@ function join_url($code){
                 <span class="muted">Waiting in lobby</span>
               <?php else: ?>
                 <span class="muted">In progress</span>
+                <?php if (!empty($p['is_screen_locked'])): ?>
+                  <button
+                    type="button"
+                    class="btn secondary"
+                    style="padding: 6px 10px; font-size: 0.8rem;"
+                    onclick="moderateParticipant(<?= (int)$p['id'] ?>, '<?= h($room['room_code']) ?>', 'unlock_screen', 'Unlock screen for <?= h($p['name']) ?>?')"
+                  >
+                    <i class="fas fa-lock-open"></i> Unlock
+                  </button>
+                <?php else: ?>
+                  <button
+                    type="button"
+                    class="btn warning"
+                    style="padding: 6px 10px; font-size: 0.8rem;"
+                    onclick="moderateParticipant(<?= (int)$p['id'] ?>, '<?= h($room['room_code']) ?>', 'lock_screen', 'Lock screen for <?= h($p['name']) ?>?')"
+                  >
+                    <i class="fas fa-lock"></i> Lock Screen
+                  </button>
+                <?php endif; ?>
+                <button
+                  type="button"
+                  class="btn danger"
+                  style="padding: 6px 10px; font-size: 0.8rem;"
+                  onclick="moderateParticipant(<?= (int)$p['id'] ?>, '<?= h($room['room_code']) ?>', 'end_quiz', 'End quiz for <?= h($p['name']) ?>?')"
+                >
+                  <i class="fas fa-ban"></i> End Quiz
+                </button>
               <?php endif; ?>
             </td>
           </tr>
@@ -489,6 +565,7 @@ function startHostTimer(startTimeStr, durationMin) {
                  data.participants.forEach(p => {
                      if (p.status === 'active') active++;
                      
+                     const locked = (p.is_screen_locked === 1 || p.is_screen_locked === '1' || p.is_screen_locked === true);
                      const finished = !!p.finished_at;
                      const score = p.score !== null ? parseInt(p.score) : '-';
                      const total = p.total_questions !== null ? parseInt(p.total_questions) : '-';
@@ -502,27 +579,85 @@ function startHostTimer(startTimeStr, durationMin) {
                         finishedDisplay += `<div class="muted" style="font-size: 11px;">Q${p.current_question}</div>`;
                      }
 
+                     let alerts = [];
+                     try {
+                        alerts = typeof p.alerts === 'string' ? JSON.parse(p.alerts) : (p.alerts || []);
+                     } catch(e) {}
+                     
+                     let alertHtml = '';
+                     if (alerts && alerts.length > 0) {
+                        const uniqueTypes = [...new Set(alerts.map(a => a.type))];
+                        let typeLabels = uniqueTypes.map(t => {
+                            if (t === 'tab_switch') return 'Tab Changed';
+                            if (t === 'window_blur') return 'Window Switched';
+                            if (t === 'copy_text') return 'Text Copied';
+                            if (t === 'inspect_mode') return 'Inspect Mode / DevTools';
+                            if (t === 'right_click') return 'Right Click';
+                            return t;
+                        }).join(' • ');
+
+                        alertHtml = `
+                            <span class="badge danger" style="font-size: 10px; padding: 2px 6px; cursor: help;" title="${alerts.length} Suspicious activities detected">
+                                ⚠️ ALERT
+                            </span>
+                            <div style="font-size: 10px; color: #ef4444; margin-top: 4px; max-width: 200px;">
+                                • ${typeLabels}
+                            </div>
+                        `;
+                     }
+
                      let actions = '';
                      if (finished) {
-                        actions = `<a class="btn secondary" href="online_quiz_participant.php?pid=${p.id}">View</a>`;
+                        actions = `<a class="btn info" href="online_quiz_participant.php?pid=${p.id}"><i class="fas fa-eye"></i> View</a>`;
                      } else if (p.status === 'waiting') {
                         actions = '<span class="muted">Waiting in lobby</span>';
                      } else {
-                        actions = '<span class="muted">In progress</span>';
+                        const locked = (p.is_screen_locked === 1 || p.is_screen_locked === '1' || p.is_screen_locked === true);
+                        actions = `
+                            <span class="muted">In progress</span>
+                            ${locked
+                                ? `<button type="button" class="btn secondary" style="padding: 6px 10px; font-size: 0.8rem;" onclick="moderateParticipant(${p.id}, '${h(currentRoomCode)}', 'unlock_screen', 'Unlock screen for ${h(p.name)}?')">
+                                        <i class="fas fa-lock-open"></i> Unlock
+                                   </button>`
+                                : `<button type="button" class="btn warning" style="padding: 6px 10px; font-size: 0.8rem;" onclick="moderateParticipant(${p.id}, '${h(currentRoomCode)}', 'lock_screen', 'Lock screen for ${h(p.name)}?')">
+                                        <i class="fas fa-lock"></i> Lock Screen
+                                   </button>`
+                            }
+                            <button type="button" class="btn danger" style="padding: 6px 10px; font-size: 0.8rem;" onclick="moderateParticipant(${p.id}, '${h(currentRoomCode)}', 'end_quiz', 'End quiz for ${h(p.name)}?')">
+                                <i class="fas fa-ban"></i> End Quiz
+                            </button>
+                        `;
                      }
 
                      const row = document.createElement('tr');
+                     if (locked) row.classList.add('row-locked');
                      row.innerHTML = `
                          <td>
-                            ${h(p.name)}
+                            <div class="flex" style="gap: 8px; align-items: center;">
+                                ${h(p.name)}
+                                ${locked ? `<span class="locked-pill" title="Student screen is locked">LOCKED</span>` : ''}
+                                ${alerts && alerts.length > 0 ? `<span class="badge danger" style="font-size: 10px; padding: 2px 6px; cursor: help;" title="${alerts.length} Suspicious activities detected">⚠️ ALERT</span>` : ''}
+                            </div>
                             <div><span class="status-${h(p.status)}">${capitalize(h(p.status))}</span></div>
+                            ${alerts && alerts.length > 0 ? `
+                                <div style="font-size: 10px; color: #ef4444; margin-top: 4px; max-width: 200px;">
+                                    • ${[...new Set(alerts.map(a => {
+                                        if (a.type === 'tab_switch') return 'Tab Changed';
+                                        if (a.type === 'window_blur') return 'Window Switched';
+                                        if (a.type === 'copy_text') return 'Text Copied';
+                                        if (a.type === 'inspect_mode') return 'Inspect Mode / DevTools';
+                                        if (a.type === 'right_click') return 'Right Click';
+                                        return a.type;
+                                    }))].join(' • ')}
+                                </div>
+                            ` : ''}
                          </td>
                          <td>${h(p.roll_number)}</td>
                          <td>${h(p.started_at || '')}</td>
                          <td>${finishedDisplay}</td>
                          <td>${score} / ${total}</td>
                          <td>${percent}</td>
-                         <td>${actions}</td>
+                         <td class="flex" style="gap: 6px; flex-wrap: wrap;">${actions}</td>
                      `;
                      tbody.appendChild(row);
                  });
@@ -577,6 +712,40 @@ function refreshParticipants() {
     
     // Reload the page to get updated participant data
     window.location.reload();
+}
+
+function moderateParticipant(participantId, roomCode, action, confirmationMessage) {
+    if (!participantId || !roomCode || !action) return;
+    if (confirmationMessage && !window.confirm(confirmationMessage)) return;
+
+    const formData = new FormData();
+    formData.append('participant_id', participantId);
+    formData.append('room_code', roomCode);
+    formData.append('action', action);
+
+    fetch('online_quiz_moderate_participant.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(async (res) => {
+        let data = {};
+        try {
+            data = await res.json();
+        } catch (e) {
+            data = { success: false, message: 'Invalid server response' };
+        }
+
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || 'Failed to perform action');
+        }
+
+        alert(data.message || 'Action completed successfully');
+        window.location.reload();
+    })
+    .catch(err => {
+        console.error('Participant moderation failed:', err);
+        alert(err.message || 'Failed to perform action');
+    });
 }
 
 function toggleEditDetails() {
