@@ -759,7 +759,8 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 20px;
     transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
-    cursor: default;
+    cursor: pointer;
+    text-decoration: none;
     will-change: transform;
 }
 
@@ -887,7 +888,8 @@ body {
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
     font-weight: 500;
-
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .mockup-option.correct {
@@ -901,6 +903,19 @@ body {
     float: right;
     margin-top: 2px;
     color: #22c55e;
+}
+
+.mockup-option.incorrect {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+    font-weight: 600;
+}
+
+.mockup-option.incorrect i {
+    float: right;
+    margin-top: 2px;
+    color: #ef4444;
 }
 
 /* Timer Bar */
@@ -1002,8 +1017,8 @@ body {
 }
 
 .badge-bottom {
-    bottom: 20px;
-    left: -15px;
+    bottom: 60px;
+    left: -35px;
     background: rgba(251, 191, 36, 0.15);
     border: 1px solid rgba(251, 191, 36, 0.3);
     color: #fde68a;

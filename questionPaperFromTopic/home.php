@@ -1,1004 +1,761 @@
 <?php
 session_start();
-// require_once __DIR__ . '/../auth/auth_check.php';
-$pageTitle = "Free AI Question Paper Generator for Any Topic (MCQs, Short & Long Questions)";
+require_once __DIR__ . '/../config/env.php';
 
-$metaDescription = "Instantly generate MCQs, short and long questions from any topic using AI. Perfect for 9th, 10th, GCSE, and university students. Create exam-ready question papers in seconds.";
-
-$metaKeywords = "AI question generator free, MCQ generator by topic, generate exam questions online, AI paper generator, biology MCQs chapter wise, 9th class MCQs, GCSE question generator, quiz maker AI, assignment question generator";
+$appName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
+$pageTitle       = "Free Online Question Paper Generator | MCQs, Short & Long Questions – " . $appName;
+$metaDescription = "Generate MCQ question papers, short question papers, and long question papers online for free. Instantly create exam-ready papers by topic for 9th, 10th, GCSE, and university students using AI.";
+$metaKeywords    = "online question paper generator, online MCQs paper generator, MCQ generator by topic, generate exam questions online, AI paper generator, question paper maker, free paper generator, 9th class MCQs, short question paper generator, long question paper generator, GCSE question generator, quiz maker AI";
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Primary SEO -->
     <title><?= htmlspecialchars($pageTitle) ?></title>
     <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
-    <meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
-    
+    <meta name="keywords"    content="<?= htmlspecialchars($metaKeywords) ?>">
+    <meta name="robots"      content="index, follow">
+    <meta name="author"      content="<?= htmlspecialchars($appName) ?>">
 
-    <?php 
+    <!-- Open Graph (Social sharing) -->
+    <meta property="og:type"        content="website">
+    <meta property="og:title"       content="<?= htmlspecialchars($pageTitle) ?>">
+    <meta property="og:description" content="<?= htmlspecialchars($metaDescription) ?>">
+    <meta property="og:url"         content="https://<?= $_SERVER['HTTP_HOST'] ?>/questionPaperFromTopic/">
+    <meta property="og:site_name"   content="<?= htmlspecialchars($appName) ?>">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card"        content="summary">
+    <meta name="twitter:title"       content="<?= htmlspecialchars($pageTitle) ?>">
+    <meta name="twitter:description" content="<?= htmlspecialchars($metaDescription) ?>">
+
+    <?php
     $only_head = true;
     $skip_shell = true;
-    require __DIR__ . '/../header.php'; 
+    require __DIR__ . '/../header.php';
     ?>
 
-    <!-- Link Professional CSS -->
-    <link rel="stylesheet" href="<?= $assetBase ?>css/paper-builder.css?v=<?= time() . rand(7000, 8000) ?>">
-    <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
-    <link rel="stylesheet" href="<?= $assetBase ?>css/search-results.css?v=<?= time() . rand(1, 1000) ?>">
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="<?= $assetBase ?>css/mcqs_topic.css?v=<?= time() ?>">
     <link rel="stylesheet" href="<?= $assetBase ?>css/ai_loader.css?v=<?= time() ?>">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
     <style>
-    /* Honeycomb & Progress Loader Styles */
-    #inlineLoader {
-        display: none;
-        padding: 60px 0;
-        text-align: center;
-        background: #ffffff;
-        border-radius: var(--radius-xl, 28px);
-        margin: 2.5rem 0;
-        border: 1.5px solid var(--ink-800, #e2e8f0);
-        box-shadow: var(--sh-card);
-        animation: loaderFadeIn 0.5s ease;
+    /* Mode Switcher specific to Generator */
+    .qp-modes {
+        display: flex;
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 4px;
+        gap: 4px;
+        margin-bottom: 24px;
     }
-
-    @keyframes loaderFadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    #loaderText {
-        color: var(--primary);
-        font-weight: 800;
-        font-size: 1.3rem;
-        margin-top: 24px;
-        letter-spacing: -0.02em;
-        font-family: var(--font-heading);
-    }
-
-    .honeycomb {
-        display: inline-flex;
-        gap: 6px;
+    .qp-mode-btn {
+        flex: 1;
+        border: none;
+        background: transparent;
+        padding: 12px 14px;
+        border-radius: var(--radius-sm);
+        font-family: 'Outfit',sans-serif;
+        font-weight: 600;
+        font-size: .95rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        display: flex;
         align-items: center;
         justify-content: center;
-        height: 40px;
+        gap: 8px;
+        transition: all 0.3s ease;
+        white-space: nowrap;
     }
-
-    .honeycomb div {
-        width: 10px;
-        height: 32px;
+    .qp-mode-btn:hover { color: var(--text-main); background: rgba(99,102,241,.06); }
+    .qp-mode-btn.active {
         background: var(--primary);
+        color: #FFF;
+        box-shadow: 0 4px 12px rgba(99,102,241,.30);
+    }
+    .qp-mode-count {
+        font-size: .75rem;
+        font-weight: 700;
+        min-width: 20px;
+        padding: 2px 6px;
         border-radius: 100px;
-        animation: honeyWave 1.2s ease-in-out infinite;
+        background: rgba(0,0,0,.08);
+        text-align: center;
     }
+    .qp-mode-btn.active .qp-mode-count { background: rgba(255,255,255,.25); }
 
-    .honeycomb div:nth-child(1) { animation-delay: 0.1s; background: hsl(245, 75%, 58%); }
-    .honeycomb div:nth-child(2) { animation-delay: 0.2s; background: hsl(245, 75%, 68%); }
-    .honeycomb div:nth-child(3) { animation-delay: 0.3s; background: hsl(270, 70%, 60%); }
-    .honeycomb div:nth-child(4) { animation-delay: 0.4s; background: hsl(280, 80%, 65%); }
-    .honeycomb div:nth-child(5) { animation-delay: 0.5s; background: hsl(270, 70%, 60%); }
-    .honeycomb div:nth-child(6) { animation-delay: 0.6s; background: hsl(245, 75%, 68%); }
-    .honeycomb div:nth-child(7) { animation-delay: 0.7s; background: hsl(245, 75%, 58%); }
+    .qp-hidden { display: none !important; }
 
-    @keyframes honeyWave {
-        0%, 100% { transform: scaleY(0.4); opacity: 0.5; }
-        50% { transform: scaleY(1); opacity: 1; }
+    /* Selected topics styling tags */
+    .selected-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #eef2ff;
+        color: var(--primary-dark);
+        padding: 6px 12px;
+        border-radius: 100px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 4px;
+        border: 1px solid #c7d2fe;
     }
+    .selected-tag.short-tag { background: #fef3c7; color: #b45309; border-color: #fde68a; }
+    .selected-tag.long-tag { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+    
+    .remove-tag-btn {
+        background: transparent;
+        border: none;
+        color: currentColor;
+        cursor: pointer;
+        font-size: 1.1rem;
+        line-height: 1;
+        padding: 0;
+        opacity: 0.7;
+    }
+    .remove-tag-btn:hover { opacity: 1; text-decoration: none; }
 
-    .loader-progress {
+    /* Toast Notification */
+    .qp-toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 14px 24px;
+        border-radius: var(--radius-sm);
+        z-index: 9999;
+        font-weight: 600;
+        font-size: .9rem;
+        max-width: 340px;
+        box-shadow: var(--shadow-lg);
+        animation: slideIn .3s ease, slideOut .3s ease 3.7s forwards;
+    }
+    .qp-toast-error { background:#FEF2F2; color:#991B1B; border:1px solid #FECACA; }
+    .qp-toast-info  { background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; }
+
+    @keyframes slideIn   { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes slideOut  { to{opacity:0;transform:translateX(40px)} }
+
+    /* Custom Generate Button Styling */
+    .professional-generate-btn {
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        color: white;
+        border: none;
         width: 100%;
         max-width: 400px;
-        height: 6px;
-        background: var(--ink-800, #e2e8f0);
-        border-radius: 100px;
-        margin: 28px auto 0;
-        overflow: hidden;
-        position: relative;
+        padding: 16px 24px;
+        border-radius: var(--radius-md);
+        font-size: 1.15rem;
+        font-weight: 800;
+        font-family: 'Outfit', sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4), 0 8px 10px -6px rgba(99, 102, 241, 0.1);
+        margin: 0 auto;
+    }
+    
+    .professional-generate-btn:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 30px -10px rgba(99, 102, 241, 0.5), 0 10px 15px -8px rgba(99, 102, 241, 0.2);
+    }
+    
+    .professional-generate-btn:active:not(:disabled) {
+        transform: translateY(1px);
+        box-shadow: 0 5px 10px -3px rgba(99, 102, 241, 0.3);
     }
 
-    .loader-progress-bar {
-        height: 100%;
-        background: linear-gradient(90deg, var(--primary), hsl(280, 80%, 58%));
-        width: 0%;
-        border-radius: 100px;
-        transition: width 0.4s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .loader-progress-bar::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
-        animation: loaderShimmer 1.5s infinite;
-    }
-
-    @keyframes loaderShimmer {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
-    }
-
-    /* Load More Loader */
-    #loadMoreLoader {
-        display: none;
-        margin-top: 20px;
-    }
-
-    .load-more-text {
-        margin-top: 12px;
-        font-weight: 700;
-        color: var(--primary);
-        font-family: var(--font-heading);
-        font-size: 0.95rem;
+    .professional-generate-btn:disabled {
+        background: #cbd5e1;
+        cursor: not-allowed;
+        box-shadow: none;
+        color: #f8fafc;
     }
     </style>
 
-    <script src="<?= $assetBase ?>js/ai_loader.js" defer></script>
-
-    <!-- SEO: JSON-LD Structured Data -->
+    <!-- Schema.org JSON-LD -->
     <?php
-    // Prepare JSON-LD structured data
+    $host = 'https://' . $_SERVER['HTTP_HOST'];
     $jsonLD = [
-        "@context" => "https://schema.org",
-        "@type" => "WebApplication",
-        "name" => "Question Paper Generator",
-        "description" => "AI-powered tool to create custom question papers",
-        "url" => "https://" . $_SERVER['HTTP_HOST'] . "/questionPaperFromTopic/",
+        "@context"          => "https://schema.org",
+        "@type"             => "WebApplication",
+        "name"              => "Online Question Paper Generator – " . $appName,
+        "alternateName"     => ["Online MCQs Paper Generator","Free Paper Maker","MCQ Generator Online"],
+        "description"       => "Generate MCQ question papers, short answer papers, and long question papers online instantly using AI. Free for students and educators.",
+        "url"               => $host . "/questionPaperFromTopic/",
         "applicationCategory" => "EducationalApplication",
-        "offers" => [
-            [
-                "@type" => "Offer",
-                "priceCurrency" => "PKR",
-                "price" => "0",
-                "name" => "Free Plan"
-            ]
-        ]
+        "operatingSystem"   => "Any"
     ];
     ?>
     <script type="application/ld+json">
     <?= json_encode($jsonLD, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
     </script>
+
+    <script src="<?= $assetBase ?>js/ai_loader.js" defer></script>
 </head>
 <body>
-    <?php 
-    $only_navbar = true;
-    require __DIR__ . '/../header.php'; 
-    ?>
-    
-    <?php
-    require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
-    require_once __DIR__ . '/../services/CacheManager.php';
-    require_once __DIR__ . '/../services/DatabaseQueryService.php';
+<?php
+$only_navbar = true;
+require __DIR__ . '/../header.php';
 
-    // Initialize services
-    $cache = new CacheManager();
-    $dbService = new DatabaseQueryService($conn, $cache);
+require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
+require_once __DIR__ . '/../services/CacheManager.php';
+require_once __DIR__ . '/../services/DatabaseQueryService.php';
 
-    // Subscription Info
-    $subscriptionStatus = getSubscriptionInfo();
-    $isPremium = $subscriptionStatus && $subscriptionStatus['is_premium'];
-    $userPlan = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
-    ?>
+$subscriptionStatus = getSubscriptionInfo();
+$isPremium    = $subscriptionStatus && $subscriptionStatus['is_premium'];
+$userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
+?>
 
-<main class="main-content">
+<div class="main-content">
+    <div class="topic-search-container">
+        <!-- TOP AD BANNER -->
+        <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
+        <h1>Create Question Papers</h1>
+        <p class="desc">
+            The fastest online MCQs, short, and long question paper maker. Search any topic, pick question types, and get an exam-ready paper in seconds.
+        </p>
 
-<div class="hero-builder mb-4">
-    <div class="container text-center animate-fade-up">
-        <h1 class="hero-title">Create <span class="hero-accent">Custom</span> Question Papers</h1>
-        <p class="hero-subtitle">AI-Powered curriculum mapping and question paper generator. Precision-built academic resources for educators and students.</p>
-        <div class="hero-stats">
-            <div class="hero-stat">
-                <div class="hero-stat-value">10K+</div>
-                <div class="hero-stat-label">Topics</div>
+        <!-- MODE SWITCHER -->
+        <div class="qp-modes" role="tablist" aria-label="Select question type">
+            <button class="qp-mode-btn active" id="btn-mcqs" onclick="switchMode('mcqs')" role="tab" aria-selected="true">
+                <i class="fas fa-list-ul"></i> MCQs
+                <span class="qp-mode-count" id="badge-mcqs">0</span>
+            </button>
+            <button class="qp-mode-btn" id="btn-short" onclick="switchMode('short')" role="tab" aria-selected="false">
+                <i class="fas fa-align-left"></i> Short Q's
+                <span class="qp-mode-count" id="badge-short">0</span>
+            </button>
+            <button class="qp-mode-btn" id="btn-long" onclick="switchMode('long')" role="tab" aria-selected="false">
+                <i class="fas fa-align-justify"></i> Long Q's
+                <span class="qp-mode-count" id="badge-long">0</span>
+            </button>
+        </div>
+
+        <!-- SEARCH SECTION -->
+        <div class="search-section">
+            <form id="searchForm" role="search" onsubmit="handleSearch(event)">
+                <div class="search-input-wrapper">
+                    <input 
+                        type="text" 
+                        name="topic_search" 
+                        id="topicSearch"
+                        class="search-input" 
+                        placeholder="Search topics, chapters, subjects..." 
+                        autofocus
+                        autocomplete="off"
+                        minlength="2"
+                    >
+                    <button type="submit" class="search-btn" title="Search Topics">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- SELECTED TOPICS CONTAINER -->
+        <div class="selected-topics-section empty" id="selectedTopicsSection">
+            <div class="selected-topics-header">
+                <div class="selected-topics-title">Your Selection (<span id="totalSelectedCount">0</span>)</div>
+                <button type="button" class="btn-secondary btn-clear-all" onclick="clearAllTopics()">
+                    <i class="fas fa-trash-alt"></i> Clear All
+                </button>
             </div>
-            <div class="hero-stat">
-                <div class="hero-stat-value">50K+</div>
-                <div class="hero-stat-label">Students</div>
+            
+            <div class="selected-topics-list" id="selectedTopicsList">
+                 <div class="no-selection-hint">
+                    Your list is currently empty. Start by searching and selecting topics below.
+                </div>
             </div>
-            <div class="hero-stat">
-                <div class="hero-stat-value">3</div>
-                <div class="hero-stat-label">Question Types</div>
+            
+            <div class="quiz-config-section" style="margin-top: 32px;">
+                <button type="button" class="professional-generate-btn" id="generateBtn" onclick="finalizePaper()" disabled>
+                    <i class="fas fa-file-signature"></i> Generate Paper
+                </button>
             </div>
         </div>
+
+        <?php include __DIR__ . '/../includes/ai_loader.php'; ?>
+
+        <!-- Loader -->
+        <div id="inlineLoader">
+            <div class="honeycomb"> 
+               <div></div><div></div><div></div><div></div><div></div><div></div><div></div> 
+            </div>
+            <div class="loader-progress">
+                <div class="loader-progress-bar" id="loaderProgressBar"></div>
+            </div>
+            <div id="loaderText" style="color: var(--primary); font-weight: 700; margin-top: 15px;">Scanning Database...</div>
+        </div>
+
+        <!-- RESULTS SECTION -->
+        <div class="results-section qp-hidden" id="resultsSection">
+            <div class="results-header" id="dynResultsHeader"></div>
+            
+            <div class="topics-scroll-container">
+                <div class="topic-list" id="topicsGrid"></div>
+            </div>
+            
+            <div class="load-more-btn-container" id="aiControl">
+                 <div id="loadMoreLoader" style="display:none;">
+                     <div class="loader-progress">
+                         <div class="loader-progress-bar" id="loadMoreProgressBar"></div>
+                     </div>
+                     <div class="load-more-text" style="text-align: center; font-weight: 600; color: var(--primary); margin-top: 10px;">Our AI is exploring the knowledge graph...</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                    <button type="button" id="loadMoreTopicsBtn" onclick="fetchAiTopics()" class="btn-secondary" style="width: 100%; max-width: 400px; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fas fa-magic"></i> Explore More Topics (AI)
+                    </button>
+                </div>
+            </div>
+        </div>
+        
     </div>
 </div>
-
-<div class="container py-5 px-4 px-xl-5">
-    <div class="row justify-content-center">
-        <!-- Main Application Content -->
-        <div class="col-lg-10 paper-builder-main-content">
-            
-            <!-- Professional Quick Guide -->
-            <div class="pro-guide-container animate-fade-up">
-                <div class="pro-guide-header">
-                    <span class="pro-guide-badge">Getting Started</span>
-                    <h3 class="pro-guide-title">How to use the Paper Generator</h3>
-                </div>
-                <div class="pro-guide-content">
-                    <div class="pro-step">
-                        <div class="pro-step-icon" data-step="1"><i class="fas fa-list-ol"></i></div>
-                        <div class="pro-step-text">
-                            <strong>Select Type</strong>
-                            <p>Choose between MCQs, Short, or Long questions from the selector below.</p>
-                        </div>
-                    </div>
-                    <div class="pro-step">
-                        <div class="pro-step-icon" data-step="2"><i class="fas fa-search"></i></div>
-                        <div class="pro-step-text">
-                            <strong>Search Topic</strong>
-                            <p>Search for your topic. Use "Suggest More Topics" if you need AI help.</p>
-                        </div>
-                    </div>
-                    <div class="pro-step">
-                        <div class="pro-step-icon" data-step="3"><i class="fas fa-check-circle"></i></div>
-                        <div class="pro-step-text">
-                            <strong>Pick Topics</strong>
-                            <p>Click the topics you want. You can mix and match from different types.</p>
-                        </div>
-                    </div>
-                    <div class="pro-step">
-                        <div class="pro-step-icon" data-step="4"><i class="fas fa-file-export"></i></div>
-                        <div class="pro-step-text">
-                            <strong>Finalize</strong>
-                            <p>Review your selection and click "Generate Question Paper" to build it.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-
-
-            <!-- Mode Selector -->
-            <div class="text-center mb-5">
-                <div class="mode-container animate-fade-up" role="tablist" aria-label="Question type selector">
-                    <button class="mode-btn active" onclick="switchMode('mcqs')" id="btn-mcqs" role="tab" aria-selected="true" aria-controls="mcqs-content">
-                        <i class="fas fa-layer-group" aria-hidden="true"></i> MCQs
-                        <span class="badge" id="badge-mcqs" aria-label="MCQs count">0</span>
-                    </button>
-                    <button class="mode-btn" onclick="switchMode('short')" id="btn-short" role="tab" aria-selected="false" aria-controls="short-content">
-                        <i class="fas fa-align-left" aria-hidden="true"></i> Short Questions
-                        <span class="badge" id="badge-short" aria-label="Short questions count">0</span>
-                    </button>
-                    <button class="mode-btn" onclick="switchMode('long')" id="btn-long" role="tab" aria-selected="false" aria-controls="long-content">
-                        <i class="fas fa-align-justify" aria-hidden="true"></i> Long Questions
-                        <span class="badge" id="badge-long" aria-label="Long questions count">0</span>
-                    </button>
-                </div>
-            </div>
-
-                <!-- Search Bar with Info -->
-                <div class="search-section mb-5 animate-fade-up">
-                    <div class="search-intro text-center mb-4">
-                        <h3 class="fw-bold mb-2">Find Topics to Build From</h3>
-                        <p class="text-muted small">Search for specific topics or let AI suggest related ones</p>
-                    </div>
-                    <!-- Search Bar -->
-                    <form class="search-wrapper mb-4" id="searchForm" role="search" onsubmit="handleSearch(event)">
-                        <div class="search-card">
-                            <div class="search-input-wrapper">
-                                <i class="fas fa-search" aria-hidden="true"></i>
-                                <input type="text" 
-                                       id="topicSearch"
-                                       class="search-input"
-                                       placeholder="search MCQs topics"
-                                       aria-label="Search topics"
-                                       autocomplete="off"
-                                       minlength="2">
-                            </div>
-                            <button type="submit" class="btn-search-main" id="btnSearchMain" aria-label="Search button">
-                                Search
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Topics Discovery Box - hidden until search -->
-                <div class="topics-discovery-box d-none" id="discoveryBox" role="region" aria-live="polite" aria-label="Search results">
-                    <div class="results-header-section">
-                        <div id="dynResultsHeader" class="results-header d-none" role="status">
-                            <!-- Results counter injected here -->
-                        </div>
-                    </div>
-
-                    <!-- Simple Search Loader (Matched with mcqs_topic.php) -->
-                    <div id="inlineLoader">
-                        <div class="honeycomb"> 
-                           <div></div><div></div><div></div><div></div><div></div><div></div><div></div> 
-                        </div>
-                        <div class="loader-progress">
-                            <div class="loader-progress-bar" id="loaderProgressBar"></div>
-                        </div>
-                        <div id="loaderText">Scanning Database...</div>
-                    </div>
-
-                    <div id="topicsGrid" class="topics-grid row g-3" role="list">
-                        <!-- Results injected here -->
-                    </div>
-
-                    <!-- Load More Button -->
-                    <div id="aiControl" class="text-center mt-5 d-none">
-                        <div class="ad-placement-results mb-4">
-                            
-                        </div>
-                        <button class="btn-ai-discovery" onclick="fetchAiTopics()" aria-label="Load more AI suggestions">
-                            <span class="shimmer" aria-hidden="true"></span>
-                            <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Suggest More Topics
-                        </button>
-
-                        <!-- Load More Loader (Matched with mcqs_topic.php) -->
-                        <div id="loadMoreLoader">
-                             <div class="loader-progress">
-                                 <div class="loader-progress-bar" id="loadMoreProgressBar"></div>
-                             </div>
-                             <div class="load-more-text">Our AI is exploring the knowledge graph...</div>
-                        </div>
-
-                        <?= renderAd('banner', 'Results Section Banner', 'ad-results-banner') ?>
-                    </div>
-                </div>
-
-                <?php include_once __DIR__ . '/../includes/ai_loader.php'; ?>
-
-
-                <!-- Generate Section - shown when topics are selected -->
-                <div id="generateSection" class="generate-section d-none mt-4">
-                    <div class="generate-card">
-                        <div class="generate-info">
-                            <i class="fas fa-file-alt generate-icon" aria-hidden="true"></i>
-                            <div>
-                                <div class="generate-count"><span id="totalSelectedCount" aria-live="polite">0</span> Topics Selected</div>
-                                <div class="generate-label">Ready to build your custom paper</div>
-                            </div>
-                        </div>
-                        <div class="btn-wrapper generate-action-btn">
-                          <button type="button" class="btn" id="generateBtn" onclick="this.classList.add('active'); finalizePaper()" aria-label="Generate Question Paper">
-                            <svg class="btn-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"></path>
-                            </svg>
-                            <div class="txt-wrapper">
-                              <div class="txt-1">
-                                <span class="btn-letter">G</span><span class="btn-letter">e</span><span class="btn-letter">n</span><span class="btn-letter">e</span><span class="btn-letter">r</span><span class="btn-letter">a</span><span class="btn-letter">t</span><span class="btn-letter">e</span><span style="opacity: 0;" class="btn-letter" aria-hidden="true">-</span><span class="btn-letter">Q</span><span class="btn-letter">u</span><span class="btn-letter">e</span><span class="btn-letter">s</span><span class="btn-letter">t</span><span class="btn-letter">i</span><span class="btn-letter">o</span><span class="btn-letter">n</span><span style="opacity: 0;" class="btn-letter" aria-hidden="true">-</span><span class="btn-letter">P</span><span class="btn-letter">a</span><span class="btn-letter">p</span><span class="btn-letter">e</span><span class="btn-letter">r</span>
-                              </div>
-                              <div class="txt-2">
-                                <span class="btn-letter">G</span><span class="btn-letter">e</span><span class="btn-letter">n</span><span class="btn-letter">e</span><span class="btn-letter">r</span><span class="btn-letter">a</span><span class="btn-letter">t</span><span class="btn-letter">i</span><span class="btn-letter">n</span><span class="btn-letter">g</span><span style="opacity: 0;" class="btn-letter" aria-hidden="true">-</span><span class="btn-letter">Q</span><span class="btn-letter">u</span><span class="btn-letter">e</span><span class="btn-letter">s</span><span class="btn-letter">t</span><span class="btn-letter">i</span><span class="btn-letter">o</span><span class="btn-letter">n</span><span style="opacity: 0;" class="btn-letter" aria-hidden="true">-</span><span class="btn-letter">P</span><span class="btn-letter">a</span><span class="btn-letter">p</span><span class="btn-letter">e</span><span class="btn-letter">r</span><span class="btn-letter">.</span><span class="btn-letter">.</span><span class="btn-letter">.</span>
-                              </div>
-                            </div>
-                          </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SEO Optimization Footer for Home Page (Matched with finalize_paper.php style) -->
-        <article class="mt-5 text-center animate-fade-up seo-footer" style="max-width: 1000px; margin: 0 auto;">
-            <h3 class="fw-bold mb-3">Intelligent Paper Generator for Educators</h3>
-            <p class="text-muted">
-                Empower your teaching workflow with our high-precision assessment toolkit. We craft test frameworks by syncing precise quantities for <strong>Multiple Choice (MCQs), Short Answer components, and Essay parameters</strong> that align perfectly with standard Board, ECAT, and MDCAT rubrics. 
-            </p>
-            <div class="badge-group">
-                <span class="badge-seo"><i class="fas fa-magic"></i> AI-Powered</span>
-                <span class="badge-seo"><i class="fas fa-bullseye"></i> Exam-aligned Difficulty</span>
-                <span class="badge-seo"><i class="fas fa-calendar-check"></i> 2026 Curriculum Standard</span>
-            </div>
-        </article>
-    </div>
-</main>
 
 <script>
 'use strict';
 
-// State
+// ================================================================
+// STATE
+// ================================================================
 let currentMode = 'mcqs';
 let selectedDesign = 1;
-let isSearching = false;
-let loaderProgressInterval; // For inlineLoader
-const selectionMatrix = {
-    mcqs: new Set(),
-    short: new Set(),
-    long: new Set()
-};
+let isSearching    = false;
+let loaderInterval;
 
-// DOM Elements Cache
+const selectionMatrix = { mcqs: new Set(), short: new Set(), long: new Set() };
+
 const els = {
-    searchForm: document.getElementById('searchForm'),
-    topicSearch: document.getElementById('topicSearch'),
-    topicsGrid: document.getElementById('topicsGrid'),
-    discoveryBox: document.getElementById('discoveryBox'),
-    generateSection: document.getElementById('generateSection'),
-    totalSelectedCount: document.getElementById('totalSelectedCount'),
+    topicSearch:       document.getElementById('topicSearch'),
+    topicsGrid:        document.getElementById('topicsGrid'),
+    resultsSection:    document.getElementById('resultsSection'),
+    generateBtn:       document.getElementById('generateBtn'),
+    totalSelectedCount:document.getElementById('totalSelectedCount'),
+    selectedSection:   document.getElementById('selectedTopicsSection'),
+    selectedList:      document.getElementById('selectedTopicsList'),
     badges: {
-        mcqs: document.getElementById('badge-mcqs'),
+        mcqs:  document.getElementById('badge-mcqs'),
         short: document.getElementById('badge-short'),
-        long: document.getElementById('badge-long')
+        long:  document.getElementById('badge-long')
     },
-    inlineLoader: document.getElementById('inlineLoader'),
+    inlineLoader:   document.getElementById('inlineLoader'),
     loadMoreLoader: document.getElementById('loadMoreLoader'),
-    aiControl: document.getElementById('aiControl')
+    aiControl:      document.getElementById('aiControl')
 };
 
-/**
- * Show Inline Loader (Matched with mcqs_topic.php)
- */
-function showLoader(title = 'Processing...', subtitle = '') {
+const isPremium   = <?= json_encode($isPremium) ?>;
+const topicLimits = { mcqs:7, short:5, long:3 };
+const MODE_LABELS = { mcqs:'MCQs', short:'Short Questions', long:'Long Questions' };
+
+// ================================================================
+// UTILITIES
+// ================================================================
+function sanitize(text){
+    const d=document.createElement('div');
+    d.textContent=text;
+    return d.innerHTML;
+}
+
+function toast(msg, type='info'){
+    const el=document.createElement('div');
+    el.className=`qp-toast qp-toast-${type}`;
+    el.setAttribute('role','alert');
+    el.textContent=msg;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),4300);
+}
+
+// ================================================================
+// LOADER
+// ================================================================
+function showLoader(title='Processing…'){
     const loader = els.inlineLoader;
-    const titleEl = document.getElementById('loaderText');
-    const progressBar = document.getElementById('loaderProgressBar');
-    const resultsGrid = els.topicsGrid;
-    const headerDiv = document.getElementById('dynResultsHeader');
-    
-    if (loader) {
-        if (titleEl) titleEl.textContent = title;
+    const txtEl  = document.getElementById('loaderText');
+    const bar    = document.getElementById('loaderProgressBar');
+    const grid   = els.topicsGrid;
+    const header = document.getElementById('dynResultsHeader');
+
+    if(loader){
+        if(txtEl)   txtEl.textContent = title;
         loader.style.display = 'block';
-        if (resultsGrid) resultsGrid.style.display = 'none';
-        if (headerDiv) headerDiv.classList.add('d-none');
-        
-        if (progressBar) {
-            progressBar.style.width = '0%';
-            let progress = 0;
-            if (loaderProgressInterval) clearInterval(loaderProgressInterval);
-            loaderProgressInterval = setInterval(function() {
-                progress += 5;
-                if (progress >= 95) { progress = 95; clearInterval(loaderProgressInterval); }
-                progressBar.style.width = progress + '%';
-            }, 200);
+        if(grid)   grid.style.display   = 'none';
+        if(els.resultsSection) els.resultsSection.classList.add('qp-hidden');
+
+        if(bar){
+            bar.style.width = '0%';
+            let p=0;
+            if(loaderInterval) clearInterval(loaderInterval);
+            loaderInterval = setInterval(()=>{
+                p+=5; if(p>=95){ p=95; clearInterval(loaderInterval); }
+                bar.style.width = p+'%';
+            },180);
         }
     }
 }
 
-/**
- * Hide Inline Loader
- */
-function hideLoader() {
-    if (els.inlineLoader) {
-        els.inlineLoader.style.display = 'none';
-    }
-    if (els.topicsGrid) {
-        els.topicsGrid.style.display = 'grid';
-    }
-    if (loaderProgressInterval) clearInterval(loaderProgressInterval);
+function hideLoader(){
+    if(els.inlineLoader) els.inlineLoader.style.display='none';
+    if(els.topicsGrid)   els.topicsGrid.style.display='grid';
+    if(loaderInterval)   clearInterval(loaderInterval);
 }
 
-// Validate DOM elements exist
-if (!els.searchForm || !els.topicSearch) {
-    console.error('Critical DOM elements not found');
-}
-
-// State Constants
-const isPremium = <?= json_encode($isPremium) ?>;
-const topicLimits = {
-    mcqs: 7,
-    short: 5,
-    long: 3
-};
-
-const MODE_LABELS = {
-    mcqs: 'MCQs',
-    short: 'Short Questions',
-    long: 'Long Questions'
-};
-
-/**
- * Sanitize text for safe HTML display
- */
-function sanitizeText(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-/**
- * Switch between question types
- */
-window.switchMode = (mode) => {
-    if (!['mcqs', 'short', 'long'].includes(mode)) {
-        console.warn('Invalid mode:', mode);
-        return;
-    }
-    
+// ================================================================
+// MODE SWITCHING
+// ================================================================
+window.switchMode = (mode)=>{
+    if(!['mcqs','short','long'].includes(mode)) return;
     currentMode = mode;
-    
-    // Update active button
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.classList.remove('active');
-        btn.setAttribute('aria-selected', 'false');
-    });
-    const activeBtn = document.getElementById(`btn-${mode}`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-        activeBtn.setAttribute('aria-selected', 'true');
-    }
 
-    // Update placeholder
-    if (els.topicSearch) {
-        els.topicSearch.placeholder = `search ${MODE_LABELS[mode]} topics`;
+    document.querySelectorAll('.qp-mode-btn').forEach(b=>{
+        b.classList.remove('active');
+        b.setAttribute('aria-selected','false');
+    });
+    const ab = document.getElementById('btn-'+mode);
+    if(ab){ ab.classList.add('active'); ab.setAttribute('aria-selected','true'); }
+
+    if(els.topicSearch){
+        els.topicSearch.placeholder = `Search ${MODE_LABELS[mode]} topics…`;
         els.topicSearch.value = '';
     }
 
-    // Re-render grid with only selected topics for this mode
-    if (els.topicsGrid) {
-        els.topicsGrid.innerHTML = '';
-        const selected = Array.from(selectionMatrix[mode]);
-        if (selected.length > 0) {
-            selected.forEach(t => renderTopicCard(t));
-        }
+    if(els.topicsGrid && els.resultsSection && !els.resultsSection.classList.contains('qp-hidden')){
+       // if we want to clear or auto-reload it's here
+       els.resultsSection.classList.add('qp-hidden');
     }
-
-    // Hide AI controls
-    if (els.aiControl) {
-        els.aiControl.classList.add('d-none');
+    
+    // Refresh the topic list rendering for the selected state highlights
+    if(els.topicsGrid) {
+        Array.from(els.topicsGrid.children).forEach(card => {
+            const t = card.dataset.topic;
+            if(selectionMatrix[currentMode].has(t)) {
+                card.classList.add('selected');
+            } else {
+                card.classList.remove('selected');
+            }
+        });
     }
 };
 
-/**
- * Handle search form submission
- */
-function handleSearch(event) {
-    if (event) {
-        event.preventDefault();
-    }
-    
+// ================================================================
+// SEARCH
+// ================================================================
+function handleSearch(event){
+    if(event) event.preventDefault();
     const term = els.topicSearch ? els.topicSearch.value.trim() : '';
-    
-    if (term.length < 2) {
-        showNotification('Please enter at least 2 characters.', 'error');
-        return;
-    }
-    
+    if(term.length<2){ toast('Please enter at least 2 characters.','error'); return; }
     executeSearch(term);
 }
 
-/**
- * Show notification to user
- */
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.setAttribute('role', 'alert');
-    notification.textContent = message;
-    
-    // Add basic styles
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 12px 20px;
-        border-radius: 4px;
-        z-index: 9999;
-        animation: slideIn 0.3s ease-out;
-        background: ${type === 'error' ? '#f8d7da' : '#d1ecf1'};
-        color: ${type === 'error' ? '#721c24' : '#0c5460'};
-        border: 1px solid ${type === 'error' ? '#f5c6cb' : '#bee5eb'};
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 4000);
-}
+async function executeSearch(term){
+    if(isSearching) return;
+    isSearching=true;
 
-/**
- * Execute topic search
- */
-async function executeSearch(term) {
-    if (isSearching) return; // Prevent duplicate searches
-    
-    isSearching = true;
-    
-    if (els.topicsGrid) {
-        els.topicsGrid.innerHTML = '';
-        els.topicsGrid.className = 'topic-list';
-    }
+    if(els.topicsGrid){ els.topicsGrid.innerHTML=''; }
+    if(els.aiControl)  els.aiControl.classList.add('qp-hidden');
 
-    if (els.aiControl) {
-        els.aiControl.classList.add('d-none');
-    }
+    showLoader('Searching topics…');
 
-    // Show Loader
-    showLoader('Searching Topics...', 'Deep search in progress.');
-
-    // Find or create results-header
     let headerDiv = document.getElementById('dynResultsHeader');
-    if (!headerDiv && els.discoveryBox) {
-        headerDiv = document.createElement('div');
-        headerDiv.id = 'dynResultsHeader';
-        headerDiv.className = 'results-header';
-        headerDiv.setAttribute('role', 'status');
-        headerDiv.setAttribute('aria-live', 'polite');
-        els.discoveryBox.insertBefore(headerDiv, els.topicsGrid);
-    }
+    if(els.resultsSection) els.resultsSection.classList.remove('qp-hidden');
 
-    if (els.discoveryBox) {
-        els.discoveryBox.classList.remove('d-none');
-    }
-
-    try {
-        const url = new URL('search_topics.php', window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/')));
+    try{
+        const base = window.location.origin + window.location.pathname.substring(0,window.location.pathname.lastIndexOf('/'));
+        const url  = new URL('search_topics.php', base+'/');
         url.searchParams.append('search', term);
         url.searchParams.append('type[]', currentMode);
-        
-        const res = await fetch(url.toString(), {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
 
-        if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-        }
-
+        const res  = await fetch(url.toString(),{ headers:{'X-Requested-With':'XMLHttpRequest'} });
+        if(!res.ok) throw new Error('HTTP '+res.status);
         const data = await res.json();
 
-        if (data.success && data.topics && data.topics.length > 0) {
-            if (headerDiv) {
-                headerDiv.classList.remove('d-none');
-                headerDiv.textContent = `Found ${data.topics.length} topic${data.topics.length !== 1 ? 's' : ''} matching "${sanitizeText(term)}"`;
+        if(data.success && data.topics && data.topics.length>0){
+            if(headerDiv){
+                headerDiv.innerHTML=`<i class="fas fa-poll-h" style="color: var(--primary);"></i> Top Matches (${data.topics.length})`;
             }
-            data.topics.forEach(t => renderTopicCard(t));
-            if (els.aiControl) {
-                els.aiControl.classList.remove('d-none');
-            }
+            data.topics.forEach(t=>renderTopicCard(t));
+            if(els.aiControl) els.aiControl.classList.remove('qp-hidden');
         } else {
-            if (headerDiv) {
-                headerDiv.classList.remove('d-none');
-                headerDiv.textContent = `No topics found for "${sanitizeText(term)}"`;
+            if(headerDiv){ headerDiv.innerHTML=`<i class="fas fa-search-minus" style="color: var(--secondary);"></i> No local matches found`; }
+            if(els.topicsGrid){
+                const d=document.createElement('div');
+                d.style.textAlign = 'center';
+                d.innerHTML=`<div style="font-size: 2.2rem; margin-bottom: 10px;">🔍</div><p style="color: var(--text-muted);">No exact matches found.<br><strong>Tip:</strong> Try different keywords or use "Explore More Topics (AI)" below.</p>`;
+                d.style.gridColumn = '1 / -1';
+                els.topicsGrid.appendChild(d);
             }
-            if (els.topicsGrid) {
-                const noTopicsDiv = document.createElement('div');
-                noTopicsDiv.id = 'noTopicsHint';
-                noTopicsDiv.style.cssText = 'grid-column: 1 / -1;';
-                noTopicsDiv.innerHTML = `
-                    <div style="font-size: 2rem; margin-bottom: 1rem;">🔍</div>
-                    <p style="margin: 0; font-size: 0.95rem;">
-                        No exact matches found.<br>
-                        <strong>Tip:</strong> Try searching with different keywords or use "Suggest More Topics with AI" button.
-                    </p>
-                `;
-                els.topicsGrid.appendChild(noTopicsDiv);
-            }
-            if (els.aiControl) {
-                els.aiControl.classList.remove('d-none');
-            }
+            if(els.aiControl) els.aiControl.classList.remove('qp-hidden');
         }
-    } catch (e) {
-        console.error('Search error:', e);
-        showNotification('Search failed. Please try again.', 'error');
-        if (headerDiv) {
-            headerDiv.classList.remove('d-none');
-            headerDiv.textContent = 'Search failed. Please try again.';
-        }
+    } catch(e){
+        console.error('Search error:',e);
+        toast('Search failed. Please try again.','error');
+        if(headerDiv){ headerDiv.innerText='Search failed. Please try again.'; }
     } finally {
-        isSearching = false;
+        isSearching=false;
         hideLoader();
     }
 }
 
-/**
- * Fetch additional topics from AI
- */
-async function fetchAiTopics() {
+// ================================================================
+// AI TOPICS
+// ================================================================
+async function fetchAiTopics(){
     const term = els.topicSearch ? els.topicSearch.value.trim() : '';
-    if (!term) {
-        showNotification('Please enter a search term first.', 'error');
-        return;
-    }
+    if(!term){ toast('Please enter a search term first.','error'); return; }
 
-    // Get currently displayed topics to exclude them
-    const displayedTopics = els.topicsGrid ? 
-        Array.from(els.topicsGrid.querySelectorAll('.topic-name')).map(el => el.textContent) : 
-        [];
+    const displayed = els.topicsGrid ?
+        Array.from(els.topicsGrid.querySelectorAll('.topic-name')).map(e=>e.textContent) : [];
 
-    const loader = els.loadMoreLoader;
-    const progressBar = document.getElementById('loadMoreProgressBar');
-    const aiControlBtn = document.querySelector('.btn-ai-discovery');
+    const loader  = els.loadMoreLoader;
+    const bar     = document.getElementById('loadMoreProgressBar');
+    const aiBtn   = document.getElementById('loadMoreTopicsBtn');
 
-    if (loader) {
-        loader.style.display = 'block';
-    }
-    if (aiControlBtn) {
-        aiControlBtn.style.display = 'none';
-    }
+    if(loader) loader.style.display='block';
+    if(aiBtn)  aiBtn.style.display='none';
 
-    let width = 0;
-    const interval = setInterval(() => {
-        width = Math.min(width + 5, 90);
-        if (progressBar) progressBar.style.width = width + '%';
-    }, 300);
+    let w=0;
+    const iv=setInterval(()=>{ w=Math.min(w+5,90); if(bar) bar.style.width=w+'%'; },300);
 
-    try {
-        const url = new URL('fetch_more_topics.php', window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/')));
+    try{
+        const base = window.location.origin + window.location.pathname.substring(0,window.location.pathname.lastIndexOf('/'));
+        const url  = new URL('fetch_more_topics.php', base+'/');
         url.searchParams.append('search', term);
         url.searchParams.append('type[]', currentMode);
-        
-        displayedTopics.forEach(t => {
-            url.searchParams.append('exclude[]', t);
-        });
+        displayed.forEach(t=>url.searchParams.append('exclude[]',t));
 
-        const res = await fetch(url.toString(), {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-
-        if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-        }
-
+        const res  = await fetch(url.toString(),{ headers:{'X-Requested-With':'XMLHttpRequest'} });
+        if(!res.ok) throw new Error('HTTP '+res.status);
         const data = await res.json();
 
-        if (data.success && data.topics && data.topics.length > 0) {
-            if (progressBar) progressBar.style.width = '100%';
-            data.topics.forEach(t => renderTopicCard(t));
-            showNotification(`Found ${data.topics.length} additional AI-suggested topics!`, 'info');
+        if(data.success && data.topics && data.topics.length>0){
+            if(bar) bar.style.width='100%';
+            data.topics.forEach(t=>renderTopicCard(t));
+            toast(`Found ${data.topics.length} additional AI-suggested topics!`,'info');
         } else {
-            showNotification('No additional topics found. Try a different search term.', 'info');
+            toast('No additional topics found. Try a different search term.','info');
         }
-
-    } catch (e) {
-        console.error('AI fetch error:', e);
-        showNotification('Failed to load AI suggestions. Please try again.', 'error');
+    } catch(e){
+        console.error('AI fetch error:',e);
+        toast('Failed to load AI suggestions. Please try again.','error');
     } finally {
-        clearInterval(interval);
-        setTimeout(() => {
-            if (loader) loader.style.display = 'none';
-            if (aiControlBtn) aiControlBtn.style.display = 'inline-block';
-        }, 500);
+        clearInterval(iv);
+        setTimeout(()=>{ if(loader) loader.style.display='none'; if(aiBtn) aiBtn.style.display='flex'; },500);
     }
 }
 
-/**
- * Render topic card
- */
-function renderTopicCard(topic) {
-    if (!els.topicsGrid || !topic) return;
-    
-    // Check if already rendered
-    const existing = Array.from(els.topicsGrid.querySelectorAll('.topic-name'))
-        .find(el => el.textContent === topic);
-    if (existing) return;
+// ================================================================
+// RENDER TOPIC CARD
+// ================================================================
+function renderTopicCard(topic){
+    if(!els.topicsGrid || !topic) return;
+
+    const exists = Array.from(els.topicsGrid.querySelectorAll('.topic-name')).find(e=>e.textContent===topic);
+    if(exists) return;
 
     const isSelected = selectionMatrix[currentMode].has(topic);
+
+    const card = document.createElement('div');
+    card.className = `topic-item${isSelected?' selected':''}`;
+    card.dataset.topic = topic;
+
+    // Name
+    const nameEl = document.createElement('div');
+    nameEl.className='topic-name';
+    nameEl.textContent=topic;
+
+    const matchEl = document.createElement('div');
+    matchEl.className='topic-similarity';
+    matchEl.textContent='100% match';
+
+    card.appendChild(nameEl);
+    card.appendChild(matchEl);
+    card.addEventListener('click',()=>toggleTopic(topic,card));
     
-    const item = document.createElement('div');
-    item.className = `topic-item ${isSelected ? 'selected' : ''}`;
-    item.setAttribute('role', 'listitem');
-
-    // Create safe event handler using data attribute
-    item.dataset.topic = topic;
-
-    // Information section
-    const infoDiv = document.createElement('div');
-    infoDiv.className = 'topic-info';
-    
-    const nameDiv = document.createElement('div');
-    nameDiv.className = 'topic-name';
-    nameDiv.textContent = topic; // Safe - uses textContent
-    
-    infoDiv.appendChild(nameDiv);
-
-    // Controls section
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'd-flex align-items-center gap-2';
-
-    const similarityDiv = document.createElement('div');
-    similarityDiv.className = 'topic-similarity';
-    similarityDiv.textContent = '100% match';
-    controlsDiv.appendChild(similarityDiv);
-
-    if (isSelected) {
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.className = 'btn-remove-lite';
-        removeBtn.setAttribute('aria-label', `Remove ${topic}`);
-        removeBtn.textContent = '×';
-        removeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleTopic(topic, item);
-        });
-        controlsDiv.appendChild(removeBtn);
-    }
-
-    item.appendChild(infoDiv);
-    item.appendChild(controlsDiv);
-    
-    // Add click event
-    item.addEventListener('click', () => {
-        toggleTopic(topic, item);
-    });
-
-    els.topicsGrid.appendChild(item);
+    els.topicsGrid.appendChild(card);
 }
 
-/**
- * Toggle topic selection
- */
-window.toggleTopic = (topic, card) => {
-    const set = selectionMatrix[currentMode];
-    
-    if (set.has(topic)) {
+// ================================================================
+// TOGGLE TOPIC
+// ================================================================
+window.toggleTopic = (topic, card)=>{
+    const set=selectionMatrix[currentMode];
+
+    if(set.has(topic)){
         set.delete(topic);
-        if (card) {
+        if(card){
             card.classList.remove('selected');
-            const rmBtn = card.querySelector('.btn-remove-lite');
-            if (rmBtn) rmBtn.remove();
-        }
+        }   
     } else {
-        // Check limits for free users
-        if (!isPremium) {
-            if (set.size >= topicLimits[currentMode]) {
-                showUpgradeModal();
-                return;
-            }
+        if(!isPremium && set.size>=topicLimits[currentMode]){
+            showUpgradeModal(); return;
         }
         set.add(topic);
-        if (card) {
+        if(card){
             card.classList.add('selected');
-            // Add remove button
-            const controls = card.querySelector('.d-flex');
-            if (controls) {
-                const rmBtn = document.createElement('button');
-                rmBtn.type = 'button';
-                rmBtn.className = 'btn-remove-lite';
-                rmBtn.setAttribute('aria-label', `Remove ${topic}`);
-                rmBtn.textContent = '×';
-                rmBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    toggleTopic(topic, card);
-                });
-                controls.appendChild(rmBtn);
-            }
         }
     }
     updateCounts();
+    renderSelectedTopics();
 };
 
-/**
- * Update selection counts
- */
-function updateCounts() {
-    const mcqs  = selectionMatrix.mcqs.size;
-    const short = selectionMatrix.short.size;
-    const long  = selectionMatrix.long.size;
-    const total = mcqs + short + long;
+window.removeTopicByType = (topic, type) => {
+    selectionMatrix[type].delete(topic);
+    
+    if (currentMode === type && els.topicsGrid) {
+        const card = els.topicsGrid.querySelector(`.topic-item[data-topic="${topic.replace(/"/g, '\\"')}"]`);
+        if (card) card.classList.remove('selected');
+    }
+    
+    updateCounts();
+    renderSelectedTopics();
+}
 
-    if (els.badges.mcqs) els.badges.mcqs.textContent = mcqs;
-    if (els.badges.short) els.badges.short.textContent = short;
-    if (els.badges.long) els.badges.long.textContent = long;
-    if (els.totalSelectedCount) els.totalSelectedCount.textContent = total;
+window.clearAllTopics = () => {
+    selectionMatrix.mcqs.clear();
+    selectionMatrix.short.clear();
+    selectionMatrix.long.clear();
+    
+    if(els.topicsGrid) {
+        Array.from(els.topicsGrid.children).forEach(card => card.classList.remove('selected'));
+    }
+    
+    updateCounts();
+    renderSelectedTopics();
+}
 
-    if (els.generateSection) {
-        if (total > 0) {
-            els.generateSection.classList.remove('d-none');
+// ================================================================
+// UPDATE COUNTS & SELECTED LIST
+// ================================================================
+function updateCounts(){
+    const m=selectionMatrix.mcqs.size, s=selectionMatrix.short.size, l=selectionMatrix.long.size;
+    const total = m+s+l;
+    
+    if(els.badges.mcqs)  els.badges.mcqs.textContent=m;
+    if(els.badges.short) els.badges.short.textContent=s;
+    if(els.badges.long)  els.badges.long.textContent=l;
+    
+    if(els.totalSelectedCount) els.totalSelectedCount.textContent=total;
+    
+    if(els.generateBtn) els.generateBtn.disabled = (total === 0);
+    
+    if(els.selectedSection) {
+        if(total > 0) {
+            els.selectedSection.classList.remove('empty');
         } else {
-            els.generateSection.classList.add('d-none');
+            els.selectedSection.classList.add('empty');
         }
     }
 }
 
-/**
- * Finalize paper generation
- */
-window.finalizePaper = () => {
-    const allTopics = new Set([
-        ...selectionMatrix.mcqs,
-        ...selectionMatrix.short,
-        ...selectionMatrix.long
-    ]);
-
-    if (allTopics.size === 0) {
-        showNotification('Please select at least one topic.', 'error');
+function renderSelectedTopics() {
+    if(!els.selectedList) return;
+    
+    const m=selectionMatrix.mcqs.size, s=selectionMatrix.short.size, l=selectionMatrix.long.size;
+    
+    if(m + s + l === 0) {
+        els.selectedList.innerHTML = `<div class="no-selection-hint">Your list is currently empty. Start by searching modules below.</div>`;
         return;
     }
+    
+    els.selectedList.innerHTML = '';
+    
+    // MCQs
+    selectionMatrix.mcqs.forEach(t => {
+        els.selectedList.innerHTML += `<div class="selected-tag"><span>(MCQ) ${sanitize(t)}</span> <button class="remove-tag-btn" onclick="removeTopicByType('${t.replace(/'/g, "\\'")}', 'mcqs')"><i class="fas fa-times"></i></button></div>`;
+    });
+    
+    // Short
+    selectionMatrix.short.forEach(t => {
+        els.selectedList.innerHTML += `<div class="selected-tag short-tag"><span>(Short) ${sanitize(t)}</span> <button class="remove-tag-btn" onclick="removeTopicByType('${t.replace(/'/g, "\\'")}', 'short')"><i class="fas fa-times"></i></button></div>`;
+    });
+    
+    // Long
+    selectionMatrix.long.forEach(t => {
+        els.selectedList.innerHTML += `<div class="selected-tag long-tag"><span>(Long) ${sanitize(t)}</span> <button class="remove-tag-btn" onclick="removeTopicByType('${t.replace(/'/g, "\\'")}', 'long')"><i class="fas fa-times"></i></button></div>`;
+    });
+}
 
-    // Show AI Step Loader (Matched with mcqs_topic.php)
-    if (typeof showAILoader === 'function') {
-        showAILoader(
-            [
-                { label: 'Analyzing topics',       duration: 3500 },
-                { label: 'Extracting key concepts', duration: 3500 },
-                { label: 'Designing Questions',     duration: 3500 },
-                { label: 'Validating curriculum',   duration: 3500 },
-                { label: 'Finalizing paper',        duration: 3500 }
-            ],
-            'Our AI is synthesizing questions based on 2026 board standards\u2026'
-        );
+// ================================================================
+// FINALIZE PAPER
+// ================================================================
+window.finalizePaper = ()=>{
+    const allTopics=[...selectionMatrix.mcqs,...selectionMatrix.short,...selectionMatrix.long];
+    if(allTopics.length===0){ toast('Please select at least one topic.','error'); return; }
+
+    if(els.generateBtn) els.generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+    if(typeof showAILoader==='function'){
+        showAILoader([
+            { label:'Analyzing topics',        duration:3500 },
+            { label:'Extracting key concepts', duration:3500 },
+            { label:'Designing Questions',     duration:3500 },
+            { label:'Validating curriculum',   duration:3500 },
+            { label:'Finalizing paper',        duration:3500 }
+        ], 'Our AI is synthesizing questions based on board standards…');
     }
 
-    const mcqs  = selectionMatrix.mcqs.size;
-    const short = selectionMatrix.short.size;
-    const long  = selectionMatrix.long.size;
+    const m=selectionMatrix.mcqs.size, s=selectionMatrix.short.size, l=selectionMatrix.long.size;
+    let action='finalize_paper.php';
+    if(m>0&&s===0&&l===0)          action='online-mcqs-question-paper-generator';
+    else if(m===0&&s>0&&l===0)     action='online-short-question-paper-generator';
+    else if(m===0&&s===0&&l>0)     action='online-long-question-paper-generator';
+    else if(m>0||s>0||l>0)         action='online-mcqs-short-and-long-question-paper-generator';
 
-    let finalAction = 'finalize_paper.php'; // Default
+    const form=document.createElement('form');
+    form.method='POST'; form.action=action;
 
-    if (mcqs > 0 && short === 0 && long === 0) {
-        finalAction = 'online-mcqs-question-paper-generator';
-    } else if (mcqs === 0 && short > 0 && long === 0) {
-        finalAction = 'online-short-question-paper-generator';
-    } else if (mcqs === 0 && short === 0 && long > 0) {
-        finalAction = 'online-long-question-paper-generator';
-    } else if (mcqs > 0 || short > 0 || long > 0) {
-        // Any combination of more than one type or all three
-        finalAction = 'online-mcqs-short-and-long-question-paper-generator';
-    }
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = finalAction;
-
-    ['mcqs', 'short', 'long'].forEach(type => {
-        selectionMatrix[type].forEach(t => {
-            // Create typed input
-            const inp = document.createElement('input');
-            inp.type = 'hidden';
-            inp.name = `topics_${type}[]`;
-            inp.value = t;
+    ['mcqs','short','long'].forEach(type=>{
+        selectionMatrix[type].forEach(t=>{
+            const inp=document.createElement('input');
+            inp.type='hidden'; inp.name=`topics_${type}[]`; inp.value=t;
             form.appendChild(inp);
 
-            // Legacy input for backward compatibility
-            const legacy = document.createElement('input');
-            legacy.type = 'hidden';
-            legacy.name = 'topics[]';
-            legacy.value = t;
-            form.appendChild(legacy);
+            const leg=document.createElement('input');
+            leg.type='hidden'; leg.name='topics[]'; leg.value=t;
+            form.appendChild(leg);
         });
-
-        // Add type indicator if topics exist for this type
-        if (selectionMatrix[type].size > 0) {
-            const typeInp = document.createElement('input');
-            typeInp.type = 'hidden';
-            typeInp.name = 'active_types[]';
-            typeInp.value = type;
-            form.appendChild(typeInp);
+        if(selectionMatrix[type].size>0){
+            const ti=document.createElement('input');
+            ti.type='hidden'; ti.name='active_types[]'; ti.value=type;
+            form.appendChild(ti);
         }
     });
 
-    // Add header design
-    const designInp = document.createElement('input');
-    designInp.type = 'hidden';
-    designInp.name = 'header_design';
-    designInp.value = selectedDesign;
-    form.appendChild(designInp);
+    const di=document.createElement('input');
+    di.type='hidden'; di.name='header_design'; di.value=selectedDesign;
+    form.appendChild(di);
 
     document.body.appendChild(form);
-    
-    // Delay submission slightly to allow loader animation to start
-    setTimeout(() => {
-        form.submit();
-    }, 500);
+    setTimeout(()=>form.submit(),500);
 };
 
-/**
- * Show upgrade modal
- */
-function showUpgradeModal() {
-    if (typeof showGlobalUpgradeModal === 'function') {
-        showGlobalUpgradeModal('topics');
-    } else {
-        showNotification('Limit reached! Please upgrade your plan to add more topics.', 'error');
-    }
+// ================================================================
+// UPGRADE MODAL
+// ================================================================
+function showUpgradeModal(){
+    if(typeof showGlobalUpgradeModal==='function') showGlobalUpgradeModal('topics');
+    else toast('Limit reached! Upgrade your plan for more topics.','error');
 }
 
-/**
- * Initialize
- */
-document.addEventListener('DOMContentLoaded', () => {
+// ================================================================
+// INIT
+// ================================================================
+document.addEventListener('DOMContentLoaded',()=>{
     updateCounts();
-    
-    // Setup enter key on search input
-    if (els.topicSearch) {
-        els.topicSearch.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleSearch(null);
-            }
+    if(els.topicSearch){
+        els.topicSearch.addEventListener('keypress',(e)=>{
+            if(e.key==='Enter') handleSearch(null);
         });
     }
 });

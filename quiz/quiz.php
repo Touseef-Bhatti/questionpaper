@@ -188,14 +188,9 @@ if ($book_id > 0) {
     $types .= 'i';
 }
 
+$chapterIdsArray = [];
 if (!empty($chapter_ids)) {
     $chapterIdsArray = array_filter(array_map('intval', explode(',', $chapter_ids)));
-    if (!empty($chapterIdsArray)) {
-        $placeholders = str_repeat('?,', count($chapterIdsArray) - 1) . '?';
-        $whereConditions[] = "m.chapter_id IN ($placeholders)";
-        $params = array_merge($params, $chapterIdsArray);
-        $types .= str_repeat('i', count($chapterIdsArray));
-    }
 }
 
 // Add topic filter if provided (support both single topic and multiple topics)
@@ -217,12 +212,30 @@ if (!empty($topics)) {
     $topicsArray = [$topic];
 }
 
-if (!empty($topicsArray)) {
-    // Use IN clause for multiple topics
-    $placeholders = str_repeat('?,', count($topicsArray) - 1) . '?';
-    $whereConditions[] = "m.topic IN ($placeholders)";
-    $params = array_merge($params, $topicsArray);
-    $types .= str_repeat('s', count($topicsArray));
+// Combine chapter and topic filters with OR if both are present
+if (!empty($chapterIdsArray) && !empty($topicsArray)) {
+    $chPlaceholders = str_repeat('?,', count($chapterIdsArray) - 1) . '?';
+    $tPlaceholders = str_repeat('?,', count($topicsArray) - 1) . '?';
+    
+    $whereConditions[] = "(m.chapter_id IN ($chPlaceholders) OR m.topic IN ($tPlaceholders))";
+    
+    $params = array_merge($params, $chapterIdsArray, $topicsArray);
+    $types .= str_repeat('i', count($chapterIdsArray)) . str_repeat('s', count($topicsArray));
+} else {
+    // Handle individually if only one is present
+    if (!empty($chapterIdsArray)) {
+        $placeholders = str_repeat('?,', count($chapterIdsArray) - 1) . '?';
+        $whereConditions[] = "m.chapter_id IN ($placeholders)";
+        $params = array_merge($params, $chapterIdsArray);
+        $types .= str_repeat('i', count($chapterIdsArray));
+    }
+    
+    if (!empty($topicsArray)) {
+        $placeholders = str_repeat('?,', count($topicsArray) - 1) . '?';
+        $whereConditions[] = "m.topic IN ($placeholders)";
+        $params = array_merge($params, $topicsArray);
+        $types .= str_repeat('s', count($topicsArray));
+    }
 }
 
 if (empty($whereConditions)) {
@@ -446,7 +459,12 @@ if (is_dir($incorrectDir)) {
             border: 1px solid #e2e8f0;
             margin-top: 20%;
         }
-
+@media (max-width: 768px) {
+    .quiz-container {
+        max-width: 95%;
+        
+    }
+}
         /* ─── Header ──────────────────────────────────────────── */
         .quiz-header {
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);

@@ -74,17 +74,44 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 1) {
                 $stmt->execute();
                 $res = $stmt->get_result();
                 while ($row = $res->fetch_assoc()) {
-                    $existingTopics[] = [
-                        'topic' => $row['topic_name'],
-                        'keywords' => $row['keywords'] ?? '',
-                        'similarity' => calculateSimilarity($searchQuery, $row['topic_name']),
-                        'source' => 'database'
-                    ];
+                    $sim = calculateSimilarity($searchQuery, $row['topic_name']);
+                    if ($sim >= 70) {
+                        $existingTopics[] = [
+                            'topic' => $row['topic_name'],
+                            'keywords' => $row['keywords'] ?? '',
+                            'similarity' => $sim,
+                            'source' => 'database',
+                            'type' => 'topic'
+                        ];
+                    }
                 }
                 $stmt->close();
             }
 
-            // 2. AI Search (if needed or to supplement)
+            // 2. Search chapter names
+            $chapSql = "SELECT chapter_id, chapter_name, book_name, class_id FROM chapter WHERE chapter_name LIKE ? LIMIT 10";
+            $chapStmt = $conn->prepare($chapSql);
+            if ($chapStmt) {
+                $chapStmt->bind_param('s', $termLike);
+                $chapStmt->execute();
+                $chapRes = $chapStmt->get_result();
+                while ($row = $chapRes->fetch_assoc()) {
+                    $sim = calculateSimilarity($searchQuery, $row['chapter_name']);
+                    if ($sim >= 70) {
+                        $existingTopics[] = [
+                            'topic' => $row['chapter_name'] . " (" . $row['book_name'] . " - " . $row['class_id'] . ")",
+                            'original_topic' => $row['chapter_name'],
+                            'similarity' => $sim,
+                            'source' => 'chapter_table',
+                            'type' => 'chapter',
+                            'chapter_id' => $row['chapter_id']
+                        ];
+                    }
+                }
+                $chapStmt->close();
+            }
+
+            // 3. AI Search (if needed or to supplement)
             $aiTopics = searchTopicsWithGemini($searchQuery, 0, 0, [], true, $excludeTopics);
             if (!empty($aiTopics)) {
                 $insertStmt = $conn->prepare("INSERT INTO generated_topics (topic_name, source_term, question_types, keywords) VALUES (?, ?, 'mcq', ?) ON DUPLICATE KEY UPDATE keywords = VALUES(keywords)");
@@ -169,9 +196,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
 
             foreach ($allTopics as $topicRow) {
                 $similarity = calculateSimilarity($searchQuery, $topicRow['topic']);
-                if ($similarity >= 60) {
-                    $searchResults[] = ['topic' => $topicRow['topic'], 'similarity' => round($similarity, 1)];
+                if ($similarity >= 70) {
+                    $searchResults[] = [
+                        'topic' => $topicRow['topic'], 
+                        'similarity' => round($similarity, 1),
+                        'type' => 'topic'
+                    ];
                 }
+            }
+
+            // Search chapters as well
+            $chapStmt = $conn->prepare("SELECT chapter_id, chapter_name, book_name, class_id FROM chapter WHERE chapter_name LIKE ? LIMIT 50");
+            if ($chapStmt) {
+                $termLike = "%$searchQuery%";
+                $chapStmt->bind_param('s', $termLike);
+                $chapStmt->execute();
+                $chapRes = $chapStmt->get_result();
+                while ($row = $chapRes->fetch_assoc()) {
+                    $similarity = calculateSimilarity($searchQuery, $row['chapter_name']);
+                    if ($similarity >= 70) {
+                        $displayName = $row['chapter_name'] . " (" . $row['book_name'] . " - " . $row['class_id'] . ")";
+                        $searchResults[] = [
+                            'topic' => $displayName,
+                            'original_topic' => $row['chapter_name'],
+                            'similarity' => round($similarity, 1),
+                            'source' => 'chapter_table',
+                            'type' => 'chapter',
+                            'chapter_id' => $row['chapter_id']
+                        ];
+                    }
+                }
+                $chapStmt->close();
             }
 
             $aiStmt = $conn->prepare("SELECT DISTINCT topic FROM AIGeneratedMCQs WHERE topic IS NOT NULL AND topic != ''");
@@ -179,12 +234,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
             $aiResult = $aiStmt->get_result();
             while ($row = $aiResult->fetch_assoc()) {
                 $similarity = calculateSimilarity($searchQuery, $row['topic']);
-                if ($similarity >= 60) {
+                if ($similarity >= 70) {
                     $exists = false;
                     foreach ($searchResults as $existing) {
                         if (strcasecmp($existing['topic'], $row['topic']) === 0) { $exists = true; break; }
                     }
-                    if (!$exists) $searchResults[] = ['topic' => $row['topic'], 'similarity' => round($similarity, 1), 'source' => 'ai_generated'];
+                    if (!$exists) $searchResults[] = [
+                        'topic' => $row['topic'], 
+                        'similarity' => round($similarity, 1), 
+                        'source' => 'ai_generated',
+                        'type' => 'topic'
+                    ];
                 }
             }
             $aiStmt->close();
@@ -199,12 +259,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
                     $simTopic = calculateSimilarity($searchQuery, $row['topic_name']);
                     $simSource = calculateSimilarity($searchQuery, $row['source_term'] ?? '');
                     $maxSim = max($simTopic, $simSource);
-                    if ($maxSim >= 60) {
+                    if ($maxSim >= 70) {
                         $exists = false;
                         foreach ($searchResults as $existing) {
                             if (strcasecmp($existing['topic'], $row['topic_name']) === 0) { $exists = true; break; }
                         }
-                        if (!$exists) $searchResults[] = ['topic' => $row['topic_name'], 'similarity' => round($maxSim, 1), 'source' => 'generated_topics'];
+                        if (!$exists) $searchResults[] = [
+                            'topic' => $row['topic_name'], 
+                            'similarity' => round($maxSim, 1), 
+                            'source' => 'generated_topics',
+                            'type' => 'topic'
+                        ];
                     }
                 }
                 $genStmt->close();
@@ -234,11 +299,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !e
                             }
                             if ($exists) continue;
                             $sim = calculateSimilarity($searchQuery, $topicName);
-                            // Ensure these related topics are displayed; set a floor of 60 for UI consistency
+                            // Ensure these related topics are displayed; set a floor of 70 for UI consistency
                             $searchResults[] = [
                                 'topic' => $topicName,
-                                'similarity' => max(60, round($sim, 1)),
-                                'source' => 'related_by_source'
+                                'similarity' => max(70, round($sim, 1)),
+                                'source' => 'related_by_source',
+                                'type' => 'topic'
                             ];
                         }
                         $rtStmt->close();
@@ -268,36 +334,48 @@ if (isset($_POST['start_quiz'])) {
     
     if (!empty($selectedTopics) && $mcqCount > 0) {
         $topicsArray = [];
+        $chapterIdsArray = [];
         foreach ($selectedTopics as $topicJson) {
             $topicData = json_decode($topicJson, true);
-            if ($topicData && isset($topicData['topic'])) $topicsArray[] = $topicData['topic'];
+            if ($topicData) {
+                if (isset($topicData['type']) && $topicData['type'] === 'chapter' && isset($topicData['chapter_id'])) {
+                    $chapterIdsArray[] = $topicData['chapter_id'];
+                } else if (isset($topicData['topic'])) {
+                    $topicsArray[] = $topicData['topic'];
+                }
+            }
         }
         
-        if (!empty($topicsArray) && $mcqCount > 0) {
-            $placeholders = str_repeat('?,', count($topicsArray) - 1) . '?';
-            $existingCount = 0;
+        if ((!empty($topicsArray) || !empty($chapterIdsArray)) && $mcqCount > 0) {
             $source = $_POST['source'] ?? '';
             $quizDuration = intval($_POST['quiz_duration'] ?? 10);
             
             if ($source === 'host') {
                 $_SESSION['host_quiz_topics'] = $topicsArray;
+                $_SESSION['host_quiz_chapters'] = $chapterIdsArray;
                 $queryString = http_build_query(['mcq_count' => $mcqCount, 'duration' => $quizDuration]);
                 header("Location: online_quiz_host_new.php?" . $queryString);
                 exit;
             }
             
-            if (count($topicsArray) === 1) {
+            if (count($topicsArray) === 1 && empty($chapterIdsArray)) {
                 // Prettify URL for single topic: topicName-MCQs-Quiz
                 $prettyTopic = str_replace(' ', '-', $topicsArray[0]);
                 // Construct relative path to root for the pretty URL
                 header('Location: ../' . $prettyTopic . '-MCQs-Quiz');
             } else {
-                $topicsParam = urlencode(json_encode($topicsArray));
-                header('Location: quiz.php?class_id=0&book_id=0&topics=' . $topicsParam . '&mcq_count=' . $mcqCount . '&study_level=' . urlencode($studyLevel));
+                $topicsParam = !empty($topicsArray) ? urlencode(json_encode($topicsArray)) : '';
+                $chapterIdsParam = !empty($chapterIdsArray) ? implode(',', $chapterIdsArray) : '';
+                
+                $redirectUrl = 'quiz.php?class_id=0&book_id=0&mcq_count=' . $mcqCount . '&study_level=' . urlencode($studyLevel);
+                if ($topicsParam) $redirectUrl .= '&topics=' . $topicsParam;
+                if ($chapterIdsParam) $redirectUrl .= '&chapter_ids=' . $chapterIdsParam;
+                
+                header('Location: ' . $redirectUrl);
             }
             exit;
         } else {
-            $error = empty($topicsArray) ? "Please select at least one topic." : "Please specify the number of MCQs (1-10).";
+            $error = (empty($topicsArray) && empty($chapterIdsArray)) ? "Please select at least one topic or chapter." : "Please specify the number of MCQs (1-10).";
         }
     } else {
         $error = "Please select at least one topic and specify the number of MCQs (1-10).";
@@ -496,7 +574,14 @@ if (isset($_POST['start_quiz'])) {
                 <div class="topics-scroll-container">
                     <div class="topic-list" id="topicList">
                         <?php foreach ($searchResults as $index => $result): 
-                            $topicData = ['topic' => $result['topic'], 'similarity' => $result['similarity']];
+                            $topicData = [
+                                'topic' => $result['topic'], 
+                                'similarity' => $result['similarity'],
+                                'type' => $result['type'] ?? 'topic'
+                            ];
+                            if (isset($result['chapter_id'])) $topicData['chapter_id'] = $result['chapter_id'];
+                            if (isset($result['original_topic'])) $topicData['original_topic'] = $result['original_topic'];
+                            
                             $topicJson = htmlspecialchars(json_encode($topicData), ENT_QUOTES);
                         ?>
                             <div class="topic-item" data-topic-data="<?= $topicJson ?>" onclick="toggleTopic(this, '<?= $topicJson ?>')">
@@ -905,11 +990,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         const isSelected = selectedTopics.some(t => {
                             try { return JSON.parse(t).topic === topicName; } catch(e) { return false; }
                         });
-                        const tData = {topic: topicName, similarity: similarity};
+                        
+                        // Build comprehensive topic data
+                        const tData = {
+                            topic: topicName, 
+                            similarity: similarity,
+                            type: topic.type || 'topic'
+                        };
+                        if (topic.chapter_id) tData.chapter_id = topic.chapter_id;
+                        if (topic.original_topic) tData.original_topic = topic.original_topic;
+
+                        const topicJson = JSON.stringify(tData);
                         const div = document.createElement('div');
                         div.className = 'topic-item' + (isSelected ? ' selected' : '');
-                        div.setAttribute('data-topic-data', JSON.stringify(tData));
-                        div.onclick = () => toggleTopic(div, JSON.stringify(tData));
+                        div.setAttribute('data-topic-data', topicJson);
+                        div.onclick = () => toggleTopic(div, topicJson);
                         div.innerHTML = '<div class="topic-name">' + topicName + '</div><div class="topic-similarity">' + similarity + '% match</div>';
                         topicList.appendChild(div);
                         added++;

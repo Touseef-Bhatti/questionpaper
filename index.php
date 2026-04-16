@@ -70,8 +70,8 @@ function homeReviewStars(int $rating): string {
                         <?php if (!isset($_SESSION['user_id'])): ?>
                             <a href="login" class="button accent hero-login-btn"><i class="fas fa-sign-in-alt"></i> Login Now</a>
                         <?php endif; ?>
-                        <a href="class-9th-and-10th-online-question-paper-generator" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
-                        <a href="quiz_setup" class="button secondary"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
+                        <a href="class-9th-and-10th-online-question-paper-generator" class="button primary bypass-user-type"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                        <a href="quiz_setup" class="button secondary bypass-user-type"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
                     </div>
 
             </div>
@@ -95,25 +95,25 @@ function homeReviewStars(int $rating): string {
                 </p>
 
                 <div class="hero-prep-grid">
-                    <a href="class-9th-and-10th-online-question-paper-generator" class="hero-prep-card">
+                    <a href="select_book.php?class_id=9" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-graduation-cap"></i></span>
                         <h3>Class 9 Exam Preparation</h3>
                         <p>Generate chapter-wise tests and build strong fundamentals with exam-style practice.</p>
                         <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="class-9th-and-10th-online-question-paper-generator" class="hero-prep-card">
+                    <a href="select_book.php?class_id=10" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-award"></i></span>
                         <h3>Class 10 Exam Preparation</h3>
                         <p>Practice model papers, short questions, long questions, and final revision tests.</p>
                         <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="quiz_setup" class="hero-prep-card">
+                    <a href="quiz_setup" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-clipboard-check"></i></span>
                         <h3>MCQs Preparation Class 9 & 10</h3>
                         <p>Take topic-wise MCQs tests with instant scoring and smart performance tracking.</p>
                         <span class="prep-card-cta">Start Test <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="class-9th-and-10th-online-question-paper-generator" class="hero-prep-card">
+                    <a href="class-9th-and-10th-online-question-paper-generator" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-file-signature"></i></span>
                         <h3>Board Exam Preparation</h3>
                         <p>Prepare with board-oriented formats, realistic paper structure, and balanced difficulty.</p>
@@ -134,11 +134,11 @@ function homeReviewStars(int $rating): string {
                 </div>
 
                 <ul class="hero-keywords" aria-label="Popular exam preparation topics">
-                    <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-book-open"></i> Exam Preparation</a></li>
-                    <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-school"></i> Class 9 Exam Preparation</a></li>
-                    <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-graduation-cap"></i> Class 10 Exam Preparation</a></li>
-                    <li><a href="quiz_setup"><i class="fas fa-check-circle"></i> Class 9 & 10 MCQs Preparation</a></li>
-                    <li><a href="class-9th-and-10th-online-question-paper-generator"><i class="fas fa-file-alt"></i> Board Exam Preparation</a></li>
+                    <li><a href="class-9th-and-10th-online-question-paper-generator" class="bypass-user-type"><i class="fas fa-book-open"></i> Exam Preparation</a></li>
+                    <li><a href="select_book.php?class_id=9" class="bypass-user-type"><i class="fas fa-school"></i> Class 9 Exam Preparation</a></li>
+                    <li><a href="select_book.php?class_id=10" class="bypass-user-type"><i class="fas fa-graduation-cap"></i> Class 10 Exam Preparation</a></li>
+                    <li><a href="quiz_setup" class="bypass-user-type"><i class="fas fa-check-circle"></i> Class 9 & 10 MCQs Preparation</a></li>
+                    <li><a href="class-9th-and-10th-online-question-paper-generator" class="bypass-user-type"><i class="fas fa-file-alt"></i> Board Exam Preparation</a></li>
                     <li><a href="online-question-paper-generator" class="bypass-user-type"><i class="fas fa-university"></i> College University Exam Preparation</a></li>
                     <li><a href="topic-wise-mcqs-test" class="bypass-user-type"><i class="fas fa-pencil-alt"></i> MCQs Practice</a></li>
                 </ul>
@@ -164,34 +164,34 @@ function homeReviewStars(int $rating): string {
 
                     <!-- Left: Features List -->
                     <div class="quiz-showcase-features">
-                        <div class="qf-card">
+                        <a href="online_quiz_join" class="qf-card">
                             <div class="qf-icon"><i class="fas fa-link"></i></div>
                             <div class="qf-content">
                                 <h4>Shareable Room Code</h4>
                                 <p>Students join instantly with a unique quiz code — no signup required.</p>
                             </div>
-                        </div>
-                        <div class="qf-card">
+                        </a>
+                        <a href="online_quiz_host_new" class="qf-card">
                             <div class="qf-icon"><i class="fas fa-chart-bar"></i></div>
                             <div class="qf-content">
                                 <h4>Real-Time Leaderboard</h4>
                                 <p>Live rank tracking keeps engagement high and learning competitive.</p>
                             </div>
-                        </div>
-                        <div class="qf-card">
+                        </a>
+                        <a href="online_quiz_host_new" class="qf-card">
                             <div class="qf-icon"><i class="fas fa-stopwatch"></i></div>
                             <div class="qf-content">
                                 <h4>Timed Questions</h4>
                                 <p>Set per-question timers for a real exam feel with auto-submit.</p>
                             </div>
-                        </div>
-                        <div class="qf-card">
+                        </a>
+                        <a href="online_quiz_host_new" class="qf-card">
                             <div class="qf-icon"><i class="fas fa-trophy"></i></div>
                             <div class="qf-content">
                                 <h4>Instant Results</h4>
                                 <p>Scores, rankings, and detailed analytics — available the moment the quiz ends.</p>
                             </div>
-                        </div>
+                        </a>
                     </div>
 
                     <!-- Right: Visual Quiz Mockup -->
@@ -206,11 +206,11 @@ function homeReviewStars(int $rating): string {
                             <div class="quiz-mockup-body">
                                 <div class="mockup-question-badge">Question 3 of 10</div>
                                 <div class="mockup-question">What is the SI unit of force?</div>
-                                <div class="mockup-options">
-                                    <div class="mockup-option">A. Joule</div>
-                                    <div class="mockup-option correct">B. Newton <i class="fas fa-check-circle"></i></div>
-                                    <div class="mockup-option">C. Watt</div>
-                                    <div class="mockup-option">D. Pascal</div>
+                                <div class="mockup-options" id="mockup-quiz-options">
+                                    <div class="mockup-option" onclick="handleMockupClick(this, false)">A. Joule</div>
+                                    <div class="mockup-option" onclick="handleMockupClick(this, true)">B. Newton</div>
+                                    <div class="mockup-option" onclick="handleMockupClick(this, false)">C. Watt</div>
+                                    <div class="mockup-option" onclick="handleMockupClick(this, false)">D. Pascal</div>
                                 </div>
                                 <div class="mockup-timer">
                                     <div class="timer-bar"><div class="timer-fill"></div></div>
@@ -248,7 +248,7 @@ function homeReviewStars(int $rating): string {
                         <div class="card">
                             <h3>Teacher tools</h3>
                             <p>Create Online Question papers and Host Online Quizez .</p>
-                            <a class="btn btn-primary" href="class-9th-and-10th-online-question-paper-generator">Generate Question Paper</a>
+                            <a class="btn btn-primary bypass-user-type" href="class-9th-and-10th-online-question-paper-generator">Generate Question Paper</a>
                             <a class="btn btn-outline" href="online_quiz_host_new">Host a Quiz</a>
                             
                             <a class="btn btn-ghost" href="note">View Notes</a>
@@ -259,7 +259,7 @@ function homeReviewStars(int $rating): string {
                             <h3>For students</h3>
                             <p>Prepare Exam with Chapter-wise real Exam-style Questions , MCQs And have Access to all updated Notes </p>
                             <a class="btn btn-primary" href="online_quiz_join">Join Quiz</a>
-                            <a class="btn btn-outline" href="quiz_setup">Take Online Test</a>
+                            <a class="btn btn-outline bypass-user-type" href="quiz_setup">Take Online Test</a>
                             <a class="btn btn-ghost" href="note">View Notes</a>
                         </div>
                     </div>
@@ -335,8 +335,8 @@ function homeReviewStars(int $rating): string {
             </p>
             
             <div class="cta-actions">
-                <a href="class-9th-and-10th-online-question-paper-generator" class="button primary"><i class="fas fa-file-invoice"></i> Generate Paper</a>
-                <a href="quiz_setup" class="button ghost"><i class="fas fa-laptop-code"></i> Start Test</a>
+                <a href="class-9th-and-10th-online-question-paper-generator" class="button primary bypass-user-type"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                <a href="quiz_setup" class="button ghost bypass-user-type"><i class="fas fa-laptop-code"></i> Start Test</a>
             </div>
         </div>
     </div>
@@ -344,6 +344,30 @@ function homeReviewStars(int $rating): string {
 
     </div>
 
+
+    <script>
+    function handleMockupClick(element, isCorrect) {
+        // Find the container
+        const optionsContainer = document.getElementById('mockup-quiz-options');
+        const allOptions = optionsContainer.querySelectorAll('.mockup-option');
+        
+        // Remove existing result classes and icons from all options
+        allOptions.forEach(opt => {
+            opt.classList.remove('correct', 'incorrect');
+            const icon = opt.querySelector('i');
+            if (icon) icon.remove();
+        });
+        
+        // Add the appropriate class to the clicked element
+        if (isCorrect) {
+            element.classList.add('correct');
+            element.innerHTML += ' <i class="fas fa-check-circle"></i>';
+        } else {
+            element.classList.add('incorrect');
+            element.innerHTML += ' <i class="fas fa-times-circle"></i>';
+        }
+    }
+    </script>
 
     <?php include 'footer.php'; ?>
     </body>
