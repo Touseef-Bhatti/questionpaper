@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/env.php';
 
 $appName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
 $pageTitle       = "Free Online Question Paper Generator | MCQs, Short & Long Questions – " . $appName;
-$metaDescription = "Generate MCQ question papers, short question papers, and long question papers online for free. Instantly create exam-ready papers by topic for 9th, 10th, GCSE, and university students using AI.";
+$metaDescription = "Generate MCQs question papers, short question papers, and long question papers online for free. Instantly create exam-ready papers by topic for 9th, 10th, GCSE, and university students using AI.";
 $metaKeywords    = "online question paper generator, online MCQs paper generator, MCQ generator by topic, generate exam questions online, AI paper generator, question paper maker, free paper generator, 9th class MCQs, short question paper generator, long question paper generator, GCSE question generator, quiz maker AI";
 ?>
 <!DOCTYPE html>
