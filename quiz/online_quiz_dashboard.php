@@ -243,18 +243,55 @@ function join_url($code){
         echo '<h2 style="color:red;">Room not found.</h2>';
       } else {
         $room_id = (int)$room['id'];
+        $lockColCheck = $conn->query("SHOW COLUMNS FROM quiz_participants LIKE 'is_screen_locked'");
+        $hasLockColumn = $lockColCheck && $lockColCheck->num_rows > 0;
+        $lockSelect = $hasLockColumn ? "COALESCE(p.is_screen_locked, 0) as is_screen_locked," : "0 as is_screen_locked,";
+
+        $participants = [];
         $pstmt = $conn->prepare("SELECT p.id, p.name, p.roll_number, p.started_at, p.finished_at, p.score, p.total_questions, p.status, p.current_question, p.last_activity,
-                                        COALESCE(p.is_screen_locked, 0) as is_screen_locked,
-                                        (SELECT JSON_ARRAYAGG(JSON_OBJECT('type', event_type, 'data', event_data, 'at', created_at)) 
-                                         FROM live_quiz_events e 
-                                         WHERE e.participant_id = p.id AND e.room_id = ? AND e.event_type IN ('tab_switch', 'window_blur', 'copy_text', 'inspect_mode', 'right_click')) as alerts
-                                 FROM quiz_participants p 
-                                 WHERE p.room_id = ? 
+                                        $lockSelect
+                                        '' as alerts
+                                 FROM quiz_participants p
+                                 WHERE p.room_id = ?
                                  ORDER BY p.score DESC, TIMESTAMPDIFF(SECOND, p.started_at, COALESCE(p.finished_at, NOW())) ASC");
-        $pstmt->bind_param('ii', $room_id, $room_id);
-        $pstmt->execute();
-        $participants = $pstmt->get_result();
-        $pstmt->close();
+        if ($pstmt) {
+            $pstmt->bind_param('i', $room_id);
+            $pstmt->execute();
+            $pRes = $pstmt->get_result();
+            while ($pp = $pRes->fetch_assoc()) {
+                $participants[] = $pp;
+            }
+            $pstmt->close();
+        }
+
+        // Fetch alerts separately for maximum MySQL/MariaDB compatibility on shared hosting
+        $alertsByParticipant = [];
+        $evt = $conn->prepare("SELECT participant_id, event_type, event_data, created_at
+                               FROM live_quiz_events
+                               WHERE room_id = ? AND event_type IN ('tab_switch', 'window_blur', 'copy_text', 'inspect_mode', 'right_click')
+                               ORDER BY created_at DESC");
+        if ($evt) {
+            $evt->bind_param('i', $room_id);
+            $evt->execute();
+            $evtRes = $evt->get_result();
+            while ($er = $evtRes->fetch_assoc()) {
+                $pid = (int)$er['participant_id'];
+                if ($pid <= 0) continue;
+                if (!isset($alertsByParticipant[$pid])) $alertsByParticipant[$pid] = [];
+                $alertsByParticipant[$pid][] = [
+                    'type' => $er['event_type'],
+                    'data' => $er['event_data'],
+                    'at' => $er['created_at']
+                ];
+            }
+            $evt->close();
+        }
+
+        foreach ($participants as &$pRef) {
+            $pid = (int)$pRef['id'];
+            $pRef['alerts'] = json_encode($alertsByParticipant[$pid] ?? []);
+        }
+        unset($pRef);
     ?>
     <div class="flex header-stack" style="justify-content: space-between; align-items: flex-start;">
       <div>
@@ -386,7 +423,7 @@ function join_url($code){
         </tr>
       </thead>
       <tbody id="participantsBody">
-        <?php if ($participants && $participants->num_rows > 0): while ($p = $participants->fetch_assoc()):
+        <?php if (!empty($participants)): foreach ($participants as $p):
               $finished = !empty($p['finished_at']);
               $score = is_null($p['score']) ? '-' : (int)$p['score'];
               $total = is_null($p['total_questions']) ? '-' : (int)$p['total_questions'];
@@ -482,7 +519,7 @@ function join_url($code){
               <?php endif; ?>
             </td>
           </tr>
-        <?php endwhile; else: ?>
+        <?php endforeach; else: ?>
           <tr><td colspan="7" class="muted">No participants yet.</td></tr>
         <?php endif; ?>
       </tbody>

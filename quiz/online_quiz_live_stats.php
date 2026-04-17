@@ -32,24 +32,51 @@ $lockSelect = $hasLockColumns ? "COALESCE(p.is_screen_locked, 0) as is_screen_lo
 
 $sql = "SELECT p.id, p.name, p.roll_number, p.status, p.score, p.total_questions, p.started_at, p.finished_at, p.current_question,
         $lockSelect
-        (SELECT COUNT(*) FROM quiz_participant_answers a WHERE a.room_code = ? AND a.roll_number = p.roll_number) as answered_count,
-        (SELECT JSON_ARRAYAGG(JSON_OBJECT('type', event_type, 'data', event_data, 'at', created_at)) 
-         FROM live_quiz_events e 
-         WHERE e.participant_id = p.id AND e.room_id = ? AND e.event_type IN ('tab_switch', 'window_blur', 'copy_text', 'inspect_mode', 'right_click')) as alerts
+        (SELECT COUNT(*) FROM quiz_participant_answers a WHERE a.room_code = ? AND a.roll_number = p.roll_number) as answered_count
         FROM quiz_participants p
         WHERE p.room_id = ?
         ORDER BY p.score DESC, TIMESTAMPDIFF(SECOND, p.started_at, COALESCE(p.finished_at, NOW())) ASC";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param('sii', $room_code, $room_id, $room_id);
+$stmt->bind_param('si', $room_code, $room_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
 $participants = [];
 while ($row = $result->fetch_assoc()) {
+    $row['alerts'] = '[]';
     $participants[] = $row;
 }
 $stmt->close();
+
+// Fetch alerts separately for broad DB compatibility
+$alertsByParticipant = [];
+$evt = $conn->prepare("SELECT participant_id, event_type, event_data, created_at
+                       FROM live_quiz_events
+                       WHERE room_id = ? AND event_type IN ('tab_switch', 'window_blur', 'copy_text', 'inspect_mode', 'right_click')
+                       ORDER BY created_at DESC");
+if ($evt) {
+    $evt->bind_param('i', $room_id);
+    $evt->execute();
+    $evtRes = $evt->get_result();
+    while ($er = $evtRes->fetch_assoc()) {
+        $pid = (int)$er['participant_id'];
+        if ($pid <= 0) continue;
+        if (!isset($alertsByParticipant[$pid])) $alertsByParticipant[$pid] = [];
+        $alertsByParticipant[$pid][] = [
+            'type' => $er['event_type'],
+            'data' => $er['event_data'],
+            'at' => $er['created_at']
+        ];
+    }
+    $evt->close();
+}
+
+foreach ($participants as &$p) {
+    $pid = (int)$p['id'];
+    $p['alerts'] = json_encode($alertsByParticipant[$pid] ?? []);
+}
+unset($p);
 
 echo json_encode(['participants' => $participants]);
 ?>
