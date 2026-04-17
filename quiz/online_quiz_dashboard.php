@@ -113,6 +113,12 @@ function join_url($code){
     .row-locked td { border-bottom-color: #fecaca; }
     .row-locked:hover { background: #fee2e2; }
     .locked-pill { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800; background: #dc2626; color: #fff; margin-left: 8px; }
+    .toast-wrap { position: fixed; right: 16px; bottom: 16px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; }
+    .toast-msg { min-width: 240px; max-width: 360px; border-radius: 10px; padding: 10px 12px; color: #fff; font-weight: 700; box-shadow: 0 8px 20px rgba(0,0,0,0.2); animation: toastIn 0.18s ease-out; }
+    .toast-msg.success { background: #059669; }
+    .toast-msg.error { background: #dc2626; }
+    .toast-msg.info { background: #2563eb; }
+    @keyframes toastIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
     /* Mobile Responsive Styles */
     @media (max-width: 768px) {
@@ -558,6 +564,7 @@ function join_url($code){
   </div>
 </div>
 <?php include '../footer.php'; ?>
+<div id="toastWrap" class="toast-wrap"></div>
 
 <script>
 // Dashboard live functionality
@@ -565,6 +572,22 @@ let updateInterval;
 let timerInterval;
 let currentRoomCode = '<?= isset($room['room_code']) ? h($room['room_code']) : '' ?>';
 let currentRoomStatus = '<?= isset($room['status']) ? h($room['status']) : '' ?>';
+
+function showToast(message, type = 'info') {
+    const wrap = document.getElementById('toastWrap');
+    if (!wrap) return;
+    const el = document.createElement('div');
+    el.className = `toast-msg ${type}`;
+    el.textContent = message;
+    wrap.appendChild(el);
+    setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(8px)';
+    }, 2200);
+    setTimeout(() => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+    }, 2600);
+}
 
 // Timer logic for Host
 function startHostTimer(startTimeStr, durationMin) {
@@ -779,19 +802,18 @@ function startQuiz(roomCode) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Show success message
-            alert('Quiz started successfully! ' + data.participants_moved + ' participants moved to active.');
+            showToast('Quiz started successfully! ' + data.participants_moved + ' participants moved to active.', 'success');
             // Reload page to show updated status
             window.location.reload();
         } else {
-            alert('Error starting quiz: ' + (data.error || data.message || 'Unknown error'));
+            showToast('Error starting quiz: ' + (data.error || data.message || 'Unknown error'), 'error');
             btn.disabled = false;
             btn.textContent = '🚀 Start Quiz';
         }
     })
     .catch(error => {
         console.error('Error starting quiz:', error);
-        alert('Error starting quiz. Please try again.');
+        showToast('Error starting quiz. Please try again.', 'error');
         btn.disabled = false;
         btn.textContent = '🚀 Start Quiz';
     });
@@ -836,12 +858,12 @@ function moderateParticipant(participantId, roomCode, action, confirmationMessag
             throw new Error(data.message || 'Failed to perform action');
         }
 
-        alert(data.message || 'Action completed successfully');
+        showToast(data.message || 'Action completed successfully', 'success');
         refreshParticipants();
     })
     .catch(err => {
         console.error('Participant moderation failed:', err);
-        alert(err.message || 'Failed to perform action');
+        showToast(err.message || 'Failed to perform action', 'error');
     });
 }
 
@@ -870,15 +892,16 @@ function saveRoomDetails(roomCode) {
             document.getElementById('displayClass').textContent = customClass || 'Class 0';
             document.getElementById('displayBook').textContent = customBook || 'Book 0';
             toggleEditDetails();
+            showToast('Room details updated', 'success');
             // Optional: reload to update other parts of the UI if needed
             // window.location.reload();
         } else {
-            alert('Error: ' + data.message);
+            showToast('Error: ' + data.message, 'error');
         }
     })
     .catch(err => {
         console.error('Error:', err);
-        alert('Failed to save details');
+        showToast('Failed to save details', 'error');
     });
 }
 
