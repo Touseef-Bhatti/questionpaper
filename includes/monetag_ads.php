@@ -47,8 +47,10 @@ if (!empty($allowedPages)) {
 
 <script>(function(s){s.dataset.zone='10846120',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
-<!-- Monetag Vignettes (Consolidated from multiple pages) -->
+<!-- Monetag Vignettes (Consolidated to one zone to prevent multiple close button clicks) -->
 <script>(function(s){s.dataset.zone='10752115',s.src='https://izcle.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<?php /* Removed redundant vignette zones that caused multiple close button issues
 <script>(function(s){s.dataset.zone='10846367',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 <script>(function(s){s.dataset.zone='10835874',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 <script>(function(s){s.dataset.zone='10788340',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+*/ ?>
