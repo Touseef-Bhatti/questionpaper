@@ -7,6 +7,13 @@ include '../db_connect.php';
 // Current user
 $user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 
+function column_exists(mysqli $conn, string $table, string $column): bool {
+  $tableEsc = $conn->real_escape_string($table);
+  $colEsc = $conn->real_escape_string($column);
+  $res = $conn->query("SHOW COLUMNS FROM `{$tableEsc}` LIKE '{$colEsc}'");
+  return $res && $res->num_rows > 0;
+}
+
 // Ensure necessary columns exist in quiz_rooms
 $checkCols = $conn->query("SHOW COLUMNS FROM quiz_rooms LIKE 'custom_class'");
 if ($checkCols && $checkCols->num_rows == 0) {
@@ -22,6 +29,27 @@ if ($checkPStatus) {
         $conn->query("ALTER TABLE quiz_participants MODIFY COLUMN status ENUM('waiting', 'active', 'finished') DEFAULT 'waiting'");
     }
 }
+
+// Shared-hosting compatibility: never assume columns exist
+$has_custom_class = column_exists($conn, 'quiz_rooms', 'custom_class');
+$has_custom_book = column_exists($conn, 'quiz_rooms', 'custom_book');
+$has_quiz_started = column_exists($conn, 'quiz_rooms', 'quiz_started');
+$has_lobby_enabled = column_exists($conn, 'quiz_rooms', 'lobby_enabled');
+$has_start_time = column_exists($conn, 'quiz_rooms', 'start_time');
+$has_quiz_duration_minutes = column_exists($conn, 'quiz_rooms', 'quiz_duration_minutes');
+
+$has_p_current_question = column_exists($conn, 'quiz_participants', 'current_question');
+$has_p_last_activity = column_exists($conn, 'quiz_participants', 'last_activity');
+
+$sql_custom_class = $has_custom_class ? "r.custom_class" : "NULL AS custom_class";
+$sql_custom_book = $has_custom_book ? "r.custom_book" : "NULL AS custom_book";
+$sql_quiz_started = $has_quiz_started ? "r.quiz_started" : "0 AS quiz_started";
+$sql_lobby_enabled = $has_lobby_enabled ? "r.lobby_enabled" : "1 AS lobby_enabled";
+$sql_start_time = $has_start_time ? "r.start_time" : "NULL AS start_time";
+$sql_quiz_duration_minutes = $has_quiz_duration_minutes ? "r.quiz_duration_minutes" : "30 AS quiz_duration_minutes";
+
+$sql_p_current_question = $has_p_current_question ? "p.current_question" : "0 AS current_question";
+$sql_p_last_activity = $has_p_last_activity ? "p.last_activity" : "NULL AS last_activity";
 
 $room_code = strtoupper(trim($_GET['room'] ?? ''));
 $status_filter = strtolower(trim($_GET['status'] ?? ''));
@@ -146,7 +174,7 @@ function join_url($code){
         $where .= " AND r.status = '" . $conn->real_escape_string($status_filter) . "'";
       }
       $sql = "SELECT r.id, r.room_code, r.created_at, r.status, r.class_id, r.book_id,
-                     r.custom_class, r.custom_book,
+                     $sql_custom_class, $sql_custom_book,
                      c.class_name, b.book_name,
                      (SELECT COUNT(*) FROM quiz_room_questions q WHERE q.room_id = r.id) AS q_count,
                      (SELECT COUNT(*) FROM quiz_participants p WHERE p.room_id = r.id) AS p_count
@@ -224,9 +252,9 @@ function join_url($code){
     <?php
       // Room detail view - restrict to current user
       $stmt = $conn->prepare("SELECT r.id, r.room_code, r.created_at, r.status, r.class_id, r.book_id, 
-                                     r.custom_class, r.custom_book,
+                                     $sql_custom_class, $sql_custom_book,
                                      c.class_name, b.book_name,
-                                     r.quiz_started, r.lobby_enabled, r.start_time, r.quiz_duration_minutes,
+                                     $sql_quiz_started, $sql_lobby_enabled, $sql_start_time, $sql_quiz_duration_minutes,
                                      (SELECT COUNT(*) FROM quiz_room_questions q WHERE q.room_id = r.id) AS q_count,
                                      (SELECT COUNT(*) FROM quiz_participants WHERE room_id = r.id AND status = 'waiting') AS waiting_count,
                                      (SELECT COUNT(*) FROM quiz_participants WHERE room_id = r.id AND status = 'active') AS active_count
@@ -248,7 +276,7 @@ function join_url($code){
         $lockSelect = $hasLockColumn ? "COALESCE(p.is_screen_locked, 0) as is_screen_locked," : "0 as is_screen_locked,";
 
         $participants = [];
-        $pstmt = $conn->prepare("SELECT p.id, p.name, p.roll_number, p.started_at, p.finished_at, p.score, p.total_questions, p.status, p.current_question, p.last_activity,
+        $pstmt = $conn->prepare("SELECT p.id, p.name, p.roll_number, p.started_at, p.finished_at, p.score, p.total_questions, p.status, $sql_p_current_question, $sql_p_last_activity,
                                         $lockSelect
                                         '' as alerts
                                  FROM quiz_participants p
