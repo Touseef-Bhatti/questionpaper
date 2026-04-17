@@ -412,15 +412,20 @@ function join_url($code){
               <?php if ($has_alerts): ?>
                 <div style="font-size: 10px; color: #ef4444; margin-top: 4px; max-width: 200px;">
                   <?php 
-                    $unique_types = array_unique(array_column($alerts, 'type'));
-                    foreach($unique_types as $type) {
-                        $type_label = '';
+                    $counts = [];
+                    foreach ($alerts as $a) {
+                        $t = $a['type'] ?? '';
+                        if ($t === '') continue;
+                        $counts[$t] = ($counts[$t] ?? 0) + 1;
+                    }
+                    foreach ($counts as $type => $count) {
+                        $type_label = $type;
                         if ($type === 'tab_switch') $type_label = 'Tab Changed';
                         elseif ($type === 'window_blur') $type_label = 'Window Switched';
                         elseif ($type === 'copy_text') $type_label = 'Text Copied';
                         elseif ($type === 'inspect_mode') $type_label = 'Inspect Mode / DevTools';
                         elseif ($type === 'right_click') $type_label = 'Right Click';
-                        echo '• ' . $type_label . ' ';
+                        echo '• ' . $type_label . '(' . (int)$count . ') ';
                     }
                   ?>
                 </div>
@@ -454,7 +459,7 @@ function join_url($code){
                   >
                     <i class="fas fa-lock-open"></i> Unlock
                   </button>
-                <?php else: ?>
+                <?php elseif ($has_alerts): ?>
                   <button
                     type="button"
                     class="btn warning"
@@ -463,15 +468,17 @@ function join_url($code){
                   >
                     <i class="fas fa-lock"></i> Lock Screen
                   </button>
+                  <button
+                    type="button"
+                    class="btn danger"
+                    style="padding: 6px 10px; font-size: 0.8rem;"
+                    onclick="moderateParticipant(<?= (int)$p['id'] ?>, '<?= h($room['room_code']) ?>', 'end_quiz', 'End quiz for <?= h($p['name']) ?>?')"
+                  >
+                    <i class="fas fa-ban"></i> End Quiz
+                  </button>
+                <?php else: ?>
+                  <span class="muted">No alerts</span>
                 <?php endif; ?>
-                <button
-                  type="button"
-                  class="btn danger"
-                  style="padding: 6px 10px; font-size: 0.8rem;"
-                  onclick="moderateParticipant(<?= (int)$p['id'] ?>, '<?= h($room['room_code']) ?>', 'end_quiz', 'End quiz for <?= h($p['name']) ?>?')"
-                >
-                  <i class="fas fa-ban"></i> End Quiz
-                </button>
               <?php endif; ?>
             </td>
           </tr>
@@ -510,7 +517,7 @@ function startHostTimer(startTimeStr, durationMin) {
             document.getElementById('hostTimer').textContent = "Time Over";
             clearInterval(timerInterval);
 
-            // Auto close the room if it's currently active
+            // Auto close the room AND end all participants if it's currently active
             if (currentRoomStatus === 'active') {
                 fetch('online_quiz_close_room.php', {
                     method: 'POST',
@@ -520,8 +527,9 @@ function startHostTimer(startTimeStr, durationMin) {
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success' || data.status === 'info') {
-                        // Reload to show closed status
-                        window.location.reload();
+                        currentRoomStatus = 'closed';
+                        // Update participants table immediately (no full reload)
+                        try { refreshParticipants(); } catch(e) {}
                     }
                 })
                 .catch(err => console.error('Error auto-closing room:', err));
@@ -549,124 +557,141 @@ function startHostTimer(startTimeStr, durationMin) {
 <?php if (isset($room['quiz_started']) && $room['quiz_started'] && isset($room['start_time'])): ?>
  startHostTimer('<?= $room['start_time'] ?>', <?= (int)$room['quiz_duration_minutes'] ?>);
  
- // Poll for live stats
- setInterval(() => {
-     fetch(`online_quiz_live_stats.php?room_code=${currentRoomCode}`)
-         .then(res => res.json())
-         .then(data => {
-             if (data.participants) {
-                 const tbody = document.getElementById('participantsBody');
-                 tbody.innerHTML = '';
-                 let active = 0;
-                 
-                 const h = (s) => s ? String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : '';
-                 const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+ // True realtime participants updates (SSE). Falls back to fast polling if needed.
+ function renderParticipants(participants) {
+     const tbody = document.getElementById('participantsBody');
+     if (!tbody) return;
 
-                 data.participants.forEach(p => {
-                     if (p.status === 'active') active++;
-                     
-                     const locked = (p.is_screen_locked === 1 || p.is_screen_locked === '1' || p.is_screen_locked === true);
-                     const finished = !!p.finished_at;
-                     const score = p.score !== null ? parseInt(p.score) : '-';
-                     const total = p.total_questions !== null ? parseInt(p.total_questions) : '-';
-                     let percent = '-';
-                     if (score !== '-' && total !== '-' && total > 0) {
-                        percent = Math.round((score / total) * 100) + '%';
-                     }
-                     
-                     let finishedDisplay = h(p.finished_at || '');
-                     if (!finished && p.status === 'active' && p.current_question) {
-                        finishedDisplay += `<div class="muted" style="font-size: 11px;">Q${p.current_question}</div>`;
-                     }
+     tbody.innerHTML = '';
+     let active = 0;
 
-                     let alerts = [];
-                     try {
-                        alerts = typeof p.alerts === 'string' ? JSON.parse(p.alerts) : (p.alerts || []);
-                     } catch(e) {}
-                     
-                     let alertHtml = '';
-                     if (alerts && alerts.length > 0) {
-                        const uniqueTypes = [...new Set(alerts.map(a => a.type))];
-                        let typeLabels = uniqueTypes.map(t => {
-                            if (t === 'tab_switch') return 'Tab Changed';
-                            if (t === 'window_blur') return 'Window Switched';
-                            if (t === 'copy_text') return 'Text Copied';
-                            if (t === 'inspect_mode') return 'Inspect Mode / DevTools';
-                            if (t === 'right_click') return 'Right Click';
-                            return t;
-                        }).join(' • ');
+     const h = (s) => s ? String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : '';
+     const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
-                        alertHtml = `
-                            <span class="badge danger" style="font-size: 10px; padding: 2px 6px; cursor: help;" title="${alerts.length} Suspicious activities detected">
-                                ⚠️ ALERT
-                            </span>
-                            <div style="font-size: 10px; color: #ef4444; margin-top: 4px; max-width: 200px;">
-                                • ${typeLabels}
-                            </div>
-                        `;
-                     }
+     (participants || []).forEach(p => {
+         if (p.status === 'active') active++;
 
-                     let actions = '';
-                     if (finished) {
-                        actions = `<a class="btn info" href="online_quiz_participant.php?pid=${p.id}"><i class="fas fa-eye"></i> View</a>`;
-                     } else if (p.status === 'waiting') {
-                        actions = '<span class="muted">Waiting in lobby</span>';
-                     } else {
-                        const locked = (p.is_screen_locked === 1 || p.is_screen_locked === '1' || p.is_screen_locked === true);
-                        actions = `
-                            <span class="muted">In progress</span>
-                            ${locked
-                                ? `<button type="button" class="btn secondary" style="padding: 6px 10px; font-size: 0.8rem;" onclick="moderateParticipant(${p.id}, '${h(currentRoomCode)}', 'unlock_screen', 'Unlock screen for ${h(p.name)}?')">
-                                        <i class="fas fa-lock-open"></i> Unlock
-                                   </button>`
-                                : `<button type="button" class="btn warning" style="padding: 6px 10px; font-size: 0.8rem;" onclick="moderateParticipant(${p.id}, '${h(currentRoomCode)}', 'lock_screen', 'Lock screen for ${h(p.name)}?')">
-                                        <i class="fas fa-lock"></i> Lock Screen
-                                   </button>`
-                            }
-                            <button type="button" class="btn danger" style="padding: 6px 10px; font-size: 0.8rem;" onclick="moderateParticipant(${p.id}, '${h(currentRoomCode)}', 'end_quiz', 'End quiz for ${h(p.name)}?')">
-                                <i class="fas fa-ban"></i> End Quiz
-                            </button>
-                        `;
-                     }
+         const locked = (p.is_screen_locked === 1 || p.is_screen_locked === '1' || p.is_screen_locked === true);
+         const finished = !!p.finished_at;
+         const score = p.score !== null ? parseInt(p.score) : '-';
+         const total = p.total_questions !== null ? parseInt(p.total_questions) : '-';
+         let percent = '-';
+         if (score !== '-' && total !== '-' && total > 0) {
+             percent = Math.round((score / total) * 100) + '%';
+         }
 
-                     const row = document.createElement('tr');
-                     if (locked) row.classList.add('row-locked');
-                     row.innerHTML = `
-                         <td>
-                            <div class="flex" style="gap: 8px; align-items: center;">
-                                ${h(p.name)}
-                                ${locked ? `<span class="locked-pill" title="Student screen is locked">LOCKED</span>` : ''}
-                                ${alerts && alerts.length > 0 ? `<span class="badge danger" style="font-size: 10px; padding: 2px 6px; cursor: help;" title="${alerts.length} Suspicious activities detected">⚠️ ALERT</span>` : ''}
-                            </div>
-                            <div><span class="status-${h(p.status)}">${capitalize(h(p.status))}</span></div>
-                            ${alerts && alerts.length > 0 ? `
-                                <div style="font-size: 10px; color: #ef4444; margin-top: 4px; max-width: 200px;">
-                                    • ${[...new Set(alerts.map(a => {
-                                        if (a.type === 'tab_switch') return 'Tab Changed';
-                                        if (a.type === 'window_blur') return 'Window Switched';
-                                        if (a.type === 'copy_text') return 'Text Copied';
-                                        if (a.type === 'inspect_mode') return 'Inspect Mode / DevTools';
-                                        if (a.type === 'right_click') return 'Right Click';
-                                        return a.type;
-                                    }))].join(' • ')}
-                                </div>
-                            ` : ''}
-                         </td>
-                         <td>${h(p.roll_number)}</td>
-                         <td>${h(p.started_at || '')}</td>
-                         <td>${finishedDisplay}</td>
-                         <td>${score} / ${total}</td>
-                         <td>${percent}</td>
-                         <td class="flex" style="gap: 6px; flex-wrap: wrap;">${actions}</td>
-                     `;
-                     tbody.appendChild(row);
-                 });
-                 const ac = document.getElementById('activeCount');
-                 if (ac) ac.textContent = active;
-             }
-         })
-         .catch(console.error);
- }, 15000);
+         let finishedDisplay = h(p.finished_at || '');
+         if (!finished && p.status === 'active' && p.current_question) {
+             finishedDisplay += `<div class="muted" style="font-size: 11px;">Q${p.current_question}</div>`;
+         }
+
+         let alerts = [];
+         try {
+             alerts = typeof p.alerts === 'string' ? JSON.parse(p.alerts) : (p.alerts || []);
+         } catch(e) {}
+
+         const hasAlerts = !!(alerts && alerts.length > 0);
+         let actions = '';
+         if (finished) {
+             actions = `<a class="btn info" href="online_quiz_participant.php?pid=${p.id}"><i class="fas fa-eye"></i> View</a>`;
+         } else if (p.status === 'waiting') {
+             actions = '<span class="muted">Waiting in lobby</span>';
+         } else {
+             actions = `
+                 <span class="muted">In progress</span>
+                 ${locked
+                     ? `<button type="button" class="btn secondary" style="padding: 6px 10px; font-size: 0.8rem;" onclick="moderateParticipant(${p.id}, '${h(currentRoomCode)}', 'unlock_screen', 'Unlock screen for ${h(p.name)}?')">
+                             <i class="fas fa-lock-open"></i> Unlock
+                        </button>`
+                     : (hasAlerts
+                         ? `<button type="button" class="btn warning" style="padding: 6px 10px; font-size: 0.8rem;" onclick="moderateParticipant(${p.id}, '${h(currentRoomCode)}', 'lock_screen', 'Lock screen for ${h(p.name)}?')">
+                                 <i class="fas fa-lock"></i> Lock Screen
+                            </button>`
+                         : `<span class="muted">No alerts</span>`
+                       )
+                 }
+                 ${(!locked && hasAlerts) ? `<button type="button" class="btn danger" style="padding: 6px 10px; font-size: 0.8rem;" onclick="moderateParticipant(${p.id}, '${h(currentRoomCode)}', 'end_quiz', 'End quiz for ${h(p.name)}?')">
+                         <i class="fas fa-ban"></i> End Quiz
+                     </button>` : ``}
+             `;
+         }
+
+         const counts = {};
+         if (alerts && alerts.length > 0) {
+             alerts.forEach(a => {
+                 const t = a && a.type ? a.type : '';
+                 if (!t) return;
+                 counts[t] = (counts[t] || 0) + 1;
+             });
+         }
+         const alertLabels = Object.keys(counts).map(t => {
+             let label = t;
+             if (t === 'tab_switch') label = 'Tab Changed';
+             if (t === 'window_blur') label = 'Window Switched';
+             if (t === 'copy_text') label = 'Text Copied';
+             if (t === 'inspect_mode') label = 'Inspect Mode / DevTools';
+             if (t === 'right_click') label = 'Right Click';
+             return `${label}(${counts[t]})`;
+         }).join(' • ');
+
+         const row = document.createElement('tr');
+         if (locked) row.classList.add('row-locked');
+         row.innerHTML = `
+             <td>
+                 <div class="flex" style="gap: 8px; align-items: center;">
+                     ${h(p.name)}
+                     ${locked ? `<span class="locked-pill" title="Student screen is locked">LOCKED</span>` : ''}
+                     ${hasAlerts ? `<span class="badge danger" style="font-size: 10px; padding: 2px 6px; cursor: help;" title="${alerts.length} Suspicious activities detected">⚠️ ALERT</span>` : ''}
+                 </div>
+                 <div><span class="status-${h(p.status)}">${capitalize(h(p.status))}</span></div>
+                 ${hasAlerts ? `<div style="font-size: 10px; color: #ef4444; margin-top: 4px; max-width: 200px;">• ${alertLabels}</div>` : ``}
+             </td>
+             <td>${h(p.roll_number)}</td>
+             <td>${h(p.started_at || '')}</td>
+             <td>${finishedDisplay}</td>
+             <td>${score} / ${total}</td>
+             <td>${percent}</td>
+             <td class="flex" style="gap: 6px; flex-wrap: wrap;">${actions}</td>
+         `;
+         tbody.appendChild(row);
+     });
+
+     const ac = document.getElementById('activeCount');
+     if (ac) ac.textContent = active;
+ }
+
+ function startParticipantsPolling() {
+     if (window.__participantsPolling) return;
+     window.__participantsPolling = setInterval(() => {
+         fetch(`online_quiz_live_stats.php?room_code=${currentRoomCode}`)
+             .then(res => res.json())
+             .then(data => {
+                 if (data.participants) renderParticipants(data.participants);
+             })
+             .catch(() => {});
+     }, 2000);
+ }
+
+ function startParticipantsRealtime() {
+     if (window.EventSource) {
+         const es = new EventSource(`online_quiz_live_stats_sse.php?room_code=${encodeURIComponent(currentRoomCode)}`);
+         es.addEventListener('participants', (e) => {
+             try {
+                 const data = JSON.parse(e.data);
+                 if (data && data.participants) renderParticipants(data.participants);
+             } catch (err) {}
+         });
+         es.addEventListener('error', () => {
+             try { es.close(); } catch(e) {}
+             startParticipantsPolling();
+         });
+         window.__participantsEventSource = es;
+     } else {
+         startParticipantsPolling();
+     }
+ }
+
+ startParticipantsRealtime();
  
  <?php endif; ?>
 
@@ -709,9 +734,16 @@ function startQuiz(roomCode) {
 
 function refreshParticipants() {
     if (!currentRoomCode) return;
-    
-    // Reload the page to get updated participant data
-    window.location.reload();
+    fetch(`online_quiz_live_stats.php?room_code=${currentRoomCode}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.participants && typeof renderParticipants === 'function') {
+                renderParticipants(data.participants);
+            } else {
+                window.location.reload();
+            }
+        })
+        .catch(() => window.location.reload());
 }
 
 function moderateParticipant(participantId, roomCode, action, confirmationMessage) {
@@ -740,7 +772,7 @@ function moderateParticipant(participantId, roomCode, action, confirmationMessag
         }
 
         alert(data.message || 'Action completed successfully');
-        window.location.reload();
+        refreshParticipants();
     })
     .catch(err => {
         console.error('Participant moderation failed:', err);
@@ -785,30 +817,9 @@ function saveRoomDetails(roomCode) {
     });
 }
 
-// Auto-refresh for live updates when quiz is in progress
-function startLiveUpdates() {
-    if (!currentRoomCode) return;
-    
-    updateInterval = setInterval(() => {
-        // Only refresh if quiz is in progress
-        const quizInProgress = document.querySelector('.badge.active') && 
-                              document.querySelector('[style*="background: #f0fdf4"]');
-        if (quizInProgress) {
-            // Silent refresh of participant data
-            refreshParticipants();
-        }
-    }, 15000); // Update every 15 seconds
-}
-
-// Initialize live updates if we're viewing a room
+// NOTE: Full page auto-refresh disabled for participants; they update in realtime now.
+// Lobby auto-refresh is kept as-is to avoid changing that workflow.
 if (currentRoomCode) {
-    // Check if quiz is in progress and start live updates
-    const quizInProgress = document.querySelector('[style*="background: #f0fdf4"]');
-    if (quizInProgress) {
-        startLiveUpdates();
-    }
-    
-    // Auto-refresh lobby every 5 seconds if quiz hasn't started
     const lobbySection = document.querySelector('[style*="background: #f0f9ff"]');
     if (lobbySection) {
         updateInterval = setInterval(() => {
@@ -821,6 +832,10 @@ if (currentRoomCode) {
 window.addEventListener('beforeunload', function() {
     if (updateInterval) clearInterval(updateInterval);
     if (timerInterval) clearInterval(timerInterval);
+    if (window.__participantsPolling) clearInterval(window.__participantsPolling);
+    if (window.__participantsEventSource) {
+        try { window.__participantsEventSource.close(); } catch(e) {}
+    }
 });
 </script>
 

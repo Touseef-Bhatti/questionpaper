@@ -39,5 +39,48 @@ $stmt->bind_param('i', $room['id']);
 $stmt->execute();
 $stmt->close();
 
-echo json_encode(['status' => 'success', 'message' => 'Room ' . $room_code . ' has been closed.']);
+// End all active participants as well (time-over / room close should finalize quizzes)
+try {
+    // Ensure lock columns exist (safe/idempotent)
+    $lockColCheck = $conn->query("SHOW COLUMNS FROM quiz_participants LIKE 'is_screen_locked'");
+    if ($lockColCheck && $lockColCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE quiz_participants ADD COLUMN is_screen_locked TINYINT(1) NOT NULL DEFAULT 0 AFTER current_question");
+    }
+    $lockMessageColCheck = $conn->query("SHOW COLUMNS FROM quiz_participants LIKE 'lock_message'");
+    if ($lockMessageColCheck && $lockMessageColCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE quiz_participants ADD COLUMN lock_message VARCHAR(255) DEFAULT NULL AFTER is_screen_locked");
+    }
+
+    $room_id = (int)$room['id'];
+    $end = $conn->prepare("
+        UPDATE quiz_participants
+        SET status = 'completed',
+            is_screen_locked = 1,
+            lock_message = 'Time is over. Your quiz has been ended automatically.',
+            finished_at = COALESCE(finished_at, NOW())
+        WHERE room_id = ? AND status = 'active'
+    ");
+    if ($end) {
+        $end->bind_param('i', $room_id);
+        $end->execute();
+        $ended_count = $end->affected_rows;
+        $end->close();
+    } else {
+        $ended_count = 0;
+    }
+
+    // Log event (best-effort)
+    $evt = $conn->prepare("INSERT INTO live_quiz_events (room_id, event_type, event_data) VALUES (?, 'room_time_over', ?)");
+    if ($evt) {
+        $event_data = json_encode(['ended_participants' => (int)$ended_count, 'room_code' => $room_code]);
+        $evt->bind_param('is', $room_id, $event_data);
+        $evt->execute();
+        $evt->close();
+    }
+} catch (Throwable $e) {
+    // Don't fail the close request if participant ending fails; just log
+    error_log('online_quiz_close_room.php: failed ending participants: ' . $e->getMessage());
+}
+
+echo json_encode(['status' => 'success', 'message' => 'Room ' . $room_code . ' has been closed and participants ended.']);
 ?>

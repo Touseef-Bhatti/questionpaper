@@ -445,7 +445,7 @@ function h($str) {
 <!-- SIDE SKYSCRAPER ADS (Right Only) -->
 <?= renderAd('skyscraper', 'Online Quiz Lobby Right Skyscraper', 'right', 'margin-top: 10%;') ?>
 <body>
-<div class="main-content">
+<div class="main-content" style="margin-top: 10%;">
     <!-- TOP AD BANNER -->
     <?= renderAd('banner', 'Online Quiz Lobby Top Banner', 'ad-placement-top', 'margin-bottom: 20px;') ?>
 

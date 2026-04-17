@@ -22,6 +22,30 @@ if (!$room || $room['status'] !== 'active') {
 }
 $room_id = (int)$room['id'];
 
+// Review popup settings (reuse quiz.php behavior)
+$isLoggedIn = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] > 0;
+$hasAlreadyReviewed = false;
+if (
+    (isset($_SESSION['quiz_review_submitted']) && $_SESSION['quiz_review_submitted'] === true) ||
+    (isset($_SESSION['site_review_submitted']) && $_SESSION['site_review_submitted'] === true)
+) {
+    $hasAlreadyReviewed = true;
+} elseif ($isLoggedIn) {
+    $uid = (int)$_SESSION['user_id'];
+    $rev = $conn->prepare("SELECT id FROM user_reviews WHERE user_id = ? LIMIT 1");
+    if ($rev) {
+        $rev->bind_param('i', $uid);
+        $rev->execute();
+        $r = $rev->get_result();
+        if ($r && $r->num_rows > 0) {
+            $hasAlreadyReviewed = true;
+            $_SESSION['quiz_review_submitted'] = true;
+            $_SESSION['site_review_submitted'] = true;
+        }
+        $rev->close();
+    }
+}
+
 // Compute server-side elapsed and duration to make timer resilient across refreshes
 $durationMin = isset($room['quiz_duration_minutes']) && (int)$room['quiz_duration_minutes'] > 0 ? (int)$room['quiz_duration_minutes'] : 30;
 $durationSec = $durationMin * 60;
@@ -200,7 +224,7 @@ $stmt->close();
 
         /* ─── Quiz Wrapper ────────────────────────────────────── */
         .quiz-container {
-            max-width: 820px;
+            width: 70%;
             margin: 0 auto;
             background: #fff;
             border-radius: 28px;
@@ -464,7 +488,7 @@ $stmt->close();
 
         /* ─── Responsive ──────────────────────────────────────── */
         @media (max-width: 640px) {
-            .quiz-container { border-radius: 0; border: none; }
+            .quiz-container { border-radius: 0; border: none;width: 90%; }
             .quiz-header { padding: 32px 20px 24px; }
             .quiz-body { padding: 32px 20px; }
             .stats-grid { grid-template-columns: 1fr; padding: 24px 20px; }
@@ -518,6 +542,92 @@ $stmt->close();
             font-size: 1rem;
             line-height: 1.6;
         }
+
+        /* ─── Leaderboard ─────────────────────────────────────── */
+        .leaderboard-section { padding: 32px; border-top: 1px solid #e2e8f0; background: #fff; }
+        .leaderboard-title { font-size: 1.25rem; font-weight: 900; color: #0f172a; margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+        .leaderboard-table { width: 100%; border-collapse: collapse; }
+        .leaderboard-table th, .leaderboard-table td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 0.95rem; }
+        .leaderboard-table th { background: #f8fafc; font-weight: 800; color: #374151; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+        .leaderboard-rank { font-weight: 900; color: #4f46e5; }
+        .leaderboard-you { background: #eef2ff; }
+        .leaderboard-muted { color: #6b7280; font-size: 0.85rem; margin-top: 6px; }
+
+        /* ─── Review Modal (copied style from quiz.php) ───────── */
+        .review-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 18px;
+        }
+        .review-modal.open { display: flex; }
+        .review-modal-card {
+            width: 100%;
+            max-width: 560px;
+            background: #ffffff;
+            border-radius: 20px;
+            border: 1px solid #dbe3ef;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+            overflow: hidden;
+        }
+        .review-modal-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: #ffffff;
+            padding: 24px 26px 20px;
+        }
+        .review-modal-title {
+            margin: 0 0 8px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            line-height: 1.2;
+        }
+        .review-modal-subtitle {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #eef2ff;
+        }
+        .review-modal-body { padding: 24px 26px 10px; }
+        .star-row { display: flex; gap: 10px; margin-bottom: 16px; }
+        .star-btn {
+            width: 48px; height: 48px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #94a3b8;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        }
+        .star-btn:hover { transform: translateY(-1px); border-color: #f59e0b; color: #f59e0b; background: #fff7ed; }
+        .star-btn.active { border-color: #f59e0b; background: #fff7ed; color: #f59e0b; }
+        .review-modal textarea {
+            width: 100%;
+            min-height: 125px;
+            border-radius: 12px;
+            border: 1px solid #cbd5e1;
+            padding: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            color: #0f172a;
+            resize: vertical;
+            outline: none;
+        }
+        .review-modal textarea:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14); }
+        .review-modal-message { margin-top: 10px; font-size: 0.9rem; font-weight: 700; min-height: 24px; }
+        .review-modal-message.error { color: #b91c1c; }
+        .review-modal-message.success { color: #166534; }
+        .review-modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding: 0 26px 24px;
+            flex-wrap: wrap;
+        }
+        .review-modal-actions .btn-quiz { min-width: 130px; justify-content: center; }
     </style>
 </head>
 <body>
@@ -602,6 +712,27 @@ $stmt->close();
             <i class="fas fa-door-open"></i> Return to Join Page
           </button>
         </div>
+
+        <div class="leaderboard-section">
+          <div class="leaderboard-title"><i class="fas fa-trophy" style="color:#f59e0b;"></i> Leaderboard</div>
+          <div class="leaderboard-muted">Ranking is based on marks first, then time taken.</div>
+          <div style="overflow-x:auto; margin-top: 12px;">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Roll</th>
+                  <th>Name</th>
+                  <th>Score</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody">
+                <tr><td colspan="5" class="leaderboard-muted">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -609,6 +740,40 @@ $stmt->close();
   <!-- BOTTOM AD BANNER -->
   <div style="margin-top: 30px;">
     <?= renderAd('banner', 'Online Quiz Page Bottom Banner') ?>
+  </div>
+</div>
+
+<div class="review-modal" id="reviewModal">
+  <div class="review-modal-card">
+    <div class="review-modal-header">
+      <h3 class="review-modal-title">Rate Your Quiz Experience</h3>
+      <p class="review-modal-subtitle">Your review helps us improve the platform for students and teachers.</p>
+    </div>
+    <div class="review-modal-body">
+      <div class="star-row" id="starRow">
+        <button type="button" class="star-btn" data-rating="1"><i class="fas fa-star"></i></button>
+        <button type="button" class="star-btn" data-rating="2"><i class="fas fa-star"></i></button>
+        <button type="button" class="star-btn" data-rating="3"><i class="fas fa-star"></i></button>
+        <button type="button" class="star-btn" data-rating="4"><i class="fas fa-star"></i></button>
+        <button type="button" class="star-btn" data-rating="5"><i class="fas fa-star"></i></button>
+      </div>
+      <textarea id="reviewFeedback" maxlength="1000" placeholder="Share your experience about this quiz..." oninput="updateCharCount()"></textarea>
+      <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+        <span id="charCount" style="font-size: 0.75rem; color: #94a3b8; font-weight: 500;">0 / 1000</span>
+      </div>
+      <?php if ($isLoggedIn): ?>
+      <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="reviewAnonymous" style="width: 18px; height: 18px; cursor: pointer;">
+        <label for="reviewAnonymous" style="font-size: 0.9rem; color: #334155; cursor: pointer; font-weight: 600;">Post review anonymously</label>
+      </div>
+      <?php endif; ?>
+      <div class="review-modal-message" id="reviewMessage"></div>
+    </div>
+    <div class="review-modal-actions">
+      <a href="../reviews.php" class="btn-quiz secondary" style="text-decoration: none;"><i class="fas fa-comments"></i> All Reviews</a>
+      <button type="button" class="btn-quiz secondary" onclick="closeReviewModal()">Skip</button>
+      <button type="button" class="btn-quiz primary" id="submitReviewBtn" onclick="submitReview()">Submit Review</button>
+    </div>
   </div>
 </div>
 
@@ -632,6 +797,8 @@ const roomCode = <?php echo json_encode($room_code, JSON_HEX_TAG | JSON_HEX_APOS
 const participantRoll = <?php echo json_encode($participant_roll ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 const questions = <?php echo json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 const existingResponses = <?php echo json_encode($existingResponses, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+const hasAlreadyReviewedServer = <?php echo json_encode($hasAlreadyReviewed); ?>;
+const isLoggedIn = <?php echo json_encode($isLoggedIn); ?>;
 let currentQuestion = 0;
 let score = 0;
 let answers = [];
@@ -641,6 +808,8 @@ let remainingSec = Math.max(0, durationSec - serverElapsedSec);
 let startTime = Date.now(); // For tracking time spent on questions
 let questionStartTime = Date.now();
 let screenLocked = false;
+let selectedReviewRating = 0;
+let reviewPopupShown = false;
 
 let timerInterval = setInterval(updateTimer, 1000);
 let statusInterval = setInterval(checkServerStatus, 5000);
@@ -851,6 +1020,8 @@ function selectOption(option) {
     correct: correctOptionLetter,
     correctText: correctText || q.correct_option,
     isCorrect: isCorrect,
+    question: q.question,
+    options: { A: q.option_a, B: q.option_b, C: q.option_c, D: q.option_d },
     timeSpent: Math.floor((Date.now() - questionStartTime) / 1000)
   };
   if (isCorrect) score++;
@@ -918,7 +1089,152 @@ async function showResults() {
   } catch (e) {
     console.error('Failed to submit results', e);
   }
+
+  // Load leaderboard
+  loadLeaderboard();
+
+  // Review popup (same behavior as quiz.php)
+  const hasReviewedLocally = localStorage.getItem('site_review_submitted') === 'true' || localStorage.getItem('quiz_review_submitted') === 'true';
+  if (!reviewPopupShown && !hasAlreadyReviewedServer && !hasReviewedLocally) {
+      reviewPopupShown = true;
+      setTimeout(() => { openReviewModal(); }, 10000);
+  }
 }
+
+function formatTime(sec) {
+  if (sec === null || typeof sec === 'undefined') return '-';
+  const s = parseInt(sec, 10);
+  if (!Number.isFinite(s) || s < 0) return '-';
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2,'0')}`;
+}
+
+function loadLeaderboard() {
+  const tbody = document.getElementById('leaderboardBody');
+  if (!tbody) return;
+  fetch(`online_quiz_leaderboard.php?room_code=${encodeURIComponent(roomCode)}`)
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success || !Array.isArray(data.participants)) {
+        tbody.innerHTML = `<tr><td colspan="5" class="leaderboard-muted">Unable to load leaderboard</td></tr>`;
+        return;
+      }
+      const participants = data.participants;
+      tbody.innerHTML = '';
+      participants.forEach((p, idx) => {
+        const tr = document.createElement('tr');
+        if (parseInt(p.id,10) === parseInt(participantId,10)) tr.classList.add('leaderboard-you');
+        tr.innerHTML = `
+          <td class="leaderboard-rank">${idx + 1}</td>
+          <td>${(p.roll_number || '').toString()}</td>
+          <td>${(p.name || '').toString()}</td>
+          <td><strong>${parseInt(p.score || 0, 10)}</strong> / ${parseInt(p.total_questions || 0, 10)}</td>
+          <td>${formatTime(p.time_sec)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    })
+    .catch(() => {
+      tbody.innerHTML = `<tr><td colspan="5" class="leaderboard-muted">Unable to load leaderboard</td></tr>`;
+    });
+}
+
+function openReviewModal() {
+  const modal = document.getElementById('reviewModal');
+  if (!modal) return;
+  modal.classList.add('open');
+}
+
+function closeReviewModal() {
+  const modal = document.getElementById('reviewModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+}
+
+function refreshStars(hoverRating = 0) {
+  const stars = document.querySelectorAll('#starRow .star-btn');
+  stars.forEach(star => {
+    const val = Number(star.dataset.rating || 0);
+    const displayRating = hoverRating || selectedReviewRating;
+    star.classList.toggle('active', val <= displayRating);
+  });
+}
+
+function updateCharCount() {
+  const textarea = document.getElementById('reviewFeedback');
+  const countEl = document.getElementById('charCount');
+  if (!textarea || !countEl) return;
+  const len = textarea.value.length;
+  countEl.textContent = `${len} / 1000`;
+  countEl.style.color = len >= 900 ? '#dc2626' : (len >= 750 ? '#f59e0b' : '#94a3b8');
+}
+
+function setReviewMessage(message, isSuccess = false) {
+  const messageEl = document.getElementById('reviewMessage');
+  if (!messageEl) return;
+  messageEl.className = 'review-modal-message ' + (isSuccess ? 'success' : 'error');
+  messageEl.textContent = message;
+}
+
+async function submitReview() {
+  const feedbackEl = document.getElementById('reviewFeedback');
+  const submitBtn = document.getElementById('submitReviewBtn');
+  const anonCheckbox = document.getElementById('reviewAnonymous');
+  if (!feedbackEl || !submitBtn) return;
+
+  const feedback = feedbackEl.value.trim();
+  const isAnon = anonCheckbox ? (anonCheckbox.checked ? 1 : 0) : 1;
+
+  if (selectedReviewRating < 1 || selectedReviewRating > 5) {
+    setReviewMessage('Please select your star rating first.');
+    return;
+  }
+  if (feedback.length < 3) {
+    setReviewMessage('Please write your feedback in the textbox.');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  setReviewMessage('');
+
+  try {
+    const response = await fetch('quiz.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'submit_quiz_review',
+        rating: selectedReviewRating,
+        feedback: feedback,
+        is_anonymous: isAnon
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || data.status !== 'success') {
+      setReviewMessage(data.message || 'Unable to submit review right now.');
+      submitBtn.disabled = false;
+      return;
+    }
+
+    localStorage.setItem('quiz_review_submitted', 'true');
+    localStorage.setItem('site_review_submitted', 'true');
+    setReviewMessage('Thank you for your review.', true);
+    setTimeout(() => { closeReviewModal(); }, 900);
+  } catch (e) {
+    setReviewMessage('Unable to submit review right now.');
+    submitBtn.disabled = false;
+  }
+}
+
+// Star interactions
+document.querySelectorAll('#starRow .star-btn').forEach(star => {
+  star.addEventListener('mouseenter', () => refreshStars(Number(star.dataset.rating || 0)));
+  star.addEventListener('mouseleave', () => refreshStars(0));
+  star.addEventListener('click', () => {
+    selectedReviewRating = Number(star.dataset.rating || 0);
+    refreshStars(0);
+  });
+});
 
 // Initialize first question
 restoreProgress();

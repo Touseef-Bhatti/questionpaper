@@ -109,9 +109,9 @@ if ($random_needed_for_target > 0 && (!$class_id || !$book_id) && empty($topics)
     respond_error('Class and Book (or Topics) are required to generate the remaining ' . $random_needed_for_target . ' random questions.');
 }
 
-// Prepare a small buffer of 2 extra random questions ONLY if Class/Book/Topics are available
-$buffer_extra = ((!$class_id || !$book_id) && empty($topics)) ? 0 : 2;
-$random_needed = max(0, $mcq_count + $buffer_extra - $actual_manual_count);
+// Always build EXACTLY mcq_count questions (no extra buffer)
+$buffer_extra = 0;
+$random_needed = max(0, $mcq_count - $actual_manual_count);
 
 // Parse chapter IDs if provided
 $chapterIdsArray = [];
@@ -159,8 +159,8 @@ if (!empty($selected_mcq_ids)) {
     $stmt->close();
 }
 
-// 2. Fill remainder if needed (including buffer extras)
-$remaining_needed = $mcq_count + $buffer_extra - count($selectedQuestions) - count($custom_mcqs);
+// 2. Fill remainder if needed (exact target count)
+$remaining_needed = $mcq_count - count($selectedQuestions) - count($custom_mcqs);
 
 if ($remaining_needed > 0) {
     // Exclude already selected IDs
@@ -206,8 +206,8 @@ if ($remaining_needed > 0) {
         }
     
         // Check AIGeneratedMCQs if needed
-        // Target total from DB/AI (including the 2-buffer)
-        $target_db_count = $mcq_count + $buffer_extra - count($custom_mcqs);
+        // Target total from DB/AI (exact count)
+        $target_db_count = $mcq_count - count($custom_mcqs);
         if (count($selectedQuestions) < $target_db_count) {
             $needed = $target_db_count - count($selectedQuestions);
             
@@ -448,7 +448,7 @@ $joinUrl = $baseUrl . '/quiz/online_quiz_join.php?room=' . urlencode($room_code)
 </head>
 <body>
 <?php include_once '../header.php'; ?>
-<div class="main-content">
+<div class="main-content" style="margin-top: 10%;">
   <div class="card">
     <h1>Room Created</h1>
     <p>Share this room code with your students:</p>
