@@ -40,7 +40,6 @@ $metaKeywords    = "online question paper generator, online MCQs paper generator
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="<?= $assetBase ?>css/mcqs_topic.css?v=<?= time() ?>">
-    <link rel="stylesheet" href="<?= $assetBase ?>css/ai_loader.css?v=<?= time() ?>">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
     <style>
@@ -267,7 +266,6 @@ $metaKeywords    = "online question paper generator, online MCQs paper generator
     <?= json_encode($jsonLD, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
     </script>
 
-    <script src="<?= $assetBase ?>js/ai_loader.js" defer></script>
 </head>
 <body>
 <?php

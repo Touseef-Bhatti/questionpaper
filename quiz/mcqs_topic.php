@@ -423,9 +423,7 @@ if (isset($_POST['start_quiz'])) {
 
     <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/main.css">
     <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/mcqs_topic.css">
-    <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/ai_loader.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="<?= ($assetBase ?? '') ?>js/ai_loader.js" defer></script>
 </head>
 <body>
 <?php include_once '../header.php'; ?>
@@ -758,19 +756,6 @@ function showLoader(title = 'Processing...', subtitle = '') {
             }, 200);
         }
     }
-}
-
-function showAILoader() {
-    showAILoader(
-        [
-            { label: 'Analyzing topics',        duration: 3500 },
-            { label: 'Extracting key concepts',  duration: 3500 },
-            { label: 'Designing MCQs',           duration: 3500 },
-            { label: 'Validating difficulty',    duration: 3500 },
-            { label: 'Finalizing paper',         duration: 3500 }
-        ],
-        'Our AI is synthesizing questions based on 2026 board standards…'
-    );
 }
 
 function selectLevel(level, button) {

@@ -450,7 +450,7 @@ if (is_dir($incorrectDir)) {
 
         /* ─── Quiz Wrapper ────────────────────────────────────── */
         .quiz-container {
-            max-width: 60%;
+            width: 60%;
             margin: 0 auto;
             background: #fff;
             border-radius: 28px;

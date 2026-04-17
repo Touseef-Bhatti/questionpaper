@@ -695,7 +695,8 @@ body.menu-open {
         font-size: clamp(0.95rem, 3.6vw, 1.1rem);
         font-weight: 700;
         z-index: 1100;
-        order: 1;
+        order: 2;
+        margin-left: 0.5rem;
         margin-right: auto;
         max-width: calc(100% - 64px);
         white-space: nowrap;
@@ -707,7 +708,7 @@ body.menu-open {
     }
 
     .nav-toggle {
-        order: 2;
+        order: 1;
         margin-left: 0;
         margin-right: 0;
         padding: 0.5rem;
@@ -1239,13 +1240,23 @@ html.dark-mode .user-header-info .text-muted {
 }
 
 .btn-auth-register:hover {
-    background: #e2e8f0;
-}
+        background: #e2e8f0;
+    }
 
-.auth-modal-footer {
-    margin-top: 2rem;
-    color: #94a3b8;
-}
+    .auth-modal-footer {
+        margin-top: 2rem;
+        color: #94a3b8;
+    }
+
+    .mobile-only-nav {
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        .mobile-only-nav {
+            display: block;
+        }
+    }
    </style>
 
     <?php if (isset($extraHead)) echo $extraHead; ?>
@@ -1336,6 +1347,7 @@ navbar_start:
                     
                     <li><a href="<?= $assetBase ?>login" class="<?= is_active('login.php') ?>"><i class="fas fa-sign-in-alt"></i> Login</a></li>
                 <?php endif; ?>
+                <li class="mobile-only-nav"><a href="<?= $assetBase ?>settings" class="<?= is_active('settings.php') ?>"><i class="fas fa-cog"></i> Settings</a></li>
             </ul>
         </div>
         <div class="nav-overlay" id="navOverlay"></div>

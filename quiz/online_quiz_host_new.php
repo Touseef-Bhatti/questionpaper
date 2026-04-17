@@ -311,47 +311,7 @@ include_once '../header.php';
         </div>
     </div>
 
-    <!-- Professional AI Loader Modal -->
-    <div id="aiLoaderModal" class="ai-loader-overlay">
-        <div class="ai-loader-card">
-            <div class="ai-icon-container">
-                <div class="ai-icon-glow"></div>
-                <i class="fas fa-robot" style="color: white; z-index: 2; position: relative;"></i>
-            </div>
-            <h2 class="ai-loader-title">Neural Engine Processing</h2>
-            
-            <div class="ai-steps-list">
-                <div class="ai-step" id="step-1">
-                    <div class="ai-step-icon" id="icon-1"><i class="fas fa-circle-notch"></i></div>
-                    <div class="ai-step-text">Analyzing quiz parameters</div>
-                </div>
-                <div class="ai-step" id="step-2">
-                    <div class="ai-step-icon" id="icon-2"><i class="fas fa-circle-notch"></i></div>
-                    <div class="ai-step-text">Preparing curriculum data</div>
-                </div>
-                <div class="ai-step" id="step-3">
-                    <div class="ai-step-icon" id="icon-3"><i class="fas fa-circle-notch"></i></div>
-                    <div class="ai-step-text">Generating & fetching MCQs</div>
-                </div>
-                <div class="ai-step" id="step-4">
-                    <div class="ai-step-icon" id="icon-4"><i class="fas fa-circle-notch"></i></div>
-                    <div class="ai-step-text">Building quiz room</div>
-                </div>
-                <div class="ai-step" id="step-5">
-                    <div class="ai-step-icon" id="icon-5"><i class="fas fa-circle-notch"></i></div>
-                    <div class="ai-step-text">Finalizing live setup</div>
-                </div>
-            </div>
-
-            <div class="ai-progress-container">
-                <div class="ai-progress-bar" id="aiProgressBar"></div>
-            </div>
-            
-            <div style="margin-top: 32px; color: rgba(255,255,255,0.4); font-size: 0.9rem; font-style: italic;">
-                <i class="fas fa-info-circle"></i> Synthesizing quiz questions via Ahmad Learning Hub Engine...
-            </div>
-        </div>
-    </div>
+    <?php include __DIR__ . '/../includes/ai_loader.php'; ?>
 
 
 
@@ -751,87 +711,24 @@ include_once '../header.php';
                      document.getElementById('mcq_count').value = customCount;
                 }
                 
-                // Show the professional AI Loader animation
-                showAILoader();
+                // Show the shared AI loader animation
+                launchHostAILoader();
             }
         });
         
-        function showAILoader() {
-            const modal = document.getElementById('aiLoaderModal');
-            const progressBar = document.getElementById('aiProgressBar');
-            
-            // Disable scrolling while loader is active
-            document.body.style.overflow = 'hidden';
-            
-            // Ensure modal occupies full screen and is visible
-            modal.style.display = 'flex';
-            
-            const steps = [
-                { id: 1, text: 'Analyzing quiz parameters', duration: 2500 },
-                { id: 2, text: 'Preparing curriculum data', duration: 2500 },
-                { id: 3, text: 'Generating & fetching MCQs', duration: 3500 },
-                { id: 4, text: 'Building quiz room', duration: 2500 },
-                { id: 5, text: 'Finalizing live setup', duration: 2000 }
-            ];
-            
-            let currentStepIndex = 0;
-            let totalDuration = steps.reduce((acc, s) => acc + s.duration, 0);
-            let elapsed = 0;
-            
-            // Initialize all steps to pending state
-            steps.forEach(step => {
-                const stepEl = document.getElementById(`step-${step.id}`);
-                const iconEl = document.getElementById(`icon-${step.id}`);
-                if (stepEl) {
-                    stepEl.classList.remove('active', 'completed');
-                    iconEl.innerHTML = '<i class="fas fa-circle-notch"></i>';
-                }
-            });
-            
-            function updateStep() {
-                if (currentStepIndex >= steps.length) return;
-                
-                const step = steps[currentStepIndex];
-                const stepEl = document.getElementById(`step-${step.id}`);
-                const iconEl = document.getElementById(`icon-${step.id}`);
-                
-                // Mark previous steps as completed
-                for (let i = 0; i < currentStepIndex; i++) {
-                    const prevStep = steps[i];
-                    const prevStepEl = document.getElementById(`step-${prevStep.id}`);
-                    const prevIconEl = document.getElementById(`icon-${prevStep.id}`);
-                    if (prevStepEl) {
-                        prevStepEl.classList.add('completed');
-                        prevStepEl.classList.remove('active');
-                        prevIconEl.innerHTML = '<i class="fas fa-check"></i>';
-                    }
-                }
-                
-                // Mark current step as active
-                if (stepEl) {
-                    stepEl.classList.add('active');
-                    iconEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                }
-                
-                // Move to next step after duration
-                setTimeout(() => {
-                    currentStepIndex++;
-                    updateStep();
-                }, step.duration);
-            }
-            
-            const progressUpdateFreq = 250; 
-            const progressInterval = setInterval(() => {
-                elapsed += progressUpdateFreq;
-                let progress = (elapsed / totalDuration) * 100;
-                if (progress >= 99) {
-                    progress = 99;
-                    clearInterval(progressInterval);
-                }
-                if (progressBar) progressBar.style.width = progress + '%';
-            }, progressUpdateFreq);
-            
-            updateStep();
+        function launchHostAILoader() {
+            if (typeof showAILoader !== 'function') return;
+            showAILoader(
+                [
+                    { label: 'Analyzing quiz parameters', duration: 2500 },
+                    { label: 'Preparing curriculum data', duration: 2500 },
+                    { label: 'Generating and fetching MCQs', duration: 3500 },
+                    { label: 'Building quiz room', duration: 2500 },
+                    { label: 'Finalizing live setup', duration: 2000 }
+                ],
+                'Synthesizing quiz questions via Ahmad Learning Hub Engine...',
+                'Neural Engine Processing'
+            );
         }
         
         // Update preview on input changes

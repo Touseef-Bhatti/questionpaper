@@ -307,8 +307,9 @@ function homeReviewStars(int $rating): string {
                     </div>
                 <?php endif; ?>
 
-                <div class="home-reviews-actions">
-                    <a class="button primary" href="reviews.php"><i class="fas fa-star"></i> View All Reviews</a>
+                <div class="home-reviews-actions" style="gap: 1.5rem; flex-wrap: wrap;">
+                    <a class="button ghost" href="reviews.php" style="color: var(--primary); border-color: var(--primary);"><i class="fas fa-star"></i> View All Reviews</a>
+                    <a class="button accent" href="reviews.php#write-review"><i class="fas fa-pen"></i> Write a Review</a>
                 </div>
             </div>
         </section>

@@ -22,12 +22,13 @@ body {
 }
 
 .main-content {
+  margin-top: 10%;
   padding: 40px 20px;
 }
 
 .quiz-setup-container {
   max-width: 60%;
-  margin:10% ;
+  margin:auto ;
   
   background: var(--white);
   padding: 40px;
