@@ -2,13 +2,12 @@
 // Define __DIR__ if not defined (older PHP) - not needed here but good practice
 require_once __DIR__ . '/../config/env.php';
 
-// Force load .env.local if it exists
-if (file_exists(__DIR__ . '/../config/.env.local')) {
-    EnvLoader::load(__DIR__ . '/../config/.env.local');
-    echo "Loaded .env.local\n";
-} else {
+// Force load .env if it exists
+if (file_exists(__DIR__ . '/../config/.env')) {
     EnvLoader::load(__DIR__ . '/../config/.env');
     echo "Loaded .env\n";
+} else {
+    echo "Warning: config/.env not found\n";
 }
 
 // Now require db_connect

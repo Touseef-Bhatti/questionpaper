@@ -4,7 +4,7 @@
  * AI Key Configuration Manager
  * ============================================================================
  * 
- * Manages all AI API keys from .env.local with intelligent features:
+ * Manages all AI API keys from .env with intelligent features:
  * - Load keys using new KEY_N format (replaces old API_KEY_N)
  * - Auto-detect providers and models
  * - Support for multiple accounts with priority ordering
@@ -31,23 +31,7 @@ class AIKeyConfigManager {
     
     public function __construct($envPath = null) {
         if ($envPath === null) {
-            // Determine which environment file to use
-            $envPath = __DIR__ . '/.env.local';
-            
-            // Check if in production environment
-            if ((defined('ENVIRONMENT') && ENVIRONMENT === 'production') || getenv('APP_ENV') === 'production') {
-                $envPath = __DIR__ . '/.env.production';
-            }
-            
-            // Use .env.production if it exists and .env.local doesn't
-            if (!file_exists($envPath)) {
-                $alternativePath = (strpos($envPath, '.env.production') !== false) ? 
-                    __DIR__ . '/.env.local' : 
-                    __DIR__ . '/.env.production';
-                if (file_exists($alternativePath)) {
-                    $envPath = $alternativePath;
-                }
-            }
+            $envPath = __DIR__ . '/.env';
         }
         $this->envPath = $envPath;
         $this->loadEnvironment();

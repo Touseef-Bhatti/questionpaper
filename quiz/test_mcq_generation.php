@@ -71,7 +71,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'test_key' && isset($_POST['ap
 function testMcqRecheckApiKeyConnection() {
     $key = getRecheckApiKey();
     if ($key === '') {
-        return ['ok' => false, 'message' => 'No recheck key: set RECHECK_API_KEY or GENERATING_KEYWORDS_KEY in config/.env.local or .env.production.'];
+        return ['ok' => false, 'message' => 'No recheck key: set RECHECK_API_KEY or GENERATING_KEYWORDS_KEY in config/.env.'];
     }
     $model = getRecheckModel();
     list($text, $code) = callRecheckAi($key, $model, "Reply with exactly one token on one line: RECHECK_OK", 50, 25);
@@ -404,9 +404,9 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
             $hasKey1 = EnvLoader::get('KEY_1', '');
             $hasKey2 = EnvLoader::get('KEY_2', '');
             if (!empty($hasKey1) || !empty($hasKey2)) {
-                echo '<div class="warning">⚠ AIKeyRotator found no keys. Check ACCOUNT_2_KEYS_START/END and PRIMARY_KEYS_START/END in .env.local.</div>';
+                echo '<div class="warning">⚠ AIKeyRotator found no keys. Check ACCOUNT_2_KEYS_START/END and PRIMARY_KEYS_START/END in config/.env.</div>';
             } else {
-                echo '<div class="error">✗ API Key not found! Add KEY_1, KEY_2, etc. to config/.env.local</div>';
+                echo '<div class="error">✗ API Key not found! Add KEY_1, KEY_2, etc. to config/.env</div>';
             }
         }
         echo '<div class="info">Model: <strong>' . htmlspecialchars($model) . '</strong></div>';

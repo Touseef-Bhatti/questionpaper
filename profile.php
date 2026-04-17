@@ -101,7 +101,7 @@ $profile = $result ? $result->fetch_assoc() : null;
 <body>
 <?php include 'header.php'; ?>
 
-<div class="main-content">
+<div class="main-content" style="margin-top: 10%;" >
   <div class="profile-content">
     <h2>Your Profile</h2>
 

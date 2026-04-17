@@ -57,7 +57,6 @@ yarn-error.log*
 
 # 🧰 Miscellaneous
 ads.php
-.env.local
 .env.development.local
 .env.production.local
 .env.test.local

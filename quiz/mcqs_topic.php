@@ -10,7 +10,7 @@ require_once '../services/SubscriptionService.php';
 // Check user plan status
 $subService = new SubscriptionService($conn);
 $userPlan = 'free';
-$topicLimit = 3; // Default for free
+$topicLimit = 2; // Default for free
 if (isset($_SESSION['user_id'])) {
     $currentSub = $subService->getCurrentSubscription($_SESSION['user_id']);
     $userPlan = $currentSub['plan_name'] ?? 'free';
@@ -19,7 +19,7 @@ if (isset($_SESSION['user_id'])) {
     if (isset($currentSub['max_topics_per_quiz'])) {
         $topicLimit = intval($currentSub['max_topics_per_quiz']);
     } else {
-        $topicLimit = ($userPlan === 'free') ? 3 : -1; // -1 for unlimited
+        $topicLimit = ($userPlan === 'free') ? 2 : -1; // -1 for unlimited
     }
 }
 $isPremium = ($userPlan !== 'free');

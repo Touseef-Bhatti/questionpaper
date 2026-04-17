@@ -21,9 +21,7 @@ echo "\n";
 echo "=== AVAILABLE ENV FILES ===\n";
 $envDir = __DIR__;
 $files = [
-    '.env',
-    '.env.local',
-    '.env.production'
+    '.env'
 ];
 
 foreach ($files as $file) {
@@ -64,12 +62,10 @@ foreach ($config as $label => $key) {
 }
 echo "\n";
 
-// Debug environment precedence
-echo "=== ENVIRONMENT LOADING PRECEDENCE ===\n";
-echo "1. Check APP_ENV environment variable\n";
-echo "2. Check server hostname\n";
-echo "3. Check for Docker (/.dockerenv)\n";
-echo "4. Load priority: .env.production > .env.local > .env\n";
+// Debug environment info
+echo "=== ENVIRONMENT INFO ===\n";
+echo "All configuration is loaded from config/.env\n";
+echo "APP_ENV value controls development vs production behavior\n";
 echo "\n";
 
 echo "</pre>";
@@ -79,13 +75,11 @@ echo "<div style='background: #e3f2fd; padding: 20px; border-left: 4px solid #21
 echo "<h3>📋 Recommendations:</h3>";
 echo "<ul>";
 
-if (file_exists('/.dockerenv') && !getenv('APP_ENV')) {
-    echo "<li>Docker detected but APP_ENV not set. On Docker, ensure:</li>";
-    echo "<li style='margin-left: 30px;'>1. Use .env.local with production values, OR</li>";
-    echo "<li style='margin-left: 30px;'>2. Set: docker-compose environment: APP_ENV=production</li>";
+if (!file_exists(__DIR__ . '/.env')) {
+    echo "<li>⚠️ config/.env file is missing! Copy from config/.env.template and fill in your values.</li>";
 }
 
-echo "<li>Always keep sensitive keys in .env.production (not in version control)</li>";
+echo "<li>Keep sensitive keys in config/.env (not in version control)</li>";
 echo "</ul>";
 echo "</div>";
 ?>

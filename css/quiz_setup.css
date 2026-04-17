@@ -3,8 +3,10 @@
 :root {
   --primary-color: #6366f1;
   --primary-hover: #4f46e5;
+  --primary: #4f46e5; /* Added for header consistency */
   --secondary-color: #f8fafc;
   --text-main: #1e293b;
+  --text-primary: #1e293b; /* Added for header consistency */
   --text-muted: #64748b;
   --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   --white: #ffffff;

@@ -133,7 +133,7 @@ function parseMcqJson($text) {
 }
 
 /**
- * API key used only for MCQ verification (reads .env.local / .env.production via EnvLoader).
+ * API key used only for MCQ verification (reads .env via EnvLoader).
  */
 function getRecheckApiKey() {
     $k = EnvLoader::get('RECHECK_API_KEY', '');
@@ -321,7 +321,7 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
 
     $apiKey = getRecheckApiKey();
     if ($apiKey === '') {
-        return ['success' => false, 'message' => 'No recheck key: set RECHECK_API_KEY or GENERATING_KEYWORDS_KEY in .env.local / .env.production.'];
+        return ['success' => false, 'message' => 'No recheck key: set RECHECK_API_KEY or GENERATING_KEYWORDS_KEY in config/.env.'];
     }
 
     if ($sourceTable === 'mcqs') {

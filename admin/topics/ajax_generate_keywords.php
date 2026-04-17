@@ -19,7 +19,7 @@ $apiKey = EnvLoader::get('GENERATING_KEYWORDS_KEY');
 if (!$apiKey) {
     die(json_encode([
         'success' => false, 
-        'error' => 'NVIDIA API key "GENERATING_KEYWORDS_KEY" not found in .env.local or .env.production.'
+        'error' => 'NVIDIA API key "GENERATING_KEYWORDS_KEY" not found in config/.env.'
     ]));
 }
 

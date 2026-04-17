@@ -182,7 +182,7 @@ if (!isset($_SESSION['user_id'])) {
 <body>
 <?php include 'header.php'; ?>
 
-<div class="main-content">
+<div class="main-content" style="margin-top: 10%;" >
   <div class="profile-content">
     <h2>Settings</h2>
 

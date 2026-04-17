@@ -79,6 +79,25 @@ if (isset($only_navbar) && $only_navbar) {
     </script>
     
     <style>
+    :root {
+        --primary: #4f46e5;
+        --primary-light: #818cf8;
+        --primary-dark: #3730a3;
+        --secondary: #0ea5e9;
+        --accent: #10b981;
+        --background: #f8fafc;
+        --surface: #ffffff;
+        --text-primary: #1e293b;
+        --text-secondary: #475569;
+        --text-tertiary: #64748b;
+        --border: #e2e8f0;
+        --white: #ffffff;
+        --dark-gray: #343a40;
+        --light-gray: #f1f3f6;
+        --gray: #6c757d;
+        --black: #212529;
+    }
+
     /* Dark Mode Overrides */
     html.dark-mode {
         --background: #0f172a;
@@ -377,10 +396,12 @@ if (isset($only_navbar) && $only_navbar) {
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
     position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 1000;
     border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     width: 100%;
-    margin: 0;
+    margin: 0 auto;
     min-height: 70px;
     display: flex;
     align-items: center;
@@ -676,6 +697,7 @@ body.menu-open {
         max-width: none;
         border-radius: 80px;
         margin: 0 auto;
+        top: 0.5rem;
         padding: 0.8rem 0;
         min-height: 70px;
         -webkit-backdrop-filter: blur(20px);

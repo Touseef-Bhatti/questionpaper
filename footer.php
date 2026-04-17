@@ -35,7 +35,7 @@
         </div>
         <div class="footer-section footer-contact">
             <h3>Contact Us</h3>
-            <p><i class="fas fa-map-marker-alt"></i> Gujranwala</p>
+            <p><i class="fas fa-map-marker-alt"></i> Sheikhupura , Punjab</p>
             <p><a href="https://wa.me/923206472460" target="_blank" aria-label="Chat with us on WhatsApp" style="color: aliceblue;"><i class="fab fa-whatsapp" ></i> +92 3206472460</a></p>
             <p> <a href="mailto:touseef12345bhatt@gmail.com" target="_blank" aria-label="Email us" style="color: aliceblue;"><i class="fas fa-envelope"></i> touseef12345bhatt@gmail.com</a></p>
             <div class="footer-social">

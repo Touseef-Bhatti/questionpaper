@@ -31,23 +31,8 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] !== true) {
 require_once __DIR__ . '/../header.php';
 
 try {
-    // Determine which environment file to use
-    $envFile = __DIR__ . '/../../config/.env.local';
-    
-    // Check if in production environment
-    if (defined('ENVIRONMENT') && ENVIRONMENT === 'production') {
-        $envFile = __DIR__ . '/../../config/.env.production';
-    } elseif (getenv('APP_ENV') === 'production') {
-        $envFile = __DIR__ . '/../../config/.env.production';
-    }
-    
-    // Use .env.production if it exists and .env.local doesn't
-    $productionFile = __DIR__ . '/../../config/.env.production';
-    $localFile = __DIR__ . '/../../config/.env.local';
-    
-    if (!file_exists($localFile) && file_exists($productionFile)) {
-        $envFile = $productionFile;
-    }
+    // Use the single .env file
+    $envFile = __DIR__ . '/../../config/.env';
     
     $configManager = new AIKeyConfigManager($envFile);
     $systemConfig = $configManager->getSystemConfig();
@@ -299,7 +284,7 @@ try {
             <div class="alert alert-info">
                 <h5>💡 How to Add New Keys</h5>
                 <ol>
-                    <li>Edit <code>config/.env.local</code></li>
+                    <li>Edit <code>config/.env</code></li>
                     <li>Add your key: <code>KEY_N=your_api_key</code></li>
                     <li>Optionally set model: <code>KEY_N_MODEL=gpt-4-turbo</code></li>
                     <li>Optionally set provider: <code>KEY_N_PROVIDER=openai</code></li>

@@ -9,6 +9,7 @@
     --background: #ffffff;
     --card-bg: #ffffff;
     --text-main: #1e293b;
+    --text-primary: #1e293b; /* Added to keep header text consistent */
     --text-muted: #64748b;
     --border: #e2e8f0;
     --radius-lg: 24px;
@@ -34,8 +35,9 @@ body {
 }
 
 .topic-search-container {
+
     width: 60%;
-    margin: 10%;
+    margin:auto;
     background: var(--card-bg);
     padding: 64px 48px;
     border-radius: 40px;
@@ -43,6 +45,7 @@ body {
     border: 1px solid #f1f5f9;
     position: relative;
     z-index: 10;
+    margin-top: 10%;
 }
 
 /* Top Navigation Buttons Styles */

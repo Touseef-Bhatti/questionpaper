@@ -9,6 +9,7 @@
     --background: #f1f5f9;
     --card-bg: #ffffff;
     --text-main: #1e293b;
+    --text-primary: #1e293b; /* Added for header consistency */
     --text-muted: #64748b;
     --border: #e2e8f0;
     --radius-lg: 24px;

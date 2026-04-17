@@ -13,18 +13,6 @@ echo "<pre>\n";
 
 // Show server information
 echo "Server Name: " . ($_SERVER['SERVER_NAME'] ?? 'Not set') . "\n";
-echo "Environment detected: ";
-
-$serverName = $_SERVER['SERVER_NAME'] ?? 'production';
-$isLocal = in_array($serverName, ['localhost', '127.0.0.1', '::1']);
-
-if ($isLocal) {
-    echo "LOCAL DEVELOPMENT\n";
-    echo "Expected env file: config/.env.local\n";
-} else {
-    echo "PRODUCTION\n";
-    echo "Expected env file: config/.env.production\n";
-}
 
 echo "\n--- Environment Variables ---\n";
 echo "APP_NAME: " . EnvLoader::get('APP_NAME', 'Not set') . "\n";
@@ -41,15 +29,13 @@ echo "isDevelopment(): " . (EnvLoader::isDevelopment() ? 'true' : 'false') . "\n
 
 echo "</pre>\n";
 
-// Check if environment files exist
-echo "<h3>Environment Files Status</h3>\n";
+// Check if environment file exists
+echo "<h3>Environment File Status</h3>\n";
 echo "<pre>\n";
 
-$localFile = __DIR__ . '/config/.env.local';
-$productionFile = __DIR__ . '/config/.env.production';
+$envFile = __DIR__ . '/config/.env';
 
-echo ".env.local exists: " . (file_exists($localFile) ? 'YES' : 'NO') . "\n";
-echo ".env.production exists: " . (file_exists($productionFile) ? 'YES' : 'NO') . "\n";
+echo ".env exists: " . (file_exists($envFile) ? 'YES' : 'NO') . "\n";
 
 echo "</pre>\n";
 ?>

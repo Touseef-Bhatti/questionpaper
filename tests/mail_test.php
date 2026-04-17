@@ -4,7 +4,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Load configuration from .env.local
+// Load configuration from .env
 require_once __DIR__ . '/../config/env.php';
 EnvLoader::load();
 
@@ -28,7 +28,7 @@ require_once $phpmailerDir . '/src/SMTP.php';
 
 echo "🚀 Ahmad Learning Hub Mail Test<br><br>";
 
-// Load SMTP credentials from environment (.env.local)
+// Load SMTP credentials from environment (.env)
 $smtpHost = EnvLoader::get('SMTP_HOST', 'mail.ahmadlearninghub.com.pk');
 $smtpUsername = EnvLoader::get('SMTP_USERNAME', 'admin@ahmadlearninghub.com.pk');
 $smtpPassword = EnvLoader::get('SMTP_PASSWORD', '');
@@ -39,7 +39,7 @@ $fromName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
 $testEmail = EnvLoader::get('TEST_EMAIL_ADDRESS', '231370223@gift.edu.pk');
 
 // Display loaded configuration (hide password)
-echo "<strong>📧 SMTP Configuration (from .env.local):</strong><br>";
+echo "<strong>📧 SMTP Configuration (from .env):</strong><br>";
 echo "Host: $smtpHost<br>";
 echo "Port: $smtpPort<br>";
 echo "Username: " . (!empty($smtpUsername) ? $smtpUsername : '(none - MailHog)') . "<br>";
@@ -52,7 +52,7 @@ if (strtolower($smtpHost) === 'mailhog') {
     echo "<strong style='color: blue;'>🐷 Using MailHog (Local Development)</strong><br>";
     echo "📧 View sent emails at: <a href='http://localhost:8025' target='_blank'>http://localhost:8025</a><br><br>";
 } elseif (empty($smtpPassword)) {
-    echo "<strong style='color: red;'>⚠️ Warning: SMTP_PASSWORD not found in .env.local</strong><br><br>";
+    echo "<strong style='color: red;'>⚠️ Warning: SMTP_PASSWORD not found in .env</strong><br><br>";
 }
 
 $mail = new PHPMailer(true);
@@ -84,7 +84,7 @@ try {
     // Content
     $mail->isHTML(true);
     $mail->Subject = 'Ahmad Learning Hub Test Email';
-    $mail->Body    = '<h2>✅ SMTP Test Successful!</h2><p>This is a test email from Ahmad Learning Hub.</p><p><strong>Configuration loaded from .env.local</strong></p>';
+    $mail->Body    = '<h2>✅ SMTP Test Successful!</h2><p>This is a test email from Ahmad Learning Hub.</p><p><strong>Configuration loaded from .env</strong></p>';
 
     $mail->send();
     echo "✔ Test email sent successfully to $testEmail!";

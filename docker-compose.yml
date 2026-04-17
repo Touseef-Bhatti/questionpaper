@@ -1,4 +1,4 @@
-# Run: .\docker-up.ps1   OR   docker compose --env-file config/.env.local up -d
+# Run: .\docker-up.ps1   OR   docker compose --env-file config/.env up -d
 services:
   app:
     build:
@@ -9,7 +9,7 @@ services:
     ports:
       - "8000:80"
     env_file:
-      - config/.env.local
+      - config/.env
     volumes:
       - ./:/var/www/html:cached
     depends_on:
@@ -22,7 +22,7 @@ services:
     image: mysql:8.0
     container_name: paper_mysql
     env_file:
-      - config/.env.local
+      - config/.env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_DATABASE}

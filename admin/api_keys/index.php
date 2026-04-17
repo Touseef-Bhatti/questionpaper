@@ -327,7 +327,7 @@ include_once __DIR__ . '/../header.php';
 
         <?php if (!$hasVisibleAccounts): ?>
             <div class="alert alert-warning">
-                No active keys found. Please check your .env.local configuration.
+                No active keys found. Please check your config/.env configuration.
             </div>
         <?php endif; ?>
         

@@ -17,7 +17,7 @@ $submitted = false;
 $error = '';
 
 function get_site_url() {
-    // Prefer environment-configured URL from .env.local / .env.production
+    // Prefer environment-configured URL from .env
     $defaultUrl = 'https://ahmadlearninghub.com.pk';
 
     if (class_exists('EnvLoader')) {

@@ -2,22 +2,7 @@
 require_once __DIR__ . '/../config/env.php';
 
 // Force load environment file for CLI
-$envPath = __DIR__ . '/../config/.env.local';
-
-// Check if in production environment
-if ((defined('ENVIRONMENT') && ENVIRONMENT === 'production') || getenv('APP_ENV') === 'production') {
-    $envPath = __DIR__ . '/../config/.env.production';
-}
-
-// Use .env.production if it exists and .env.local doesn't
-if (!file_exists($envPath)) {
-    $alternativePath = (strpos($envPath, '.env.production') !== false) ? 
-        __DIR__ . '/../config/.env.local' : 
-        __DIR__ . '/../config/.env.production';
-    if (file_exists($alternativePath)) {
-        $envPath = $alternativePath;
-    }
-}
+$envPath = __DIR__ . '/../config/.env';
 
 if (file_exists($envPath)) {
     EnvLoader::reset(); // Reset to allow reloading
@@ -37,7 +22,7 @@ require_once __DIR__ . '/../db_connect.php';
 // Ensure APP_KEY is available
 $appKey = EnvLoader::get('APP_KEY');
 if (empty($appKey)) {
-    die("Error: APP_KEY is missing in environment variables. Please add it to .env.local first.\n");
+    die("Error: APP_KEY is missing in environment variables. Please add it to config/.env first.\n");
 }
 
 echo "Starting Encryption Migration...\n";

@@ -5,7 +5,7 @@
  * ============================================================================
  * 
  * Master class that handles:
- * - Configuration management (from .env.local)
+ * - Configuration management (from .env)
  * - Database operations for keys
  * - Key encryption/decryption
  * - Account and key selection logic

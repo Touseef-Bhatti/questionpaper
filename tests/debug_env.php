@@ -11,7 +11,7 @@ echo "SERVER_NAME: " . ($_SERVER['SERVER_NAME'] ?? 'Not set') . "\n";
 // Check if we're loading the right env file
 $serverName = $_SERVER['SERVER_NAME'] ?? 'production';
 $isLocal = in_array($serverName, ['localhost', '127.0.0.1', '::1']);
-$envFile = $isLocal ? __DIR__ . '/../config/.env.local' : __DIR__ . '/../config/.env.production';
+$envFile = __DIR__ . '/../config/.env';
 
 echo "Is Local: " . ($isLocal ? 'YES' : 'NO') . "\n";
 echo "Env file: " . $envFile . "\n";

@@ -4,11 +4,13 @@
 :root {
     --primary-color: #4f6ef7;
     --primary-dark-color: #3f5bd4;
+    --primary: #4f46e5; /* Added for header consistency */
     --accent-color: #e63946;
     --accent-dark-color: #d62828;
     --background-color: #f4f7fb;
     --card-background-color: #fff;
     --text-color: #333;
+    --text-primary: #1e293b; /* Added for header consistency */
     --heading-color: #2d3e50;
     --label-color: #555;
     --border-color: #eee;

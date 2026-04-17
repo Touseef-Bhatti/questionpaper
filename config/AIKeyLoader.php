@@ -1,10 +1,10 @@
 <?php
 /**
  * ============================================================================
- * AI Key Loader - Dynamic Configuration from .env.local
+ * AI Key Loader - Dynamic Configuration from .env
  * ============================================================================
  * 
- * Loads API keys dynamically from .env.local with support for:
+ * Loads API keys dynamically from .env with support for:
  * - Multiple accounts (Account 1 Primary, Account 2, etc.)
  * - Multiple keys per account (API_KEY_1, API_KEY_2, etc.)
  * - Per-key model configuration (each key can use different model)
@@ -30,34 +30,18 @@ class AIKeyLoader {
     /**
      * Constructor
      * 
-     * @param string $envPath Path to .env.local or .env.production file (optional)
+     * @param string $envPath Path to .env file (optional)
      */
     public function __construct($envPath = null) {
         if ($envPath === null) {
-            // Determine which environment file to use
-            $envPath = __DIR__ . '/.env.local';
-            
-            // Check if in production environment
-            if ((defined('ENVIRONMENT') && ENVIRONMENT === 'production') || getenv('APP_ENV') === 'production') {
-                $envPath = __DIR__ . '/.env.production';
-            }
-            
-            // Use .env.production if it exists and .env.local doesn't
-            if (!file_exists($envPath)) {
-                $alternativePath = (strpos($envPath, '.env.production') !== false) ? 
-                    __DIR__ . '/.env.local' : 
-                    __DIR__ . '/.env.production';
-                if (file_exists($alternativePath)) {
-                    $envPath = $alternativePath;
-                }
-            }
+            $envPath = __DIR__ . '/.env';
         }
         $this->envPath = $envPath;
         $this->loadEnvFile();
     }
     
     /**
-     * Load and parse .env.local file
+     * Load and parse .env file
      */
     private function loadEnvFile() {
         if (!file_exists($this->envPath)) {
