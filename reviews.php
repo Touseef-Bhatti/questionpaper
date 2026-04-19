@@ -125,8 +125,7 @@ function renderStars(int $rating): string {
         .reviews-main {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 2rem 1.5rem 4rem;
-            margin-top: 20%;
+            padding: 80px 1.5rem 4rem;
         }
         .reviews-hero {
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);

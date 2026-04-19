@@ -47,18 +47,36 @@ class AIKeyConfigManager {
             throw new Exception("Environment file not found: {$this->envPath}");
         }
         
-        $lines = file($this->envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $content = file_get_contents($this->envPath);
+        
+        // Remove BOM if present
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+        
+        // Split into lines regardless of line endings
+        $lines = preg_split('/\r\n|\r|\n/', $content);
         
         foreach ($lines as $line) {
+            $line = trim($line);
             // Skip comments and empty lines
-            if (strpos(trim($line), '#') === 0 || empty(trim($line))) {
+            if (empty($line) || strpos($line, '#') === 0) {
                 continue;
             }
             
             if (strpos($line, '=') !== false) {
                 list($key, $value) = explode('=', $line, 2);
                 $key = trim($key);
-                $value = trim($value, " \t\n\r\0\x0B\"'");
+                $value = trim($value);
+                
+                // Remove comments after value (if any, as long as it's not inside quotes)
+                if (!empty($value) && $value[0] !== '"' && $value[0] !== "'") {
+                    $value = trim(explode('#', $value)[0]);
+                }
+                
+                // Remove quotes if present
+                if ((strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1) ||
+                    (strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1)) {
+                    $value = substr($value, 1, -1);
+                }
                 
                 $this->envData[$key] = $value;
             }
@@ -82,7 +100,7 @@ class AIKeyConfigManager {
                 $modelKey = "KEY_{$keyNum}_MODEL";
                 $providerKey = "KEY_{$keyNum}_PROVIDER";
                 
-                $model = $this->envData[$modelKey] ?? getenv('AI_DEFAULT_MODEL') ?? 'gpt-4-turbo';
+                $model = $this->envData[$modelKey] ?? $this->envData['AI_DEFAULT_MODEL'] ?? getenv('AI_DEFAULT_MODEL') ?: '';
                 $provider = $this->envData[$providerKey] ?? 'openai';
                 
                 $this->keys[$keyNum] = [
@@ -256,8 +274,8 @@ class AIKeyConfigManager {
      */
     public function getSystemConfig() {
         return [
-            'default_model' => getenv('AI_DEFAULT_MODEL') ?? 'gpt-4-turbo',
-            'fallback_model' => getenv('AI_FALLBACK_MODEL') ?? 'gpt-3.5-turbo',
+            'default_model' => $this->envData['AI_DEFAULT_MODEL'] ?? getenv('AI_DEFAULT_MODEL') ?: '',
+            'fallback_model' => $this->envData['AI_FALLBACK_MODEL'] ?? getenv('AI_FALLBACK_MODEL') ?: '',
             'daily_quota_per_key' => intval(getenv('AI_DAILY_QUOTA_PER_KEY') ?? 100000),
             'max_retries' => intval(getenv('AI_MAX_RETRIES') ?? 3),
             'retry_delay_ms' => intval(getenv('AI_RETRY_DELAY_MS') ?? 100),

@@ -1,7 +1,7 @@
 <?php
 session_start();
+require_once __DIR__ . '/../auth/auth_check.php';
 require_once __DIR__ . '/../config/env.php';
-
 $appName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
 $pageTitle       = "Free Online Question Paper Generator | MCQs, Short & Long Questions – " . $appName;
 $metaDescription = "Generate MCQ question papers, short question papers, and long question papers online for free. Instantly create exam-ready papers by topic for 9th, 10th, GCSE, and university students using AI.";
@@ -326,6 +326,97 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
                     </button>
                 </div>
             </form>
+        </div>
+
+        <!-- FILE UPLOAD TRIGGER CARD -->
+        <div class="text-upload-trigger" id="textUploadTrigger" onclick="openTextUploadModal()">
+            <div class="text-upload-trigger-icon">
+                <i class="fas fa-file-upload"></i>
+            </div>
+            <div class="text-upload-trigger-content">
+                <div class="text-upload-trigger-title">Upload a File & Generate Questions</div>
+                <div class="text-upload-trigger-desc">PDF, Word, PowerPoint, or an image — MCQs, short & long questions from your file only (max 10 MB)</div>
+            </div>
+            <div class="text-upload-trigger-arrow">
+                <i class="fas fa-arrow-right"></i>
+            </div>
+        </div>
+
+        <!-- FILE UPLOAD MODAL -->
+        <div class="text-upload-modal" id="textUploadModal">
+            <div class="text-upload-modal-card">
+                <div class="text-upload-modal-header">
+                    <div>
+                        <h3 class="text-upload-modal-title"><i class="fas fa-magic"></i> AI File Analyzer</h3>
+                        <p class="text-upload-modal-subtitle">Upload one file; questions are generated only from its content</p>
+                    </div>
+                    <button type="button" class="text-upload-close-btn" onclick="closeTextUploadModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="text-upload-modal-body">
+                    <div class="text-upload-file-wrapper">
+                        <label class="text-upload-file-label" for="documentUploadInput">
+                            <i class="fas fa-paperclip"></i> Choose file
+                        </label>
+                        <input type="file" id="documentUploadInput" class="text-upload-file-input" name="document" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/*">
+                        <div class="text-upload-file-meta">
+                            <span id="documentUploadFilename" class="text-upload-filename">No file selected</span>
+                            <span class="text-upload-hint" title="Legacy .doc/.ppt may need to be saved as PDF or DOCX/PPTX if upload fails">PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, WEBP, GIF · max 10 MB</span>
+                        </div>
+                    </div>
+
+                    <div class="text-upload-config">
+                        <div class="text-upload-config-title">Question Types to Generate</div>
+                        <div class="text-upload-types">
+                            <label class="text-upload-type-checkbox">
+                                <input type="checkbox" id="textTypeMcqs" checked>
+                                <span class="text-upload-type-label mcq-label"><i class="fas fa-list-ul"></i> MCQs</span>
+                                <div class="text-upload-count-control">
+                                    <button type="button" onclick="adjustTextCount('textCountMcqs', -1)">−</button>
+                                    <input type="number" id="textCountMcqs" value="5" min="1" max="30">
+                                    <button type="button" onclick="adjustTextCount('textCountMcqs', 1)">+</button>
+                                </div>
+                            </label>
+                            <label class="text-upload-type-checkbox">
+                                <input type="checkbox" id="textTypeShort" checked>
+                                <span class="text-upload-type-label short-label"><i class="fas fa-align-left"></i> Short Q's</span>
+                                <div class="text-upload-count-control">
+                                    <button type="button" onclick="adjustTextCount('textCountShort', -1)">−</button>
+                                    <input type="number" id="textCountShort" value="3" min="1" max="20">
+                                    <button type="button" onclick="adjustTextCount('textCountShort', 1)">+</button>
+                                </div>
+                            </label>
+                            <label class="text-upload-type-checkbox">
+                                <input type="checkbox" id="textTypeLong" checked>
+                                <span class="text-upload-type-label long-label"><i class="fas fa-align-justify"></i> Long Q's</span>
+                                <div class="text-upload-count-control">
+                                    <button type="button" onclick="adjustTextCount('textCountLong', -1)">−</button>
+                                    <input type="number" id="textCountLong" value="2" min="1" max="10">
+                                    <button type="button" onclick="adjustTextCount('textCountLong', 1)">+</button>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="text-upload-error" id="textUploadError" style="display:none;"></div>
+
+                    <div class="text-upload-progress" id="textUploadProgress" style="display:none;">
+                        <div class="text-upload-progress-bar-track">
+                            <div class="text-upload-progress-bar" id="textProgressBar"></div>
+                        </div>
+                        <div class="text-upload-progress-text" id="textProgressText">Reading your file...</div>
+                    </div>
+
+                    <div class="text-upload-results" id="textUploadResults" style="display:none;"></div>
+                </div>
+                <div class="text-upload-modal-footer">
+                    <button type="button" class="text-upload-cancel-btn" onclick="closeTextUploadModal()">Cancel</button>
+                    <button type="button" class="text-upload-generate-btn" id="textGenerateBtn" onclick="generateFromFile()">
+                        <i class="fas fa-bolt"></i> Generate Questions
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- SELECTED TOPICS CONTAINER -->
@@ -828,7 +919,235 @@ document.addEventListener('DOMContentLoaded',()=>{
             if(e.key==='Enter') handleSearch(null);
         });
     }
+    document.getElementById('documentUploadInput')?.addEventListener('change', function() {
+        const fn = document.getElementById('documentUploadFilename');
+        if(fn) fn.textContent = (this.files && this.files[0]) ? this.files[0].name : 'No file selected';
+    });
 });
+
+// ================================================================
+// TEXT UPLOAD MODAL
+// ================================================================
+function openTextUploadModal() {
+    const modal = document.getElementById('textUploadModal');
+    const fin = document.getElementById('documentUploadInput');
+    const fn = document.getElementById('documentUploadFilename');
+    if(fin) fin.value = '';
+    if(fn) fn.textContent = 'No file selected';
+    if(modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => modal.classList.add('active'), 10);
+    }
+}
+
+function closeTextUploadModal() {
+    const modal = document.getElementById('textUploadModal');
+    if(modal) {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
+    }
+}
+
+function adjustTextCount(inputId, delta) {
+    const inp = document.getElementById(inputId);
+    if(!inp) return;
+    let val = parseInt(inp.value) || 1;
+    val = Math.max(parseInt(inp.min)||1, Math.min(val + delta, parseInt(inp.max)||30));
+    inp.value = val;
+}
+
+async function generateFromFile() {
+    const fileInput = document.getElementById('documentUploadInput');
+    const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    const errorEl = document.getElementById('textUploadError');
+    const progressEl = document.getElementById('textUploadProgress');
+    const progressBar = document.getElementById('textProgressBar');
+    const progressText = document.getElementById('textProgressText');
+    const resultsEl = document.getElementById('textUploadResults');
+    const genBtn = document.getElementById('textGenerateBtn');
+
+    errorEl.style.display = 'none';
+    resultsEl.style.display = 'none';
+
+    if(!file) {
+        errorEl.textContent = 'Please choose a file to upload.';
+        errorEl.style.display = 'block';
+        return;
+    }
+    if(file.size > 10 * 1024 * 1024) {
+        errorEl.textContent = 'File is too large. Maximum size is 10 MB.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const types = [];
+    if(document.getElementById('textTypeMcqs')?.checked) types.push('mcqs');
+    if(document.getElementById('textTypeShort')?.checked) types.push('short');
+    if(document.getElementById('textTypeLong')?.checked) types.push('long');
+
+    if(types.length === 0) {
+        errorEl.textContent = 'Please select at least one question type.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    progressEl.style.display = 'block';
+    genBtn.disabled = true;
+    genBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+    const progressSteps = [
+        'Reading your file...',
+        'Sending to AI...',
+        'Crafting questions...',
+        'Validating answers...',
+        'Finalizing...'
+    ];
+    let stepIdx = 0;
+    let pVal = 0;
+    const pInterval = setInterval(() => {
+        pVal = Math.min(pVal + 3, 92);
+        if(progressBar) progressBar.style.width = pVal + '%';
+        if(pVal % 18 === 0 && stepIdx < progressSteps.length - 1) {
+            stepIdx++;
+            if(progressText) progressText.textContent = progressSteps[stepIdx];
+        }
+    }, 400);
+
+    try {
+        const formData = new FormData();
+        formData.append('document', file);
+        types.forEach(t => formData.append('question_types[]', t));
+        formData.append('count_mcqs', document.getElementById('textCountMcqs')?.value || 5);
+        formData.append('count_short', document.getElementById('textCountShort')?.value || 3);
+        formData.append('count_long', document.getElementById('textCountLong')?.value || 2);
+
+        const base = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+        const res = await fetch(base + '/generate_from_upload.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await res.json();
+        clearInterval(pInterval);
+        if(progressBar) progressBar.style.width = '100%';
+
+        if(data.success) {
+            progressEl.style.display = 'none';
+            window._generatedTextData = data;
+            window._generatedTextTypes = types;
+            submitGeneratedPaper();
+        } else {
+            progressEl.style.display = 'none';
+            errorEl.textContent = data.error || 'Failed to generate questions. Please try again.';
+            errorEl.style.display = 'block';
+        }
+    } catch(e) {
+        clearInterval(pInterval);
+        progressEl.style.display = 'none';
+        errorEl.textContent = 'Network error. Please check your connection and try again.';
+        errorEl.style.display = 'block';
+        console.error('Generate from file error:', e);
+    } finally {
+        genBtn.disabled = false;
+        genBtn.innerHTML = '<i class="fas fa-bolt"></i> Generate Questions';
+    }
+}
+
+function displayTextResults(data, types) {
+    const resultsEl = document.getElementById('textUploadResults');
+    if(!resultsEl) return;
+
+    let html = '<div class="text-results-header"><i class="fas fa-check-circle"></i> Questions Generated Successfully!</div>';
+    if(data.detected_topic) {
+        html += `<div class="text-preview-section" style="margin:10px 0;color:var(--text-muted);font-weight:600;">Topic: ${sanitize(data.detected_topic)}</div>`;
+    }
+    if(data.recheck_status === 'pending') {
+        html += '<div class="text-preview-section" style="margin:8px 0;font-size:0.9rem;color:var(--text-muted);"><i class="fas fa-sync-alt fa-spin" style="margin-right:6px;"></i> Verifying answers and adding explanations in the background (you can continue).</div>';
+    }
+    html += '<div class="text-results-summary">';
+    if(data.mcqs?.length) html += `<span class="text-result-badge mcq-badge">${data.mcqs.length} MCQs</span>`;
+    if(data.short?.length) html += `<span class="text-result-badge short-badge">${data.short.length} Short</span>`;
+    if(data.long?.length) html += `<span class="text-result-badge long-badge">${data.long.length} Long</span>`;
+    html += '</div>';
+
+    // Preview some questions
+    html += '<div class="text-results-preview">';
+    if(data.mcqs?.length) {
+        html += '<div class="text-preview-section"><strong>Sample MCQ:</strong> ' + sanitize(data.mcqs[0].question) + '</div>';
+    }
+    if(data.short?.length) {
+        html += '<div class="text-preview-section"><strong>Sample Short:</strong> ' + sanitize(data.short[0].question) + '</div>';
+    }
+    if(data.long?.length) {
+        html += '<div class="text-preview-section"><strong>Sample Long:</strong> ' + sanitize(data.long[0].question) + '</div>';
+    }
+    html += '</div>';
+
+    html += '<button type="button" class="text-upload-submit-btn" onclick="submitGeneratedPaper()"><i class="fas fa-file-signature"></i> View & Download Full Paper</button>';
+
+    resultsEl.innerHTML = html;
+    resultsEl.style.display = 'block';
+
+    // Store data globally for submission
+    window._generatedTextData = data;
+    window._generatedTextTypes = types;
+}
+
+function submitGeneratedPaper() {
+    const data = window._generatedTextData;
+    const types = window._generatedTextTypes;
+    if(!data) return;
+
+    const topicLabel = (data.detected_topic && String(data.detected_topic).trim()) ? String(data.detected_topic).trim() : 'AI Generated from Upload';
+
+    // Show AI loader
+    if(typeof showAILoader === 'function') {
+        showAILoader([
+            { label: 'Preparing paper', duration: 2000 },
+            { label: 'Formatting questions', duration: 2000 },
+            { label: 'Building layout', duration: 2000 }
+        ], 'Creating your question paper...');
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'generate_ai_paper.php';
+
+    const topicInput = document.createElement('input');
+    topicInput.type = 'hidden';
+    topicInput.name = 'topics[]';
+    topicInput.value = topicLabel;
+    form.appendChild(topicInput);
+
+    // Add counts
+    const addHidden = (name, val) => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = name; inp.value = val;
+        form.appendChild(inp);
+    };
+
+    addHidden('total_mcqs', data.mcqs?.length || 0);
+    addHidden('total_shorts', data.short?.length || 0);
+    addHidden('total_longs', data.long?.length || 0);
+    addHidden('source', 'file_upload');
+    addHidden('header_design', selectedDesign);
+
+    // Serialize generated questions into session via hidden fields
+    addHidden('ai_generated_json', JSON.stringify(data));
+
+    if(data.mcqs?.length) addHidden('topics_mcqs[]', topicLabel);
+    if(data.short?.length) addHidden('topics_short[]', topicLabel);
+    if(data.long?.length) addHidden('topics_long[]', topicLabel);
+
+    types.forEach(t => addHidden('active_types[]', t));
+
+    document.body.appendChild(form);
+    setTimeout(() => form.submit(), 500);
+}
 </script>
 
 <?php require_once __DIR__ . '/../footer.php'; ?>

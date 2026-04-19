@@ -346,6 +346,36 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
     }
 }
 
+// Session prefetch: MCQs just generated (e.g. file upload) passed from mcqs_topic.php
+if (count($questions) < $mcq_count && !empty($_SESSION['quiz_prefetch_mcqs']) && is_array($_SESSION['quiz_prefetch_mcqs'])) {
+    $prefetch = $_SESSION['quiz_prefetch_mcqs'];
+    unset($_SESSION['quiz_prefetch_mcqs']);
+    foreach ($prefetch as $row) {
+        if (!is_array($row) || count($questions) >= $mcq_count) {
+            break;
+        }
+        $qtext = trim((string) ($row['question'] ?? ''));
+        if ($qtext === '') {
+            continue;
+        }
+        $rid = $row['id'] ?? null;
+        $suffix = (is_numeric($rid) && (int) $rid > 0) ? (string) (int) $rid : preg_replace('/[^a-zA-Z0-9_-]/', '', (string) $rid);
+        if ($suffix === '') {
+            $suffix = substr(sha1($qtext . ($row['correct_option'] ?? '')), 0, 12);
+        }
+        $questions[] = [
+            'mcq_id'         => 'ai_' . $suffix,
+            'question'       => $qtext,
+            'option_a'       => (string) ($row['option_a'] ?? ''),
+            'option_b'       => (string) ($row['option_b'] ?? ''),
+            'option_c'       => (string) ($row['option_c'] ?? ''),
+            'option_d'       => (string) ($row['option_d'] ?? ''),
+            'correct_option' => (string) ($row['correct_option'] ?? ''),
+            'explanation'    => $row['explanation'] ?? null,
+        ];
+    }
+}
+
 // If still empty after generation attempt, show error
 if (empty($questions)) {
     die('<h2 style="color:red;">Unable to generate quiz. Please try again or contact support.</h2>');

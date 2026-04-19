@@ -49,7 +49,12 @@ class AIKeyLoader {
         }
         
         $content = file_get_contents($this->envPath);
-        $lines = explode("\n", $content);
+        
+        // Remove BOM if present
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+        
+        // Split into lines regardless of line endings
+        $lines = preg_split('/\r\n|\r|\n/', $content);
         
         foreach ($lines as $line) {
             $line = trim($line);
@@ -65,9 +70,14 @@ class AIKeyLoader {
                 $key = trim($key);
                 $value = trim($value);
                 
+                // Remove comments after value (if any, as long as it's not inside quotes)
+                if (!empty($value) && $value[0] !== '"' && $value[0] !== "'") {
+                    $value = trim(explode('#', $value)[0]);
+                }
+                
                 // Remove quotes if present
-                if ((strpos($value, '"') === 0 && strpos($value, '"') === strlen($value) - 1) ||
-                    (strpos($value, "'") === 0 && strpos($value, "'") === strlen($value) - 1)) {
+                if ((strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1) ||
+                    (strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1)) {
                     $value = substr($value, 1, -1);
                 }
                 
@@ -99,17 +109,18 @@ class AIKeyLoader {
             $processedKeys = array_merge($processedKeys, array_keys($primaryKeys));
         }
         
-        // Pattern 2: API_KEY_N (Account 2 Secondary)
+        // Pattern 2: API_KEY_N or KEY_N (Account 2 Secondary)
         // Only match if not _PRIMARY (to avoid duplicates)
         $secondaryKeys = [];
         foreach ($this->envData as $key => $value) {
-            // Match API_KEY_N but NOT API_KEY_N_PRIMARY
-            if (preg_match('/^API_KEY_(\d+)$/', $key, $matches) && !in_array($key, $processedKeys)) {
+            // Match API_KEY_N or KEY_N but NOT API_KEY_N_PRIMARY
+            if ((preg_match('/^API_KEY_(\d+)$/', $key, $matches) || preg_match('/^KEY_(\d+)$/', $key, $matches)) 
+                && !in_array($key, $processedKeys)) {
                 $keyNum = intval($matches[1]);
                 $secondaryKeys[$keyNum] = [
                     'name' => $key,
                     'value' => $this->parseKeyValue($value),
-                    'model' => $this->getKeyModel($key) ?: 'gpt-4-turbo',
+                    'model' => $this->getKeyModel($key) ?: ($this->envData['AI_DEFAULT_MODEL'] ?? ''),
                     'index' => $keyNum
                 ];
             }
@@ -150,7 +161,7 @@ class AIKeyLoader {
                 $keys[$keyNum] = [
                     'name' => $key,
                     'value' => $this->parseKeyValue($value),
-                    'model' => $this->getKeyModel($key) ?: 'gpt-4-turbo',
+                    'model' => $this->getKeyModel($key) ?: ($this->envData['AI_DEFAULT_MODEL'] ?? ''),
                     'index' => $keyNum
                 ];
             }
@@ -177,7 +188,7 @@ class AIKeyLoader {
     
     /**
      * Get model for a specific key from .env
-     * Format: API_KEY_1_MODEL=gpt-4
+     * Format: API_KEY_1_MODEL=your-model-name
      * 
      * @param string $keyName Key name (e.g., 'API_KEY_1')
      * @return string|null Model name or null if not set

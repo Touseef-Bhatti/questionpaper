@@ -5,6 +5,7 @@
 require_once __DIR__ . '/../../includes/admin_auth.php';
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../../config/env.php';
+require_once __DIR__ . '/../../services/AIKeyRotator.php';
 require_once __DIR__ . '/TopicAIService.php';
 
 // Verify admin access
@@ -13,15 +14,19 @@ $admin = requireAdminRole('admin');
 // Load environment variables
 EnvLoader::load();
 
-// Use the specific API key for keyword generation (NVIDIA Key)
-$apiKey = EnvLoader::get('GENERATING_KEYWORDS_KEY');
+// Use the rotator for keyword generation
+$rotator = new AIKeyRotator();
+$aiData = $rotator->getNextKey();
 
-if (!$apiKey) {
+if (!$aiData) {
     die(json_encode([
         'success' => false, 
-        'error' => 'NVIDIA API key "GENERATING_KEYWORDS_KEY" not found in config/.env.'
+        'error' => 'No active AI API keys found in config/.env.'
     ]));
 }
+
+$apiKey = $aiData['key'];
+$model = $aiData['model'];
 
 $idsJson = $_POST['ids'] ?? '[]';
 $ids = json_decode($idsJson, true);
@@ -48,10 +53,10 @@ foreach ($ids as $id) {
     
     $topicName = $topicData['topic_name'];
     
-    // Use NVIDIA AI for keyword generation
+    // Use AI for keyword generation (handles both NVIDIA and OpenRouter keys)
     $prompt = "For the topic: \"$topicName\", return exactly 5 relevant keywords as a simple comma-separated string. Keywords should be short (1-3 words each). Return ONLY the comma-separated string. No other text.";
     
-    list($respBody, $code) = TopicAIService::callAI($apiKey, $prompt);
+    list($respBody, $code) = TopicAIService::callAI($apiKey, $prompt, $model);
     
     if ($code === 200 && !empty($respBody)) {
         // Clean up the response

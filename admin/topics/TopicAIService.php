@@ -4,6 +4,13 @@
  * Uses NVIDIA's OpenAI-compatible API for keyword generation.
  */
 
+require_once __DIR__ . '/../../config/env.php';
+
+// Ensure environment variables are loaded
+if (class_exists('EnvLoader')) {
+    EnvLoader::load();
+}
+
 class TopicAIService {
     
     /**
@@ -13,8 +20,20 @@ class TopicAIService {
      * @param string $model The model to use
      * @return array [response_text, http_code]
      */
-    public static function callAI($apiKey, $prompt, $model = "qwen/qwen3-next-80b-a3b-instruct") {
-        $url = "https://integrate.api.nvidia.com/v1/chat/completions";
+    public static function callAI($apiKey, $prompt, $model = null) {
+        if ($model === null || $model === "") {
+            $model = class_exists('EnvLoader') ? EnvLoader::get('AI_DEFAULT_MODEL', '') : '';
+        }
+        
+        if (empty($model)) {
+            return ["Error: No AI model specified and no default model found in environment.", 400];
+        }
+        
+        // Determine URL based on key type
+        $isNvidia = (strpos($apiKey, 'nvapi-') === 0);
+        $url = $isNvidia 
+            ? "https://integrate.api.nvidia.com/v1/chat/completions"
+            : "https://openrouter.ai/api/v1/chat/completions";
         
         $payload = [
             'model' => $model,
@@ -24,18 +43,25 @@ class TopicAIService {
             'temperature' => 0.6,
             'top_p' => 0.7,
             'max_tokens' => 1024,
-            'stream' => false // Stream is false for simpler PHP handling
+            'stream' => false
         ];
+
+        $headers = [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey
+        ];
+        
+        if (!$isNvidia) {
+            $headers[] = 'HTTP-Referer: https://paper.bhattichemicalsindustry.com.pk';
+            $headers[] = 'X-Title: Ahmad Learning Hub';
+        }
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $apiKey
-            ],
+            CURLOPT_HTTPHEADER => $headers,
             CURLOPT_TIMEOUT => 60,
         ]);
 

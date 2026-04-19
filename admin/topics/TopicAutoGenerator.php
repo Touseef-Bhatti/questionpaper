@@ -7,10 +7,12 @@
 class TopicAutoGenerator {
     private $conn;
     private $apiKey;
+    private $model;
     
-    public function __construct($conn, $apiKey) {
+    public function __construct($conn, $apiKey, $model = null) {
         $this->conn = $conn;
         $this->apiKey = $apiKey;
+        $this->model = $model;
     }
     
     /**
@@ -54,7 +56,7 @@ class TopicAutoGenerator {
             
             $prompt = "For the topic: \"$name\", return exactly 5 relevant keywords as a simple comma-separated string. Keywords should be short (1-3 words each). Return ONLY the comma-separated string. No other text.";
             
-            list($respBody, $code) = TopicAIService::callAI($this->apiKey, $prompt);
+            list($respBody, $code) = TopicAIService::callAI($this->apiKey, $prompt, $this->model);
             
             if ($code === 200 && !empty($respBody)) {
                 $keywords = trim($respBody, " \n\r\t\"'#*");

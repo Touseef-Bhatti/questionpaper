@@ -1,0 +1,1038 @@
+Machine Learning
+Data preparation and preprocessing
+Lecture – 2 to 3 
+Instructor: Muhammad Umer Ramzan
+Objectives	
+Understand different types of data used in ML
+Explore and visualize data
+Clean and handle missing or incorrect data
+Encode categorical data
+Scale numerical data
+Split data for training and testing
+Why Data Matters?
+80% of ML project time is spent on data
+Poor quality data leads to poor predictions
+Bad dataset can’t be fixed with good algorithm: “
+Better data beats better algorithms
+” by Andrew Ng
+What makes data poor?
+Data bias/imbalance:
+ A hiring algorithm trained mostly on resumes from male candidates started 
+rejecting women
+ disproportionately.
+Missing values/outliers/duplicates/incorrect labels:
+ Microsoft’s chatbot Tay started tweeting offensive messages because it learned from biased user input online within hours
+ 
+Missing features:
+ What would the diagnosis be if the doctor were unaware of your age, while age was a crucial factor?
+Types of Data
+Numerical
+Continuous
+: Age, height, etc.
+Discrete
+: Number of products, number of steps, etc.
+Categorical
+Nominal
+: Gender, Color, Country, etc. 
+Ordinal
+: Categorical but with meaningful order. For example: Education level (High School, Bachelor’s, Master’s, PhD), customer satisfaction (Poor, Fair, Good, Excellent). 
+Binary
+Textual: Customer reviews, articles, tweets.
+Image: 
+Photographs
+, 
+medical
+ images (X-rays, 
+MRIs
+), satellite images
+Audio: 
+Voice commands, music, audio recordings.
+Video: Surveillance footage, video clips for action recognition, facial recognition.
+Data Repositories 
+Kaggle Datasets: 
+https://www.kaggle.com/datasets
+ 
+UCI Machine Learning Repository: 
+https://archive.ics.uci.edu/ml/index.php
+Google Dataset Search: 
+https://datasetsearch.research.google.com/
+ 
+AWS Public Datasets: 
+https://registry.opendata.aws/
+ 
+Microsoft Research Open Data: 
+https://msropendata.com/
+Data.gov: 
+https://www.data.gov/
+OpenML
+: 
+https://www.openml.org/
+Hugging Face Datasets (for NLP & Vision): 
+https://huggingface.co/datasets
+ 
+Papers with Code Datasets: 
+https://paperswithcode.com/datasets
+ 
+Data Preprocessing Steps
+Data Collection
+Data Cleaning: Missing data, duplicates, outliers, inconsistencies (typos, units, formats, etc.).
+Data Transformation: Scaling, encoding (one-hot), binning (age groups), etc.
+Feature engineering: Feature construction, feature selection, dimensionality reduction.
+Data splitting: Training/Testing sets
+Data Balancing: Oversampling/under sampling
+Data Augmentation: Image (rotation, flipping, zooming, and shifting), Audio (pitch shift, time-stretching, etc.) 
+Text Data Preprocessing
+Tokenization
+Stop-word removal
+Stemming
+Lemmatization 
+Vectorization (TF-IDF)
+Audio Data Preprocessing
+File loading
+Resampling: To ensure the audio has a consistent sample rate
+Noise Reduction: Spectral gating, etc. 
+Framing/Windowing: Split the audio signal into smaller frames
+Feature Extraction: 
+MFCC (Mel-Frequency Cepstral Coefficients), Spectrogram, Mel-Spectrogram
+Normalization of extracted features
+Data Augmentation
+Label encoding
+Image Data Preprocessing
+Loading Image file
+Resizing
+Normalizing pixel values
+Data Augmentation
+Converting to grayscale
+Channel-wise normalization
+Reshaping
+Label encoding
+Video Data Preprocessing Pipeline
+File loading
+Frame extraction
+Resizing
+Frame Normalization
+Frame sequence
+Feature extraction
+Data augmentation
+Temporal smoothing: Averaging, etc.
+Label encoding
+Important Libraries 
+pandas
+ for data manipulation and analysis
+numpy
+ for numerical computations
+matplotlib
+ for basic data visualization 
+seaborn
+ for statistical visualization 
+Data Exploration
+Benefits:
+ Data understanding, problem (missing/imbalance) identification, insights for feature engineering and model selection. 
+Data Cleaning Pipeline
+Load the data
+Inspect (shape, types, head, summary)
+Handle missing values
+Fix types and formats
+Remove duplicates
+Clean text
+ and categorical variables
+Data Cleaning
+ – Data Loading
+From Local Drive
+df
+ = 
+pd.read_csv
+("data.csv")
+df
+ = 
+pd.read_excel
+("data.xlsx")
+From a URL
+df
+ = 
+pd.read_csv
+(
+url
+)
+From Google Drive
+from 
+google.colab
+ import drive
+   
+drive.mount
+('/content/drive’)
+   
+df
+ = 
+pd.read_csv
+('/content/drive/
+MyDrive
+/data.csv’)
+Built-in Datasets from Libraries
+import seaborn as 
+sns
+    
+df
+ = 
+sns.load_dataset
+("titanic")
+From Databases
+import sqlite3
+     conn = sqlite3.connect("
+my_database.db
+")
+     
+df
+ = 
+pd.read_sql_query
+("SELECT * FROM 
+my_table
+", conn)
+From Lists/Dictionaries/Arrays
+df
+ = 
+pd.DataFrame
+({  "Name": ["Ali", "Sara"], "Age": [23, 25]})
+Data Cleaning
+ – Data Inspection
+It is done to detect nulls, identify wrong data types, find suspicious values, decide on encoding, cleaning, or imputation.
+Some common actions
+Shape (Rows and Columns) 
+Preview the First n Rows
+Preview the Last n Rows
+Summary of Dataset
+ (Col Names, non-null counts, data types, memory usage)
+Statistical Summary (count, mean, std, min, 25%, 50%, 75%, max) 
+Data types of each column
+List of All Column Names
+Count of Non-Null Values in Each Column
+Number of Unique Values per Column
+Missing Values Per Column
+Data Cleaning
+ – Data Inspection
+It is done to detect nulls, identify wrong data types, find suspicious values, decide on encoding, cleaning, or imputation.
+Some common actions
+Shape (Rows and Columns) 
+
+ 
+df.shape
+Preview the First n Rows 
+ 
+df.head
+(10)
+Preview the Last n Rows 
+ 
+df.tail
+(3)
+Summary of Dataset
+ (Col Names, non-null counts, data types, memory usage) df.info()
+Statistical Summary (count, mean, std, min, 25%, 50%, 75%, max) 
+ 
+df.describe
+()
+Data types of each column 
+ 
+df.dtypes
+List of All Column Names 
+ 
+df.columns
+Count of Non-Null Values in Each Column 
+ 
+df.count
+()
+Number of Unique Values per Column 
+ 
+df.nunique
+()
+Missing Values Per Column
+  
+df.isnull
+().sum()
+Data Cleaning
+ – Handling Missing Values
+Remove missing values:
+ Used when missing values are fewer or less essential. 
+Drop row, 
+Drop column, Drop with threshold
+Imputation:
+ Filling missing values.
+Constant imputation (for absence of value)
+Mean imputation (normally distributed)
+Median imputation (
+outliers
+)
+Mode imputation (
+categorical
+)
+Forward/Backward fill (for 
+time series or ordered data
+)
+Group-based Imputation
+Interpolation
+Advanced/Model-based Imputation:
+K-NN Imputation, Iterative Imputation (MICE), Regression-based Imputation, DL-based Imputation, 
+Expectation-Maximization (EM) based Imputation, 
+Implicit handling by the model: 
+XGBoost
+, 
+CatBoost
+Data Cleaning
+ – Handling Missing Values
+Remove missing values:
+ Used when missing values are fewer or less essential. 
+Drop row 
+ 
+df.dropna
+()
+Drop column  
+df.dropna
+(axis=1)
+Drop with threshold  
+df.dropna
+(thresh=3)
+Imputation:
+ Filling missing values.
+Constant imputation (for absence of value)  
+df
+['age'].
+fillna
+(0, 
+inplace
+=True)
+Mean imputation (normally distributed)  
+df
+['age'].
+fillna
+(
+df
+['age'].mean(), 
+inplace
+=True)
+Median imputation (
+outliers
+)  
+df
+['age'].
+fillna
+(
+df
+['age'].median(), 
+inplace
+=True)
+Mode imputation (
+categorical
+) 
+ 
+df
+['gender'].
+fillna
+(
+df
+['gender'].mode()[0], 
+inplace
+=True)
+Forward/Backward fill (for 
+time series or ordered data
+)  
+df.fillna
+(method='
+ffill
+')  # forward fill / backward 
+bfill
+Group-based Imputation 
+ 
+df
+['salary'] = 
+df.groupby
+('gender')['salary'].transform(lambda x: 
+x.fillna
+(
+x.mean
+()))
+Interpolation  
+df
+['age'] = 
+df
+['age'].interpolate(method='linear')
+Advanced/Model-based Imputation:
+K-NN Imputation, Iterative Imputation (MICE), Regression-based Imputation, DL-based Imputation, 
+Expectation-Maximization (EM) based Imputation, 
+Implicit handling by the model: 
+XGBoost
+, 
+CatBoost
+Exercise
+Name
+Gender
+Age (Mean)
+Salary (Median)
+City (Mode)
+Score (Interpolation)
+Experience (Ffill)
+Rating (Bfill)
+Height (Group-Mean)
+Level (Constant)
+Ali
+Male
+25.0
+50000
+Lahore
+88.0
+1.0
+ 
+5.60
+ 
+Sara
+Female
+ 
+54000
+ 
+ 
+2.0
+4.2
+ 
+Junior
+John
+Male
+28.0
+ 
+Karachi
+85.0
+ 
+4.5
+5.80
+Mid
+Aisha
+Female
+ 
+58000
+Islamabad
+90.0
+4.0
+ 
+ 
+ 
+Tom
+Male
+30.0
+ 
+Lahore
+ 
+ 
+4.8
+6.00
+Senior
+Zara
+Female
+26.0
+52000
+ 
+95.0
+6.0
+5.0
+5.50
+Mid
+Exercise - Solution
+Name
+Gender
+Age (Mean)
+Salary (Median)
+City (Mode)
+Score (Interpolation)
+Experience (Ffill)
+Rating (Bfill)
+Height (Group-Mean)
+Level (Constant)
+Ali
+Male
+25.00
+50000.0
+Lahore
+88.0
+1.0
+4.2
+5.60
+Unknown
+Sara
+Female
+27.25
+54000.0
+Lahore
+86.5
+2.0
+4.2
+5.5
+Junior
+John
+Male
+28.00
+53000.0
+Karachi
+85.0
+2.0
+4.5
+5.80
+Mid
+Aisha
+Female
+27.25
+58000.0
+Islamabad
+90.0
+4.0
+4.8
+5.5
+Unknown
+Tom
+Male
+30.00
+53000.0
+Lahore
+92.5
+4.0
+4.8
+6.00
+Senior
+Zara
+Female
+26.00
+52000.0
+Lahore
+95.0
+6.0
+5.0
+5.50
+Mid
+Data Cleaning 
+– Fixing Types & Formats
+Converting columns to the correct data type
+Standardizing formats like dates, numbers, and strings
+Removing inconsistencies or unwanted characters
+Data Cleaning 
+– Fixing Types & Formats
+To numeric: 
+df
+['Salary'] = 
+pd.to_numeric
+(
+df
+['Salary'], errors='coerce’)
+To Datetime: 
+df
+['
+JoinDate
+'] = 
+pd.to_datetime
+(
+df
+['
+JoinDate
+'], errors='coerce’)
+To Category: 
+df
+['Gender'] = 
+df
+['Gender'].
+astype
+('category’)
+String Cleaning: 
+df
+['Email'] = 
+df
+['Email'].
+str.strip
+().
+str.lower
+()
+Fix Currency: 
+df
+['Price'] = 
+df
+['Price'].
+str.replace
+('$', '').
+astype
+(float)
+Fix Percent: 
+df
+['Discount'] = 
+df
+['Discount'].
+str.replace
+('%', '').
+astype
+(float)
+Data Cleaning
+ – Dealing with Duplicates
+Remove All Fully Duplicated Rows
+Remove Duplicates Based on Specific Columns
+Remove All Duplicates (including the first/last)
+Data Cleaning
+ – Dealing with Duplicates
+Remove All Fully Duplicated Rows
+  
+df.drop_duplicates
+(
+inplace
+=True)
+Remove Duplicates Based on Specific Columns 
+ 
+df.drop_duplicates
+(subset=['Column1', 'Column2'], keep='first', 
+inplace
+=True)
+Remove All Duplicates (including the first) 
+ 
+df
+ = 
+df
+[~
+df.duplicated
+(keep=False)]
+Remove Duplicates in a Single Column 
+ 
+df
+['Email'].
+drop_duplicates
+()
+Reset Index After Removing Duplicates 
+ 
+df
+ = 
+df.drop_duplicates
+().
+reset_index
+(drop=True)
+Data Cleaning
+ – Cleaning Text
+Remove Punctuation & Special Characters
+Convert to Lowercase
+Remove Extra Whitespace
+Remove Stop Words
+Remove Numbers
+Stemming: cuts words down to their base form (e.g., "running" becomes "run").
+Lemmatization: converts words to their root (e.g., "better" becomes "good").
+Tokenization 
+Data Cleaning
+ – Cleaning Text
+Remove Punctuation & Special Characters:
+ 
+df
+['Text'] = 
+df
+['Text'].
+str.replace
+('[^a-zA-Z0-9\s]', '', regex=True)
+Convert to Lowercase: 
+df
+['Text'] = 
+df
+['Text'].
+str.lower
+()
+Remove Extra Whitespace: 
+df
+['Text'] = 
+df
+['Text'].
+str.strip
+() or 
+df
+['Text'] = 
+df
+['Text'].
+str.replace
+(r'\s+', ' ', regex=True)
+Remove Stop Words
+Remove Numbers: 
+df
+['Text'] = 
+df
+['Text'].
+str.replace
+('\d+', '', regex=True)
+Stemming: cuts words down to their base form (e.g., "running" becomes "run").
+Lemmatization: converts words to their root (e.g., "better" becomes "good").
+Tokenization: 
+df
+['Text'] = 
+df
+['Text'].apply(lambda x: 
+x.split
+())
+Data Transformation Steps
+Scaling and Normalization
+Encoding Categorical Data
+Feature Engineering
+Feature Creation
+Feature Transformation
+Feature Selection
+Feature Extraction
+Handling Outliers
+Discretization
+Data Transformation – 
+Scaling & Normalization 
+Normalization:
+ rescales the features so that their norm (L1 or L2) is equal to 1. Good for sparse data.
+X
+normalized
+​ 
+= ​X / ∥X∥
+1  or 
+X
+normalized
+​ 
+= ​X / ∥X∥
+2
+Min-Max Scaling
+: transforms the data into a specific range, [0, 1]. Better for k-NN and ANN.
+X
+scaled
+​ = (​X − 
+X
+min
+) / (
+X
+max
+​− 
+X
+min
+)​​
+ 
+Standardization (Z-score Normalization): 
+rescales the data to have a mean of 0 and standard deviation of 1. It is for normally distributed data when using Logistic Regression, SVM, or Principal Component Analysis.
+X
+scaled
+​ = (X−
+μ​
+) / 
+σ 
+MaxAbs
+ Scaling:
+ Keeps sign of data. Ensures [-1, 1]. Useful for sparse data or to keep zero value intact. 
+X
+scaled
+​ = X​ / ∣
+X
+max
+​
+∣
+Log Transformation:
+ to compress the range of values, especially when the data is heavily skewed or has large differences in magnitude.
+X
+scaled
+​ = log(X+1)
+Exercise
+Name
+Gender
+Age 
+(L1 Norm)
+Height 
+(L2 Norm)
+Score 
+(
+MaxAbs
+)
+Experience 
+(Z-Score)
+Rating 
+(Min-Max)
+Ali
+Male
+25.00
+5.60
+88.0
+1.0
+4
+Sara
+Female
+27.25
+5.5
+86.5
+2.0
+3
+John
+Male
+28.00
+5.80
+85.0
+2.0
+3
+Aisha
+Female
+27.25
+5.5
+90.0
+4.0
+4
+Tom
+Male
+30.00
+6.00
+92.5
+4.0
+5
+Zara
+Female
+26.00
+5.50
+95.0
+6.0
+1
+Data Transformation – 
+Scaling & Normalization 
+Min-Max Scaling:
+from 
+sklearn.preprocessing
+ import 
+MinMaxScaler
+scaler = 
+MinMaxScaler
+()
+df_scaled
+ = 
+scaler.fit_transform
+(
+df
+)
+Z-Score Standardization:
+from 
+sklearn.preprocessing
+ import 
+StandardScaler
+scaler = 
+StandardScaler
+()
+df_scaled
+ = 
+scaler.fit_transform
+(
+df
+)
+MaxAbs
+ Scaling:
+from 
+sklearn.preprocessing
+ import 
+MaxAbsScaler
+scaler = 
+MaxAbsScaler
+()
+df_scaled
+ = 
+scaler.fit_transform
+(
+df
+)
+Normalization:
+from 
+sklearn.preprocessing
+ import Normalizer
+scaler = Normalizer(norm='l2')
+df_scaled
+ = 
+scaler.fit_transform
+(
+df
+)
+Log Transformation:
+import 
+numpy
+ as np
+df
+['
+log_feature
+'] = np.log1p(
+df
+['feature'])
+Data Transformation 
+– Encoding Categorical Data
+Standardizing categorical data: “Male" vs "male“
+Categorical Data Encoding
+Label Encoding
+: Converts each unique category into an integer.
+Ordinal Encoding
+: Like label encoding but explicitly preserves order.
+One-Hot Encoding
+: Creates a binary column for each category.
+Binary Encoding
+: Converts categories into binary numbers and splits them into separate columns.
+Target (mean) Encoding
+: Replace each category with the mean of the target variable against each category.
+Frequency Encoding
+: Replace each category with its frequency count or proportion in the dataset.
+Count Encoding
+: Same as frequency encoding but keeps raw count instead of proportion.
+Hashing Encoding
+: Uses a hash function to assign categories to a fixed number (2/3/etc.) of columns.
+Data Transformation – 
+Feature Engineering 
+Feature Creation: 
+Extracting year, month, day from a datetime column.
+Creating interaction terms: price * quantity = revenue.
+Combining text features: 
+first_name
+ + 
+last_name
+ = 
+full_name
+Feature Transformation: 
+Log transformation to handle skewed data.
+Polynomial features (e.g., x², x³ for regression).
+Data Transformation – 
+Feature Engineering 
+Feature Extraction
+: Automatically transforming raw data into a lower-dimensional space while preserving the most important information.
+Numerical Data
+: PCA, LDA, Autoencoders, etc.
+Text Data
+: Bag of Words, TF-IDF, Word2Vec, 
+GloVe
+, 
+FastText
+, BERT
+Image Data
+: CNNs, HOG, SIFT/SURF, etc.
+Audio/Time Series Data: 
+FFT, MFCC, Rolling Statistics  
+Data Transformation 
+– Discretization
+Process of converting continuous numerical features into discrete (categorical) bins or intervals.
+Equal Width Binning 
+(Uniform Binning)
+Equal Frequency Binning
+ (Quantile Binning): bins with equal number of rows per bin.
+Custom Binning: 
+Teen (0–25), Young (26–40), Adult (41–60), Senior (61+)
+KMeans
+ Binning
+Decision Tree Binning
+Binning Example
+Name
+Age
+Marks
+Alice
+18
+85
+Bob
+25
+70
+Carol
+35
+90
+David
+50
+60
+Emma
+70
+75
+Min age: 18
+Max age: 70
+Range = 70 - 18 = 52
+Number of bins: 2 (just for simplicity)
+Bin width = 52 / 2 = 26
+Bin 1:
+ 18–44 → Label: 
+Young to Mid-age
+Bin 2:
+ 45–70 → Label: 
+Mid to Senior
+Name
+Age
+Age Group
+Marks
+Alice
+18
+Young to Mid-age
+85
+Bob
+25
+Young to Mid-age
+70
+Carol
+35
+Young to Mid-age
+90
+David
+50
+Mid to Senior
+60
+Emma
+70
+Mid to Senior
+75
+Scenario
+What to do
+Decision Tree or Random Forest
+Use 
+original
+ age; they handle splits automatically
+Logistic Regression or SVM
+Try both, compare performance
+Explainable AI / Simpler Models
+Binned version may be better
+Very noisy data
+Binning can 
+smooth
+ the noise
+Data Splitting 
+Helps preventing overfitting; gives realistic performance estimate; helps hyperparameter tunning; allows fair comparative analysis
+Parts
+: Training, Test, Validation (optional)
+Common split ratio
+: 80-20, 70-30, 60-20-20, 60-0-40 in CV
+Stratification
+: Ensures both sets contain a similar class distribution in case imbalanced dataset.
+K-Fold Cross-Validation: 
+Instead of one split, the data is split into k equal parts, and the model is trained/tested k times, rotating the test set. It helps reducing variance. Also, used in model selection. 
+Data Splitting 
+from 
+sklearn.model_selection
+ import 
+train_test_split
+# Split into 80% train, 20% test
+X_train, 
+X_test
+, 
+y_train
+, 
+y_test
+ = 
+train_test_split
+(X, y, 
+test_size
+=0.2, 
+random_state
+=42)
+With Stratification 
+train_test_split
+(X, y, 
+test_size
+=0.2, stratify=y)
+Data Transformation 
+– Dealing with Outliers
+An 
+outlier
+ is a data point that is significantly 
+different
+ from the rest of the data.
+Normal incomes: 25k, 30k, 32k, 29k
+   Outlier: 200k
+Problems
+: distortion of mean, std, correlation; lead overfitting; affect scaling and normalization
+Detection methods:
+Z-Score method: if [ 
+(
+x−
+μ)
+ /
+ σ 
+]
+​
+ > 3 then its an outlier
+Interquartile (IQR) method
+Visual methods: Boxplot, Histogram, Scatter plot
+Handling Outliers:
+Remove outliers
+Impute outlier with mean, median, mode, etc.
+Data Transformation like log transform

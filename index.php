@@ -45,18 +45,14 @@ function homeReviewStars(int $rating): string {
 </head>
 <body>
     <?php include 'header.php'; ?>
-
-
-
-    <div class="main-content" style="margin-top: -10%;">
+    <div class="main-content">
 
         <!-- HERO: Futuristic & Clean -->
         <section class="hero-section">
             <div class="container hero-grid">
                 
                <div class="hero-content">
-    <div class="eyebrow" style="color: aliceblue;">Question Paper Generator & MCQs Practice</div>
-    
+
     <h1 class="hero-title">
         Generate Papers & Practice MCQs for Any Topic
     </h1>
@@ -67,22 +63,19 @@ function homeReviewStars(int $rating): string {
 </div>
 
                     <div class="hero-actions">
+                        <br>
                         <?php if (!isset($_SESSION['user_id'])): ?>
                             <a href="login" class="button accent hero-login-btn"><i class="fas fa-sign-in-alt"></i> Login Now</a>
+                        <?php else: ?>
+                            <a href="javascript:void(0)" class="button primary bypass-user-type class-check-trigger" data-action="generate_paper"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                            <a href="javascript:void(0)" class="button secondary bypass-user-type class-check-trigger" data-action="online_mcqs"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
                         <?php endif; ?>
-                        <a href="class-9th-and-10th-online-question-paper-generator" class="button primary bypass-user-type"><i class="fas fa-file-invoice"></i> Generate Paper</a>
-                        <a href="quiz_setup" class="button secondary bypass-user-type"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
                     </div>
 
             </div>
         </section>
 
-        <br><br>
-        
         <?= renderAd('banner', 'Place Top Banner Here') ?>
-<br>
-
-        <br>
         <?= renderAd('banner', 'Place Middle Banner Here') ?>
         
 
@@ -248,7 +241,7 @@ function homeReviewStars(int $rating): string {
                         <div class="card">
                             <h3>Teacher tools</h3>
                             <p>Create Online Question papers and Host Online Quizez .</p>
-                            <a class="btn btn-primary bypass-user-type" href="class-9th-and-10th-online-question-paper-generator">Generate Question Paper</a>
+                            <a class="btn btn-primary bypass-user-type class-check-trigger" data-action="generate_paper" href="javascript:void(0)">Generate Question Paper</a>
                             <a class="btn btn-outline" href="online_quiz_host_new">Host a Quiz</a>
                             
                             <a class="btn btn-ghost" href="note">View Notes</a>
@@ -259,7 +252,7 @@ function homeReviewStars(int $rating): string {
                             <h3>For students</h3>
                             <p>Prepare Exam with Chapter-wise real Exam-style Questions , MCQs And have Access to all updated Notes </p>
                             <a class="btn btn-primary" href="online_quiz_join">Join Quiz</a>
-                            <a class="btn btn-outline bypass-user-type" href="quiz_setup">Take Online Test</a>
+                            <a class="btn btn-outline bypass-user-type class-check-trigger" data-action="online_mcqs" href="javascript:void(0)">Take Online Test</a>
                             <a class="btn btn-ghost" href="note">View Notes</a>
                         </div>
                     </div>
@@ -336,8 +329,8 @@ function homeReviewStars(int $rating): string {
             </p>
             
             <div class="cta-actions">
-                <a href="class-9th-and-10th-online-question-paper-generator" class="button primary bypass-user-type"><i class="fas fa-file-invoice"></i> Generate Paper</a>
-                <a href="quiz_setup" class="button ghost bypass-user-type"><i class="fas fa-laptop-code"></i> Start Test</a>
+                <a href="javascript:void(0)" class="button primary bypass-user-type class-check-trigger" data-action="generate_paper"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                <a href="javascript:void(0)" class="button ghost bypass-user-type class-check-trigger" data-action="online_mcqs"><i class="fas fa-laptop-code"></i> Start Test</a>
             </div>
         </div>
     </div>

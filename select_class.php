@@ -1,6 +1,6 @@
 <?php
 session_start();
-// require_once 'auth/auth_check.php';
+require_once 'auth/auth_check.php';
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
 

@@ -22,8 +22,8 @@ class EnvLoader
         'SMTP_FROM_NAME' => 'Ahmad Learning Hub',
         'SMTP_AUTH' => 'false',
         'SMTP_DEBUG' => '0',
-        'AI_DEFAULT_MODEL' => 'gpt-4-turbo',
-        'AI_FALLBACK_MODEL' => 'gpt-3.5-turbo',
+        'AI_DEFAULT_MODEL' => '',
+        'AI_FALLBACK_MODEL' => '',
         'AI_DAILY_QUOTA_PER_KEY' => '100000',
         'AI_MAX_RETRIES' => '3',
         'AI_RETRY_DELAY_MS' => '100',
@@ -63,10 +63,17 @@ class EnvLoader
             return;
         }
         
-        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $content = file_get_contents($envFile);
+        
+        // Remove BOM if present
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+        
+        // Split into lines regardless of line endings
+        $lines = preg_split('/\r\n|\r|\n/', $content);
         
         foreach ($lines as $line) {
-            if (strpos(trim($line), '#') === 0) {
+            $line = trim($line);
+            if (empty($line) || strpos($line, '#') === 0) {
                 continue;
             }
             
@@ -75,8 +82,16 @@ class EnvLoader
                 $name = trim($name);
                 $value = trim($value);
                 
+                // Remove comments after value (if any, as long as it's not inside quotes)
+                if (!empty($value) && $value[0] !== '"' && $value[0] !== "'") {
+                    $value = trim(explode('#', $value)[0]);
+                }
+                
                 // Remove quotes if present
-                $value = trim($value, '"\'');
+                if ((strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1) ||
+                    (strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1)) {
+                    $value = substr($value, 1, -1);
+                }
                 
                 // Convert string booleans to actual booleans
                 if (strtolower($value) === 'true') $value = true;

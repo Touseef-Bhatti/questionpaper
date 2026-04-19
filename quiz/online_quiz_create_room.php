@@ -263,7 +263,7 @@ if ($remaining_needed > 0) {
                 }
                 
                 // Use skipVerify = true for faster room creation
-                $generatedMCQs = generateMCQsBulkWithGemini($topics, $neededCount, '', true, false, $existingAiIds);
+$generatedMCQs = generateMCQsBulkWithGemini($topics, $neededCount, '', true, false, $existingAiIds);
                 if (!empty($generatedMCQs)) {
                     foreach ($generatedMCQs as $genMCQ) {
                         $selectedQuestions[] = [

@@ -1,0 +1,2 @@
+# Deny direct web access to temporary AI upload files
+Require all denied

@@ -116,19 +116,68 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($topics)) {
     $isProcessing = true;
-    
-    // Generate each type if count > 0
-    if ($totalMcqs > 0) {
-        $useTopics = !empty($topicsMcqs) ? $topicsMcqs : $topics;
-        $generatedContent['mcqs'] = generateQuestionsByTopicAI('mcqs', $useTopics, $totalMcqs);
+
+    $aiJsonRaw = isset($_POST['ai_generated_json']) ? (string) $_POST['ai_generated_json'] : '';
+    $postSource = isset($_POST['source']) ? (string) $_POST['source'] : '';
+    $usedPrecooked = false;
+
+    if ($aiJsonRaw !== '' && in_array($postSource, ['file_upload', 'text_upload'], true)) {
+        $decoded = json_decode($aiJsonRaw, true);
+        if (is_array($decoded)) {
+            $usedPrecooked = true;
+            if ($totalMcqs > 0 && !empty($decoded['mcqs']) && is_array($decoded['mcqs'])) {
+                foreach ($decoded['mcqs'] as $row) {
+                    if (empty($row['question'])) {
+                        continue;
+                    }
+                    $generatedContent['mcqs'][] = [
+                        'question'       => $row['question'],
+                        'option_a'       => $row['option_a'] ?? '',
+                        'option_b'       => $row['option_b'] ?? '',
+                        'option_c'       => $row['option_c'] ?? '',
+                        'option_d'       => $row['option_d'] ?? '',
+                        'correct_option' => $row['correct_option'] ?? '',
+                    ];
+                }
+            }
+            if ($totalShorts > 0 && !empty($decoded['short']) && is_array($decoded['short'])) {
+                foreach ($decoded['short'] as $row) {
+                    if (empty($row['question'])) {
+                        continue;
+                    }
+                    $generatedContent['short'][] = [
+                        'question'       => $row['question'],
+                        'typical_answer' => $row['typical_answer'] ?? '',
+                    ];
+                }
+            }
+            if ($totalLongs > 0 && !empty($decoded['long']) && is_array($decoded['long'])) {
+                foreach ($decoded['long'] as $row) {
+                    if (empty($row['question'])) {
+                        continue;
+                    }
+                    $generatedContent['long'][] = [
+                        'question'       => $row['question'],
+                        'typical_answer' => $row['typical_answer'] ?? '',
+                    ];
+                }
+            }
+        }
     }
-    if ($totalShorts > 0) {
-        $useTopics = !empty($topicsShort) ? $topicsShort : $topics;
-        $generatedContent['short'] = generateQuestionsByTopicAI('short', $useTopics, $totalShorts);
-    }
-    if ($totalLongs > 0) {
-        $useTopics = !empty($topicsLong) ? $topicsLong : $topics;
-        $generatedContent['long'] = generateQuestionsByTopicAI('long', $useTopics, $totalLongs);
+
+    if (!$usedPrecooked) {
+        if ($totalMcqs > 0) {
+            $useTopics = !empty($topicsMcqs) ? $topicsMcqs : $topics;
+            $generatedContent['mcqs'] = generateQuestionsByTopicAI('mcqs', $useTopics, $totalMcqs);
+        }
+        if ($totalShorts > 0) {
+            $useTopics = !empty($topicsShort) ? $topicsShort : $topics;
+            $generatedContent['short'] = generateQuestionsByTopicAI('short', $useTopics, $totalShorts);
+        }
+        if ($totalLongs > 0) {
+            $useTopics = !empty($topicsLong) ? $topicsLong : $topics;
+            $generatedContent['long'] = generateQuestionsByTopicAI('long', $useTopics, $totalLongs);
+        }
     }
 
     if (empty($generatedContent['mcqs']) && empty($generatedContent['short']) && empty($generatedContent['long'])) {
@@ -267,7 +316,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
     if (!isset($keyManager)) $keyManager = new APIKeyManager();
     
     $apiKeys = $keyManager->getActiveKeys();
-    $openaiModel = EnvLoader::get('OPENAI_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
+    $openaiModel = EnvLoader::get('OPENAI_MODEL', '');
     if (empty($apiKeys)) return $preservedQuestions;
 
     $topicsList = implode(', ', $topics);
@@ -884,7 +933,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
     <?php else: ?>
         <?php $selectedDesign = intval($_POST['header_design'] ?? 1); ?>
         <!-- Design Selector UI -->
-        <div class="design-selector">
+        <!-- <div class="design-selector">
             <h4>Header Design</h4>
             <div class="design-option <?= $selectedDesign == 1 ? 'active' : '' ?>" onclick="changeHeader(1, this)">Design 1 (Formal)</div>
             <div class="design-option <?= $selectedDesign == 2 ? 'active' : '' ?>" onclick="changeHeader(2, this)">Design 2 (Modern)</div>
@@ -892,7 +941,7 @@ function generateQuestionsByTopicAI($type, $topics, $count) {
             <div class="design-option <?= $selectedDesign == 4 ? 'active' : '' ?>" onclick="changeHeader(4, this)">Design 4 (Elegant)</div>
             <div class="design-option <?= $selectedDesign == 5 ? 'active' : '' ?>" onclick="changeHeader(5, this)">Design 5 (Boxed)</div>
             <div class="design-option <?= $selectedDesign == 6 ? 'active' : '' ?>" onclick="changeHeader(6, this)">Design 6 (AI Style)</div>
-        </div>
+        </div> -->
 
         <?php
         // Prepare variables for headers

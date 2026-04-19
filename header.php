@@ -384,7 +384,9 @@ if (isset($only_navbar) && $only_navbar) {
         color: #1e293b;
     }
 
-    /* Header / Navbar styles appended below */
+    /* --- Premium User Class Selection Modal Styles --- */
+    .class-selection-modal{position:fixed;z-index:10001;left:0;top:0;width:100%;height:100%;background-color:rgba(10,15,30,.85);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;animation:fadeInGlobal .3s ease}.class-selection-modal.show{display:flex}.class-selection-card{background:linear-gradient(145deg,#fff 0,#f8fafc 100%);padding:3rem 2.5rem;border-radius:28px;width:90%;max-width:480px;text-align:center;box-shadow:0 30px 60px -15px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.7),0 0 40px rgba(99,102,241,.15);border:1px solid rgba(226,232,240,.8);animation:modalSlideUpGlobal .4s cubic-bezier(.175,.885,.32,1.275);position:relative;overflow:hidden;will-change:transform}.class-selection-card::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at top right,rgba(99,102,241,.1),transparent 40%);pointer-events:none;z-index:0}.class-selection-header{position:relative;z-index:1}.class-selection-header h2{font-size:2rem;font-weight:800;margin-bottom:.5rem;background:linear-gradient(135deg,#1e293b 0,#4f46e5 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.5px}.class-selection-header p{color:#64748b;font-size:1.05rem;margin-bottom:2.5rem;line-height:1.5}.class-options{position:relative;z-index:1;display:grid;grid-template-columns:1fr;gap:1.2rem}.class-option-btn{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;background:#fff;border:2px solid #e2e8f0;border-radius:20px;color:#334155;font-weight:700;font-size:1.15rem;cursor:pointer;transition:all .25s ease;text-decoration:none;box-shadow:0 4px 6px -1px rgba(0,0,0,.05),0 2px 4px -1px rgba(0,0,0,.03);position:relative;overflow:hidden;will-change:transform}.class-option-btn::after{content:'';position:absolute;left:0;top:0;height:100%;width:4px;background:var(--primary,#6366f1);transform:scaleY(0);transition:transform .25s ease;transform-origin:bottom}.class-option-btn:hover{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.03);transform:translateY(-4px);box-shadow:0 12px 20px -8px rgba(99,102,241,.2);color:#1e293b}.class-option-btn:hover::after{transform:scaleY(1)}.class-option-btn i{color:var(--primary,#6366f1);font-size:1.5rem;transition:all .25s ease;background:rgba(99,102,241,.1);padding:12px;border-radius:12px;will-change:transform}.class-option-btn:hover i{transform:scale(1.1) rotate(5deg);background:rgba(99,102,241,.2);color:#4f46e5}.class-option-btn.active{border-color:var(--primary,#6366f1);background:rgba(99,102,241,.05)}
+
 /* header.css - Responsive, professional navbar (uses design system variables) */
 
 .navbar {
@@ -693,16 +695,16 @@ body.menu-open {
 @media (max-width: 768px) {
     
     .navbar {
-        width: calc(100% - 1rem);
+        width: 100%;
         max-width: none;
-        border-radius: 80px;
-        margin: 0 auto;
-        top: 0.5rem;
-        padding: 0.8rem 0;
-        min-height: 70px;
+        border-radius: 0;
+        margin: 0;
+        top: 0;
+        padding: 0.5rem 0;
+        min-height: 60px;
         -webkit-backdrop-filter: blur(20px);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .navbar-container {
@@ -1315,9 +1317,9 @@ navbar_start:
       <li class="dropdown">
         <a class="dropbtn <?= $is_gen_paper_active ? 'active' : '' ?>">Generate Paper <i class="fas fa-caret-down"></i></a>
         <div class="dropdown-content">
-             <a href="<?= $assetBase ?>class-9th-and-10th-online-question-paper-generator" class="<?= is_active('select_class.php') ?>"><i class="fas fa-file-alt"></i> Create Question Paper</a>
+             <a href="javascript:void(0)" class="class-check-trigger <?= is_active('select_class.php') ?>" data-action="generate_paper"><i class="fas fa-file-alt"></i> Create Question Paper</a>
           <a href="<?= $assetBase ?>online_quiz_host_new" class="<?= is_active('online_quiz_host_new.php') ?>"><i class="fas fa-file-alt"></i> Host Online Quiz</a>
-          <a href="<?= $assetBase ?>online-mcqs-test-for-9th-and-10th-board-exams" class="<?= is_active('quiz_setup.php') ?>"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
+          <a href="javascript:void(0)" class="class-check-trigger <?= is_active('quiz_setup.php') ?>" data-action="online_mcqs"><i class="fas fa-question-circle"></i> MCQs Quiz</a>
           <a href="<?= $assetBase ?>online_quiz_join" class="<?= is_active('online_quiz_join.php') ?>"><i class="fas fa-gamepad"></i> Join Quiz</a>
         </div>
       </li>
@@ -1374,6 +1376,26 @@ navbar_start:
         </div>
         <div class="nav-overlay" id="navOverlay"></div>
     </nav>
+
+<!-- User Class Selection Modal -->
+<div id="classSelectionModal" class="class-selection-modal">
+    <div class="class-selection-card">
+        <div class="class-selection-header">
+            <h2>Select Your Study Level</h2>
+            <p>Choose your current level to personalize your experience.</p>
+        </div>
+        <div class="class-options">
+            <button class="class-option-btn" onclick="handleClassSelection('School')">
+                <span>School (for 9 and 10)</span>
+                <i class="fas fa-school"></i>
+            </button>
+            <button class="class-option-btn" onclick="handleClassSelection('College')">
+                <span>College / University</span>
+                <i class="fas fa-university"></i>
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- Auth Modal -->
 <div id="authModal" class="auth-modal">
@@ -1707,7 +1729,8 @@ navbar_start:
         }
     });
                 
-    // Initial UI update
+    // User Class Selection Logic & Login Requirement
+    const classSelectionModal=document.getElementById('classSelectionModal');let pendingAction=null;function handleClassSelection(a){localStorage.setItem('user_class_level_selection',a);if(classSelectionModal)classSelectionModal.classList.remove('show');if(pendingAction)redirectBasedOnClassAndAction(a,pendingAction)}function redirectBasedOnClassAndAction(a,b){let c='';if(b==='generate_paper')c=(a==='School')?'class-9th-and-10th-online-question-paper-generator':'online-question-paper-generator';else if(b==='online_mcqs')c=(a==='School')?'online-mcqs-test-for-9th-and-10th-board-exams':'topic-wise-mcqs-test';if(c)window.location.href='<?= $assetBase ?>'+c}document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('.class-check-trigger').forEach(a=>{a.addEventListener('click',function(e){e.preventDefault();if(typeof isUserLoggedIn!=='undefined'&&!isUserLoggedIn){if(typeof showAuthModal==='function')showAuthModal();else window.location.href='<?= $assetBase ?>login';return}const c=this.getAttribute('data-action'),d=localStorage.getItem('user_class_level_selection');if(d)redirectBasedOnClassAndAction(d,c);else{pendingAction=c;if(classSelectionModal)classSelectionModal.classList.add('show')}})});if(classSelectionModal){classSelectionModal.addEventListener('click',function(e){if(e.target===classSelectionModal)classSelectionModal.classList.remove('show')})}});
     updateModeUI();
     </script>
   

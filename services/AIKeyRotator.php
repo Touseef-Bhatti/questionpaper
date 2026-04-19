@@ -27,7 +27,7 @@ class AIKeyRotator {
      * Just add KEY_N=sk-... to .env - no extra config needed.
      */
     private function loadKeys() {
-        $defaultModel = EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
+        $defaultModel = EnvLoader::get('AI_DEFAULT_MODEL', '');
 
         // 1. Scan KEY_1..KEY_99 - any key that exists is loaded
         $found = [];

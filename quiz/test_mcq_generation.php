@@ -14,13 +14,37 @@ require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../services/AIKeyRotator.php';
 require_once __DIR__ . '/mcq_generator.php';
 
+// Ensure environment variables are loaded
+if (class_exists('EnvLoader')) {
+    EnvLoader::load();
+}
+
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 // AJAX API Key Test Handler
 if (isset($_GET['action']) && $_GET['action'] === 'test_key' && isset($_POST['api_key'])) {
     header('Content-Type: application/json');
     $apiKey = trim($_POST['api_key']);
-    $model = EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
+    $model = EnvLoader::get('AI_DEFAULT_MODEL', '');
+    
+    // Try to find specific model for this key from rotator
+    if (class_exists('AIKeyRotator')) {
+        $rotator = new AIKeyRotator();
+        $allKeys = $rotator->getAllKeys();
+        if (!empty($allKeys)) {
+            foreach ($allKeys as $keyItem) {
+                if (($keyItem['key'] ?? '') === $apiKey) {
+                    $model = $keyItem['model'] ?? $model;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (empty($model)) {
+        echo json_encode(['success' => false, 'message' => 'No model provided. Please set AI_DEFAULT_MODEL in .env or KEY_N_MODEL for this key.']);
+        exit;
+    }
     
     $url = "https://openrouter.ai/api/v1/chat/completions";
     $data = [
@@ -376,7 +400,7 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
         $rotator = new AIKeyRotator($cacheManager);
         $allKeys = $rotator->getAllKeys();
         $nextKey = $rotator->getNextKey();
-        $model = EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
+        $model = EnvLoader::get('AI_DEFAULT_MODEL', '');
         
         if (!empty($allKeys)) {
              echo '<div class="success">✓ Found ' . count($allKeys) . ' API Keys in rotation (AIKeyRotator - Account 2 → Primary → Account 3)</div>';
@@ -470,7 +494,7 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
             
             $startTime = microtime(true);
             // Use skipVerify = true for instant return
-            $generatedMCQs = generateMCQsWithGemini($testTopic, $testCount, '', true);
+$generatedMCQs = generateMCQsWithGemini($testTopic, $testCount, '', true);
             $endTime = microtime(true);
             $duration = round($endTime - $startTime, 2);
             
@@ -582,8 +606,14 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
             $keyItem = $rotator->getNextKey();
             
             $apiKey = '';
+            $model = EnvLoader::get('AI_DEFAULT_MODEL', '');
+            
             if ($keyItem && !empty($keyItem['key'])) {
                 $apiKey = $keyItem['key'];
+                // Use the model from the key rotator if available
+                if (!empty($keyItem['model'])) {
+                    $model = $keyItem['model'];
+                }
             }
             
             // Check manual input
@@ -592,78 +622,79 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
                 echo '<div class="info">Using manually provided API Key</div>';
             }
             
-            $model = EnvLoader::get('AI_DEFAULT_MODEL', 'liquid/lfm-2.5-1.2b-thinking:free');
-            
             if (!empty($apiKey)) {
-                echo '<div class="info">Testing API connection...</div>';
-                echo '<div class="info">Using model: <strong>' . htmlspecialchars($model) . '</strong></div>';
-                
-                $url = "https://openrouter.ai/api/v1/chat/completions";
-                
-                $data = [
-                    'model' => $model,
-                    'messages' => [
-                        [
-                            'role' => 'user',
-                            'content' => 'Say "Hello, API is working!" if you can read this.'
-                        ]
-                    ],
-                    'temperature' => 0.7,
-                    'max_tokens' => 1000,
-                    // 'provider' => ['order' => ['Hypbolic'], 'allow_fallbacks' => false] // Optional: Force provider if needed
-                ];
-                
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-                curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'Content-Type: application/json',
-                    'Authorization: Bearer ' . $apiKey,
-                    'HTTP-Referer: https://paper.bhattichemicalsindustry.com.pk',
-                    'X-Title: Ahmad Learning Hub'
-                ]);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-                
-                $response = curl_exec($ch);
-                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $curlError = curl_error($ch);
-                curl_close($ch);
-                
-                if ($httpCode === 200) {
-                    $responseData = json_decode($response, true);
-                    if (isset($responseData['choices'][0]['message']['content'])) {
-                        $apiResponse = $responseData['choices'][0]['message']['content'] ?? '';
-                        
-                        if (!empty($apiResponse)) {
-                             echo '<div class="success">✓ API Connection Successful!</div>';
-                             echo '<div class="info">API Response: ' . htmlspecialchars($apiResponse) . '</div>';
-                        } else {
-                             echo '<div class="warning">⚠ API Connection Successful (200 OK), but returned empty content. This might be due to the model not producing output.</div>';
-                        }
-
-                        // Always show raw response for debugging
-                        echo '<details open>';
-                        echo '<summary style="cursor: pointer; color: #6366f1; font-weight: bold;">View Raw API Response (Debug)</summary>';
-                        echo '<pre>' . htmlspecialchars($response) . '</pre>';
-                        echo '</details>';
-
-                    } else {
-                        echo '<div class="error">✗ API returned unexpected response format</div>';
-                        echo '<pre>' . htmlspecialchars(json_encode($responseData, JSON_PRETTY_PRINT)) . '</pre>';
-                        
-                        echo '<details open>';
-                        echo '<summary style="cursor: pointer; color: #6366f1; font-weight: bold;">View Raw API Response (Debug)</summary>';
-                        echo '<pre>' . htmlspecialchars($response) . '</pre>';
-                        echo '</details>';
-                    }
+                if (empty($model)) {
+                    echo '<div class="error">✗ No model provided. Please set AI_DEFAULT_MODEL in .env or KEY_N_MODEL for this key.</div>';
                 } else {
-                    echo '<div class="error">✗ API Connection Failed</div>';
-                    echo '<div class="error">HTTP Code: ' . $httpCode . '</div>';
-                    if ($curlError) {
-                        echo '<div class="error">cURL Error: ' . htmlspecialchars($curlError) . '</div>';
+                    echo '<div class="info">Testing API connection...</div>';
+                    echo '<div class="info">Using model: <strong>' . htmlspecialchars($model) . '</strong></div>';
+                    
+                    $url = "https://openrouter.ai/api/v1/chat/completions";
+                    
+                    $data = [
+                        'model' => $model,
+                        'messages' => [
+                            [
+                                'role' => 'user',
+                                'content' => 'Say "Hello, API is working!" if you can read this.'
+                            ]
+                        ],
+                        'temperature' => 0.7,
+                        'max_tokens' => 1000,
+                    ];
+                    
+                    $ch = curl_init($url);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'Content-Type: application/json',
+                        'Authorization: Bearer ' . $apiKey,
+                        'HTTP-Referer: https://paper.bhattichemicalsindustry.com.pk',
+                        'X-Title: Ahmad Learning Hub'
+                    ]);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+                    
+                    $response = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $curlError = curl_error($ch);
+                    curl_close($ch);
+                    
+                    if ($httpCode === 200) {
+                        $responseData = json_decode($response, true);
+                        if (isset($responseData['choices'][0]['message']['content'])) {
+                            $apiResponse = $responseData['choices'][0]['message']['content'] ?? '';
+                            
+                            if (!empty($apiResponse)) {
+                                 echo '<div class="success">✓ API Connection Successful!</div>';
+                                 echo '<div class="info">API Response: ' . htmlspecialchars($apiResponse) . '</div>';
+                            } else {
+                                 echo '<div class="warning">⚠ API Connection Successful (200 OK), but returned empty content. This might be due to the model not producing output.</div>';
+                            }
+
+                            // Always show raw response for debugging
+                            echo '<details open>';
+                            echo '<summary style="cursor: pointer; color: #6366f1; font-weight: bold;">View Raw API Response (Debug)</summary>';
+                            echo '<pre>' . htmlspecialchars($response) . '</pre>';
+                            echo '</details>';
+
+                        } else {
+                            echo '<div class="error">✗ API returned unexpected response format</div>';
+                            echo '<pre>' . htmlspecialchars(json_encode($responseData, JSON_PRETTY_PRINT)) . '</pre>';
+                            
+                            echo '<details open>';
+                            echo '<summary style="cursor: pointer; color: #6366f1; font-weight: bold;">View Raw API Response (Debug)</summary>';
+                            echo '<pre>' . htmlspecialchars($response) . '</pre>';
+                            echo '</details>';
+                        }
+                    } else {
+                        echo '<div class="error">✗ API Connection Failed</div>';
+                        echo '<div class="error">HTTP Code: ' . $httpCode . '</div>';
+                        if ($curlError) {
+                            echo '<div class="error">cURL Error: ' . htmlspecialchars($curlError) . '</div>';
+                        }
+                        echo '<div class="info">Response: ' . htmlspecialchars(substr($response, 0, 500)) . '</div>';
                     }
-                    echo '<div class="info">Response: ' . htmlspecialchars(substr($response, 0, 500)) . '</div>';
                 }
             } else {
                 echo '<div class="error">✗ API Key not configured</div>';

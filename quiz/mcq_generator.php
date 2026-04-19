@@ -8,6 +8,11 @@ require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../services/AIKeyRotator.php';
 
+// Ensure environment variables are loaded
+if (class_exists('EnvLoader')) {
+    EnvLoader::load();
+}
+
 $cacheManager = null;
 if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
     require_once __DIR__ . '/../services/CacheManager.php';
@@ -154,11 +159,7 @@ function getRecheckModel() {
     if ($m !== '') {
         return $m;
     }
-    $key = getRecheckApiKey();
-    if (isNvidiaApiKey($key)) {
-        return 'qwen/qwen3-next-80b-a3b-instruct';
-    }
-    return EnvLoader::get('AI_DEFAULT_MODEL', 'gpt-4-turbo');
+    return EnvLoader::get('AI_DEFAULT_MODEL', '');
 }
 
 /** AI MCQs use unified MCQVerification; manual mcqs table uses MCQsVerification (never dropped by migrate). */
@@ -946,7 +947,7 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questi
         $excludeList = implode(', ', array_slice(array_map('trim', $excludeTopics), 0, 20));
         $excludeHint = " Do NOT include these (already shown): {$excludeList}. Return DIFFERENT topics.";
     }
- $prompt = "i have an exam and it's Topic: \"{$searchQuery}\". Return EXACTLY 4 topics related to \"{$searchQuery}\" that can come in the exam as a JSON array of objects. 
+ $prompt = "i have an exam analyze the \"{$searchQuery}\" text and generate it's Topics: \"{$searchQuery}\". Return EXACTLY 4 topics of \"{$searchQuery}\" and related to \"{$searchQuery}\" that can come in the exam as a JSON array of objects. 
 Each object must have: - \"topic\": (string) The topic name. 2-3 topics must closely match the text of \"{$searchQuery}\". {$excludeHint}. 
 - \"keywords\": (string) A comma-separated list of 3 highly relevant, specific, and searchable phrases that capture the core meaning, concepts, and real-world use of the topic. Avoid vague words. Use clear terms that help in search and filtering. 
 

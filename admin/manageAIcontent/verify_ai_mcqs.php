@@ -632,7 +632,7 @@ if (isset($_GET['filter']) || isset($_GET['page'])) {
                         Batch verification uses <code>RECHECK_API_KEY</code> (or <code>GENERATING_KEYWORDS_KEY</code> if empty) from
                         <code>.env</code>.
                         <code>nvapi-</code> keys use NVIDIA <code>integrate.api.nvidia.com</code> (same as keyword generation); other keys use OpenRouter.
-                        Optional <code>RECHECK_MODEL</code>: if unset, NVIDIA defaults to <code>qwen/qwen3-next-80b-a3b-instruct</code>, OpenRouter to <code>AI_DEFAULT_MODEL</code>.
+                        Optional <code>RECHECK_MODEL</code>: if unset, it defaults to <code>AI_DEFAULT_MODEL</code>.
                     </p>
                     
                     <div class="row g-3 align-items-center justify-content-center mb-4">

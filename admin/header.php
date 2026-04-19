@@ -77,6 +77,7 @@ $adminUrl = $baseUrl . 'admin/';
                         <li><a href="<?= $adminUrl ?>manageAIcontent/manage_ai_short.php">📝 Short Qs</a></li>
                         <li><a href="<?= $adminUrl ?>manageAIcontent/manage_ai_long.php">📑 Long Qs</a></li>
                         <li><a href="<?= $adminUrl ?>manageAIcontent/manage_ai_keys.php">🔑 API Keys</a></li>
+                        <li><a href="<?= $adminUrl ?>manageAIcontent/manage_ai_upload_files.php">📁 Upload Files</a></li>
                         <li><a href="<?= $adminUrl ?>topics/index.php">🏷️ Generated Topics</a></li>
                     </ul>
                 </li>

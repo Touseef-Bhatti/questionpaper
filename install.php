@@ -237,22 +237,6 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS `mcqs` (
     PRIMARY KEY (`mcq_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: mcqs");
 
-// 7. API Keys (APIKeyManager.php)
-runQuery($conn, "CREATE TABLE IF NOT EXISTS api_keys (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    provider VARCHAR(50) NOT NULL DEFAULT 'openai',
-    key_value TEXT NOT NULL,
-    key_hash VARCHAR(64) NOT NULL,
-    account_name VARCHAR(100) DEFAULT 'Default',
-    status ENUM('active', 'inactive', 'rate_limited', 'quota_exceeded') DEFAULT 'active',
-    usage_count INT DEFAULT 0,
-    last_used DATETIME DEFAULT NULL,
-    error_count INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_key_hash (key_hash)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: api_keys");
-
 // 8.0 AI Questions Topic (Normalized Topic Storage) - MUST be before AIGeneratedMCQs
 runQuery($conn, "CREATE TABLE IF NOT EXISTS AIQuestionsTopic (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -275,6 +259,32 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS AIGeneratedMCQs (
     generated_at DATETIME NOT NULL,
     FOREIGN KEY (topic_id) REFERENCES AIQuestionsTopic(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIGeneratedMCQs");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS AIDocumentUploads (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    original_filename VARCHAR(512) NOT NULL,
+    stored_filename VARCHAR(255) NOT NULL,
+    relative_path VARCHAR(512) NOT NULL,
+    mime_type VARCHAR(128) NULL,
+    file_size INT UNSIGNED NOT NULL DEFAULT 0,
+    file_sha256 CHAR(64) NULL,
+    ext VARCHAR(16) NOT NULL,
+    prepare_mode VARCHAR(16) NOT NULL DEFAULT 'file',
+    topic_id INT NULL,
+    detected_topic VARCHAR(255) NULL,
+    mcq_ids_json TEXT NULL,
+    short_ids_json TEXT NULL,
+    long_ids_json TEXT NULL,
+    recheck_status ENUM('pending','processing','done','failed','skipped') NOT NULL DEFAULT 'pending',
+    recheck_error TEXT NULL,
+    recheck_started_at DATETIME NULL,
+    recheck_finished_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_upload_sha (file_sha256),
+    KEY idx_upload_recheck (recheck_status),
+    KEY idx_upload_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIDocumentUploads");
 
 runQuery($conn, "CREATE TABLE IF NOT EXISTS MCQVerification (
     source ENUM('AIGeneratedMCQs', 'mcqs') NOT NULL,
@@ -687,10 +697,6 @@ createIndexIfNotExists($conn, "user_generated_papers_log", "idx_papers_log_user_
 createIndexIfNotExists($conn, "user_reviews", "idx_user_reviews_created", "created_at");
 createIndexIfNotExists($conn, "user_reviews", "idx_user_reviews_rating", "rating");
 createIndexIfNotExists($conn, "user_reviews", "idx_user_reviews_approved", "is_approved, created_at");
-
-// API Keys Indexes
-createIndexIfNotExists($conn, "api_keys", "idx_api_keys_status", "status");
-createIndexIfNotExists($conn, "api_keys", "idx_api_keys_provider", "provider");
 
 // Uploaded Notes Indexes
 createIndexIfNotExists($conn, "uploaded_notes", "idx_notes_chapter", "chapter_id");

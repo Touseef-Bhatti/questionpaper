@@ -39,17 +39,22 @@ if ($action === 'delete') {
     }
 } elseif ($action === 'auto_generate') {
     require_once __DIR__ . '/../../config/env.php';
+    require_once __DIR__ . '/../../services/AIKeyRotator.php';
     require_once __DIR__ . '/TopicAutoGenerator.php';
     
     EnvLoader::load();
-    $apiKey = EnvLoader::get('GENERATING_KEYWORDS_KEY');
+    $rotator = new AIKeyRotator();
+    $aiData = $rotator->getNextKey();
     
-    if (!$apiKey) {
-        die(json_encode(['success' => false, 'error' => 'API key missing.']));
+    if (!$aiData) {
+        die(json_encode(['success' => false, 'error' => 'No active AI API keys found.']));
     }
     
+    $apiKey = $aiData['key'];
+    $model = $aiData['model'];
+    
     $count = (int)($_POST['count'] ?? 10);
-    $generator = new TopicAutoGenerator($conn, $apiKey);
+    $generator = new TopicAutoGenerator($conn, $apiKey, $model);
     $result = $generator->run($count);
     
     echo json_encode($result);

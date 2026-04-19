@@ -40,6 +40,7 @@ include_once '../header.php';
     
 <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
 <link rel="stylesheet" href="<?= $assetBase ?>css/online_quiz_host_new.css">
+<link rel="stylesheet" href="<?= $assetBase ?>css/mcqs_topic.css">
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -90,10 +91,15 @@ include_once '../header.php';
                     
                     <div class="form-grid">
                         <div class="form-group" style="grid-column: 1 / -1;">
-                             <button type="button" class="btn btn-secondary" style="width: 100%; border: 2px dashed #6366f1; color: #6366f1; background: #f5f3ff; font-weight: 600;" onclick="goToTopicSearch()">
-                                🔍 Search Questions by Topic
-                            </button>
-                            <div class="form-hint" style="text-align: center; margin-top: 8px;">Instead of selecting class/book, search for specific topics</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+                                <button type="button" class="btn btn-secondary" style="width: 100%; border: 2px dashed #6366f1; color: #6366f1; background: #f5f3ff; font-weight: 600;" onclick="goToTopicSearch()">
+                                    🔍 Search Questions by Topic
+                                </button>
+                                <button type="button" class="btn btn-secondary" style="width: 100%; border: 2px dashed #0d9488; color: #0d9488; background: #ecfdf5; font-weight: 600;" onclick="openHostFileUploadModal()">
+                                    📄 Upload file → MCQs
+                                </button>
+                            </div>
+                            <div class="form-hint" style="text-align: center; margin-top: 8px;">Search by topic, or upload a PDF/Word/PPT/image and AI will build MCQs from your file only (max 10 MB)</div>
                             
                             <?php if ($hasTopics): ?>
                             <div id="selectedTopicsContainer" class="topic-container">
@@ -192,6 +198,61 @@ include_once '../header.php';
                     </div>
                 </div>
                 </div>
+
+                <!-- File upload → MCQs (same pipeline as topic quiz; MCQs only) -->
+                <div class="text-upload-modal" id="hostTextUploadModal" style="display:none;">
+                    <div class="text-upload-modal-card">
+                        <div class="text-upload-modal-header">
+                            <div>
+                                <h3 class="text-upload-modal-title"><i class="fas fa-magic"></i> AI File → MCQs for live room</h3>
+                                <p class="text-upload-modal-subtitle">Upload one file; questions are generated only from its content</p>
+                            </div>
+                            <button type="button" class="text-upload-close-btn" onclick="closeHostFileUploadModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="text-upload-modal-body">
+                            <div class="text-upload-file-wrapper">
+                                <label class="text-upload-file-label" for="hostDocumentUploadInput">
+                                    <i class="fas fa-paperclip"></i> Choose file
+                                </label>
+                                <input type="file" id="hostDocumentUploadInput" class="text-upload-file-input" name="document" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/*">
+                                <div class="text-upload-file-meta">
+                                    <span id="hostDocumentUploadFilename" class="text-upload-filename">No file selected</span>
+                                    <span class="text-upload-hint">PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, WEBP, GIF · max 10 MB</span>
+                                </div>
+                            </div>
+                            <div class="text-upload-config">
+                                <div class="text-upload-config-title">Number of MCQs</div>
+                                <div class="text-upload-types">
+                                    <label class="text-upload-type-checkbox" style="width:100%;">
+                                        <span class="text-upload-type-label mcq-label"><i class="fas fa-list-ul"></i> MCQs to generate</span>
+                                        <div class="text-upload-count-control">
+                                            <button type="button" onclick="adjustHostTextCount('hostTextCountMcqs', -1)">−</button>
+                                            <input type="number" id="hostTextCountMcqs" value="10" min="1" max="30">
+                                            <button type="button" onclick="adjustHostTextCount('hostTextCountMcqs', 1)">+</button>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="text-upload-error" id="hostTextUploadError" style="display:none;"></div>
+                            <div class="text-upload-progress" id="hostTextUploadProgress" style="display:none;">
+                                <div class="text-upload-progress-bar-track">
+                                    <div class="text-upload-progress-bar" id="hostTextProgressBar"></div>
+                                </div>
+                                <div class="text-upload-progress-text" id="hostTextProgressText">Reading your file...</div>
+                            </div>
+                            <div class="text-upload-results" id="hostTextUploadResults" style="display:none;"></div>
+                        </div>
+                        <div class="text-upload-modal-footer">
+                            <button type="button" class="text-upload-cancel-btn" onclick="closeHostFileUploadModal()">Close</button>
+                            <button type="button" class="text-upload-generate-btn" id="hostTextGenerateBtn" onclick="generateHostMcqsFromFile()">
+                                <i class="fas fa-bolt"></i> Generate MCQs
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                   <!-- Question Selection -->
                 <?php if (!$hasTopics): ?>
                 <div class="form-section">
@@ -339,6 +400,176 @@ include_once '../header.php';
             
             // Redirect to topic search with host context
             window.location.href = `topic-wise-mcqs-test?source=host&mcq_count=${mcqCount}&quiz_duration=${duration}`;
+        }
+
+        // --- File upload → MCQs (same API as mcqs_topic; merged into custom questions) ---
+        function openHostFileUploadModal() {
+            const modal = document.getElementById('hostTextUploadModal');
+            const fin = document.getElementById('hostDocumentUploadInput');
+            const fn = document.getElementById('hostDocumentUploadFilename');
+            const err = document.getElementById('hostTextUploadError');
+            const prog = document.getElementById('hostTextUploadProgress');
+            const res = document.getElementById('hostTextUploadResults');
+            if (fin) fin.value = '';
+            if (fn) fn.textContent = 'No file selected';
+            if (err) err.style.display = 'none';
+            if (prog) prog.style.display = 'none';
+            if (res) res.style.display = 'none';
+            if (modal) {
+                modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                setTimeout(() => modal.classList.add('active'), 10);
+            }
+        }
+
+        function closeHostFileUploadModal() {
+            const modal = document.getElementById('hostTextUploadModal');
+            if (modal) {
+                modal.classList.remove('active');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }, 300);
+            }
+        }
+
+        function adjustHostTextCount(inputId, delta) {
+            const inp = document.getElementById(inputId);
+            if (!inp) return;
+            let val = parseInt(inp.value, 10) || 1;
+            val = Math.max(parseInt(inp.min, 10) || 1, Math.min(val + delta, parseInt(inp.max, 10) || 30));
+            inp.value = val;
+        }
+
+        document.getElementById('hostDocumentUploadInput')?.addEventListener('change', function() {
+            const fn = document.getElementById('hostDocumentUploadFilename');
+            if (fn) fn.textContent = (this.files && this.files[0]) ? this.files[0].name : 'No file selected';
+        });
+
+        function hostNormalizeCorrectLetter(m) {
+            let c = String(m.correct_option ?? m.correct ?? 'A').trim();
+            const u = c.toUpperCase();
+            if (/^[ABCD]$/.test(u)) return u;
+            const opts = [m.option_a, m.option_b, m.option_c, m.option_d];
+            const letters = ['A', 'B', 'C', 'D'];
+            for (let i = 0; i < 4; i++) {
+                if (String(opts[i] ?? '').trim() === c) return letters[i];
+            }
+            return 'A';
+        }
+
+        async function generateHostMcqsFromFile() {
+            const fileInput = document.getElementById('hostDocumentUploadInput');
+            const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+            const errorEl = document.getElementById('hostTextUploadError');
+            const progressEl = document.getElementById('hostTextUploadProgress');
+            const progressBar = document.getElementById('hostTextProgressBar');
+            const progressText = document.getElementById('hostTextProgressText');
+            const resultsEl = document.getElementById('hostTextUploadResults');
+            const genBtn = document.getElementById('hostTextGenerateBtn');
+
+            errorEl.style.display = 'none';
+            resultsEl.style.display = 'none';
+
+            if (!file) {
+                errorEl.textContent = 'Please choose a file to upload.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                errorEl.textContent = 'File is too large. Maximum size is 10 MB.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            progressEl.style.display = 'block';
+            genBtn.disabled = true;
+            genBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+            const progressSteps = [
+                'Reading your file...',
+                'Sending to AI...',
+                'Crafting MCQs...',
+                'Validating answers...',
+                'Finalizing...'
+            ];
+            let stepIdx = 0;
+            let pVal = 0;
+            const pInterval = setInterval(() => {
+                pVal = Math.min(pVal + 3, 92);
+                if (progressBar) progressBar.style.width = pVal + '%';
+                if (pVal % 18 === 0 && stepIdx < progressSteps.length - 1) {
+                    stepIdx++;
+                    if (progressText) progressText.textContent = progressSteps[stepIdx];
+                }
+            }, 400);
+
+            try {
+                const formData = new FormData();
+                formData.append('document', file);
+                formData.append('question_types[]', 'mcqs');
+                formData.append('count_mcqs', document.getElementById('hostTextCountMcqs')?.value || 10);
+
+                const res = await fetch('../questionPaperFromTopic/generate_from_upload.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+                clearInterval(pInterval);
+                if (progressBar) progressBar.style.width = '100%';
+
+                if (data.success && data.mcqs?.length > 0) {
+                    progressEl.style.display = 'none';
+                    displayHostMcqResults(data);
+                } else {
+                    progressEl.style.display = 'none';
+                    errorEl.textContent = data.error || 'Failed to generate MCQs. Please try again.';
+                    errorEl.style.display = 'block';
+                }
+            } catch (e) {
+                clearInterval(pInterval);
+                progressEl.style.display = 'none';
+                errorEl.textContent = 'Network error. Please check your connection and try again.';
+                errorEl.style.display = 'block';
+                console.error('Host file MCQ error:', e);
+            } finally {
+                genBtn.disabled = false;
+                genBtn.innerHTML = '<i class="fas fa-bolt"></i> Generate MCQs';
+            }
+        }
+
+        function displayHostMcqResults(data) {
+            data.mcqs.forEach((m) => {
+                customQuestions.push({
+                    question: String(m.question || '').trim(),
+                    option_a: String(m.option_a ?? ''),
+                    option_b: String(m.option_b ?? ''),
+                    option_c: String(m.option_c ?? ''),
+                    option_d: String(m.option_d ?? ''),
+                    correct: hostNormalizeCorrectLetter(m)
+                });
+            });
+
+            const mcqInput = document.getElementById('mcq_count');
+            const n = Math.min(50, Math.max(1, data.mcqs.length));
+            if (mcqInput) mcqInput.value = n;
+
+            const toggle = document.getElementById('customToggle');
+            const section = document.getElementById('customQuestions');
+            if (toggle && section && !toggle.classList.contains('active')) {
+                toggle.classList.add('active');
+                section.classList.add('active');
+            }
+
+            renderCustomQuestions();
+            updatePreview();
+            closeHostFileUploadModal();
+            window._autoSubmitFromFileUpload = true;
+            const form = document.getElementById('quizForm');
+            if (form) {
+                form.requestSubmit ? form.requestSubmit() : form.submit();
+            }
         }
 
         let customQuestions = [];
@@ -631,11 +862,13 @@ include_once '../header.php';
                 
                 // Reset time preset
                 document.querySelectorAll('.time-preset').forEach(p => p.classList.remove('active'));
-                document.querySelector('.time-preset[data-time="30"]').classList.add('active');
+                const defaultPreset = document.querySelector('.time-preset[data-time="10"]');
+                if (defaultPreset) defaultPreset.classList.add('active');
             }
         }
         
         // Form submission
+        window._autoSubmitFromFileUpload = false;
         document.getElementById('quizForm').addEventListener('submit', function(e) {
             let mcqCount = parseInt(document.getElementById('mcq_count').value) || 0;
             const customCount = customQuestions.length;
@@ -703,7 +936,7 @@ include_once '../header.php';
             message += `\nDuration: ${document.getElementById('quiz_duration').value} minutes\n`;
             message += `\nDo you want to create this quiz?`;
 
-            if (!confirm(message)) {
+            if (!window._autoSubmitFromFileUpload && !confirm(message)) {
                 e.preventDefault();
             } else {
                 // If we are in custom-only fallback mode, update the input so the backend doesn't get confused
@@ -714,6 +947,7 @@ include_once '../header.php';
                 // Show the shared AI loader animation
                 launchHostAILoader();
             }
+            window._autoSubmitFromFileUpload = false;
         });
         
         function launchHostAILoader() {
