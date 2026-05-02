@@ -31,9 +31,10 @@ COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 # Copy custom php.ini (if present) to override defaults
 COPY docker/php.ini /usr/local/etc/php/php.ini
 
-# Copy the entrypoint script and make it executable
+# Copy the entrypoint script, normalize line endings, and make it executable
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 WORKDIR /var/www/html
 

@@ -358,20 +358,61 @@ resetBtn.addEventListener('click', () => {
   clearChapters();
 });
 
-// Show shared AI loader on form submit
-document.getElementById('quizForm').addEventListener('submit', function() {
+// Show shared AI loader and redirect to SEO URL on form submit
+document.getElementById('quizForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const classText = classSel.options[classSel.selectedIndex].text.trim().toLowerCase();
+    const bookText = bookSel.options[bookSel.selectedIndex].text.trim().toLowerCase().replace(/\s+/g, '-');
+    const mcqCount = document.getElementById('mcq_count').value;
+
+    // Extract class number part (e.g. "9th Class" -> "9th")
+    const classMatch = classText.match(/^(\d+(st|nd|rd|th))/i);
+    const classSlug = classMatch ? classMatch[0] : classText.replace(/\s+/g, '-');
+
+    // Handle chapters
+    let chapterSlug = 'All-Chapter';
+    if (selectedChapterIds.length > 0) {
+        // We need to find the chapter numbers for selected IDs
+        const selectedItems = chapterSelector.querySelectorAll('.chapter-item input:checked');
+        const chapterNums = [];
+        selectedItems.forEach(input => {
+            const label = input.nextElementSibling.textContent.trim();
+            // Assuming label starts with "Chapter X" or has the number
+            const numMatch = label.match(/Chapter\s+(\d+)/i) || label.match(/^(\d+)/);
+            if (numMatch) {
+                chapterNums.push(numMatch[1]);
+            }
+        });
+        
+        if (chapterNums.length > 0) {
+            chapterNums.sort((a, b) => a - b);
+            chapterSlug = chapterNums.join('-');
+        }
+    }
+
+    const seoUrl = `${classSlug}/${bookText}/${chapterSlug}-MCQs-quiz`;
+    this.action = seoUrl;
+
     if (typeof showAILoader === 'function') {
         showAILoader(
             [
-                { label: 'Selecting questions', duration: 2500 },
-                { label: 'Loading content', duration: 2500 },
-                { label: 'Applying difficulty', duration: 2500 },
-                { label: 'Arranging paper', duration: 2500 },
-                { label: 'Starting quiz', duration: 2500 }
+                { label: 'Selecting questions', duration: 1500 },
+                { label: 'Loading content', duration: 1500 },
+                { label: 'Applying difficulty', duration: 1500 },
+                { label: 'Arranging paper', duration: 1500 },
+                { label: 'Starting quiz', duration: 1500 }
             ],
             'Preparing your personalized quiz session...',
             'Preparing Your Quiz'
         );
+        
+        // Wait a bit for loader to show before submitting
+        setTimeout(() => {
+            this.submit();
+        }, 1000);
+    } else {
+        this.submit();
     }
 });
 </script>

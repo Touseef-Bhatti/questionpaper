@@ -4,10 +4,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: paper_app:latest
-    container_name: paper_app
+    image: questionpaper:latest
+    container_name: questionpaper-container
     ports:
-      - "8000:80"
+      - "8001:80"
     env_file:
       - config/.env
     volumes:

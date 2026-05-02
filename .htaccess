@@ -20,6 +20,16 @@ Options -Indexes
 # SEO-Optimized URL Rewriting
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /
+    Options -MultiViews
+
+    # 8. Handle SEO pattern for Class/Book based Quiz
+    # Matches patterns like: 9th/math/1-MCQs-quiz or 9th/math/All-Chapter-MCQs-quiz
+    RewriteRule ^([a-zA-Z0-9-]+)/([a-zA-Z0-9-]+)/([a-zA-Z0-9-]+)-MCQs-quiz/?$ quiz/quiz.php?class_name=$1&book_name=$2&chapters_from_url=$3 [QSA,NC,L]
+
+    # 7. Handle SEO pattern for Topic-based Quiz
+    # Matches patterns like: Thread-Concepts-MCQs-Quiz
+    RewriteRule ^([^/]+)-MCQs-Quiz/?$ quiz/quiz.php?topic=$1 [QSA,NC,L]
 
     # Specific SEO rule for quiz_setup.php
     RewriteCond %{THE_REQUEST} /quiz/quiz_setup\.php [NC,OR]
@@ -93,10 +103,6 @@ Options -Indexes
     # 6. Handle SEO pattern for MCQs page
     # Matches patterns like: mcqs/9th-class/physics
     RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ notes/mcqs.php?class_id=$1&book_name=$2&view=1 [QSA,NC,L]
-
-    # 7. Handle SEO pattern for Topic-based Quiz
-    # Matches patterns like: Thread-Concepts-MCQs-Quiz
-    RewriteRule ^([^/]+)-MCQs-Quiz/?$ quiz/quiz.php?topic=$1&mcq_count=10&study_level=medium [QSA,NC,L]
 
     # 4. Hide .php extensions for a cleaner URL structure (General Root Files)
     RewriteCond %{REQUEST_FILENAME} !-d

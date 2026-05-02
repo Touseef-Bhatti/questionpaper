@@ -371,17 +371,33 @@ if (isset($_POST['start_quiz'])) {
                 }
             }
 
-            // Always use explicit quiz.php + JSON topics (not /Topic-MCQs-Quiz). The SEO rewrite
-            // forces mcq_count=10 and study_level=medium and breaks topics that contain hyphens.
-            $topicsParam = !empty($topicsArray) ? urlencode(json_encode($topicsArray)) : '';
-            $chapterIdsParam = !empty($chapterIdsArray) ? implode(',', $chapterIdsArray) : '';
-
-            $redirectUrl = 'quiz.php?class_id=0&book_id=0&mcq_count=' . $mcqCount . '&study_level=' . urlencode($studyLevel);
-            if ($topicsParam) {
-                $redirectUrl .= '&topics=' . $topicsParam;
+            // Build SEO-friendly URL for topics
+            $seoTopic = '';
+            if (!empty($topicsArray)) {
+                $seoTopic = implode('-', $topicsArray);
             }
-            if ($chapterIdsParam) {
-                $redirectUrl .= '&chapter_ids=' . $chapterIdsParam;
+            if (!empty($chapterIdsArray)) {
+                $chapterPrefix = !empty($seoTopic) ? $seoTopic . '-' : '';
+                $seoTopic = $chapterPrefix . 'Chapter-' . implode('-', $chapterIdsArray);
+            }
+
+            // Sanitize topic for URL
+            $seoTopic = preg_replace('/[^a-zA-Z0-9]+/', '-', $seoTopic);
+            $seoTopic = trim($seoTopic, '-');
+
+            if (empty($seoTopic)) {
+                $seoTopic = 'General';
+            }
+
+            $redirectUrl = $seoTopic . '-MCQs-Quiz?mcq_count=' . $mcqCount . '&study_level=' . urlencode($studyLevel);
+            
+            // If we have actual JSON topics or chapter IDs that might be complex, 
+            // we can still pass them in query string for robustness, but the SEO part is in the path.
+            if (!empty($topicsArray)) {
+                $redirectUrl .= '&topics=' . urlencode(json_encode($topicsArray));
+            }
+            if (!empty($chapterIdsArray)) {
+                $redirectUrl .= '&chapter_ids=' . implode(',', $chapterIdsArray);
             }
 
             header('Location: ' . $redirectUrl);
@@ -970,16 +986,50 @@ document.getElementById('startQuizForm')?.addEventListener('submit', function(e)
         alert('Selection internal error.');
         return;
     }
-    showAILoader(
-        [
-            { label: 'Analyzing topics',       duration: 3000 },
-            { label: 'Extracting key concepts', duration: 3000 },
-            { label: 'Designing MCQs',          duration: 3000 },
-            { label: 'Validating difficulty',   duration: 3000 },
-            { label: 'Finalizing paper',        duration: 3000 }
-        ],
-        'Our AI is synthesizing questions based on 2026 board standards\u2026'
-    );
+
+    // Build SEO URL
+    const topicsArr = [];
+    const chapterIds = [];
+    selectedTopics.forEach(tJson => {
+        const t = JSON.parse(tJson);
+        if (t.type === 'chapter' && t.chapter_id) {
+            chapterIds.push(t.chapter_id);
+        } else if (t.topic) {
+            topicsArr.push(t.topic);
+        }
+    });
+
+    let seoTopic = topicsArr.join('-');
+    if (chapterIds.length > 0) {
+        seoTopic += (seoTopic ? '-' : '') + 'Chapter-' + chapterIds.join('-');
+    }
+    seoTopic = seoTopic.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!seoTopic) seoTopic = 'General';
+
+    const seoUrl = `${seoTopic}-MCQs-Quiz`;
+    this.action = seoUrl;
+
+    // We use preventDefault and this.submit() to allow the loader to show and ensure the action is set
+    e.preventDefault();
+
+    if (typeof showAILoader === 'function') {
+        showAILoader(
+            [
+                { label: 'Analyzing topics',       duration: 1500 },
+                { label: 'Extracting key concepts', duration: 1500 },
+                { label: 'Designing MCQs',          duration: 1500 },
+                { label: 'Validating difficulty',   duration: 1500 },
+                { label: 'Finalizing paper',        duration: 1500 }
+            ],
+            'Our AI is synthesizing questions based on 2026 board standards\u2026'
+        );
+        
+        setTimeout(() => {
+            this.submit();
+        }, 1000);
+    } else {
+        this.submit();
+    }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1294,6 +1344,12 @@ function startTextQuiz() {
     prefetchInp.value = JSON.stringify(mcqs);
 
     closeTextUploadModal();
+
+    // Set SEO action
+    let seoTopic = topicName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!seoTopic) seoTopic = 'General';
+    form.action = `${seoTopic}-MCQs-Quiz`;
+
     setTimeout(() => form.submit(), 800);
 }
 </script>

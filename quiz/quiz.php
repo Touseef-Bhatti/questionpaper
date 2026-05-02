@@ -145,8 +145,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $book_id = intval($_POST['book_id'] ?? 0);
     $mcq_count = intval($_POST['mcq_count'] ?? 10);
     $chapter_ids = $_POST['chapter_ids'] ?? '';
-    $topic = $_POST['topic'] ?? '';
-    $topics = $_POST['topics'] ?? '';
+    // Topics might be in GET due to SEO rewrite
+    $topic = $_POST['topic'] ?? $_GET['topic'] ?? '';
+    $topics = $_POST['topics'] ?? $_GET['topics'] ?? '';
+
+    // Handle the case where mcqs_topic.php submits selected_topics array directly
+    if (empty($topics) && isset($_POST['selected_topics']) && is_array($_POST['selected_topics'])) {
+        $extractedTopics = [];
+        $extractedChapters = [];
+        foreach ($_POST['selected_topics'] as $tJson) {
+            $tData = json_decode($tJson, true);
+            if ($tData) {
+                if (isset($tData['type']) && $tData['type'] === 'chapter' && isset($tData['chapter_id'])) {
+                    $extractedChapters[] = $tData['chapter_id'];
+                } else if (isset($tData['topic'])) {
+                    $extractedTopics[] = $tData['topic'];
+                }
+            }
+        }
+        if (!empty($extractedTopics)) {
+            $topics = json_encode($extractedTopics);
+        }
+        if (!empty($extractedChapters)) {
+            $chapter_ids = implode(',', $extractedChapters);
+        }
+    }
 } else if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Allow GET for topic-based redirects
     $class_id = intval($_GET['class_id'] ?? 0);
@@ -155,9 +178,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $chapter_ids = $_GET['chapter_ids'] ?? '';
     $topic = $_GET['topic'] ?? '';
     $topics = $_GET['topics'] ?? '';
-} else {
-    header('Location: quiz_setup.php');
-    exit;
+}
+
+
+// SEO URL Support: Resolve class_name and book_name to IDs if provided (usually from .htaccess rewrite)
+$class_name_url = $_GET['class_name'] ?? '';
+$book_name_url = $_GET['book_name'] ?? '';
+$chapters_url = $_GET['chapters_from_url'] ?? '';
+
+if ($class_id === 0 && !empty($class_name_url)) {
+    // Extract numeric part from 9th, 10th etc.
+    $class_num = intval($class_name_url);
+    if ($class_num > 0) {
+        // Find class_id where class_name matches or contains the number
+        $c_stmt = $conn->prepare("SELECT class_id FROM class WHERE class_name LIKE ? LIMIT 1");
+        $c_like = "%" . $class_num . "%";
+        $c_stmt->bind_param('s', $c_like);
+        $c_stmt->execute();
+        $c_res = $c_stmt->get_result();
+        if ($c_row = $c_res->fetch_assoc()) {
+            $class_id = intval($c_row['class_id']);
+        }
+        $c_stmt->close();
+    }
+}
+
+if ($book_id === 0 && !empty($book_name_url) && $class_id > 0) {
+    $book_name_db = str_replace('-', ' ', $book_name_url);
+    $b_stmt = $conn->prepare("SELECT book_id FROM book WHERE class_id = ? AND (book_name = ? OR book_name LIKE ?) LIMIT 1");
+    $b_like = "%" . $book_name_db . "%";
+    $b_stmt->bind_param('iss', $class_id, $book_name_db, $b_like);
+    $b_stmt->execute();
+    $b_res = $b_stmt->get_result();
+    if ($b_row = $b_res->fetch_assoc()) {
+        $book_id = intval($b_row['book_id']);
+    }
+    $b_stmt->close();
+}
+
+if (empty($chapter_ids) && !empty($chapters_url) && $chapters_url !== 'All-Chapter' && $chapters_url !== 'all-chapter' && $book_id > 0) {
+    // Resolve chapter numbers to IDs
+    $ch_nums = explode('-', $chapters_url);
+    $ch_nums = array_filter(array_map('intval', $ch_nums));
+    if (!empty($ch_nums)) {
+        $placeholders = implode(',', array_fill(0, count($ch_nums), '?'));
+        $ch_sql = "SELECT chapter_id FROM chapter WHERE book_id = ? AND chapter_no IN ($placeholders)";
+        $ch_stmt = $conn->prepare($ch_sql);
+        $ch_types = 'i' . str_repeat('i', count($ch_nums));
+        $ch_stmt->bind_param($ch_types, $book_id, ...$ch_nums);
+        $ch_stmt->execute();
+        $ch_res = $ch_stmt->get_result();
+        $found_ids = [];
+        while ($ch_row = $ch_res->fetch_assoc()) {
+            $found_ids[] = $ch_row['chapter_id'];
+        }
+        $ch_stmt->close();
+        if (!empty($found_ids)) {
+            $chapter_ids = implode(',', $found_ids);
+        }
+    }
 }
 $studyLevel = $_GET['study_level'] ?? $_POST['study_level'] ?? '';
 
