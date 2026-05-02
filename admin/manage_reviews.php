@@ -10,6 +10,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $id = intval($_POST['id'] ?? 0);
 
+    if ($action === 'toggle_pin' && $id > 0) {
+        $stmt = $conn->prepare("UPDATE user_reviews SET is_pinned = NOT is_pinned WHERE id = ?");
+        if ($stmt) {
+            $stmt->bind_param('i', $id);
+            if ($stmt->execute()) {
+                $message = 'Review pin status updated successfully.';
+            } else {
+                $message = 'Unable to update review pin status.';
+                $messageType = 'error';
+            }
+            $stmt->close();
+        } else {
+            $message = 'Unable to update review pin status.';
+            $messageType = 'error';
+        }
+    }
+
     if ($action === 'delete' && $id > 0) {
         $stmt = $conn->prepare("DELETE FROM user_reviews WHERE id = ?");
         if ($stmt) {
@@ -73,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $reviews = [];
-$query = $conn->query("SELECT id, reviewer_name, reviewer_email, rating, feedback, source_page, is_anonymous, is_approved, created_at FROM user_reviews ORDER BY created_at DESC");
+$query = $conn->query("SELECT id, reviewer_name, reviewer_email, rating, feedback, source_page, is_anonymous, is_approved, is_pinned, created_at FROM user_reviews ORDER BY created_at DESC");
 if ($query) {
     while ($row = $query->fetch_assoc()) {
         $reviews[] = $row;
@@ -158,10 +175,20 @@ include_once __DIR__ . '/header.php';
                             <td><span class="rating"><?= str_repeat('★', (int)$review['rating']) . str_repeat('☆', max(0, 5 - (int)$review['rating'])) ?></span></td>
                             <td><div class="feedback"><?= htmlspecialchars((string)$review['feedback']) ?></div></td>
                             <td><span class="source"><?= htmlspecialchars((string)$review['source_page']) ?></span></td>
-                            <td><span class="badge <?= (int)$review['is_approved'] === 1 ? 'approved' : 'pending' ?>"><?= (int)$review['is_approved'] === 1 ? 'Approved' : 'Hidden' ?></span></td>
+                            <td>
+                                <span class="badge <?= (int)$review['is_approved'] === 1 ? 'approved' : 'pending' ?>"><?= (int)$review['is_approved'] === 1 ? 'Approved' : 'Hidden' ?></span>
+                                <?php if ((int)($review['is_pinned'] ?? 0) === 1): ?>
+                                    <span class="badge" style="background:#fef3c7; color:#b45309; margin-top:4px; display:block; width:fit-content;">📌 Pinned</span>
+                                <?php endif; ?>
+                            </td>
                             <td><?= date('d M Y, h:i A', strtotime((string)$review['created_at'])) ?></td>
                             <td class="actions">
-                                <form method="POST" onsubmit="return confirm('Delete this review?');">
+                                <form method="POST" style="display:inline-block;">
+                                    <input type="hidden" name="action" value="toggle_pin">
+                                    <input type="hidden" name="id" value="<?= (int)$review['id'] ?>">
+                                    <button type="submit" class="btn" style="background:#f59e0b; color:#fff;"><?= (int)($review['is_pinned'] ?? 0) === 1 ? 'Unpin' : 'Pin' ?></button>
+                                </form>
+                                <form method="POST" onsubmit="return confirm('Delete this review?');" style="display:inline-block;">
                                     <input type="hidden" name="action" value="delete">
                                     <input type="hidden" name="id" value="<?= (int)$review['id'] ?>">
                                     <button type="submit" class="btn delete">Delete</button>
@@ -179,17 +206,11 @@ include_once __DIR__ . '/header.php';
                                                     <option value="<?= $r ?>" <?= (int)$review['rating'] === $r ? 'selected' : '' ?>><?= $r ?></option>
                                                 <?php endfor; ?>
                                             </select>
-                                            <select class="edit-select" name="is_anonymous">
-                                                <option value="0" <?= (int)$review['is_anonymous'] === 0 ? 'selected' : '' ?>>Named</option>
-                                                <option value="1" <?= (int)$review['is_anonymous'] === 1 ? 'selected' : '' ?>>Anonymous</option>
-                                            </select>
-                                            <select class="edit-select" name="is_approved">
-                                                <option value="1" <?= (int)$review['is_approved'] === 1 ? 'selected' : '' ?>>Approved</option>
-                                                <option value="0" <?= (int)$review['is_approved'] === 0 ? 'selected' : '' ?>>Hidden</option>
-                                            </select>
+                                            <label><input type="checkbox" name="is_anonymous" value="1" <?= (int)$review['is_anonymous'] === 1 ? 'checked' : '' ?>> Anonymous</label>
+                                            <label><input type="checkbox" name="is_approved" value="1" <?= (int)$review['is_approved'] === 1 ? 'checked' : '' ?>> Approved</label>
                                         </div>
-                                        <textarea class="edit-textarea" name="feedback" maxlength="1000" required><?= htmlspecialchars((string)$review['feedback']) ?></textarea>
-                                        <button type="submit" class="btn edit-submit">Update Review</button>
+                                        <textarea class="edit-textarea" name="feedback" required placeholder="Review feedback..."><?= htmlspecialchars((string)$review['feedback']) ?></textarea>
+                                        <button type="submit" class="btn edit-submit">Save Changes</button>
                                     </form>
                                 </details>
                             </td>

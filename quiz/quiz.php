@@ -112,6 +112,128 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit;
     }
+
+    if ($action === 'create_quiz_share') {
+        header('Content-Type: application/json');
+        global $cacheManager;
+
+        if (!$cacheManager) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Sharing is temporarily unavailable.']);
+            exit;
+        }
+
+        $incomingQuestions = $jsonInput['questions'] ?? [];
+        $quizMeta = $jsonInput['quiz_meta'] ?? [];
+
+        if (!is_array($incomingQuestions) || empty($incomingQuestions)) {
+            http_response_code(422);
+            echo json_encode(['status' => 'error', 'message' => 'No quiz questions found to share.']);
+            exit;
+        }
+
+        $normalizedQuestions = [];
+        foreach ($incomingQuestions as $q) {
+            if (!is_array($q)) continue;
+            $questionText = trim((string)($q['question'] ?? ''));
+            if ($questionText === '') continue;
+
+            $normalizedQuestions[] = [
+                'mcq_id' => (string)($q['mcq_id'] ?? ''),
+                'question' => $questionText,
+                'option_a' => (string)($q['option_a'] ?? ''),
+                'option_b' => (string)($q['option_b'] ?? ''),
+                'option_c' => (string)($q['option_c'] ?? ''),
+                'option_d' => (string)($q['option_d'] ?? ''),
+                'correct_option' => (string)($q['correct_option'] ?? ''),
+                'explanation' => (string)($q['explanation'] ?? '')
+            ];
+        }
+
+        if (empty($normalizedQuestions)) {
+            http_response_code(422);
+            echo json_encode(['status' => 'error', 'message' => 'Unable to prepare shareable quiz.']);
+            exit;
+        }
+
+        $originType = (($quizMeta['origin_type'] ?? '') === 'topic') ? 'topic' : 'class';
+        $topicsForShare = [];
+        if (!empty($quizMeta['topics']) && is_array($quizMeta['topics'])) {
+            foreach ($quizMeta['topics'] as $t) {
+                $t = trim((string)$t);
+                if ($t !== '') $topicsForShare[] = $t;
+            }
+        }
+
+        $chapterIdsForShare = [];
+        if (!empty($quizMeta['chapter_ids']) && is_array($quizMeta['chapter_ids'])) {
+            foreach ($quizMeta['chapter_ids'] as $cid) {
+                $cid = intval($cid);
+                if ($cid > 0) $chapterIdsForShare[] = $cid;
+            }
+        }
+
+        try {
+            $token = bin2hex(random_bytes(16));
+        } catch (Exception $e) {
+            $token = md5(uniqid('quiz_share_', true) . microtime(true));
+        }
+
+        $isHostLoggedIn = isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0;
+        $sharePayload = [
+            'v' => 1,
+            'created_at' => time(),
+            'origin_type' => $originType,
+            'class_id' => intval($quizMeta['class_id'] ?? 0),
+            'book_id' => intval($quizMeta['book_id'] ?? 0),
+            'class_name' => trim((string)($quizMeta['class_name'] ?? '')),
+            'book_name' => trim((string)($quizMeta['book_name'] ?? '')),
+            'mcq_count' => count($normalizedQuestions),
+            'study_level' => trim((string)($quizMeta['study_level'] ?? '')),
+            'topics' => $topicsForShare,
+            'chapter_ids' => $chapterIdsForShare,
+            'questions' => $normalizedQuestions,
+            'host_result' => [
+                'score' => intval($quizMeta['host_score'] ?? 0),
+                'total_questions' => count($normalizedQuestions),
+                'time_seconds' => intval($quizMeta['host_time_seconds'] ?? 0),
+                'name' => $isHostLoggedIn ? trim((string)($_SESSION['name'] ?? 'User')) : 'Your Friend'
+            ]
+        ];
+
+        $cacheKey = 'shared_quiz_' . $token;
+        $saved = $cacheManager->setex($cacheKey, 86400 * 7, json_encode($sharePayload));
+        if (!$saved) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Could not create share link. Please try again.']);
+            exit;
+        }
+
+        $queryParams = [
+            'shared_quiz' => $token,
+            'mcq_count' => count($normalizedQuestions)
+        ];
+
+        $sharedClassId = intval($sharePayload['class_id']);
+        $sharedBookId = intval($sharePayload['book_id']);
+        if ($sharedClassId > 0) $queryParams['class_id'] = $sharedClassId;
+        if ($sharedBookId > 0) $queryParams['book_id'] = $sharedBookId;
+        if (!empty($sharePayload['study_level'])) $queryParams['study_level'] = $sharePayload['study_level'];
+        if (!empty($topicsForShare)) $queryParams['topics'] = json_encode($topicsForShare);
+        if (!empty($chapterIdsForShare)) $queryParams['chapter_ids'] = implode(',', $chapterIdsForShare);
+
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $path = strtok($_SERVER['REQUEST_URI'] ?? '/quiz/quiz.php', '?');
+        $shareUrl = $scheme . '://' . $host . $path . '?' . http_build_query($queryParams);
+
+        echo json_encode([
+            'status' => 'success',
+            'share_url' => $shareUrl,
+            'token' => $token
+        ]);
+        exit;
+    }
 }
 
 
@@ -239,6 +361,37 @@ if (empty($chapter_ids) && !empty($chapters_url) && $chapters_url !== 'All-Chapt
     }
 }
 $studyLevel = $_GET['study_level'] ?? $_POST['study_level'] ?? '';
+
+$sharedQuizPayload = null;
+$sharedQuizToken = trim((string)($_GET['shared_quiz'] ?? ''));
+if ($sharedQuizToken !== '' && preg_match('/^[a-f0-9]{16,64}$/', $sharedQuizToken) && isset($cacheManager) && $cacheManager) {
+    $sharedRaw = $cacheManager->get('shared_quiz_' . $sharedQuizToken);
+    if (is_string($sharedRaw) && $sharedRaw !== '') {
+        $decodedShared = json_decode($sharedRaw, true);
+        if (is_array($decodedShared) && !empty($decodedShared['questions']) && is_array($decodedShared['questions'])) {
+            $sharedQuizPayload = $decodedShared;
+
+            if (empty($topics) && !empty($decodedShared['topics']) && is_array($decodedShared['topics'])) {
+                $topics = json_encode($decodedShared['topics']);
+            }
+            if ($class_id <= 0 && !empty($decodedShared['class_id'])) {
+                $class_id = intval($decodedShared['class_id']);
+            }
+            if ($book_id <= 0 && !empty($decodedShared['book_id'])) {
+                $book_id = intval($decodedShared['book_id']);
+            }
+            if (empty($chapter_ids) && !empty($decodedShared['chapter_ids']) && is_array($decodedShared['chapter_ids'])) {
+                $chapter_ids = implode(',', array_map('intval', $decodedShared['chapter_ids']));
+            }
+            if (empty($studyLevel) && !empty($decodedShared['study_level'])) {
+                $studyLevel = trim((string)$decodedShared['study_level']);
+            }
+            if ($mcq_count <= 0 && !empty($decodedShared['mcq_count'])) {
+                $mcq_count = intval($decodedShared['mcq_count']);
+            }
+        }
+    }
+}
 
 // Validate parameters: Either class+book OR topics must be provided
 // Allow topics-only requests (class_id and book_id can be 0 when topics are provided)
@@ -464,6 +617,11 @@ if (empty($questions)) {
 shuffle($questions);
 $questions = array_slice($questions, 0, $mcq_count);
 
+if ($sharedQuizPayload && !empty($sharedQuizPayload['questions']) && is_array($sharedQuizPayload['questions'])) {
+    $questions = $sharedQuizPayload['questions'];
+    $mcq_count = count($questions);
+}
+
 // Generate the cache key to store these results later (when quiz is over)
 $lvl = in_array(strtolower($studyLevel), ['easy', 'medium', 'hard']) ? strtolower($studyLevel) : '';
 if (count($topicsArray) > 1) {
@@ -499,6 +657,26 @@ if ($row = $result->fetch_assoc()) {
     $class_name = $row['class_name'];
 }
 $stmt->close();
+
+if ($sharedQuizPayload) {
+    if (!empty($sharedQuizPayload['class_name'])) {
+        $class_name = (string)$sharedQuizPayload['class_name'];
+    }
+    if (!empty($sharedQuizPayload['book_name'])) {
+        $book_name = (string)$sharedQuizPayload['book_name'];
+    }
+    if (empty($topicsArray) && !empty($sharedQuizPayload['topics']) && is_array($sharedQuizPayload['topics'])) {
+        $topicsArray = $sharedQuizPayload['topics'];
+    }
+}
+
+$quizOriginType = !empty($topicsArray) ? 'topic' : 'class';
+$quizEntryPage = ($quizOriginType === 'topic') ? 'topic-wise-mcqs-test' : 'online-mcqs-test-for-9th-and-10th-board-exams';
+$quizContextLabel = ($quizOriginType === 'topic')
+    ? ('Topic Quiz: ' . (!empty($topicsArray) ? implode(', ', array_slice($topicsArray, 0, 3)) : $book_name))
+    : ('Class Quiz: ' . $class_name . ' - ' . $book_name);
+$quizScriptDir = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/quiz'), '/\\');
+$quizApiPath = ($quizScriptDir === '' ? '' : $quizScriptDir) . '/quiz.php';
 $stmt = $conn->prepare("SELECT book_name FROM book WHERE book_id = ?");
 $stmt->bind_param('i', $book_id);
 $stmt->execute();
@@ -768,33 +946,79 @@ if (is_dir($incorrectDir)) {
             border-top: 1px solid #f1f5f9;
         }
         .btn-quiz {
-            padding: 14px 28px;
+            padding: 14px 32px;
             border: none;
-            border-radius: 12px;
-            font-weight: 800;
+            border-radius: 14px;
+            font-weight: 700;
             font-size: 0.95rem;
             cursor: pointer;
-            transition: all 0.25s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
+            gap: 10px;
+            letter-spacing: 0.02em;
+            position: relative;
+            overflow: hidden;
         }
+
+        .btn-quiz::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .btn-quiz:hover:not(:disabled)::before {
+            opacity: 1;
+        }
+
         .btn-quiz.primary {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
             color: white;
-            box-shadow: 0 6px 16px rgba(79,70,229,0.3);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25),
+                        0 8px 24px rgba(139, 92, 246, 0.2);
+            border: 1px solid rgba(255,255,255,0.2);
         }
+
         .btn-quiz.primary:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 24px rgba(79,70,229,0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35),
+                        0 12px 32px rgba(139, 92, 246, 0.25);
         }
-        .btn-quiz.primary:disabled { background: #94a3b8; box-shadow: none; cursor: not-allowed; }
+
+        .btn-quiz.primary:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-quiz.primary:disabled {
+            background: linear-gradient(135deg, #94a3b8 0%, #cbd5e1 100%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
         .btn-quiz.outline {
             background: white;
             color: #4f46e5;
-            border: 2px solid #e2e8f0;
+            border: 2px solid #e0e7ff;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.05);
         }
-        .btn-quiz.outline:hover { border-color: #4f46e5; background: #f5f3ff; }
+
+        .btn-quiz.outline:hover:not(:disabled) {
+            border-color: #6366f1;
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+        }
+
+        .btn-quiz.outline:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.1);
+        }
 
         /* ─── Results Screen ──────────────────────────────────── */
         .results-screen { display: none; }
@@ -1035,6 +1259,91 @@ if (is_dir($incorrectDir)) {
             border-top: 1px solid #e2e8f0;
         }
 
+        .share-challenge-section {
+            margin: 22px 32px 0;
+            background: #eef2ff;
+            border: 1px solid #c7d2fe;
+            border-radius: 16px;
+            padding: 18px;
+        }
+        .share-challenge-title {
+            margin: 0 0 6px;
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: #312e81;
+        }
+        .share-challenge-info {
+            margin: 0 0 14px;
+            color: #475569;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .share-challenge-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .share-link-input {
+            flex: 1;
+            min-width: 220px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+            color: #1e293b;
+            background: #fff;
+        }
+        .share-status {
+            margin: 10px 0 0;
+            font-size: 0.84rem;
+            color: #475569;
+            font-weight: 600;
+            min-height: 18px;
+        }
+
+        .copy-icon-btn {
+            padding: 14px 20px;
+            min-width: auto;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            color: #475569;
+            border: 2px solid #e2e8f0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .copy-icon-btn i {
+            font-size: 1.15rem;
+            transition: transform 0.2s ease;
+        }
+
+        .copy-icon-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            border-color: #818cf8;
+            color: #4f46e5;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.15);
+        }
+
+        .copy-icon-btn:hover:not(:disabled) i {
+            transform: scale(1.15);
+        }
+
+        .copy-icon-btn:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(79, 70, 229, 0.1);
+        }
+
+        .copy-icon-btn:active:not(:disabled) i {
+            transform: scale(0.95);
+        }
+
+        .copy-icon-btn:disabled {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-color: #cbd5e1;
+            color: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
         /* ─── Funny Mode ─────────────────────────────────────── */
         .funny-mode-btn {
             background: #facc15; /* Yellow-400 */
@@ -1099,6 +1408,7 @@ if (is_dir($incorrectDir)) {
             .stats-grid { grid-template-columns: 1fr; gap: 12px; }
             .review-answers { grid-template-columns: 1fr; }
             .results-hero { padding: 32px 16px 24px; }
+            .share-challenge-section { margin: 16px; }
         }
 
         .hidden { display: none !important; }
@@ -1299,6 +1609,24 @@ if (is_dir($incorrectDir)) {
                 </div>
             </div>
 
+            <div class="share-challenge-section" id="shareChallengeSection">
+                <h3 class="share-challenge-title"><i class="fas fa-share-nodes"></i> Share & Challenge Your Friend</h3>
+                <p class="share-challenge-info" id="challengeQuizInfo"></p>
+                <div class="share-challenge-row">
+                    <button class="btn-quiz primary" type="button" id="shareSiteBtn" onclick="shareSite()">
+                        <i class="fas fa-share"></i> Share
+                    </button>
+                    <button class="btn-quiz outline" type="button" id="nativeShareBtn" onclick="nativeShareChallenge()" disabled>
+                        <i class="fas fa-user-group"></i> Challenge Friend
+                    </button>
+                    <button class="btn-quiz copy-icon-btn" type="button" id="copyChallengeBtn" onclick="copyChallengeLink()" disabled>
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <input type="hidden" id="challengeLinkInput" readonly>
+                <p class="share-status" id="shareStatusText">Your friend will start this exact same quiz directly from the link.</p>
+            </div>
+
             <div class="review-section">
                 <div class="review-section-title">
                     <i class="fas fa-list-check" style="color:#4f46e5;"></i> Detailed Review
@@ -1369,6 +1697,19 @@ const questions = <?= json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSO
 const missingExplanationIds = <?= json_encode($missingExplanationIds) ?>;
 const hasAlreadyReviewedServer = <?= json_encode($hasAlreadyReviewed) ?>;
 const isLoggedIn = <?= json_encode($isLoggedIn) ?>;
+const quizApiUrl = <?= json_encode($quizApiPath, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const quizShareMeta = <?= json_encode([
+    'origin_type' => $quizOriginType,
+    'entry_page' => $quizEntryPage,
+    'context_label' => $quizContextLabel,
+    'class_id' => intval($class_id),
+    'book_id' => intval($book_id),
+    'class_name' => $class_name,
+    'book_name' => $book_name,
+    'study_level' => $studyLevel,
+    'topics' => $topicsArray,
+    'chapter_ids' => $chapterIdsArray
+], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 let currentQuestion = 0;
 let score = 0;
 let answers = [];
@@ -1378,6 +1719,8 @@ let quizStarted = false;
 let quizCompleted = false;
 let selectedReviewRating = 0;
 let reviewPopupShown = false;
+let generatedShareLink = '';
+let shareLinkGenerating = false;
 
 // Funny Mode Sounds
 const funnySounds = {
@@ -1718,7 +2061,7 @@ function showResults() {
 
     // Cache the final verified questions if we have a key
     if (finalCacheKey) {
-        fetch('quiz.php', {
+        fetch(quizApiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1768,6 +2111,12 @@ function showResults() {
     document.getElementById('incorrectCount').textContent = incorrect;
     const mins = Math.floor(totalTime / 60), secs = totalTime % 60;
     document.getElementById('totalTime').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+
+    const infoEl = document.getElementById('challengeQuizInfo');
+    if (infoEl) {
+        infoEl.textContent = `${quizShareMeta.context_label} | ${questions.length} Questions`;
+    }
+    initializeShareChallenge();
 
     // Play specific result sounds via FunnyAudioManager
     setTimeout(() => FunnyAudioManager.playResultSound(pct), 300);
@@ -1837,6 +2186,124 @@ function showResults() {
         setTimeout(() => {
             openReviewModal();
         }, 10000); // 10 seconds delay as requested
+    }
+}
+
+async function initializeShareChallenge() {
+    if (generatedShareLink || shareLinkGenerating) return;
+    shareLinkGenerating = true;
+    setShareStatus('Generating share link...');
+
+    try {
+        const response = await fetch(quizApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_quiz_share',
+                questions: questions,
+                quiz_meta: {
+                    ...quizShareMeta,
+                    mcq_count: questions.length
+                }
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success' || !data.share_url) {
+            setShareStatus(data.message || 'Could not generate share link right now.', true);
+            return;
+        }
+
+        generatedShareLink = data.share_url;
+        const input = document.getElementById('challengeLinkInput');
+        if (input) input.value = generatedShareLink;
+        const copyBtn = document.getElementById('copyChallengeBtn');
+        if (copyBtn) copyBtn.disabled = false;
+        const nativeBtn = document.getElementById('nativeShareBtn');
+        if (nativeBtn) nativeBtn.disabled = false;
+        setShareStatus('Challenge link ready. Send it to your friend.');
+    } catch (err) {
+        setShareStatus('Network issue while generating share link.', true);
+    } finally {
+        shareLinkGenerating = false;
+    }
+}
+
+function setShareStatus(message, isError = false) {
+    const statusEl = document.getElementById('shareStatusText');
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.style.color = isError ? '#b91c1c' : '#475569';
+}
+
+async function copyChallengeLink() {
+    if (!generatedShareLink) return;
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(generatedShareLink);
+        } else {
+            const input = document.getElementById('challengeLinkInput');
+            if (input) {
+                input.focus();
+                input.select();
+                document.execCommand('copy');
+            }
+        }
+        setShareStatus('Link copied. Now challenge your friend!');
+    } catch (err) {
+        setShareStatus('Copy failed. Please copy the link manually.', true);
+    }
+}
+
+async function nativeShareChallenge() {
+    if (!generatedShareLink) return;
+    const text = `I challenge you: ${quizShareMeta.context_label} (${questions.length} questions). Try this same quiz now!`;
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'Quiz Challenge',
+                text: text,
+                url: generatedShareLink
+            });
+            setShareStatus('Challenge shared successfully.');
+            return;
+        } catch (err) {
+            // Ignore cancel case and fallback to copy.
+        }
+    }
+    await copyChallengeLink();
+}
+
+async function shareSite() {
+    const siteUrl = window.location.origin;
+    const text = 'Check out Ahmad Learning Hub - the best platform for online quizzes and MCQs!';
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'Ahmad Learning Hub',
+                text: text,
+                url: siteUrl
+            });
+            setShareStatus('Site shared successfully.');
+            return;
+        } catch (err) {
+            // Ignore cancel case.
+        }
+    }
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(siteUrl);
+        } else {
+            const tempInput = document.createElement('input');
+            tempInput.value = siteUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+        }
+        setShareStatus('Site link copied to clipboard!');
+    } catch (err) {
+        setShareStatus('Could not share site link.', true);
     }
 }
 
@@ -1913,7 +2380,7 @@ async function submitReview() {
     setReviewMessage('');
 
     try {
-        const response = await fetch('quiz.php', {
+        const response = await fetch(quizApiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

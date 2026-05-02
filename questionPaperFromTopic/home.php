@@ -1,6 +1,5 @@
 <?php
 session_start();
-require_once __DIR__ . '/../auth/auth_check.php';
 require_once __DIR__ . '/../config/env.php';
 $appName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
 $pageTitle       = "Free Online Question Paper Generator | MCQs, Short & Long Questions – " . $appName;
@@ -321,6 +320,9 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
                         autocomplete="off"
                         minlength="2"
                     >
+                    <button type="button" class="file-upload-btn" title="Upload File" onclick="checkLoginAndOpenUpload()">
+                        <i class="fas fa-file-upload"></i>
+                    </button>
                     <button type="submit" class="search-btn" title="Search Topics">
                         <i class="fas fa-search"></i>
                     </button>
@@ -329,7 +331,7 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
         </div>
 
         <!-- FILE UPLOAD TRIGGER CARD -->
-        <div class="text-upload-trigger" id="textUploadTrigger" onclick="openTextUploadModal()">
+        <div class="text-upload-trigger" id="textUploadTrigger" onclick="checkLoginAndOpenUpload()">
             <div class="text-upload-trigger-icon">
                 <i class="fas fa-file-upload"></i>
             </div>
@@ -514,6 +516,7 @@ const els = {
     aiControl:      document.getElementById('aiControl')
 };
 
+const isLoggedIn = <?= json_encode(isset($_SESSION['user_id'])) ?>;
 const isPremium   = <?= json_encode($isPremium) ?>;
 const topicLimits = { mcqs:7, short:5, long:3 };
 const MODE_LABELS = { mcqs:'MCQs', short:'Short Questions', long:'Long Questions' };
@@ -928,6 +931,18 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ================================================================
 // TEXT UPLOAD MODAL
 // ================================================================
+function checkLoginAndOpenUpload() {
+    if (!isLoggedIn) {
+        if (typeof showLoginModal === 'function') {
+            showLoginModal();
+        } else {
+            window.location.href = '../login.php';
+        }
+        return;
+    }
+    openTextUploadModal();
+}
+
 function openTextUploadModal() {
     const modal = document.getElementById('textUploadModal');
     const fin = document.getElementById('documentUploadInput');

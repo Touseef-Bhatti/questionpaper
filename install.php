@@ -412,13 +412,46 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS user_reviews (
     source_page VARCHAR(100) NOT NULL DEFAULT 'website',
     is_anonymous TINYINT(1) NOT NULL DEFAULT 0,
     is_approved TINYINT(1) NOT NULL DEFAULT 1,
+    likes_count INT NOT NULL DEFAULT 0,
+    dislikes_count INT NOT NULL DEFAULT 0,
+    is_pinned TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_user_reviews_rating CHECK (rating BETWEEN 1 AND 5),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_reviews_created (created_at),
     INDEX idx_reviews_rating (rating),
-    INDEX idx_reviews_approved (is_approved, created_at)
+    INDEX idx_reviews_approved (is_approved, created_at),
+    INDEX idx_reviews_pinned (is_pinned, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: user_reviews");
+
+// Migrate existing user_reviews table to include likes and dislikes count and is_pinned
+$result = $conn->query("SHOW COLUMNS FROM user_reviews LIKE 'likes_count'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE user_reviews ADD COLUMN likes_count INT NOT NULL DEFAULT 0 AFTER is_approved", "Column: user_reviews.likes_count");
+}
+
+$result = $conn->query("SHOW COLUMNS FROM user_reviews LIKE 'dislikes_count'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE user_reviews ADD COLUMN dislikes_count INT NOT NULL DEFAULT 0 AFTER likes_count", "Column: user_reviews.dislikes_count");
+}
+
+$result = $conn->query("SHOW COLUMNS FROM user_reviews LIKE 'is_pinned'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE user_reviews ADD COLUMN is_pinned TINYINT(1) NOT NULL DEFAULT 0 AFTER dislikes_count", "Column: user_reviews.is_pinned");
+    runQuery($conn, "ALTER TABLE user_reviews ADD INDEX idx_reviews_pinned (is_pinned, created_at)", "Index: user_reviews.idx_reviews_pinned");
+}
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS review_votes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    review_id INT NOT NULL,
+    user_id INT NOT NULL,
+    vote_type ENUM('like', 'dislike') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (review_id) REFERENCES user_reviews(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_review_vote (review_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: review_votes");
+
 
 // 22. Admin Management (admins, admin_logs, pending_admin_actions)
 runQuery($conn, "CREATE TABLE IF NOT EXISTS admins (

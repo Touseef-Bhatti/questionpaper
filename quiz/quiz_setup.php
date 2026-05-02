@@ -1,6 +1,5 @@
 <?php
 session_start();
-require_once '../auth/auth_check.php';
 // quiz_setup.php - Public quiz setup page
 include '../db_connect.php';
 ?>

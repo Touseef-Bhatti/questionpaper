@@ -82,15 +82,34 @@ if ($tableExists) {
         $avgRating = floatval($meta['avg_rating'] ?? 0);
     }
 
-    $stmt = $conn->prepare("SELECT reviewer_name, reviewer_email, rating, feedback, source_page, created_at, is_anonymous FROM user_reviews WHERE is_approved = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?");
+    $userVotes = [];
+    $stmt = $conn->prepare("SELECT id, reviewer_name, reviewer_email, rating, feedback, source_page, created_at, is_anonymous, likes_count, dislikes_count, is_pinned FROM user_reviews WHERE is_approved = 1 ORDER BY is_pinned DESC, created_at DESC LIMIT ? OFFSET ?");
     if ($stmt) {
         $stmt->bind_param('ii', $perPage, $offset);
         $stmt->execute();
         $result = $stmt->get_result();
+        $reviewIds = [];
         while ($row = $result->fetch_assoc()) {
             $reviews[] = $row;
+            $reviewIds[] = $row['id'];
         }
         $stmt->close();
+        
+        // Fetch user votes if logged in
+        if ($isLoggedIn && !empty($reviewIds)) {
+            $userId = intval($_SESSION['user_id']);
+            $idList = implode(',', $reviewIds);
+            $voteStmt = $conn->prepare("SELECT review_id, vote_type FROM review_votes WHERE user_id = ? AND review_id IN ($idList)");
+            if ($voteStmt) {
+                $voteStmt->bind_param('i', $userId);
+                $voteStmt->execute();
+                $voteResult = $voteStmt->get_result();
+                while ($vRow = $voteResult->fetch_assoc()) {
+                    $userVotes[$vRow['review_id']] = $vRow['vote_type'];
+                }
+                $voteStmt->close();
+            }
+        }
     }
 }
 
@@ -382,6 +401,70 @@ function renderStars(int $rating): string {
             border-color: transparent;
             color: #fff;
         }
+        .review-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 0.8rem;
+            border-top: 1px solid #f1f5f9;
+        }
+        .review-actions {
+            display: flex;
+            gap: 0.6rem;
+        }
+        .vote-btn {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .vote-btn:hover {
+            background: #f1f5f9;
+            color: #334155;
+        }
+        .vote-btn.active.like-btn {
+            background: #ecfdf5;
+            color: #10b981;
+            border-color: #a7f3d0;
+        }
+        .vote-btn.active.dislike-btn {
+            background: #fef2f2;
+            color: #ef4444;
+            border-color: #fecaca;
+        }
+        .vote-btn i {
+            font-size: 0.9rem;
+        }
+        .featured-review {
+            border: 2px solid #f59e0b;
+            box-shadow: 0 10px 25px rgba(245, 158, 11, 0.15);
+            position: relative;
+        }
+        .featured-badge {
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
@@ -461,8 +544,12 @@ function renderStars(int $rating): string {
                         $displayName = ((int)($review['is_anonymous'] ?? 0) === 1) ? 'Anonymous User' : 'User';
                     }
                     $createdAt = strtotime((string)($review['created_at'] ?? 'now'));
+                    $isPinned = (int)($review['is_pinned'] ?? 0) === 1;
                 ?>
-                <article class="review-card">
+                <article class="review-card <?= $isPinned ? 'featured-review' : '' ?>">
+                    <?php if ($isPinned): ?>
+                        <div class="featured-badge"><i class="fas fa-star"></i> Featured</div>
+                    <?php endif; ?>
                     <div class="review-top">
                         <div class="reviewer-avatar">
                             <i class="fas fa-user"></i>
@@ -471,7 +558,21 @@ function renderStars(int $rating): string {
                     </div>
                     <div class="review-stars"><?= htmlspecialchars(renderStars((int)$review['rating'])) ?></div>
                     <div class="review-feedback"><?= htmlspecialchars((string)$review['feedback']) ?></div>
-                    <div class="review-date"><?= date('d M Y, h:i A', $createdAt) ?></div>
+                    <?php 
+                        $rId = $review['id'] ?? 0;
+                        $myVote = $userVotes[$rId] ?? null;
+                    ?>
+                    <div class="review-footer">
+                        <div class="review-date"><?= date('d M Y, h:i A', $createdAt) ?></div>
+                        <div class="review-actions">
+                            <button class="vote-btn like-btn <?= $myVote === 'like' ? 'active' : '' ?>" data-review-id="<?= $rId ?>" data-action="like">
+                                <i class="fas fa-thumbs-up"></i> <span class="count"><?= intval($review['likes_count'] ?? 0) ?></span>
+                            </button>
+                            <button class="vote-btn dislike-btn <?= $myVote === 'dislike' ? 'active' : '' ?>" data-review-id="<?= $rId ?>" data-action="dislike">
+                                <i class="fas fa-thumbs-down"></i> <span class="count"><?= intval($review['dislikes_count'] ?? 0) ?></span>
+                            </button>
+                        </div>
+                    </div>
                 </article>
             <?php endforeach; ?>
         </section>
@@ -516,6 +617,60 @@ reviewStarButtons.forEach(btn => {
 });
 
 paintReviewStars();
+
+// Handle Like/Dislike voting
+document.querySelectorAll('.vote-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const reviewId = this.dataset.reviewId;
+        const action = this.dataset.action;
+        const btnContainer = this.closest('.review-actions');
+        
+        try {
+            const formData = new FormData();
+            formData.append('review_id', reviewId);
+            formData.append('action', action);
+            
+            const response = await fetch('review_vote.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.require_login) {
+                if (typeof showAuthModal === 'function') {
+                    showAuthModal();
+                } else {
+                    alert('You need to be logged in to vote.');
+                }
+                return;
+            }
+            
+            if (data.success) {
+                // Update counts
+                const likeBtn = btnContainer.querySelector('.like-btn');
+                const dislikeBtn = btnContainer.querySelector('.dislike-btn');
+                
+                likeBtn.querySelector('.count').textContent = data.likes_count;
+                dislikeBtn.querySelector('.count').textContent = data.dislikes_count;
+                
+                // Update active states
+                likeBtn.classList.remove('active');
+                dislikeBtn.classList.remove('active');
+                
+                if (data.current_vote === 'like') {
+                    likeBtn.classList.add('active');
+                } else if (data.current_vote === 'dislike') {
+                    dislikeBtn.classList.add('active');
+                }
+            } else {
+                console.error(data.error || 'Failed to process vote');
+            }
+        } catch (error) {
+            console.error('Error submitting vote:', error);
+        }
+    });
+});
 </script>
 
 <?php include 'footer.php'; ?>

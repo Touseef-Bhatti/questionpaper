@@ -7,7 +7,7 @@ $reviewsTableExists = false;
 $reviewsTableCheck = $conn->query("SHOW TABLES LIKE 'user_reviews'");
 if ($reviewsTableCheck && $reviewsTableCheck->num_rows > 0) {
     $reviewsTableExists = true;
-    $latestReviewsResult = $conn->query("SELECT reviewer_name, rating, feedback, created_at, is_anonymous FROM user_reviews WHERE is_approved = 1 ORDER BY created_at DESC LIMIT 3");
+    $latestReviewsResult = $conn->query("SELECT reviewer_name, rating, feedback, created_at, is_anonymous, is_pinned FROM user_reviews WHERE is_approved = 1 ORDER BY is_pinned DESC, created_at DESC LIMIT 3");
     if ($latestReviewsResult) {
         while ($reviewRow = $latestReviewsResult->fetch_assoc()) {
             $latestReviews[] = $reviewRow;
@@ -64,11 +64,10 @@ function homeReviewStars(int $rating): string {
 
                     <div class="hero-actions">
                         <br>
+                        <a href="javascript:void(0)" class="button primary bypass-user-type class-check-trigger" data-action="generate_paper"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                        <a href="javascript:void(0)" class="button secondary bypass-user-type class-check-trigger" data-action="online_mcqs"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
                         <?php if (!isset($_SESSION['user_id'])): ?>
                             <a href="login" class="button accent hero-login-btn"><i class="fas fa-sign-in-alt"></i> Login Now</a>
-                        <?php else: ?>
-                            <a href="javascript:void(0)" class="button primary bypass-user-type class-check-trigger" data-action="generate_paper"><i class="fas fa-file-invoice"></i> Generate Paper</a>
-                            <a href="javascript:void(0)" class="button secondary bypass-user-type class-check-trigger" data-action="online_mcqs"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
                         <?php endif; ?>
                     </div>
 
@@ -279,7 +278,13 @@ function homeReviewStars(int $rating): string {
                                 $snippet = strlen($feedback) > 180 ? substr($feedback, 0, 180) . '...' : $feedback;
                                 $reviewTime = strtotime((string)($review['created_at'] ?? 'now'));
                             ?>
-                            <article class="home-review-card">
+                            <?php $isPinned = (int)($review['is_pinned'] ?? 0) === 1; ?>
+                            <article class="home-review-card" style="<?= $isPinned ? 'border: 2px solid #f59e0b; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.15); position: relative;' : '' ?>">
+                                <?php if ($isPinned): ?>
+                                    <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); z-index: 10;">
+                                        <i class="fas fa-star"></i> Featured
+                                    </div>
+                                <?php endif; ?>
                                 <div class="home-review-stars"><?= htmlspecialchars(homeReviewStars((int)$review['rating'])) ?></div>
                                 <p class="home-review-feedback"><?= htmlspecialchars($snippet) ?></p>
                                 <div class="home-review-footer">

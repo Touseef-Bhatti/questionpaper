@@ -1,7 +1,6 @@
 <?php
 // mcqs_topic.php - Topic search page for MCQs
 if (session_status() === PHP_SESSION_NONE) session_start();
-require_once '../auth/auth_check.php';
 
 include_once '../db_connect.php';
 require_once 'mcq_generator.php';
@@ -481,7 +480,7 @@ if (isset($_POST['start_quiz'])) {
         
        <h2>Search Any Topic & Generate Online MCQs Quiz Instantly</h2>
 <p class="desc">
-    Create AI-powered MCQs quizzes by searching any topic. Practice chapter-wise and topic-wise questions for school exams and international tests like SAT, GRE, GCSE, A-Level, MDCAT, ECAT, and NTS. Start your online quiz now and improve your performance.
+    Create AI-powered MCQs quizzes by searching any topic. Prepare tests like SAT, GRE, GCSE, A-Level, MDCAT, ECAT, and NTS.
 </p>
 
         <?php if (isset($error)): ?>
@@ -567,6 +566,9 @@ if (isset($_POST['start_quiz'])) {
                         value="<?= htmlspecialchars($searchQuery) ?>"
                         autofocus
                     >
+                    <button type="button" class="file-upload-btn" title="Upload File" onclick="checkLoginAndOpenUpload()">
+                        <i class="fas fa-file-upload"></i>
+                    </button>
                     <button type="submit" class="search-btn" title="Initiate AI Search">
                         <i class="fas fa-search"></i>
                     </button>
@@ -575,7 +577,7 @@ if (isset($_POST['start_quiz'])) {
         </div>
 
         <!-- FILE UPLOAD TRIGGER CARD -->
-        <div class="text-upload-trigger" id="textUploadTrigger" onclick="openTextUploadModal()">
+        <div class="text-upload-trigger" id="textUploadTrigger" onclick="checkLoginAndOpenUpload()">
             <div class="text-upload-trigger-icon">
                 <i class="fas fa-file-upload"></i>
             </div>
@@ -806,7 +808,8 @@ if (isset($_POST['start_quiz'])) {
 <script>
 let loaderProgressInterval;
 let selectedTopics = [];
-const isPremium = <?= json_encode($isPremium) ?>;
+const isLoggedIn = <?= json_encode(isset($_SESSION['user_id'])) ?>;
+let isPremium = <?= json_encode($isPremium) ?>;
 const topicLimit = <?= json_encode($topicLimit) ?>;
 
 function ignoreModeAndNavigate(url) {
@@ -1147,6 +1150,18 @@ document.addEventListener('DOMContentLoaded', () => {
 // ================================================================
 // TEXT UPLOAD MODAL (MCQs Quiz)
 // ================================================================
+function checkLoginAndOpenUpload() {
+    if (!isLoggedIn) {
+        if (typeof showLoginModal === 'function') {
+            showLoginModal();
+        } else {
+            window.location.href = '../login.php';
+        }
+        return;
+    }
+    openTextUploadModal();
+}
+
 function openTextUploadModal() {
     const modal = document.getElementById('textUploadModal');
     const fin = document.getElementById('documentUploadInput');
