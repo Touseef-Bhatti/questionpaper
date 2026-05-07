@@ -77,19 +77,13 @@ while ($row = $result->fetch_assoc()) {
     <?php include 'header.php'; ?>
 
     <!-- SIDE SKYSCRAPER ADS (Auto-responsive) -->
-    <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
 
     
     <div class="main-container">
 
     <h1>Select Book to Generate <?= htmlspecialchars($classId) ?>th Class Question Paper</h1>
 
-    <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
-    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
-
-    <!-- MIDDLE AD BANNER -->
-    <?= renderAd('banner', 'Place Middle Banner Here', 'ad-placement-top') ?>
-
+  
     <div class="classes-container" id="book-box-container">
         <div class="book-selection-header">
             <h2>📚 Choose a Subject for <?= htmlspecialchars($classId) ?>th Class</h2>

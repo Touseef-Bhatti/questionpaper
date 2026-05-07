@@ -71,12 +71,10 @@ include '../db_connect.php';
 <?php include_once '../header.php'; ?>
 
 <!-- SIDE SKYSCRAPER ADS -->
-<?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 10%;') ?>
 
 <div class="main-content">
     <div class="quiz-setup-container">
         <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
-        <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
         <header class="setup-header">
             <h1>Online MCQs Test For 9th and 10th Board Exams</h1>
@@ -85,7 +83,6 @@ include '../db_connect.php';
 
         <form id="quizForm" method="POST" action="quiz.php">
             <!-- SELECTION TOP AD -->
-            <?= renderAd('banner', 'Selection Top Banner') ?>
             <br>
             <div class="grid">
                 <div>
@@ -143,7 +140,6 @@ include '../db_connect.php';
 
             <!-- MIDDLE AD BANNER -->
             <br>
-            <?= renderAd('banner', 'Place Middle Banner Here') ?>
         </form>
     </div>
 
@@ -189,7 +185,6 @@ include '../db_connect.php';
 
     <!-- BOTTOM AD BANNER -->
     <br>
-    <?= renderAd('banner', 'Place Bottom Banner Here') ?>
 </div>
 
 <?php include __DIR__ . '/../includes/ai_loader.php'; ?>

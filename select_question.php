@@ -237,8 +237,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
 <body>
     <?php include 'header.php'; ?>
 
-    <!-- SIDE SKYSCRAPER ADS -->
-    <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 25%;') ?>
+
 
 
    
@@ -246,7 +245,6 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
     <h3>Generate Question Paper for Book: <?= htmlspecialchars($book_name) ?> (<?= htmlspecialchars($className) ?>)</h3>
     
     <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
-    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
 
     <form method="POST" action="select_topics.php">
@@ -255,7 +253,6 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
         <input type="hidden" name="chapters" value="<?= $chaptersSerialized ?>">
 
         <!-- MIDDLE AD BANNER -->
-        <?= renderAd('banner', 'Place Middle Banner Here', 'ad-placement-top') ?>
 
         <h4>Specify the total number of questions for each chapter:</h4>
         <?php

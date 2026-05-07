@@ -66,10 +66,7 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
         <h1 class="hero-title" style="font-size: 2.5rem;">Finalize Your Question Paper</h1>
         <p class="hero-subtitle mb-0">Configure paper structure and generate PDF.</p>
         
-        <!-- TOP AD BANNER -->
-        <div class="ad-placement-top mt-4">
-            <?= renderAd('banner', 'Finalize Hero Banner', 'ad-hero-banner') ?>
-        </div>
+    
     </div>
 </div>
 

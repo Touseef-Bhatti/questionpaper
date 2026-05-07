@@ -1545,11 +1545,9 @@ if (is_dir($incorrectDir)) {
 <?php include_once '../header.php'; ?>
 
 <!-- SIDE SKYSCRAPER ADS -->
-<?= renderAd('skyscraper', 'Quiz Page Right Skyscraper', 'right', 'margin-top: 10%;') ?>
 
 <div class="main-content">
     <!-- TOP AD BANNER -->
-    <?= renderAd('banner', 'Quiz Page Top Banner', 'ad-placement-top', 'margin-bottom: 20px;') ?>
 
     <div class="quiz-container">
         <!-- Header -->
@@ -1680,10 +1678,7 @@ if (is_dir($incorrectDir)) {
         </div>
     </div>
 
-    <!-- BOTTOM AD BANNER -->
-    <div style="margin-top: 30px;">
-        <?= renderAd('banner', 'Quiz Page Bottom Banner') ?>
-    </div>
+ 
 </div>
 
 <script src="<?= $assetBase ?>quiz/funny_sounds/funny_audio_manager.js"></script>

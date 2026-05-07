@@ -86,16 +86,11 @@ if (!$viewHasChapterCol) {
     </style>
 </head>
 <body>
-<!-- SIDE SKYSCRAPER ADS (Right Only) -->
-<?= renderAd('skyscraper', 'Right Skyscraper 1', 'right', 'margin-top: 15%;') ?>
-
-<!-- TOP AD BANNER -->
-<?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
 <div class="main-content">
     <div class="container select-topics-main-content" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.08);padding:20px;">
         <!-- MIDDLE AD BANNER -->
-        <?= renderAd('banner', 'Topics Middle Banner') ?>
+        <?= ('banner', 'Topics Middle Banner') ?>
         <br>
         <h3>Select Topics for <?= htmlspecialchars($bookName) ?> (Class <?= htmlspecialchars((string)$classId) ?>)</h3>
         <div style="display:flex;gap:8px;align-items:center;margin:10px 0;">

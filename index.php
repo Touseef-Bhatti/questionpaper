@@ -74,9 +74,7 @@ function homeReviewStars(int $rating): string {
             </div>
         </section>
 
-        <?= renderAd('banner', 'Place Top Banner Here') ?>
-        <?= renderAd('banner', 'Place Middle Banner Here') ?>
-        
+      
 
         <div class="container">
             <div class="hero-prep-section" role="region" aria-label="Exam preparation categories">
@@ -137,7 +135,6 @@ function homeReviewStars(int $rating): string {
             </div>
         </div>
 <br><br><br><br>
-<?= renderAd('banner', 'Place Bottom Banner Here') ?>
 
 <br><br>
 
@@ -314,7 +311,6 @@ function homeReviewStars(int $rating): string {
         
         <br>
 
-        <?= renderAd('banner', 'Place Bottom Banner Here') ?>
 
       <!-- CTA -->
 <br>

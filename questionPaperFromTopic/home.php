@@ -283,7 +283,6 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
 <div class="main-content">
     <div class="topic-search-container">
         <!-- TOP AD BANNER -->
-        <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
         <h1>Create Question Papers</h1>
         <p class="desc">

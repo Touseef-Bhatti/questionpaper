@@ -43,7 +43,6 @@ while ($row = $classResult->fetch_assoc()) {
     <?php include 'header.php'; ?>
 
     <!-- SIDE SKYSCRAPER ADS (Auto-responsive) -->
-    <?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 20%;') ?>
 
     <div class="main-content">
 
@@ -51,7 +50,6 @@ while ($row = $classResult->fetch_assoc()) {
     <h1>Generate 9th & 10th Class Question Papers – Punjab Board</h1>
     
     <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
-    <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
     
     <div class="description-section">
         <div class="info-banner">
@@ -67,7 +65,6 @@ Generator MCQs tests, school exams, and practice papers instantly or attempt onl
         </div>
         
         <!-- MIDDLE AD BANNER -->
-        <?= renderAd('banner', 'Place Middle Banner Here', 'ad-placement-middle') ?>
     
     <div class="classes-container">
 

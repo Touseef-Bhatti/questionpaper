@@ -456,12 +456,10 @@ if (isset($_POST['start_quiz'])) {
 <?php include_once '../header.php'; ?>
 
 <!-- SIDE SKYSCRAPER ADS (Right Only) -->
-<?= renderAd('skyscraper', 'Place Right Skyscraper Banner Here', 'right', 'margin-top: 30%;') ?>
 
 <div class="main-content">
     <div class="topic-search-container">
         <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
-        <?= renderAd('banner', 'Place Top Banner Here', 'ad-placement-top') ?>
 
         <?php
         $source = $_REQUEST['source'] ?? '';
