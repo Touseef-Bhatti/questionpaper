@@ -149,7 +149,7 @@ if (!empty($selected_mcq_ids)) {
     $placeholders = str_repeat('?,', count($selected_mcq_ids) - 1) . '?';
     $types = str_repeat('i', count($selected_mcq_ids));
     
-    $stmt = $conn->prepare("SELECT mcq_id, question, option_a, option_b, option_c, option_d, correct_option FROM mcqs WHERE mcq_id IN ($placeholders)");
+    $stmt = $conn->prepare("SELECT mcq_id, question, option_a, option_b, option_c, option_d, correct_option, explanation FROM mcqs WHERE mcq_id IN ($placeholders)");
     $stmt->bind_param($types, ...$selected_mcq_ids);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -164,130 +164,134 @@ $remaining_needed = $mcq_count - count($selectedQuestions) - count($custom_mcqs)
 
 if ($remaining_needed > 0) {
     // Exclude already selected IDs
-    $exclude_ids = $selected_mcq_ids; // Start with manually selected
+    $exclude_ids = $selected_mcq_ids; 
     
     if (!empty($topics)) {
-        // Topic-based selection logic
-        $placeholders = str_repeat('?,', count($topics) - 1) . '?';
-        $types = str_repeat('s', count($topics));
-        $params = $topics;
+        // Normalize topics
+        $normalizedTopics = array_unique(array_filter(array_map('trim', $topics)));
+        if (empty($normalizedTopics)) { $normalizedTopics = ['General']; }
+
+        // --- STEP 1: COMPREHENSIVE DB CHECK (mcqs + AIGeneratedMCQs) ---
+        // We want to avoid AI generation if possible.
+        
+        // 1a. Fetch from mcqs table
+        $placeholders = str_repeat('?,', count($normalizedTopics) - 1) . '?';
+        $types = str_repeat('s', count($normalizedTopics));
+        $params = $normalizedTopics;
         
         $excludeClause = "";
         if (!empty($exclude_ids)) {
-            $exPlaceholders = str_repeat('?,', count($exclude_ids) - 1) . '?';
-            $excludeClause = " AND mcq_id NOT IN ($exPlaceholders) ";
-            $types .= str_repeat('i', count($exclude_ids));
-            $params = array_merge($params, $exclude_ids);
+            $numericExclude = array_filter($exclude_ids, 'is_numeric');
+            if (!empty($numericExclude)) {
+                $exPlaceholders = str_repeat('?,', count($numericExclude) - 1) . '?';
+                $excludeClause = " AND m.mcq_id NOT IN ($exPlaceholders) ";
+                $types .= str_repeat('i', count($numericExclude));
+                $params = array_merge($params, $numericExclude);
+            }
         }
         
-        // Fetch random MCQs matching topics
-        $sql = "SELECT mcq_id, question, option_a, option_b, option_c, option_d, correct_option 
-                FROM mcqs 
-                WHERE topic IN ($placeholders) 
-                $excludeClause
-                ORDER BY RAND() 
-                LIMIT ?";
+        $sql = "SELECT m.mcq_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation 
+                FROM mcqs m
+                LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id
+                WHERE m.topic IN ($placeholders) $excludeClause
+                ORDER BY RAND() LIMIT ?";
         $params[] = $remaining_needed;
         $types .= 'i';
     
         try {
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param($types, ...$params);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            while ($row = $result->fetch_assoc()) {
-                $selectedQuestions[] = $row;
-                $exclude_ids[] = $row['mcq_id']; // Add to exclusion list
-            }
-            $stmt->close();
-        } catch (Exception $e) {
-            // Fallback or ignore
-        }
-    
-        // Check AIGeneratedMCQs if needed
-        // Target total from DB/AI (exact count)
-        $target_db_count = $mcq_count - count($custom_mcqs);
-        if (count($selectedQuestions) < $target_db_count) {
-            $needed = $target_db_count - count($selectedQuestions);
-            
-            // Re-prepare params for AI table (same topics)
-            $aiParams = $topics;
-            $aiTypes = str_repeat('s', count($topics));
-            $aiParams[] = $needed;
-            $aiTypes .= 'i';
-            
-            // Note: AI table might not have standard IDs to exclude easily, 
-            // but usually they don't overlap with standard MCQs. 
-            // We'll skip complex exclusion for AI table for now to keep it simple.
-            
-            $aiSql = "SELECT question, option_a, option_b, option_c, option_d, correct_option 
-                      FROM AIGeneratedMCQs 
-                      WHERE topic IN ($placeholders) 
-                      ORDER BY RAND() 
-                      LIMIT ?";
-                      
-            try {
-                $stmt = $conn->prepare($aiSql);
-                $stmt->bind_param($aiTypes, ...$aiParams);
+            if ($stmt) {
+                $stmt->bind_param($types, ...$params);
                 $stmt->execute();
                 $result = $stmt->get_result();
-                
                 while ($row = $result->fetch_assoc()) {
-                    $selectedQuestions[] = [
-                        'mcq_id' => null, // AI questions don't have standard mcq_id
-                        'question' => $row['question'],
-                        'option_a' => $row['option_a'],
-                        'option_b' => $row['option_b'],
-                        'option_c' => $row['option_c'],
-                        'option_d' => $row['option_d'],
-                        'correct_option' => $row['correct_option']
-                    ];
+                    $selectedQuestions[] = $row;
+                    $exclude_ids[] = $row['mcq_id'];
                 }
                 $stmt->close();
-            } catch (Exception $e) {
-                // Ignore
             }
-        }
-    
-        // Generate if still needed - 1 request for all MCQs
-        if (count($selectedQuestions) < $target_db_count) {
-            $neededCount = $target_db_count - count($selectedQuestions);
-            if (function_exists('generateMCQsBulkWithGemini')) {
-                // Extract already selected AI MCQ IDs to avoid duplicates
-                $existingAiIds = [];
-                foreach ($selectedQuestions as $q) {
-                    if (isset($q['is_ai']) && $q['is_ai'] && isset($q['id'])) {
-                        $existingAiIds[] = $q['id'];
-                    }
+        } catch (Exception $e) {}
+
+        // 1b. If still needed, fetch from AIGeneratedMCQs table
+        $still_needed_from_db = $mcq_count - count($selectedQuestions) - count($custom_mcqs);
+        if ($still_needed_from_db > 0) {
+            $aiPlaceholders = str_repeat('?,', count($normalizedTopics) - 1) . '?';
+            $aiTypes = str_repeat('s', count($normalizedTopics));
+            $aiParams = $normalizedTopics;
+            
+            $aiExcludeClause = "";
+            $aiExcludeIds = [];
+            foreach ($exclude_ids as $eid) {
+                if (strpos((string)$eid, 'ai_') === 0) {
+                    $aiExcludeIds[] = intval(substr((string)$eid, 3));
                 }
-                
-                // Use skipVerify = true for faster room creation
-$generatedMCQs = generateMCQsBulkWithGemini($topics, $neededCount, '', true, false, $existingAiIds);
-                if (!empty($generatedMCQs)) {
-                    foreach ($generatedMCQs as $genMCQ) {
+            }
+            if (!empty($aiExcludeIds)) {
+                $aiExPlaceholders = str_repeat('?,', count($aiExcludeIds) - 1) . '?';
+                $aiExcludeClause = " AND id NOT IN ($aiExPlaceholders) ";
+                $aiTypes .= str_repeat('i', count($aiExcludeIds));
+                $aiParams = array_merge($aiParams, $aiExcludeIds);
+            }
+            
+            $aiSql = "SELECT id as mcq_id, question_text as question, option_a, option_b, option_c, option_d, correct_option, explanation 
+                      FROM AIGeneratedMCQs 
+                      WHERE topic IN ($aiPlaceholders) $aiExcludeClause
+                      ORDER BY RAND() LIMIT ?";
+            $aiParams[] = $still_needed_from_db;
+            $aiTypes .= 'i';
+            
+            try {
+                $stmt = $conn->prepare($aiSql);
+                if ($stmt) {
+                    $stmt->bind_param($aiTypes, ...$aiParams);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    while ($row = $result->fetch_assoc()) {
                         $selectedQuestions[] = [
-                            'mcq_id' => null,
-                            'question' => $genMCQ['question'],
-                            'option_a' => $genMCQ['option_a'],
-                            'option_b' => $genMCQ['option_b'],
-                            'option_c' => $genMCQ['option_c'],
-                            'option_d' => $genMCQ['option_d'],
-                            'correct_option' => $genMCQ['correct_option']
+                            'mcq_id' => 'ai_' . $row['mcq_id'],
+                            'question' => $row['question'],
+                            'option_a' => $row['option_a'],
+                            'option_b' => $row['option_b'],
+                            'option_c' => $row['option_c'],
+                            'option_d' => $row['option_d'],
+                            'correct_option' => $row['correct_option'],
+                            'explanation' => $row['explanation'] ?? ''
                         ];
+                        $exclude_ids[] = 'ai_' . $row['mcq_id'];
                     }
+                    $stmt->close();
+                }
+            } catch (Exception $e) {}
+        }
+
+        // --- STEP 2: AI GENERATION (ONLY AS LAST RESORT) ---
+        $final_needed = $mcq_count - count($selectedQuestions) - count($custom_mcqs);
+        if ($final_needed > 0) {
+            // Extract AI IDs to exclude for the generator
+            $aiOnlyExcludeIds = [];
+            foreach ($exclude_ids as $eid) {
+                if (strpos((string)$eid, 'ai_') === 0) $aiOnlyExcludeIds[] = substr((string)$eid, 3);
+            }
+
+            // We call the generator with forceAI = false so it can still check its own cache first
+            $generated = generateMCQsBulkWithGemini($normalizedTopics, $final_needed, '', true, false, $aiOnlyExcludeIds);
+            if (!empty($generated)) {
+                foreach ($generated as $gen) {
+                    if (count($selectedQuestions) >= ($mcq_count - count($custom_mcqs))) break;
+                    $selectedQuestions[] = [
+                        'mcq_id' => 'ai_' . ($gen['id'] ?? $gen['mcq_id'] ?? uniqid()),
+                        'question' => $gen['question'],
+                        'option_a' => $gen['option_a'],
+                        'option_b' => $gen['option_b'],
+                        'option_c' => $gen['option_c'],
+                        'option_d' => $gen['option_d'],
+                        'correct_option' => $gen['correct_option'],
+                        'explanation' => $gen['explanation'] ?? ''
+                    ];
                 }
             }
         }
         
-        // Shuffle final selection
-        shuffle($selectedQuestions);
-        // We do NOT slice here because we might have manual selections + random ones, 
-        // and if manual + random > mcq_count, we generally want to keep manual ones.
-        // But if user asked for 10 and selected 5, remaining is 5. Total 10.
-        // If user asked for 5 and selected 10, remaining is -5. Logic skips filling.
-        // So we just rely on the loop limits.
-    
     } else if ($remaining_needed > 0) {
         // Chapter/Book based selection
         if (!empty($chapterIdsArray)) {
@@ -301,14 +305,15 @@ $generatedMCQs = generateMCQsBulkWithGemini($topics, $neededCount, '', true, fal
                     if (in_array($mcq['mcq_id'], $exclude_ids)) continue; // Manual exclusion check
                     
                     $collectedMcqs[] = [
-                        'mcq_id' => $mcq['mcq_id'],
-                        'question' => $mcq['question'],
-                        'option_a' => $mcq['option_a'],
-                        'option_b' => $mcq['option_b'],
-                        'option_c' => $mcq['option_c'],
-                        'option_d' => $mcq['option_d'],
-                        'correct_option' => $mcq['correct_option']
-                    ];
+                            'mcq_id' => $mcq['mcq_id'],
+                            'question' => $mcq['question'],
+                            'option_a' => $mcq['option_a'],
+                            'option_b' => $mcq['option_b'],
+                            'option_c' => $mcq['option_c'],
+                            'option_d' => $mcq['option_d'],
+                            'correct_option' => $mcq['correct_option'],
+                            'explanation' => $mcq['explanation'] ?? ''
+                        ];
                     $exclude_ids[] = $mcq['mcq_id'];
                 }
             }
@@ -347,7 +352,8 @@ $generatedMCQs = generateMCQsBulkWithGemini($topics, $neededCount, '', true, fal
                             'option_b' => $mcq['option_b'],
                             'option_c' => $mcq['option_c'],
                             'option_d' => $mcq['option_d'],
-                            'correct_option' => $mcq['correct_option']
+                            'correct_option' => $mcq['correct_option'],
+                            'explanation' => $mcq['explanation'] ?? ''
                         ];
                         $exclude_ids[] = $mcq['mcq_id'];
                     }
@@ -392,12 +398,16 @@ foreach ($custom_mcqs as $mcq) {
 
 // Insert into quiz_room_questions (snapshot)
 if (!empty($selectedQuestions)) {
-    $ins = $conn->prepare("INSERT INTO quiz_room_questions (room_id, question, option_a, option_b, option_c, option_d, correct_option) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $ins = $conn->prepare("INSERT INTO quiz_room_questions (room_id, question, option_a, option_b, option_c, option_d, correct_option, explanation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     foreach ($selectedQuestions as $q) {
-        $ins->bind_param('issssss', $room_id, $q['question'], $q['option_a'], $q['option_b'], $q['option_c'], $q['option_d'], $q['correct_option']);
+        $exp = $q['explanation'] ?? '';
+        $ins->bind_param('isssssss', $room_id, $q['question'], $q['option_a'], $q['option_b'], $q['option_c'], $q['option_d'], $q['correct_option'], $exp);
         $ins->execute();
     }
     $ins->close();
+
+    // Recheck MCQs for the room using AI Recheck API
+    // MOVED TO BACKGROUND AJAX CALL
 }
 
 // Auto-save user's custom questions to their profile
@@ -463,6 +473,27 @@ $joinUrl = $baseUrl . '/quiz/online_quiz_join.php?room=' . urlencode($room_code)
     </div>
   </div>
 </div>
+
+<script>
+    // Trigger background verification for room questions
+    const roomId = <?= (int)$room_id ?>;
+    if (roomId > 0) {
+        console.log('Triggering background verification for Room ID:', roomId);
+        fetch('ajax_verify_room_background.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ room_id: roomId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log('Background room verification started/finished:', data);
+        })
+        .catch(err => {
+            console.error('Background room verification trigger failed:', err);
+        });
+    }
+</script>
+
 <?php include '../footer.php'; ?>
 </body>
 </html>

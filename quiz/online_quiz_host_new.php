@@ -954,11 +954,11 @@ include_once '../header.php';
             if (typeof showAILoader !== 'function') return;
             showAILoader(
                 [
-                    { label: 'Analyzing quiz parameters', duration: 2500 },
-                    { label: 'Preparing curriculum data', duration: 2500 },
+                    { label: 'Analyzing quiz parameters', duration: 3500 },
+                    { label: 'Preparing curriculum data', duration: 3500 },
                     { label: 'Generating and fetching MCQs', duration: 3500 },
-                    { label: 'Building quiz room', duration: 2500 },
-                    { label: 'Finalizing live setup', duration: 2000 }
+                    { label: 'Building quiz room', duration: 3500 },
+                    { label: 'Finalizing live setup', duration: 3500 }
                 ],
                 'Synthesizing quiz questions via Ahmad Learning Hub Engine...',
                 'Neural Engine Processing'

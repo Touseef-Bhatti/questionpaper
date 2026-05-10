@@ -3,6 +3,15 @@ if (session_status() === PHP_SESSION_NONE) session_start(); // Must be the very 
 include '../db_connect.php';
 require_once 'mcq_generator.php';
 
+// Initialize session tracking for seen questions to avoid repetition
+if (!isset($_SESSION['seen_mcq_ids'])) {
+    $_SESSION['seen_mcq_ids'] = [];
+}
+// Also track how many times the user has taken a quiz in this session for specific topics/books
+if (!isset($_SESSION['quiz_attempts'])) {
+    $_SESSION['quiz_attempts'] = [];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawInput = file_get_contents('php://input');
     $jsonInput = json_decode($rawInput, true);
@@ -474,6 +483,27 @@ if (empty($whereConditions)) {
      die('<h2 style="color:red;">Invalid quiz filters.</h2>');
 }
 
+// Track attempts for this specific configuration to bypass cache/force regeneration
+$configKey = md5($class_id . '_' . $book_id . '_' . $chapter_ids . '_' . (is_array($topicsArray) ? implode(',', $topicsArray) : $topicsArray));
+if (!isset($_SESSION['quiz_attempts'][$configKey])) {
+    $_SESSION['quiz_attempts'][$configKey] = 0;
+}
+$_SESSION['quiz_attempts'][$configKey]++;
+$isSubsequentAttempt = ($_SESSION['quiz_attempts'][$configKey] > 1);
+
+// Exclude seen MCQs in the current session
+$seenIds = $_SESSION['seen_mcq_ids'] ?? [];
+if (!empty($seenIds)) {
+    // Filter out non-numeric IDs if they are from 'mcqs' table (usually numeric)
+    $numericSeenIds = array_filter($seenIds, 'is_numeric');
+    if (!empty($numericSeenIds)) {
+        $seenPlaceholders = implode(',', array_fill(0, count($numericSeenIds), '?'));
+        $whereConditions[] = "m.mcq_id NOT IN ($seenPlaceholders)";
+        $params = array_merge($params, $numericSeenIds);
+        $types .= str_repeat('i', count($numericSeenIds));
+    }
+}
+
 $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
 
 // Fetch random MCQs
@@ -510,13 +540,32 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
     $types = str_repeat('s', count($topicsArray));
     $params = $topicsArray;
     
+    $aiWhereConditions = ["topic IN ($placeholders)"];
+    
+    // Exclude seen AI MCQs
+    $aiSeenIds = [];
+    foreach ($seenIds as $sid) {
+        if (strpos((string)$sid, 'ai_') === 0) {
+            $idVal = substr((string)$sid, 3);
+            if (is_numeric($idVal)) $aiSeenIds[] = intval($idVal);
+        }
+    }
+    
+    if (!empty($aiSeenIds)) {
+        $aiSeenPlaceholders = implode(',', array_fill(0, count($aiSeenIds), '?'));
+        $aiWhereConditions[] = "id NOT IN ($aiSeenPlaceholders)";
+        $params = array_merge($params, $aiSeenIds);
+        $types .= str_repeat('i', count($aiSeenIds));
+    }
+
     // Add limit param
     $params[] = $needed;
     $types .= 'i';
     
+    $aiWhereClause = implode(' AND ', $aiWhereConditions);
     $aiSql = "SELECT id as mcq_id, question_text as question, option_a, option_b, option_c, option_d, correct_option, explanation 
               FROM AIGeneratedMCQs 
-              WHERE topic IN ($placeholders) 
+              WHERE $aiWhereClause 
               ORDER BY RAND() 
               LIMIT ?";
               
@@ -548,15 +597,25 @@ if (count($questions) < $mcq_count && !empty($topicsArray)) {
 if (count($questions) < $mcq_count && !empty($topicsArray)) {
     $neededCount = $mcq_count - count($questions);
     
-    // Extract already fetched AI MCQ IDs to avoid duplicates from generateMCQsBulkWithGemini
-    $existingAiIds = [];
+    // Extract already fetched AI MCQ IDs to avoid duplicates
+    $excludeIds = $seenIds; // Start with seen IDs from session
     foreach ($questions as $q) {
-        if (isset($q['mcq_id']) && strpos((string)$q['mcq_id'], 'ai_') === 0) {
-            $existingAiIds[] = substr((string)$q['mcq_id'], 3);
+        if (isset($q['mcq_id'])) {
+            $excludeIds[] = (string)$q['mcq_id'];
+        }
+    }
+    $excludeIds = array_unique($excludeIds);
+
+    // Filter to get only the numeric part for AI IDs if needed by the generator
+    $aiExcludeIds = [];
+    foreach ($excludeIds as $eid) {
+        if (strpos((string)$eid, 'ai_') === 0) {
+            $aiExcludeIds[] = substr((string)$eid, 3);
         }
     }
 
-    $generatedMCQs = generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel ?? '', true, false, $existingAiIds);
+    // Use $isSubsequentAttempt to force fresh generation if needed (skips generator's internal cache)
+    $generatedMCQs = generateMCQsBulkWithGemini($topicsArray, $neededCount, $studyLevel ?? '', true, $isSubsequentAttempt, $aiExcludeIds);
     if (!empty($generatedMCQs)) {
         foreach ($generatedMCQs as $genMCQ) {
             if (count($questions) >= $mcq_count) break; // Safety break
@@ -616,6 +675,13 @@ if (empty($questions)) {
 // Limit to requested count and shuffle
 shuffle($questions);
 $questions = array_slice($questions, 0, $mcq_count);
+
+// Update seen questions in session
+foreach ($questions as $q) {
+    if (isset($q['mcq_id']) && !in_array($q['mcq_id'], $_SESSION['seen_mcq_ids'])) {
+        $_SESSION['seen_mcq_ids'][] = $q['mcq_id'];
+    }
+}
 
 if ($sharedQuizPayload && !empty($sharedQuizPayload['questions']) && is_array($sharedQuizPayload['questions'])) {
     $questions = $sharedQuizPayload['questions'];
@@ -744,12 +810,13 @@ if (is_dir($incorrectDir)) {
             box-shadow: 0 20px 60px -10px rgba(79,70,229,0.15);
             overflow: hidden;
             border: 1px solid #e2e8f0;
-            margin-top: 20%;
+            margin-top: 10%;
         }
 @media (max-width: 768px) {
     .quiz-container {
-        max-width: 95%;
-        
+        width: 95%;
+        min-width: 90%;
+        margin-top: 10%;
     }
 }
         /* ─── Header ──────────────────────────────────────────── */
@@ -1416,133 +1483,335 @@ if (is_dir($incorrectDir)) {
         .review-modal {
             position: fixed;
             inset: 0;
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 9999;
-            padding: 18px;
+            z-index: 99999;
+            padding: 20px;
+            animation: alhFadeIn 0.3s ease;
         }
+        @keyframes alhFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
         .review-modal.open { display: flex; }
+
         .review-modal-card {
             width: 100%;
-            max-width: 560px;
+            max-width: 520px;
+            max-height: calc(100vh - 40px);
             background: #ffffff;
-            border-radius: 20px;
-            border: 1px solid #dbe3ef;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
+        .review-modal.open .review-modal-card { transform: scale(1); }
+
         .review-modal-header {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
             color: #ffffff;
-            padding: 24px 26px 20px;
+            padding: 32px 32px 24px;
+            position: relative;
+        }
+        .review-modal-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 40px;
+            background: linear-gradient(to top, #ffffff, transparent);
+            opacity: 0.1;
         }
         .review-modal-title {
             margin: 0 0 8px;
-            font-size: 1.5rem;
-            font-weight: 900;
+            font-size: 1.6rem;
+            font-weight: 800;
             line-height: 1.2;
+            letter-spacing: -0.02em;
         }
         .review-modal-subtitle {
             margin: 0;
             font-size: 0.95rem;
-            color: #eef2ff;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.5;
         }
         .review-modal-body {
-            padding: 24px 26px 10px;
+            padding: 32px;
+            overflow-y: auto;
+            flex: 1;
         }
         .star-row {
             display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
+            gap: 12px;
+            margin-bottom: 24px;
+            justify-content: center;
         }
         .star-btn {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            border: 1px solid #cbd5e1;
+            width: 54px;
+            height: 54px;
+            border-radius: 16px;
+            border: 2px solid #f1f5f9;
             background: #f8fafc;
-            color: #94a3b8;
-            font-size: 1.3rem;
+            color: #cbd5e1;
+            font-size: 1.5rem;
             cursor: pointer;
-            transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .star-btn:hover {
-            transform: translateY(-1px);
-            border-color: #f59e0b;
-            color: #f59e0b;
-            background: #fff7ed;
+            transform: scale(1.1) rotate(5deg);
+            border-color: #fbbf24;
+            color: #fbbf24;
+            background: #fffbeb;
+            box-shadow: 0 10px 15px -3px rgba(251, 191, 36, 0.2);
         }
         .star-btn.active {
             border-color: #f59e0b;
             background: #fff7ed;
             color: #f59e0b;
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.1);
         }
         .review-modal textarea {
             width: 100%;
-            min-height: 125px;
-            border-radius: 12px;
-            border: 1px solid #cbd5e1;
-            padding: 14px;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-            color: #0f172a;
-            resize: vertical;
+            min-height: 140px;
+            border-radius: 16px;
+            border: 2px solid #f1f5f9;
+            background: #f8fafc;
+            padding: 16px;
+            font-family: inherit;
+            font-size: 1rem;
+            color: #1e293b;
+            resize: none;
             outline: none;
+            transition: all 0.2s ease;
         }
         .review-modal textarea:focus {
             border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
         }
         .review-modal-message {
-            margin-top: 10px;
-            font-size: 0.9rem;
-            font-weight: 700;
+            margin-top: 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-align: center;
             min-height: 24px;
         }
-        .review-modal-message.error { color: #b91c1c; }
-        .review-modal-message.success { color: #166534; }
+        .review-modal-message.error { color: #ef4444; }
+        .review-modal-message.success { color: #10b981; }
         .review-modal-actions {
             display: flex;
             gap: 12px;
-            justify-content: flex-end;
-            padding: 0 26px 24px;
-            flex-wrap: wrap;
+            padding: 0 32px 32px;
         }
         .review-modal-actions .btn-quiz {
-            min-width: 130px;
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
             justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+        .review-modal-actions .btn-quiz.primary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        .review-modal-actions .btn-quiz.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.4);
+        }
+        .review-modal-actions .btn-quiz.outline {
+            background: #ffffff;
+            color: #64748b;
+            border: 2px solid #f1f5f9;
+        }
+        .review-modal-actions .btn-quiz.outline:hover {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+            color: #475569;
         }
 
         @media (max-width: 640px) {
-            .review-modal-card {
-                border-radius: 18px;
-            }
-            .review-modal-header,
-            .review-modal-body,
+            .review-modal { padding: 12px; }
+            .review-modal-card { border-radius: 20px; max-height: calc(100vh - 24px); }
+            .review-modal-header { padding: 20px 24px; }
+            .review-modal-title { font-size: 1.3rem; }
+            .review-modal-body { padding: 20px 24px; }
             .review-modal-actions {
-                padding-left: 16px;
-                padding-right: 16px;
+                padding: 0 24px 24px;
+                flex-direction: column-reverse;
+                gap: 10px;
             }
-            .review-modal-actions {
-                justify-content: stretch;
+            .review-modal-actions .btn-quiz { width: 100%; height: 44px; }
+            .star-btn { width: 44px; height: 44px; font-size: 1.1rem; }
+            .review-modal textarea { min-height: 100px; padding: 12px; }
+        }
+
+        /* ─── Funny Mode Popup ───────────────────────────────── */
+        .funny-popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+            animation: fadeIn 0.4s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .funny-popup-card {
+            width: 100%;
+            max-width: 520px;
+            background: #ffffff;
+            border-radius: 32px;
+            padding: 40px 32px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        @keyframes zoomIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .funny-popup-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 8px;
+            background: linear-gradient(90deg, #facc15, #f59e0b, #ef4444, #ec4899, #8b5cf6);
+        }
+
+        .funny-popup-scroll {
+            overflow-y: auto;
+            padding: 0 4px;
+        }
+
+        .funny-popup-icon {
+            font-size: 4.5rem;
+            margin-bottom: 20px;
+            display: block;
+            animation: bounce-loop 2s infinite;
+        }
+        @keyframes bounce-loop {
+            0%, 100% { transform: translateY(0) rotate(0); }
+            50% { transform: translateY(-15px) rotate(10deg); }
+        }
+
+        .funny-popup-title {
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #0f172a;
+            margin: 0 0 12px;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        .funny-popup-text {
+            font-size: 1.1rem;
+            color: #475569;
+            line-height: 1.5;
+            margin-bottom: 32px;
+            font-weight: 500;
+        }
+
+        .funny-popup-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .btn-funny-choice {
+            flex: 1;
+            padding: 16px 24px;
+            border-radius: 18px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .btn-funny-yes {
+            background: linear-gradient(135deg, #facc15 0%, #f59e0b 100%);
+            color: #1e293b;
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
+        }
+        .btn-funny-yes:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 28px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-funny-no {
+            background: #f1f5f9;
+            color: #475569;
+            border: 2px solid #e2e8f0;
+        }
+        .btn-funny-no:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 640px) {
+            .funny-popup-card {
+                padding: 32px 24px;
+                border-radius: 24px;
             }
-            .review-modal-actions .btn-quiz {
-                width: 100%;
-            }
-            .star-row {
-                justify-content: space-between;
-            }
-            .star-btn {
-                width: 44px;
-                height: 44px;
-            }
+            .funny-popup-icon { font-size: 3.5rem; margin-bottom: 16px; }
+            .funny-popup-title { font-size: 1.75rem; }
+            .funny-popup-text { font-size: 0.95rem; margin-bottom: 24px; }
+            .funny-popup-actions { flex-direction: column; gap: 12px; }
+            .btn-funny-choice { padding: 14px 20px; font-size: 1rem; width: 100%; }
         }
     </style>
 </head>
 <body>
 <?php include_once '../header.php'; ?>
+
+<!-- Funny Mode Welcome Popup -->
+<div id="funnyWelcomePopup" class="funny-popup-overlay" style="display: none;">
+    <div class="funny-popup-card">
+        <div class="funny-popup-scroll">
+            <span class="funny-popup-icon">😂</span>
+            <h2 class="funny-popup-title">Funny Mode?</h2>
+            <p class="funny-popup-text">Enable <strong>Funny Mode</strong> for hilarious sound effects and reactions as you answer! Best enjoyed with sound on.</p>
+        </div>
+        <div class="funny-popup-actions">
+            <button type="button" class="btn-funny-choice btn-funny-yes" onclick="selectFunnyMode(true)">
+                <i class="fas fa-laugh-squint"></i> Yes, Funny!
+            </button>
+            <button type="button" class="btn-funny-choice btn-funny-no" onclick="selectFunnyMode(false)">
+                <i class="fas fa-user-graduate"></i> No, Thanks
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- SIDE SKYSCRAPER ADS -->
 
@@ -1866,6 +2135,27 @@ function toggleFunnyMode() {
     
     // Play activation sound via manager (handles 3s limit & cache)
     FunnyAudioManager.toggleModeSound();
+}
+
+/** Funny Mode Initial Selection */
+function selectFunnyMode(enabled) {
+    window.funnyModeActive = enabled;
+    localStorage.setItem('funnyMode', enabled);
+    updateFunnyModeUI();
+    
+    // Hide popup
+    const popup = document.getElementById('funnyWelcomePopup');
+    if (popup) popup.style.display = 'none';
+    
+    // If enabled funny mode, play the activation sound
+    if (enabled) {
+        FunnyAudioManager.toggleModeSound();
+    }
+    
+    // Only start if not already started (it should be started by initQuiz though)
+    if (!quizStarted) {
+        startQuizActual();
+    }
 }
 
 function playFunnySound(type) {
@@ -2428,7 +2718,8 @@ function loadAdAndNavigate(url) {
 
 // ─── Navigation Guards ─────────────────────────────────────────────
 window.addEventListener('beforeunload', e => {
-    if (quizStarted && !quizCompleted) {
+    // Protect the session as soon as the page is ready to ensure background verification completes
+    if (!quizCompleted) {
         e.preventDefault(); e.returnValue = '';
     }
 });
@@ -2443,7 +2734,7 @@ window.addEventListener('popstate', () => {
 });
 document.addEventListener('keydown', e => {
     if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
-        if (quizStarted && !quizCompleted) { e.preventDefault(); }
+        if (!quizCompleted) { e.preventDefault(); }
     }
     if (e.ctrlKey && ['c','a','v','x'].includes(e.key)) e.preventDefault();
     if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) e.preventDefault();
@@ -2464,9 +2755,36 @@ document.querySelectorAll('#starRow .star-btn').forEach(star => {
 });
 
 // ─── Start ─────────────────────────────────────────────────────────
-quizStarted = true;
-FunnyAudioManager.playStartSound();
-renderQuestion();
+function initQuiz() {
+    // Start the quiz immediately (standard mode)
+    startQuizActual();
+    
+    // Ask for funny mode after 5 seconds as requested
+    setTimeout(() => {
+        if (!quizCompleted && !window.funnyModeActive) {
+            const popup = document.getElementById('funnyWelcomePopup');
+            if (popup) {
+                popup.style.display = 'flex';
+            }
+        }
+    }, 5000);
+}
+
+function startQuizActual() {
+    if (quizStarted) return; // Prevent double start
+    quizStarted = true;
+    startTime = Date.now(); // Reset start time to when they actually start
+    
+    // Reset timer interval to sync with new startTime
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateTimer, 1000);
+    
+    FunnyAudioManager.playStartSound();
+    renderQuestion();
+}
+
+// Trigger initialization
+initQuiz();
 
 // Trigger background verification for MCQs missing explanations after a short delay
 if (missingExplanationIds.length > 0) {

@@ -26,12 +26,15 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
 /**
  * Make OpenRouter API call - returns [response_text, http_code] or [null, code]
  */
-function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 18000, $timeout = 60) {
+function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 2048, $timeout = 60, $temperature = 0.3, $topP = 0.9) {
+    $connectTimeout = max(3, min(15, (int) floor($timeout / 4)));
     $payload = [
         'model' => $model,
         'messages' => [['role' => 'user', 'content' => $prompt]],
-        'temperature' => 0.5,
+        'temperature' => $temperature,
+        'top_p' => $topP,
         'max_tokens' => $maxTokens,
+        'stream' => false,
     ];
 
     $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
@@ -45,11 +48,13 @@ function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 18000, $timeout =
             'HTTP-Referer: https://ahmadlearninghub.com.pk',
             'X-Title: Ahmad Learning Hub',
         ],
+        CURLOPT_CONNECTTIMEOUT => $connectTimeout,
         CURLOPT_TIMEOUT => $timeout,
     ]);
 
-    $resp = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $resp     = curl_exec($ch);
+    $code     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr  = curl_error($ch);
     curl_close($ch);
 
     if ($code === 200 && $resp) {
@@ -57,6 +62,12 @@ function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 18000, $timeout =
         if (isset($dec['choices'][0]['message']['content'])) {
             return [$dec['choices'][0]['message']['content'], $code];
         }
+        // 200 but unexpected shape — log it
+        error_log('callOpenRouter 200 but no content. Body: ' . substr((string)$resp, 0, 500));
+    } else {
+        // Log the error body so we can diagnose the real reason
+        $errBody = $resp ? substr((string)$resp, 0, 600) : ($curlErr ?: 'empty response');
+        error_log('callOpenRouter HTTP ' . $code . ' model=' . $model . ' body=' . $errBody);
     }
     return [null, $code];
 }
@@ -116,7 +127,7 @@ function callRecheckAi($apiKey, $model, $prompt, $maxTokens = 12000, $timeout = 
         $cap = min((int) $maxTokens, 8192);
         return callNvidiaChatCompletions($apiKey, $model, $prompt, $cap, $timeout);
     }
-    return callOpenRouter($apiKey, $model, $prompt, $maxTokens, $timeout);
+    return callOpenRouter($apiKey, $model, $prompt, $maxTokens, $timeout, 0.1, 0.8);
 }
 
 /**
@@ -134,7 +145,170 @@ function parseMcqJson($text) {
         $jsonText = ($s !== false && $e !== false && $e >= $s) ? substr($txt, $s, $e - $s + 1) : $txt;
     }
     $arr = json_decode($jsonText, true);
+    if (is_array($arr) && isset($arr['mcqs']) && is_array($arr['mcqs'])) {
+        return $arr['mcqs'];
+    }
     return is_array($arr) ? $arr : [];
+}
+
+/**
+ * Normalize AI answer key to A/B/C/D when possible.
+ */
+function normalizeMcqCorrectOption($value, $optionA = '', $optionB = '', $optionC = '', $optionD = '') {
+    $raw = trim((string) $value);
+    if ($raw === '') {
+        return '';
+    }
+    if (preg_match('/^[abcd]$/i', $raw)) {
+        return strtoupper($raw);
+    }
+    if (preg_match('/option\\s*([abcd])/i', $raw, $m)) {
+        return strtoupper($m[1]);
+    }
+    $normalizedRaw = strtolower($raw);
+    $map = [];
+    $optMap = [
+        'A' => trim((string) $optionA),
+        'B' => trim((string) $optionB),
+        'C' => trim((string) $optionC),
+        'D' => trim((string) $optionD),
+    ];
+    foreach ($optMap as $letter => $text) {
+        if ($text !== '') {
+            $map[strtolower($text)] = $letter;
+        }
+    }
+    return $map[$normalizedRaw] ?? '';
+}
+
+/**
+ * Normalize and validate generated MCQ rows.
+ */
+function sanitizeGeneratedMcqs(array $rows, array $allowedTopics = [], $limit = 0) {
+    $topicMap = [];
+    foreach ($allowedTopics as $topic) {
+        $topic = trim((string) $topic);
+        if ($topic !== '') {
+            $topicMap[strtolower($topic)] = $topic;
+        }
+    }
+    $defaultTopic = '';
+    foreach ($topicMap as $topic) {
+        $defaultTopic = $topic;
+        break;
+    }
+
+    $cleaned = [];
+    $seenQuestions = [];
+    $limit = max(0, (int) $limit);
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $question = trim((string) ($row['question'] ?? $row['question_text'] ?? ''));
+        $optionA = trim((string) ($row['option_a'] ?? ''));
+        $optionB = trim((string) ($row['option_b'] ?? ''));
+        $optionC = trim((string) ($row['option_c'] ?? ''));
+        $optionD = trim((string) ($row['option_d'] ?? ''));
+        if ($question === '' || $optionA === '' || $optionB === '' || $optionC === '' || $optionD === '') {
+            continue;
+        }
+
+        $correct = normalizeMcqCorrectOption($row['correct_option'] ?? '', $optionA, $optionB, $optionC, $optionD);
+        if ($correct === '') {
+            continue;
+        }
+
+        $topic = trim((string) ($row['topic'] ?? ''));
+        if ($topic === '' && $defaultTopic !== '') {
+            $topic = $defaultTopic;
+        }
+        if ($topic !== '' && !empty($topicMap)) {
+            $topic = $topicMap[strtolower($topic)] ?? $defaultTopic;
+        }
+
+        $questionFingerprint = strtolower($question);
+        if (isset($seenQuestions[$questionFingerprint])) {
+            continue;
+        }
+        $seenQuestions[$questionFingerprint] = true;
+
+        $item = [
+            'question' => $question,
+            'option_a' => $optionA,
+            'option_b' => $optionB,
+            'option_c' => $optionC,
+            'option_d' => $optionD,
+            'correct_option' => $correct,
+        ];
+        if ($topic !== '') {
+            $item['topic'] = $topic;
+        }
+        $cleaned[] = $item;
+        if ($limit > 0 && count($cleaned) >= $limit) {
+            break;
+        }
+    }
+    return $cleaned;
+}
+
+/**
+ * Build optimized MCQ generation prompt — terse, fast, reliable JSON output.
+ */
+function buildMcqGenerationPrompt(array $topics, $count, $level = '') {
+    $count = max(1, (int) $count);
+    $topics = array_values(array_filter(array_map('trim', $topics)));
+    $topicsText = implode(', ', $topics);
+    $multiTopic  = count($topics) > 1;
+
+    // Difficulty instruction — maps to concrete question strategy
+    $lvl = strtolower(trim((string) $level));
+    $difficultyInstr = '';
+    if ($lvl === 'easy') {
+        $difficultyInstr = 'Level: EASY — test recall of definitions and basic facts only.';
+    } elseif ($lvl === 'hard') {
+        $difficultyInstr = 'Level: HARD — test application, analysis, and problem-solving; include numerical/formula-based questions where relevant.';
+    } else {
+        $difficultyInstr = 'Level: MEDIUM — mix conceptual understanding and practical application.';
+    }
+
+    // Compact JSON format string
+    if ($multiTopic) {
+        $fmt = '{"topic":"TOPIC_NAME","question":"Q","option_a":"A","option_b":"B","option_c":"C","option_d":"D","correct_option":"A"}';
+        $topicConstraint = 'Set "topic" to exactly one of: ' . $topicsText . '.';
+    } else {
+        $fmt = '{"question":"Q","option_a":"A","option_b":"B","option_c":"C","option_d":"D","correct_option":"A"}';
+        $topicConstraint = '';
+    }
+
+    return implode(' ', array_filter([
+        'OUTPUT: raw JSON array only — no markdown, no prose, no extra keys.',
+        'Generate EXACTLY ' . $count . ' unique MCQs about: ' . $topicsText . '.',
+        $difficultyInstr,
+        $topicConstraint,
+        'Each element: ' . $fmt . '.',
+        'Rules: 4 distinct options; exactly 1 correct; correct_option is A/B/C/D letter; distractors must be plausible but clearly wrong; no repeated questions.',
+    ]));
+}
+
+/**
+ * Token budget for MCQ generation.
+ * 4096 is generous — free-tier models can handle it and it prevents truncation.
+ */
+function estimateMcqMaxTokens($count) {
+    $count = max(1, (int) $count);
+    // 400 tokens/MCQ + 256 overhead; cap at 4096 (safe for all OpenRouter free models)
+    return min(4096, max(1024, 256 + ($count * 400)));
+}
+
+/**
+ * Timeout for MCQ generation requests.
+ * Topics work at 18s — MCQs need more time; 25s covers most free-tier models.
+ */
+function estimateMcqTimeout($count) {
+    $count = max(1, (int) $count);
+    // 20s base + 0.5s per MCQ; cap at 25s
+    return min(25, max(20, 20 + (int) ceil($count * 0.5)));
 }
 
 /**
@@ -749,7 +923,9 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '', $s
     if (empty($topics)) return [];
 
     $lvl = in_array(strtolower($level), ['easy', 'medium', 'hard']) ? strtolower($level) : '';
-    $cacheKey = 'ai_mcqs_bulk_' . md5(implode(',', $topics) . '_' . $count . ($lvl ? '_' . $lvl : ''));
+    // Include excludeIds in the cache key so already-seen MCQs force fresh generation
+    $excludeHash = !empty($excludeIds) ? '_x' . substr(md5(implode(',', $excludeIds)), 0, 8) : '';
+    $cacheKey = 'ai_mcqs_bulk_' . md5(implode(',', $topics) . '_' . $count . ($lvl ? '_' . $lvl : '')) . $excludeHash;
 
     if (!$forceAI && $cacheManager) {
         $cached = $cacheManager->get($cacheKey);
@@ -808,29 +984,56 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '', $s
     $neededFromAi = $count - count($dbMcqs);
     if ($neededFromAi <= 0) return $dbMcqs;
 
-    list($keyItem, $model, $rotator) = getAiKeyAndModel($cacheManager);
-    if (!$keyItem) return $dbMcqs;
+    $prompt    = buildMcqGenerationPrompt($topics, $neededFromAi, $lvl);
+    $maxTokens = estimateMcqMaxTokens($neededFromAi);
+    $timeout   = estimateMcqTimeout($neededFromAi);
 
-    $levelHint = $lvl ? "Difficulty: {$lvl}. " : '';
-    $topicsStr = implode(', ', $topics);
-    $prompt = "i have an exam of topics {$topicsStr} and you have to Generate exactly {$neededFromAi} MCQs.  {$levelHint}Return ONLY a JSON array.generate correct answer for each MCQs.Make sure correct_option exactly matches the correct option.Each item: {\"topic\":\"...\", \"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. No extra text.";
-    $maxTokens = min(16000, 500 + $neededFromAi * 400);
+    // --- Retry loop: try up to 3 different API keys before giving up ---
+    $resp      = null;
+    $triedKeys = [];
+    for ($attempt = 0; $attempt < 3; $attempt++) {
+        $rotator = new AIKeyRotator($cacheManager);
+        $keyItem = $rotator->getNextKey($triedKeys);
+        if (!$keyItem) break;
 
-    list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, 120);
+        $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL', '');
+        if (!$model) break;
 
-    if ($code === 429 || $code === 402 || $code === 503) {
-        $rotator->markExhausted($keyItem['key']);
-        return $dbMcqs;
+        $triedKeys[] = $keyItem['key'];
+        list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, $timeout, 0.25, 0.9);
+
+        if ($code === 429 || $code === 402 || $code === 503) {
+            // Rate-limited or quota exceeded — mark exhausted and try next key
+            error_log('MCQ gen: key exhausted HTTP ' . $code . ', trying next. Topics: ' . implode(', ', $topics));
+            $rotator->markExhausted($keyItem['key']);
+            $resp = null;
+            continue;
+        }
+        if ($code === 400) {
+            // Token/format error — NOT an exhausted key, just retry with next key
+            error_log('MCQ gen: HTTP 400 (token/format), trying next key. Topics: ' . implode(', ', $topics));
+            $resp = null;
+            continue;
+        }
+        if ($resp) {
+            $rotator->logSuccess($keyItem['key']);
+            break; // Success — stop retrying
+        }
     }
+
     if (!$resp) return $dbMcqs;
 
-    $rotator->logSuccess($keyItem['key']);
-    $aiMcqs = parseMcqJson($resp);
-    
+    $aiMcqs = sanitizeGeneratedMcqs(parseMcqJson($resp), $topics, $neededFromAi);
+    if (empty($aiMcqs)) return $dbMcqs;
+
     $savedAiMcqs = saveGeneratedMcqs($conn, $aiMcqs, $topics[0], $cacheManager, null, $skipVerify);
-    
-    // Combine existing DB questions with newly generated ones
-    return array_merge($dbMcqs, $savedAiMcqs);
+    $finalMcqs   = array_merge($dbMcqs, $savedAiMcqs);
+
+    if ($cacheManager && !empty($finalMcqs)) {
+        $cacheManager->setex($cacheKey, 86400, json_encode($finalMcqs));
+    }
+
+    return $finalMcqs;
 }
 
 
@@ -897,28 +1100,42 @@ function generateMCQsWithGemini($topic, $count = 10, $level = '', $skipVerify = 
     $neededFromAi = $count - count($dbMcqs);
     if ($neededFromAi <= 0) return $dbMcqs;
 
-    list($keyItem, $model, $rotator) = getAiKeyAndModel($cacheManager);
-    if (!$keyItem) return $dbMcqs;
+    $prompt    = buildMcqGenerationPrompt([$topic], $neededFromAi, $lvl);
+    $maxTokens = estimateMcqMaxTokens($neededFromAi);
+    $timeout   = estimateMcqTimeout($neededFromAi);
 
-    $levelHint = $lvl ? "Difficulty: {$lvl}. " : '';
-    $prompt = "Generate exactly {$neededFromAi} MCQs on topic: {$topic}.{$levelHint}Return ONLY a JSON array. Each item: {\"question\":\"...\", \"option_a\":\"...\", \"option_b\":\"...\", \"option_c\":\"...\", \"option_d\":\"...\", \"correct_option\":\"a\" or \"b\" or \"c\" or \"d\"}. Also recheck the correct answer. No extra text.";
-    $maxTokens = min(18000, 500 + $neededFromAi * 400);
-
-    list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, 60);
-
-    if ($code === 429 || $code === 402 || $code === 503) {
-        $rotator->markExhausted($keyItem['key']);
-        return $dbMcqs;
+    // Retry loop: try up to 3 keys
+    $resp      = null;
+    $triedKeys = [];
+    for ($attempt = 0; $attempt < 3; $attempt++) {
+        $rotator = new AIKeyRotator($cacheManager);
+        $keyItem = $rotator->getNextKey($triedKeys);
+        if (!$keyItem) break;
+        $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL', '');
+        if (!$model) break;
+        $triedKeys[] = $keyItem['key'];
+        list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, $timeout, 0.25, 0.9);
+        if ($code === 429 || $code === 402 || $code === 503) { $rotator->markExhausted($keyItem['key']); $resp = null; continue; }
+        if ($code === 400) { $resp = null; continue; }
+        if ($resp) { $rotator->logSuccess($keyItem['key']); break; }
     }
     if (!$resp) return $dbMcqs;
 
     $rotator->logSuccess($keyItem['key']);
-    $aiMcqs = parseMcqJson($resp);
+    $aiMcqs = sanitizeGeneratedMcqs(parseMcqJson($resp), [$topic], $neededFromAi);
+    if (empty($aiMcqs)) {
+        return $dbMcqs;
+    }
     
     $savedAiMcqs = saveGeneratedMcqs($conn, $aiMcqs, $topic, $cacheManager, null, $skipVerify);
     
-    // Combine existing DB questions with newly generated ones
-    return array_merge($dbMcqs, $savedAiMcqs);
+    $finalMcqs = array_merge($dbMcqs, $savedAiMcqs);
+
+    if ($cacheManager && !empty($finalMcqs)) {
+        $cacheManager->setex($cacheKey, 86400, json_encode($finalMcqs));
+    }
+
+    return $finalMcqs;
 }
 
 
@@ -945,15 +1162,13 @@ function searchTopicsWithGemini($searchQuery, $classId = 0, $bookId = 0, $questi
     $excludeHint = '';
     if (!empty($excludeTopics)) {
         $excludeList = implode(', ', array_slice(array_map('trim', $excludeTopics), 0, 20));
-        $excludeHint = " Do NOT include these (already shown): {$excludeList}. Return DIFFERENT topics.";
+        $excludeHint = "Exclude these already shown topics: {$excludeList}.";
     }
- $prompt = "i have an exam analyze the \"{$searchQuery}\" text and generate it's Topics: \"{$searchQuery}\". Return EXACTLY 4 topics of \"{$searchQuery}\" and related to \"{$searchQuery}\" that can come in the exam as a JSON array of objects. 
-Each object must have: - \"topic\": (string) The topic name. 2-3 topics must closely match the text of \"{$searchQuery}\". {$excludeHint}. 
-- \"keywords\": (string) A comma-separated list of 3 highly relevant, specific, and searchable phrases that capture the core meaning, concepts, and real-world use of the topic. Avoid vague words. Use clear terms that help in search and filtering. 
+    $prompt = "Extract exactly 4 likely exam topics from this query: \"{$searchQuery}\". {$excludeHint} "
+        . "Return ONLY a JSON array where each item is {\"topic\":\"...\",\"keywords\":\"k1, k2, k3\"}. "
+        . "Keep topics specific and practical. No markdown and no extra text.";
 
-Return ONLY the JSON array. No extra text.";
-
-    list($respBody, $code) = callOpenRouter($keyItem['key'], $model, $prompt, 2800, 25);
+    list($respBody, $code) = callOpenRouter($keyItem['key'], $model, $prompt, 1200, 18, 0.2, 0.9);
 
     if ($code === 429 || $code === 402) {
         $rotator->markExhausted($keyItem['key']);
@@ -1064,4 +1279,95 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
     }
 
     return verifyMcqsWithRecheckApi($conn, $mcqs, $sourceTable);
+}
+
+/**
+ * Recheck MCQs for a specific Quiz Room using the Recheck API.
+ * Updates quiz_room_questions table with corrected content and explanations.
+ */
+function verifyQuizRoomQuestions($conn, $roomId, $forceAll = false) {
+    $apiKey = getRecheckApiKey();
+    if ($apiKey === '') {
+        return ['success' => false, 'message' => 'No recheck key available.'];
+    }
+
+    $sql = "SELECT id, question, option_a, option_b, option_c, option_d, correct_option, explanation FROM quiz_room_questions WHERE room_id = ?";
+    if (!$forceAll) {
+        $sql .= " AND (explanation IS NULL OR explanation = '')";
+    }
+    
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('i', $roomId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $mcqs = [];
+    while ($row = $result->fetch_assoc()) {
+        $mcqs[] = $row;
+    }
+    $stmt->close();
+
+    if (empty($mcqs)) {
+        return ['success' => true, 'message' => 'No questions need verification for this room.'];
+    }
+
+    $model = getRecheckModel();
+    $prompt = "You are an expert educator. Verify these Quiz Room MCQs for factual accuracy.\n"
+        . "Determine if the marked correct answer is accurate.\n"
+        . "- If correct: status \"verified\".\n"
+        . "- If another option is correct: status \"corrected\". Identify the correct letter.\n"
+        . "- If the question or options need improvement: status \"corrected\". Rewrite the question and ALL options to ensure high quality. Ensure exactly ONE option is correct.\n"
+        . "Explanation: Write only 2-3 lines explaining ONLY why the correct option is right.\n"
+        . "Return ONLY a JSON array.\n"
+        . "Format: [{\"id\": <number>, \"status\": \"verified\"|\"corrected\"|\"flagged\", \"correct_option\": \"A\"|\"B\"|\"C\"|\"D\", \"question\": \"...\", \"option_a\": \"...\", \"option_b\": \"...\", \"option_c\": \"...\", \"option_d\": \"...\", \"explanation\": \"...\"}]\n\n"
+        . "MCQs:\n";
+
+    foreach ($mcqs as $m) {
+        $prompt .= "ID: {$m['id']}, Q: {$m['question']}, A: {$m['option_a']}, B: {$m['option_b']}, C: {$m['option_c']}, D: {$m['option_d']}, Marked: {$m['correct_option']}\n";
+    }
+
+    list($resp, $code) = callRecheckAi($apiKey, $model, $prompt, 15000, 120);
+
+    if ($code !== 200 || !$resp) {
+        return ['success' => false, 'message' => 'API call failed with code ' . $code];
+    }
+
+    $results = parseMcqJson($resp);
+    if (!is_array($results)) {
+        return ['success' => false, 'message' => 'Failed to parse AI response'];
+    }
+
+    foreach ($results as $res) {
+        $id = intval($res['id'] ?? 0);
+        $status = $res['status'] ?? '';
+        $correctLetter = strtoupper($res['correct_option'] ?? '');
+        $explanation = $res['explanation'] ?? '';
+        
+        if ($id <= 0) continue;
+
+        if ($status === 'corrected') {
+            $q = $res['question'] ?? null;
+            $oa = $res['option_a'] ?? null;
+            $ob = $res['option_b'] ?? null;
+            $oc = $res['option_c'] ?? null;
+            $od = $res['option_d'] ?? null;
+
+            // Resolve correct_option text if it was a letter in AI response but text in DB
+            $correctText = $oa;
+            if ($correctLetter === 'B') $correctText = $ob;
+            if ($correctLetter === 'C') $correctText = $oc;
+            if ($correctLetter === 'D') $correctText = $od;
+
+            $upd = $conn->prepare("UPDATE quiz_room_questions SET question = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_option = ?, explanation = ? WHERE id = ?");
+            $upd->bind_param('sssssssi', $q, $oa, $ob, $oc, $od, $correctText, $explanation, $id);
+            $upd->execute();
+            $upd->close();
+        } else if ($status === 'verified') {
+            $upd = $conn->prepare("UPDATE quiz_room_questions SET explanation = ? WHERE id = ?");
+            $upd->bind_param('si', $explanation, $id);
+            $upd->execute();
+            $upd->close();
+        }
+    }
+
+    return ['success' => true];
 }

@@ -16,6 +16,7 @@ class DocumentContentExtractor
             'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'ppt'  => 'application/vnd.ms-powerpoint',
             'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt'  => 'text/plain',
             'png'  => 'image/png',
             'jpg'  => 'image/jpeg',
             'jpeg' => 'image/jpeg',
@@ -45,6 +46,7 @@ class DocumentContentExtractor
             'pptx' => ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/zip'],
             'jpg'  => ['image/jpeg'],
             'jpeg' => ['image/jpeg'],
+            'txt'  => ['text/plain', 'application/octet-stream'],
         ];
         if ($detectedMime === $canonical) {
             return true;
@@ -121,10 +123,44 @@ class DocumentContentExtractor
     /**
      * @return array{mode:string,text?:string,mime?:string,path?:string,ext?:string}
      */
+    /**
+     * Read plain text from a .txt file.
+     */
+    public static function extractTxtText(string $path): string
+    {
+        $text = @file_get_contents($path);
+        if ($text === false) {
+            return '';
+        }
+        // Detect encoding and convert to UTF-8 if needed
+        $encoding = mb_detect_encoding($text, ['UTF-8', 'ISO-8859-1', 'Windows-1252', 'ASCII'], true);
+        if ($encoding && $encoding !== 'UTF-8') {
+            $text = mb_convert_encoding($text, 'UTF-8', $encoding);
+        }
+        // Strip control characters except newline/tab
+        $text = preg_replace("/[\x00-\x08\x0B\x0C\x0E-\x1F]/u", '', $text);
+        return trim($text);
+    }
+
+    /**
+     * @return array{mode:string,text?:string,mime?:string,path?:string,ext?:string}
+     */
     public static function prepareForGemini(string $localPath, string $ext): array
     {
         $ext = strtolower($ext);
         $mime = self::allowedMimeByExtension()[$ext] ?? 'application/octet-stream';
+
+        // TXT — direct text read
+        if ($ext === 'txt') {
+            $text = self::extractTxtText($localPath);
+            if (mb_strlen($text) < self::MIN_TEXT_CHARS) {
+                return ['mode' => 'binary', 'mime' => $mime, 'path' => $localPath, 'ext' => $ext];
+            }
+            if (mb_strlen($text) > self::MAX_TEXT_FOR_PROMPT) {
+                $text = mb_substr($text, 0, self::MAX_TEXT_FOR_PROMPT) . "\n\n[... content truncated ...]";
+            }
+            return ['mode' => 'text', 'text' => $text, 'ext' => $ext];
+        }
 
         if ($ext === 'docx') {
             $text = self::extractDocxText($localPath);

@@ -214,102 +214,78 @@ h1 {
     margin-bottom: 32px;
 }
 
-.search-input-wrapper {
-    position: relative;
-    margin-bottom: 24px;
-}
-
-.search-input {
-    width: 100%;
-    padding: 16px 24px;
-    padding-right: 120px;
-    border: 2px solid var(--border);
-    border-radius: var(--radius-md);
-    font-size: 1.1rem;
-    background: #f8fafc;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.search-input:focus {
-    border-color: var(--primary);
-    background: white;
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-    outline: none;
-}
-
-.search-btn {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-    color: white;
-    border: none;
-    width: 50px;
-    height: 50px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 1.25rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-}
-
-.search-btn:hover {
-    transform: translateY(-50%) translateY(-2px) scale(1.05);
-    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
-}
-
-.file-upload-btn {
-    position: absolute;
-    right: 68px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    border: none;
-    width: 50px;
-    height: 50px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 1.25rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.file-upload-btn:hover {
-    transform: translateY(-50%) translateY(-2px) scale(1.05);
-    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
-}
+.search-input-wrapper { 
+     position: relative; 
+     display: flex; 
+     align-items: center; 
+     gap: 10px; 
+     background: #fff; 
+     border: 1px solid #d9d9e3; 
+     border-radius: 28px; 
+     padding: 10px 14px; 
+     transition: 0.2s ease; 
+ } 
+ 
+ .search-input-wrapper:focus-within { 
+     border-color: #b5b5c3; 
+     box-shadow: 0 0 0 3px rgba(0,0,0,0.04); 
+ } 
+ 
+ .search-input { 
+     flex: 1; 
+     border: none; 
+     outline: none; 
+     background: transparent; 
+     font-size: 15px; 
+     color: #111827; 
+ } 
+ 
+ .search-input::placeholder { 
+     color: #8e8ea0; 
+ } 
+ 
+ /* ChatGPT-like plus upload button */ 
+ .file-upload-btn { 
+     width: 38px; 
+     height: 38px; 
+     border: 1px solid #d9d9e3; 
+     background: #ffffff; 
+     border-radius: 50%; 
+     display: flex; 
+     align-items: center; 
+     justify-content: center; 
+     cursor: pointer; 
+     transition: all 0.2s ease; 
+     color: #555; 
+ } 
+ 
+ .file-upload-btn:hover { 
+     background: #f3f4f6; 
+     transform: scale(1.03); 
+ } 
+ 
+ /* Send/Search button */ 
+ .search-btn { 
+     width: 38px; 
+     height: 38px; 
+     border: none; 
+     background: #111827; 
+     color: white; 
+     border-radius: 50%; 
+     display: flex; 
+     align-items: center; 
+     justify-content: center; 
+     cursor: pointer; 
+     transition: 0.2s ease; 
+ } 
+ 
+ .search-btn:hover { 
+     opacity: 0.9; 
+ }
 
 @media (max-width: 768px) {
-    .file-upload-btn {
-        width: 48px;
-        height: 48px;
-        right: 60px;
-        font-size: 1.1rem;
-        border-radius: 12px;
-    }
-    
     .search-input {
-        padding-right: 120px;
-    }
-}
-
-@media (max-width: 480px) {
-    .file-upload-btn {
-        width: 44px;
-        height: 44px;
-        right: 56px;
-    }
-    
-    .search-input {
-        padding-right: 110px;
+        font-size: 14px;
     }
 }
 

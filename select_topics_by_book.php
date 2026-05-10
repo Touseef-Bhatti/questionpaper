@@ -89,8 +89,8 @@ if (!$viewHasChapterCol) {
 
 <div class="main-content">
     <div class="container select-topics-main-content" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.08);padding:20px;">
-        <!-- MIDDLE AD BANNER -->
-        <?= ('banner', 'Topics Middle Banner') ?>
+       
+        
         <br>
         <h3>Select Topics for <?= htmlspecialchars($bookName) ?> (Class <?= htmlspecialchars((string)$classId) ?>)</h3>
         <div style="display:flex;gap:8px;align-items:center;margin:10px 0;">

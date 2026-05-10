@@ -155,9 +155,10 @@ class QuestionService
         while (count($mcqs) < $limit && $attempts < $maxAttempts) {
             $randomId = rand($minId, $maxId);
             
-            $query = "SELECT mcq_id, chapter_id, question, option_a, option_b, option_c, option_d, correct_option 
-                     FROM mcqs 
-                     WHERE chapter_id = ? AND mcq_id >= ? 
+            $query = "SELECT m.mcq_id, m.chapter_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation 
+                     FROM mcqs m
+                     LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id
+                     WHERE m.chapter_id = ? AND m.mcq_id >= ? 
                      LIMIT 1";
             $stmt = $this->conn->prepare($query);
             $stmt->bind_param('ii', $chapterId, $randomId);
@@ -215,10 +216,11 @@ class QuestionService
      */
     private function getAllMCQs($chapterId)
     {
-        $query = "SELECT mcq_id, chapter_id, question, option_a, option_b, option_c, option_d, correct_option 
-                 FROM mcqs 
-                 WHERE chapter_id = ?
-                 ORDER BY mcq_id";
+        $query = "SELECT m.mcq_id, m.chapter_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation 
+                 FROM mcqs m
+                 LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id
+                 WHERE m.chapter_id = ?
+                 ORDER BY m.mcq_id";
         $stmt = $this->conn->prepare($query);
         $stmt->bind_param('i', $chapterId);
         $stmt->execute();
@@ -407,8 +409,9 @@ class QuestionService
         // For simplicity and correctness with LIKE, we'll stick to basic RAND() but limit the scan if possible.
         // A better approach if dataset is huge: Fetch IDs first, shuffle in PHP, then fetch details.
         
-        $query = "SELECT mcq_id, question, option_a, option_b, option_c, option_d, correct_option 
-                 FROM mcqs 
+        $query = "SELECT m.mcq_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation 
+                 FROM mcqs m
+                 LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id
                  WHERE ({$whereClause}) 
                  ORDER BY RAND() 
                  LIMIT ?";

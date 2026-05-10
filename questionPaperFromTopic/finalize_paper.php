@@ -1,9 +1,10 @@
 <?php
 session_start();
+require_once __DIR__ . '/../config/env.php';
 // require_once __DIR__ . '/../auth/auth_check.php';
-$pageTitle = "Configure & Generate Question Paper | PDF Assessment Builder";
-$metaDescription = "Configure your question paper layout, set question counts, and generate PDF. Professional question paper builder with multiple customization options.";
-$metaKeywords = "question paper generator, PDF builder, assessment configuration, question paper layouts, educational assessment";
+$pageTitle = "Exam Paper Settings & Configuration | MCQ Maker & Test Creator – " . (EnvLoader::get('APP_NAME', 'Ahmad Learning Hub'));
+$metaDescription = "Configure your question paper settings: select quantities for MCQs, short and long questions, set difficulty level (Easy to Hard), and generate professional PDFs. Global exam builder for USA, UK, Europe educators.";
+$metaKeywords = "exam paper generator, MCQ maker, test creator, online paper builder, question settings, exam difficulty, classroom assessment builder, teacher test maker, online exam builder";
 
 require_once __DIR__ . '/../header.php';
 require_once __DIR__ . '/../middleware/SubscriptionCheck.php';
@@ -179,7 +180,8 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
                         <?php foreach($topicsShort as $t): ?><input type="hidden" name="topics_short[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
                         <?php foreach($topicsLong as $t): ?><input type="hidden" name="topics_long[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
                         
-                        <input type="hidden" name="source" value="topics">
+                        <input type="hidden" name="source" value="<?= htmlspecialchars($_POST['source'] ?? 'topics') ?>">
+                        <input type="hidden" name="file_hash" value="<?= htmlspecialchars($_POST['file_hash'] ?? '') ?>">
                         <input type="hidden" name="class_id" value="0">
                         <input type="hidden" name="book_name" value="Professional Academic Paper">
                         <input type="hidden" name="pattern_mode" value="without">
@@ -257,6 +259,37 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
                                         <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Difficulty Level Selector -->
+                        <div class="config-section animate-fade-up" style="margin-top: 24px;">
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <div class="section-icon" style="background: linear-gradient(135deg, rgba(139,92,246,.15), rgba(139,92,246,.05)); color: #8b5cf6;">
+                                    <i class="fas fa-sliders-h"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="fw-bold mb-0">Difficulty Level</h6>
+                                    <small class="text-muted">Choose the complexity of generated questions.</small>
+                                </div>
+                            </div>
+                            <input type="hidden" name="difficulty" id="difficultyInput" value="medium">
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                <button type="button" class="diff-btn" data-diff="easy" onclick="setDifficulty('easy')" style="flex:1; min-width: 140px; padding: 16px 12px; border-radius: 14px; border: 2px solid #e2e8f0; background: #f8fafc; cursor: pointer; text-align: center; transition: all .25s; font-family: inherit;">
+                                    <div style="font-size: 1.5rem; margin-bottom: 6px;">🟢</div>
+                                    <div style="font-weight: 800; font-size: .95rem; color: #1e293b;">Easy</div>
+                                    <div style="font-size: .75rem; color: #64748b; margin-top: 4px;">Definitions &amp; basic examples</div>
+                                </button>
+                                <button type="button" class="diff-btn active" data-diff="medium" onclick="setDifficulty('medium')" style="flex:1; min-width: 140px; padding: 16px 12px; border-radius: 14px; border: 2px solid #f59e0b; background: #fffbeb; cursor: pointer; text-align: center; transition: all .25s; font-family: inherit; box-shadow: 0 4px 12px rgba(245,158,11,.2);">
+                                    <div style="font-size: 1.5rem; margin-bottom: 6px;">🟡</div>
+                                    <div style="font-weight: 800; font-size: .95rem; color: #1e293b;">Medium</div>
+                                    <div style="font-size: .75rem; color: #64748b; margin-top: 4px;">Concepts, examples &amp; numericals</div>
+                                </button>
+                                <button type="button" class="diff-btn" data-diff="hard" onclick="setDifficulty('hard')" style="flex:1; min-width: 140px; padding: 16px 12px; border-radius: 14px; border: 2px solid #e2e8f0; background: #f8fafc; cursor: pointer; text-align: center; transition: all .25s; font-family: inherit;">
+                                    <div style="font-size: 1.5rem; margin-bottom: 6px;">🔴</div>
+                                    <div style="font-weight: 800; font-size: .95rem; color: #1e293b;">Hard</div>
+                                    <div style="font-size: .75rem; color: #64748b; margin-top: 4px;">Explanations &amp; numerical problems</div>
+                                </button>
                             </div>
                         </div>
 
@@ -369,6 +402,24 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
                 });
             }
         });
+    }
+
+    function setDifficulty(level) {
+        document.getElementById('difficultyInput').value = level;
+        
+        // Update UI
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.style.boxShadow = 'none';
+        });
+        
+        const activeBtn = document.querySelector(`.diff-btn[data-diff="${level}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            if (level === 'easy') activeBtn.style.boxShadow = '0 4px 12px rgba(34,197,94,.2)';
+            else if (level === 'medium') activeBtn.style.boxShadow = '0 4px 12px rgba(245,158,11,.2)';
+            else if (level === 'hard') activeBtn.style.boxShadow = '0 4px 12px rgba(239,68,68,.2)';
+        }
     }
 </script>
 

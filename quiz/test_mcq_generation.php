@@ -403,13 +403,13 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
         $model = EnvLoader::get('AI_DEFAULT_MODEL', '');
         
         if (!empty($allKeys)) {
-             echo '<div class="success">✓ Found ' . count($allKeys) . ' API Keys in rotation (AIKeyRotator - Account 2 → Primary → Account 3)</div>';
+             echo '<div class="success">✓ Found ' . count($allKeys) . ' API keys — rotating KEY_1 → KEY_' . count($allKeys) . ' sequentially</div>';
              echo '<div style="margin-bottom: 20px;"><button id="testAllBtn" onclick="testAllKeys()" style="background: #28a745;">Check All API Keys Connection</button></div>';
              
              foreach ($allKeys as $i => $item) {
                  $k = $item['key'] ?? '';
                  if (empty($k)) continue;
-                 $account = $item['account'] ?? 'Unknown';
+                 $keyModel = $item['model'] ?? 'No model set';
                  $isNext = ($nextKey && ($nextKey['key'] ?? '') === $k);
                  $exhausted = $rotator->isKeyExhausted($k);
                  $status = $exhausted ? ' <span style="color: #dc3545;">(Exhausted)</span>' : ($isNext ? ' <span style="color: #28a745; font-weight: bold;">(Next Request)</span>' : '');
@@ -417,7 +417,7 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
                  
                  $statusId = "status_" . $i;
                  echo '<div class="info" style="' . $style . 'display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">';
-                 echo '<div>Key ' . ($i+1) . ' [' . htmlspecialchars($account) . ']: ' . substr($k, 0, 10) . '...' . substr($k, -5) . $status . '</div>';
+                 echo '<div><strong>KEY_' . ($item['id'] ?? ($i+1)) . '</strong>: ' . substr($k, 0, 10) . '...' . substr($k, -5) . ' &nbsp;|&nbsp; <em>' . htmlspecialchars($keyModel) . '</em>' . $status . '</div>';
                  echo '<div style="display: flex; align-items: center;">';
                  echo '<button class="test-btn test-key-btn" onclick="testKey(\'' . $k . '\', \'' . $statusId . '\')">Test Connection</button>';
                  echo '<span id="' . $statusId . '" class="test-status"></span>';

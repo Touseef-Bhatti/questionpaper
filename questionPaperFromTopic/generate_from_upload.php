@@ -401,7 +401,7 @@ $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
 if ($ext === '' || !DocumentContentExtractor::isAllowedExtension($ext)) {
     echo json_encode([
         'success' => false,
-        'error' => 'Allowed types: PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, JPEG, WEBP, GIF.',
+        'error' => 'Allowed types: PDF, DOC, DOCX, PPT, PPTX, TXT, PNG, JPG, JPEG, WEBP, GIF.',
     ]);
     exit;
 }
@@ -420,6 +420,7 @@ if (!is_array($questionTypes)) {
 $countMcqs  = intval($_POST['count_mcqs'] ?? 5);
 $countShort = intval($_POST['count_short'] ?? 3);
 $countLong  = intval($_POST['count_long'] ?? 2);
+$difficulty = $_POST['difficulty'] ?? 'medium';
 
 if (empty($questionTypes)) {
     echo json_encode(['success' => false, 'error' => 'Please select at least one question type.']);
@@ -447,6 +448,63 @@ if ($typesRequested === []) {
 
 $uidForUpload = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
 $tmpSha256 = @hash_file('sha256', $file['tmp_name']) ?: '';
+$detectTopicOnly = isset($_POST['detect_topic_only']) && $_POST['detect_topic_only'] == '1';
+
+if ($detectTopicOnly) {
+    // If just detecting topic, we still need to store the file to analyze it
+    $safeExt = preg_replace('/[^a-z0-9]/i', '', $ext) ?: 'bin';
+    $storedName = uniqid('up_', true) . '.' . $safeExt;
+    $destPath = $uploadBase . '/' . $storedName;
+    if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+        echo json_encode(['success' => false, 'error' => 'Could not store upload.']);
+        exit;
+    }
+
+    $prepared = DocumentContentExtractor::prepareForGemini($destPath, $ext);
+    
+    $apiKey = EnvLoader::get('GEMINIAPIKEY', '');
+    $model  = EnvLoader::get('GEMINIMODEL', 'gemini-2.5-flash');
+    
+    $prompt = "Analyze the provided material and identify the main topic or subject in 2-5 words. Return ONLY valid JSON: {\"detected_topic\": \"...\"}";
+    
+    if (($prepared['mode'] ?? '') === 'text') {
+        $parts = [['text' => $prompt . "\n\nContent:\n" . $prepared['text']]];
+        $gen = GeminiClient::callGenerateContent($apiKey, $model, $parts, 100, 60, true);
+    } else {
+        $mime = (string) ($prepared['mime'] ?? 'application/octet-stream');
+        $built = GeminiClient::buildMultimodalParts($apiKey, $prompt, $destPath, $mime);
+        $gen = GeminiClient::callGenerateContent($apiKey, $model, $built['parts'], 100, 60, true);
+        if (!empty($built['fileNameForCleanup'])) {
+            GeminiClient::deleteFile($apiKey, $built['fileNameForCleanup']);
+        }
+    }
+
+    if (empty($gen['ok'])) {
+        echo json_encode(['success' => false, 'error' => 'Topic detection failed.']);
+        exit;
+    }
+
+    $parsed = GeminiJsonExtractor::parseObject($gen['text'] ?? '');
+    $detectedTopic = $parsed['detected_topic'] ?? 'AI Generated from Upload';
+    
+    // Save extracted text for generate_ai_paper.php
+    if (($prepared['mode'] ?? '') === 'text' && !empty($prepared['text'])) {
+        $contextCacheDir = __DIR__ . '/../storage/ai_upload_context';
+        if (!is_dir($contextCacheDir)) {
+            @mkdir($contextCacheDir, 0777, true);
+        }
+        $contextCachePath = $contextCacheDir . '/' . $tmpSha256 . '.txt';
+        @file_put_contents($contextCachePath, $prepared['text']);
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'detected_topic' => $detectedTopic,
+        'file_hash' => $tmpSha256
+    ]);
+    exit;
+}
+
 $requestedCountMcqs = $countMcqs;
 $requestedCountShort = $countShort;
 $requestedCountLong = $countLong;
@@ -615,6 +673,16 @@ $promptParts[] = 'QUESTION WRITING STYLE (STRICT): Write direct standalone exam 
 $promptParts[] = 'FORBIDDEN PHRASES: Do not use wording like "according to the text", "according to this passage", "according to this exercise", "as stated in", "from the page", "from the document", "from the file", "refer to", "based on the above text", or similar reference phrases.';
 $promptParts[] = 'Do NOT mention text/page/exercise/document/file in the question wording unless an unavoidable unique label is part of the source itself.';
 $promptParts[] = 'Rewrite naturally as regular exam questions while still grounded in the uploaded material facts.';
+
+$difficultyInstruction = "";
+if ($difficulty === 'easy') {
+    $difficultyInstruction = "Difficulty: Easy. Focus on basic definitions and simple examples present in the text.";
+} elseif ($difficulty === 'hard') {
+    $difficultyInstruction = "Difficulty: Hard. Focus on in-depth explanations, complex scenarios, and numerical problems if present in the text.";
+} else {
+    $difficultyInstruction = "Difficulty: Medium. Focus on core concepts, examples, and basic numericals if present in the text.";
+}
+$promptParts[] = $difficultyInstruction;
 
 $jsonStructure = "{\n  \"detected_topic\": \"<main topic>\",\n";
 

@@ -64,8 +64,8 @@ function homeReviewStars(int $rating): string {
 
                     <div class="hero-actions">
                         <br>
-                        <a href="javascript:void(0)" class="button primary bypass-user-type class-check-trigger" data-action="generate_paper"><i class="fas fa-file-invoice"></i> Generate Paper</a>
-                        <a href="javascript:void(0)" class="button secondary bypass-user-type class-check-trigger" data-action="online_mcqs"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
+                        <a href="class-9th-and-10th-online-question-paper-generator" class="button primary bypass-user-type ALH_cct" data-action="generate_paper"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                        <a href="online-mcqs-test-for-9th-and-10th-board-exams" class="button secondary bypass-user-type ALH_cct" data-action="online_mcqs"><i class="fas fa-laptop-code"></i> Online MCQs Test</a>
                         <?php if (!isset($_SESSION['user_id'])): ?>
                             <a href="login" class="button accent hero-login-btn"><i class="fas fa-sign-in-alt"></i> Login Now</a>
                         <?php endif; ?>
@@ -230,28 +230,69 @@ function homeReviewStars(int $rating): string {
         </section>
 
 <br><br>
-        <section class="teachers-section">
+        <!-- ROLES SECTION: Teachers & Students -->
+        <section class="alh-roles-section">
             <div class="container">
-                <div class="split-grid">
-                    <div>
-                        <div class="card">
-                            <h3>Teacher tools</h3>
-                            <p>Create Online Question papers and Host Online Quizez .</p>
-                            <a class="btn btn-primary bypass-user-type class-check-trigger" data-action="generate_paper" href="javascript:void(0)">Generate Question Paper</a>
-                            <a class="btn btn-outline" href="online_quiz_host_new">Host a Quiz</a>
-                            
-                            <a class="btn btn-ghost" href="note">View Notes</a>
+                <div class="roles-grid">
+                    
+                    <!-- Teachers Card -->
+                    <div class="role-card teacher-card">
+                        <div class="role-header">
+                            <div class="role-icon-box">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                            </div>
+                            <div class="role-title-box">
+                                <h3>Teacher Tools</h3>
+                                <span>For Educators & Institutions</span>
+                            </div>
+                        </div>
+                        <div class="role-body">
+                            <p>Streamline your teaching with automated paper generation and interactive live quizzes.</p>
+                            <ul class="role-features">
+                                <li><i class="fas fa-check"></i> Custom Board Patterns</li>
+                                <li><i class="fas fa-check"></i> Real-time Hosting</li>
+                            </ul>
+                            <div class="role-actions">
+                                <a href="class-9th-and-10th-online-question-paper-generator" class="role-btn primary ALH_cct" data-action="generate_paper">
+                                    <i class="fas fa-file-invoice"></i> Generate Paper
+                                </a>
+                                <div class="role-sub-actions">
+                                    <a href="online_quiz_host_new" class="role-btn secondary">Host a Quiz</a>
+                                    <a href="note" class="role-btn ghost">View Notes</a>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <div class="card">
-                            <h3>For students</h3>
-                            <p>Prepare Exam with Chapter-wise real Exam-style Questions , MCQs And have Access to all updated Notes </p>
-                            <a class="btn btn-primary" href="online_quiz_join">Join Quiz</a>
-                            <a class="btn btn-outline bypass-user-type class-check-trigger" data-action="online_mcqs" href="javascript:void(0)">Take Online Test</a>
-                            <a class="btn btn-ghost" href="note">View Notes</a>
+
+                    <!-- Students Card -->
+                    <div class="role-card student-card">
+                        <div class="role-header">
+                            <div class="role-icon-box">
+                                <i class="fas fa-user-graduate"></i>
+                            </div>
+                            <div class="role-title-box">
+                                <h3>For Students</h3>
+                                <span>For Independent Learners</span>
+                            </div>
+                        </div>
+                        <div class="role-body">
+                            <p>Boost your grades with exam-style MCQs, professional notes, and competitive live quizzes.</p>
+                            <ul class="role-features">
+                                <li><i class="fas fa-check"></i> Chapter-wise MCQs</li>
+                                <li><i class="fas fa-check"></i> Interactive Leaderboards</li>
+                            </ul>
+                            <div class="role-actions">
+                                <a href="online_quiz_join" class="role-btn primary">
+                                    <i class="fas fa-gamepad"></i> Join Live Quiz
+                                </a>
+                                <div class="role-sub-actions">
+                                    <a href="online-mcqs-test-for-9th-and-10th-board-exams" class="role-btn secondary ALH_cct" data-action="online_mcqs">Take Online Test</a>
+                                    <a href="note" class="role-btn ghost">View Notes</a>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </section>
@@ -330,8 +371,8 @@ function homeReviewStars(int $rating): string {
             </p>
             
             <div class="cta-actions">
-                <a href="javascript:void(0)" class="button primary bypass-user-type class-check-trigger" data-action="generate_paper"><i class="fas fa-file-invoice"></i> Generate Paper</a>
-                <a href="javascript:void(0)" class="button ghost bypass-user-type class-check-trigger" data-action="online_mcqs"><i class="fas fa-laptop-code"></i> Start Test</a>
+                <a href="class-9th-and-10th-online-question-paper-generator" class="button primary bypass-user-type ALH_cct" data-action="generate_paper"><i class="fas fa-file-invoice"></i> Generate Paper</a>
+                <a href="online-mcqs-test-for-9th-and-10th-board-exams" class="button ghost bypass-user-type ALH_cct" data-action="online_mcqs"><i class="fas fa-laptop-code"></i> Start Test</a>
             </div>
         </div>
     </div>

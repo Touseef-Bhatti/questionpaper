@@ -339,8 +339,15 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_room_questions (
     option_c TEXT NOT NULL,
     option_d TEXT NOT NULL,
     correct_option TEXT NOT NULL,
+    explanation TEXT NULL,
     FOREIGN KEY (room_id) REFERENCES quiz_rooms(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: quiz_room_questions");
+
+// Ensure explanation column exists for existing quiz_room_questions
+$result = $conn->query("SHOW COLUMNS FROM quiz_room_questions LIKE 'explanation'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE quiz_room_questions ADD COLUMN explanation TEXT NULL AFTER correct_option", "Column: quiz_room_questions.explanation");
+}
 
 runQuery($conn, "CREATE TABLE IF NOT EXISTS quiz_participants (
     id INT AUTO_INCREMENT PRIMARY KEY,

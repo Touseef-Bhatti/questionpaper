@@ -328,8 +328,10 @@ if (isset($_POST['selected_topics_json']) && !empty($_POST['selected_topics_json
 
 if (isset($_POST['start_quiz'])) {
     $selectedTopics = $_POST['selected_topics'] ?? [];
+    $source = $_POST['source'] ?? '';
     $mcqCount = intval($_POST['mcq_count'] ?? 10);
-    if ($mcqCount > 10) $mcqCount = 10;
+    $maxAllowed = ($source === 'host') ? 50 : 10;
+    if ($mcqCount > $maxAllowed) $mcqCount = $maxAllowed;
     unset($_SESSION['selected_topics']);
     
     if (!empty($selectedTopics) && $mcqCount > 0) {
@@ -347,7 +349,6 @@ if (isset($_POST['start_quiz'])) {
         }
         
         if ((!empty($topicsArray) || !empty($chapterIdsArray)) && $mcqCount > 0) {
-            $source = $_POST['source'] ?? '';
             $quizDuration = intval($_POST['quiz_duration'] ?? 10);
             
             if ($source === 'host') {
@@ -509,12 +510,12 @@ if (isset($_POST['start_quiz'])) {
                             id="mcq_count" 
                             class="mcq-count-input"
                             min="1" 
-                            max="10" 
+                            max="<?= ($source === 'host') ? 50 : 10 ?>" 
                             value="<?= htmlspecialchars($_REQUEST['mcq_count'] ?? $_POST['mcq_count'] ?? 10) ?>" 
                             required
-                            oninput="if(parseInt(this.value) > 10) this.value = 10; if(parseInt(this.value) < 1 && this.value !== '') this.value = 1;"
+                            oninput="const maxVal = <?= ($source === 'host') ? 50 : 10 ?>; if(parseInt(this.value) > maxVal) this.value = maxVal; if(parseInt(this.value) < 1 && this.value !== '') this.value = 1;"
                         >
-                        <button type="button" onclick="const input = document.getElementById('mcq_count'); input.value = Math.min(10, parseInt(input.value) + 1); input.dispatchEvent(new Event('input'));" class="mcq-count-btn"><i class="fas fa-plus"></i></button>
+                        <button type="button" onclick="const input = document.getElementById('mcq_count'); const maxVal = <?= ($source === 'host') ? 50 : 10 ?>; input.value = Math.min(maxVal, parseInt(input.value) + 1); input.dispatchEvent(new Event('input'));" class="mcq-count-btn"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
                 
@@ -554,23 +555,35 @@ if (isset($_POST['start_quiz'])) {
                     <div id="levelError" class="level-error"><i class="fas fa-info-circle"></i> Please select a difficulty level to continue</div>
                 </div>
                 
-                <div class="search-input-wrapper">
-                    <input 
-                        type="text" 
-                        name="topic_search" 
-                        id="topic_search"
-                        class="search-input" 
-                        placeholder="Search topic (e.g., Organic Chemistry, Wave Optics...)" 
-                        value="<?= htmlspecialchars($searchQuery) ?>"
-                        autofocus
-                    >
-                    <button type="button" class="file-upload-btn" title="Upload File" onclick="checkLoginAndOpenUpload()">
-                        <i class="fas fa-file-upload"></i>
-                    </button>
-                    <button type="submit" class="search-btn" title="Initiate AI Search">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
+               <div class="search-input-wrapper">
+    <input 
+        type="text" 
+        name="topic_search" 
+        id="topic_search"
+        class="search-input" 
+        placeholder="Enter topic name  (e.g., Organic Chemistry)"
+        value="<?= htmlspecialchars($searchQuery) ?>"
+        autofocus
+    >
+
+    <!-- ChatGPT-style upload button -->
+    <button 
+        type="button" 
+        class="file-upload-btn" 
+        title="Upload File"
+        onclick="checkLoginAndOpenUpload()"
+    >
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <button 
+        type="submit" 
+        class="search-btn" 
+        title="Initiate AI Search"
+    >
+        <i class="fas fa-arrow-up"></i>
+    </button>
+</div>
             </form>
         </div>
 
@@ -1008,28 +1021,57 @@ document.getElementById('startQuizForm')?.addEventListener('submit', function(e)
     if (!seoTopic) seoTopic = 'General';
 
     const seoUrl = `${seoTopic}-MCQs-Quiz`;
-    this.action = seoUrl;
-
-    // We use preventDefault and this.submit() to allow the loader to show and ensure the action is set
-    e.preventDefault();
-
-    if (typeof showAILoader === 'function') {
-        showAILoader(
-            [
-                { label: 'Analyzing topics',       duration: 1500 },
-                { label: 'Extracting key concepts', duration: 1500 },
-                { label: 'Designing MCQs',          duration: 1500 },
-                { label: 'Validating difficulty',   duration: 1500 },
-                { label: 'Finalizing paper',        duration: 1500 }
-            ],
-            'Our AI is synthesizing questions based on 2026 board standards\u2026'
-        );
-        
-        setTimeout(() => {
-            this.submit();
-        }, 1000);
+    
+    // For host mode, we submit to the current page to handle redirection back to host dashboard
+    const sourceInput = this.querySelector('input[name="source"]');
+    const isHost = (sourceInput && sourceInput.value === 'host');
+    
+    if (isHost) {
+        this.action = ''; // Submit to current page
     } else {
-        this.submit();
+        this.action = seoUrl;
+    }
+
+    // Ensure start_quiz is present in POST data even when using form.submit()
+    if (!this.querySelector('input[name="start_quiz"]')) {
+        const hiddenSubmit = document.createElement('input');
+        hiddenSubmit.type = 'hidden';
+        hiddenSubmit.name = 'start_quiz';
+        hiddenSubmit.value = '1';
+        this.appendChild(hiddenSubmit);
+    }
+
+    // ── Submit the form FIRST — page starts loading immediately ─────────────
+    e.preventDefault();
+    const formRef = this;
+    formRef.submit(); // browser navigates right now — no waiting
+
+    // ── Loader is purely cosmetic — steps animate every 3s, zero backend link ─
+    if (typeof showAILoader === 'function') {
+        if (isHost) {
+            showAILoader(
+                [
+                    { label: 'Saving selection',    duration: 3000 },
+                    { label: 'Redirecting to Host', duration: 3000 }
+                ],
+                'Syncing topics with your dashboard...',
+                'Topic Sync',
+                null
+            );
+        } else {
+            showAILoader(
+                [
+                    { label: 'Analyzing topics',        duration: 3500 },
+                    { label: 'Extracting key concepts', duration: 3500 },
+                    { label: 'Designing MCQs',          duration: 3500 },
+                    { label: 'Validating difficulty',   duration: 3500 },
+                    { label: 'Finalizing paper',        duration: 3500 }
+                ],
+                'Our AI is synthesizing questions based on 2026 board standards…',
+                'Quiz Generation Engine',
+                null
+            );
+        }
     }
 });
 
@@ -1324,14 +1366,6 @@ function startTextQuiz() {
     selectedTopics = [topicData];
     updateSelectedTopicsUI();
 
-    // Show AI loader and submit
-    if(typeof showAILoader === 'function') {
-        showAILoader([
-            { label: 'Preparing quiz', duration: 2000 },
-            { label: 'Loading questions', duration: 2000 }
-        ], 'Setting up your quiz...');
-    }
-
     const mcqCount = mcqs.length > 10 ? 10 : mcqs.length;
     const form = document.getElementById('startQuizForm');
     document.getElementById('hidden_mcq_count').value = mcqCount;
@@ -1358,12 +1392,27 @@ function startTextQuiz() {
 
     closeTextUploadModal();
 
-    // Set SEO action
+    // ── Build the form action URL ─────────────────────────────────────────────
     let seoTopic = topicName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (!seoTopic) seoTopic = 'General';
     form.action = `${seoTopic}-MCQs-Quiz`;
 
-    setTimeout(() => form.submit(), 800);
+    // ── Submit the form FIRST — page starts loading immediately ───────────────
+    form.submit(); // browser starts navigating right now
+
+    // ── Show loader as pure visual overlay (cosmetic only, no backend link) ───
+    if (typeof showAILoader === 'function') {
+        const isHost = (document.querySelector('input[name="source"]')?.value === 'host');
+        const steps = isHost
+            ? [{ label: 'Saving topics', duration: 3000 }, { label: 'Syncing with dashboard', duration: 3000 }]
+            : [{ label: 'Preparing quiz', duration: 3000 }, { label: 'Loading questions',     duration: 3000 }];
+        showAILoader(
+            steps,
+            isHost ? 'Updating your host dashboard...' : 'Setting up your quiz...',
+            isHost ? 'Topic Selection' : 'Quiz Setup',
+            null  // purely cosmetic — no callback
+        );
+    }
 }
 </script>
 

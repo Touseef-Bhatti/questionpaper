@@ -1199,79 +1199,199 @@ body {
 }
 
 
-.teachers-section .split-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
+/* ═══════════════════════════════════════════════════════════ */
+/*  ROLES SECTION — Modern & Premium Redesign                 */
+/* ═══════════════════════════════════════════════════════════ */
+.alh-roles-section {
+    padding: 6rem 0;
+    background: #f8fafc;
+    position: relative;
 }
 
-.teachers-section .card {
+.roles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2.5rem;
+}
+
+.role-card {
+    background: #fff;
+    border-radius: 28px;
+    padding: 2.5rem;
+    border: 1px solid rgba(79, 70, 229, 0.08);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.04);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 2rem; /* Adjust padding as needed */
+    position: relative;
+    overflow: hidden;
 }
 
-.teachers-section .card h3 {
-    margin-bottom: 0.5rem;
+.role-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; width: 150px; height: 150px;
+    background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+    opacity: 0; transition: opacity 0.4s ease;
 }
 
-.teachers-section .card p {
-    margin-bottom: 1.5rem;
-    flex-grow: 1; /* Allow paragraph to take available space */
+.role-card:hover {
+    transform: translateY(-12px);
+    box-shadow: 0 30px 70px rgba(79, 70, 229, 0.12);
+    border-color: rgba(79, 70, 229, 0.2);
 }
 
-.teachers-section .card .btn {
-    width: auto; /* Allow buttons to size naturally */
-    align-self: stretch; /* Make buttons fill the width of the card */
+.role-card:hover::after { opacity: 0.5; }
+
+.teacher-card { --accent-clr: #4f46e5; --accent-soft: rgba(79, 70, 229, 0.08); }
+.student-card { --accent-clr: #10b981; --accent-soft: rgba(16, 185, 129, 0.08); }
+
+.role-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
 }
 
-@media (max-width: 768px) {
-    .teachers-section .card .btn {
-        width: 100%; /* Full width buttons on small screens */
-    }
-    .btn {
-        margin: auto;
-    }
+.role-icon-box {
+    width: 64px;
+    height: 64px;
+    background: var(--accent-soft);
+    color: var(--accent-clr);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    transition: all 0.4s ease;
 }
 
-/* Enhanced Hover effects for buttons in the teachers-section */
-.teachers-section .card .btn-primary:hover {
-    background: linear-gradient(135deg, var(--primary-light), var(--secondary-dark)); /* A more dynamic gradient */
-    transform: translateY(-2px);color: white;
-    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4); /* Enhanced shadow */
+.role-card:hover .role-icon-box {
+    background: var(--accent-clr);
+    color: #fff;
+    transform: scale(1.1) rotate(-5deg);
 }
 
-.teachers-section .card .btn-outline:hover {
-   
-    background: linear-gradient(135deg, var(--secondary), var(--secondary-dark));
-    color: var(--white);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(44, 62, 80, 0.3); /* Shadow for outline */
+.role-title-box h3 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0;
 }
 
-.teachers-section .card .btn-secondary:hover {
-    background: var(--primary-color); /* Use primary color for secondary hover */
-    color: var(--white);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4); /* Enhanced shadow */
+.role-title-box span {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-.teachers-section .card .btn-ghost {
-    background: transparent;
+.role-body p {
     color: var(--text-secondary);
-    border: 1px solid var(--border);
-    transition: all var(--transition-normal); /* Ensure smooth transition */
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
 }
 
-.teachers-section .card .btn-ghost:hover {
-    /* background: var(--primary-light); Light primary background on hover */
-    color: var(--white);
-     background: linear-gradient(135deg, var(--primary), var(--primary-light));
+.role-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2.25rem 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.role-features li {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: var(--accent-soft);
+    padding: 0.45rem 1rem;
+    border-radius: 100px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.role-features li i {
+    color: var(--accent-clr);
+    font-size: 0.8rem;
+}
+
+.role-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: auto;
+}
+
+.role-btn {
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    transition: all 0.3s ease;
+    border-radius: 14px;
+    padding: 1rem;
+}
+
+.role-btn.primary {
+    background: var(--accent-clr);
+    color: #fff;
+    box-shadow: 0 8px 25px var(--accent-soft);
+}
+
+.role-btn.primary:hover {
+    filter: brightness(1.1);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--primary-light);
+    box-shadow: 0 12px 30px var(--accent-soft);
+}
+
+.role-sub-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.role-btn.secondary {
+    background: #f1f5f9;
+    color: var(--text-primary);
+    border: 1px solid #e2e8f0;
+}
+
+.role-btn.secondary:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
+
+.role-btn.ghost {
+    background: transparent;
+    color: var(--text-tertiary);
+    border: 1px solid #e2e8f0;
+}
+
+.role-btn.ghost:hover {
+    color: var(--text-primary);
+    background: #f8fafc;
+    border-color: var(--text-tertiary);
+}
+
+@media (max-width: 992px) {
+    .roles-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .alh-roles-section { padding: 4rem 0; }
+    .role-card { padding: 1.75rem; }
+    .role-sub-actions { grid-template-columns: 1fr; }
+    .role-header { flex-direction: column; align-items: flex-start; text-align: left; gap: 1rem; }
 }
 
 .home-reviews-section {

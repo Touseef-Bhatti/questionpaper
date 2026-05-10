@@ -32,7 +32,7 @@ function inPagePushAds2() {
         'select_book.php',
         'select_question.php',
         'mcqs_topic.php',
-        'home.php',
+        // 'home.php',
         'finalize_paper.php',
         'online_quiz_join.php',
         
@@ -125,10 +125,10 @@ function onClickAd() {
 
 function shouldShowAdsOnCurrentPage($allowedPages) {
     // // --- LOCALHOST AD TOGGLE ---
-    // $hostPart = explode(':', $_SERVER['HTTP_HOST'] ?? '')[0];
-    // if ($hostPart === 'localhost' || $hostPart === '127.0.0.1') {
-    //     return false;
-    // }
+    $hostPart = explode(':', $_SERVER['HTTP_HOST'] ?? '')[0];
+    if ($hostPart === 'localhost' || $hostPart === '127.0.0.1') {
+        return false;
+    }
     
     // --- PAGE SPECIFIC ADS ---
     if (!empty($allowedPages)) {

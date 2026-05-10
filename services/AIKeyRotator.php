@@ -23,69 +23,23 @@ class AIKeyRotator {
     }
 
     /**
-     * Auto-detect all KEY_N from env and load in rotation order.
-     * Just add KEY_N=sk-... to .env - no extra config needed.
+     * Load all KEY_N from .env in strict numeric order: KEY_1, KEY_2, ... KEY_N.
+     * No account grouping — first request uses KEY_1, next uses KEY_2, etc.
+     * To add a key: just add KEY_8=sk-... KEY_8_MODEL=... to .env.
      */
     private function loadKeys() {
         $defaultModel = EnvLoader::get('AI_DEFAULT_MODEL', '');
 
-        // 1. Scan KEY_1..KEY_99 - any key that exists is loaded
-        $found = [];
         for ($i = 1; $i <= 99; $i++) {
-            $key = EnvLoader::get('KEY_' . $i, '');
-            if (!empty(trim($key))) {
-                $model = EnvLoader::get('KEY_' . $i . '_MODEL', $defaultModel);
-                $found[$i] = [
-                    'key' => trim($key),
-                    'model' => trim($model) ?: $defaultModel,
-                    'id' => $i,
-                ];
-            }
-        }
-        if (empty($found)) return;
+            $key = trim((string) EnvLoader::get('KEY_' . $i, ''));
+            if ($key === '') continue;
 
-        // 2. Ranges for ordering (optional)
-        $account2Start = (int) EnvLoader::get('ACCOUNT_2_KEYS_START', 3);
-        $account2End = (int) EnvLoader::get('ACCOUNT_2_KEYS_END', 9);
-        $primaryStart = (int) EnvLoader::get('PRIMARY_KEYS_START', 1);
-        $primaryEnd = (int) EnvLoader::get('PRIMARY_KEYS_END', 2);
-        $account3Start = (int) EnvLoader::get('ACCOUNT_3_KEYS_START', 0);
-        $account3End = (int) EnvLoader::get('ACCOUNT_3_KEYS_END', 0);
-
-        // Auto: if Account3 start set but end not, include all keys from start to max
-        if ($account3Start > 0 && $account3End < $account3Start) {
-            $account3End = max(array_keys($found));
-        }
-
-        // 3. Build order: Account2 → Primary → Account3 → remaining
-        $order = [];
-        $used = [];
-        $ranges = [
-            [$account2Start, $account2End, 'Account2'],
-            [$primaryStart, $primaryEnd, 'Primary'],
-            [$account3Start, $account3End, 'Account3'],
-        ];
-        foreach ($ranges as $r) {
-            list($start, $end, $account) = $r;
-            if ($start > 0 && $end >= $start) {
-                for ($i = $start; $i <= $end; $i++) {
-                    if (isset($found[$i]) && !in_array($i, $used)) {
-                        $order[] = $i;
-                        $used[] = $i;
-                    }
-                }
-            }
-        }
-        foreach (array_keys($found) as $num) {
-            if (!in_array($num, $used)) {
-                $order[] = $num;
-            }
-        }
-
-        foreach ($order as $num) {
-            $account = ($num >= $account2Start && $num <= $account2End) ? 'Account2'
-                : (($num >= $primaryStart && $num <= $primaryEnd) ? 'Primary' : 'Account3');
-            $this->keys[] = array_merge($found[$num], ['account' => $account]);
+            $model = trim((string) EnvLoader::get('KEY_' . $i . '_MODEL', $defaultModel));
+            $this->keys[] = [
+                'key'   => $key,
+                'model' => $model ?: $defaultModel,
+                'id'    => $i,
+            ];
         }
     }
 

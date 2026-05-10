@@ -557,77 +557,184 @@ $stmt->close();
         .review-modal {
             position: fixed;
             inset: 0;
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 9999;
-            padding: 18px;
+            z-index: 99999;
+            padding: 20px;
+            animation: alhFadeIn 0.3s ease;
         }
+        @keyframes alhFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
         .review-modal.open { display: flex; }
+
         .review-modal-card {
             width: 100%;
-            max-width: 560px;
+            max-width: 520px;
+            max-height: calc(100vh - 40px);
             background: #ffffff;
-            border-radius: 20px;
-            border: 1px solid #dbe3ef;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
+        .review-modal.open .review-modal-card { transform: scale(1); }
+
         .review-modal-header {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
             color: #ffffff;
-            padding: 24px 26px 20px;
+            padding: 32px 32px 24px;
+            position: relative;
+        }
+        .review-modal-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 40px;
+            background: linear-gradient(to top, #ffffff, transparent);
+            opacity: 0.1;
         }
         .review-modal-title {
             margin: 0 0 8px;
-            font-size: 1.5rem;
-            font-weight: 900;
+            font-size: 1.6rem;
+            font-weight: 800;
             line-height: 1.2;
+            letter-spacing: -0.02em;
         }
         .review-modal-subtitle {
             margin: 0;
             font-size: 0.95rem;
-            color: #eef2ff;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.5;
         }
-        .review-modal-body { padding: 24px 26px 10px; }
-        .star-row { display: flex; gap: 10px; margin-bottom: 16px; }
+        .review-modal-body {
+            padding: 32px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .star-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            justify-content: center;
+        }
         .star-btn {
-            width: 48px; height: 48px;
-            border-radius: 10px;
-            border: 1px solid #cbd5e1;
+            width: 54px;
+            height: 54px;
+            border-radius: 16px;
+            border: 2px solid #f1f5f9;
             background: #f8fafc;
-            color: #94a3b8;
-            font-size: 1.3rem;
+            color: #cbd5e1;
+            font-size: 1.5rem;
             cursor: pointer;
-            transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .star-btn:hover { transform: translateY(-1px); border-color: #f59e0b; color: #f59e0b; background: #fff7ed; }
-        .star-btn.active { border-color: #f59e0b; background: #fff7ed; color: #f59e0b; }
+        .star-btn:hover {
+            transform: scale(1.1) rotate(5deg);
+            border-color: #fbbf24;
+            color: #fbbf24;
+            background: #fffbeb;
+            box-shadow: 0 10px 15px -3px rgba(251, 191, 36, 0.2);
+        }
+        .star-btn.active {
+            border-color: #f59e0b;
+            background: #fff7ed;
+            color: #f59e0b;
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.1);
+        }
         .review-modal textarea {
             width: 100%;
-            min-height: 125px;
-            border-radius: 12px;
-            border: 1px solid #cbd5e1;
-            padding: 14px;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-            color: #0f172a;
-            resize: vertical;
+            min-height: 140px;
+            border-radius: 16px;
+            border: 2px solid #f1f5f9;
+            background: #f8fafc;
+            padding: 16px;
+            font-family: inherit;
+            font-size: 1rem;
+            color: #1e293b;
+            resize: none;
             outline: none;
+            transition: all 0.2s ease;
         }
-        .review-modal textarea:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14); }
-        .review-modal-message { margin-top: 10px; font-size: 0.9rem; font-weight: 700; min-height: 24px; }
-        .review-modal-message.error { color: #b91c1c; }
-        .review-modal-message.success { color: #166534; }
+        .review-modal textarea:focus {
+            border-color: #6366f1;
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+        .review-modal-message {
+            margin-top: 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-align: center;
+            min-height: 24px;
+        }
+        .review-modal-message.error { color: #ef4444; }
+        .review-modal-message.success { color: #10b981; }
         .review-modal-actions {
             display: flex;
             gap: 12px;
-            justify-content: flex-end;
-            padding: 0 26px 24px;
-            flex-wrap: wrap;
+            padding: 0 32px 32px;
         }
-        .review-modal-actions .btn-quiz { min-width: 130px; justify-content: center; }
+        .review-modal-actions .btn-quiz {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+        .review-modal-actions .btn-quiz.primary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        .review-modal-actions .btn-quiz.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.4);
+        }
+        .review-modal-actions .btn-quiz.outline {
+            background: #ffffff;
+            color: #64748b;
+            border: 2px solid #f1f5f9;
+        }
+        .review-modal-actions .btn-quiz.outline:hover {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+            color: #475569;
+        }
+
+        @media (max-width: 640px) {
+            .review-modal { padding: 12px; }
+            .review-modal-card { border-radius: 20px; max-height: calc(100vh - 24px); }
+            .review-modal-header { padding: 20px 24px; }
+            .review-modal-title { font-size: 1.3rem; }
+            .review-modal-body { padding: 20px 24px; }
+            .review-modal-actions {
+                padding: 0 24px 24px;
+                flex-direction: column-reverse;
+                gap: 10px;
+            }
+            .review-modal-actions .btn-quiz { width: 100%; height: 44px; }
+            .star-btn { width: 44px; height: 44px; font-size: 1.1rem; }
+            .review-modal textarea { min-height: 100px; padding: 12px; }
+        }
     </style>
 </head>
 <body>
@@ -765,8 +872,8 @@ $stmt->close();
       <div class="review-modal-message" id="reviewMessage"></div>
     </div>
     <div class="review-modal-actions">
-      <a href="../reviews.php" class="btn-quiz secondary" style="text-decoration: none;"><i class="fas fa-comments"></i> All Reviews</a>
-      <button type="button" class="btn-quiz secondary" onclick="closeReviewModal()">Skip</button>
+      <a href="../reviews.php" class="btn-quiz outline" style="text-decoration: none;"><i class="fas fa-comments"></i> All Reviews</a>
+      <button type="button" class="btn-quiz outline" onclick="closeReviewModal()">Skip</button>
       <button type="button" class="btn-quiz primary" id="submitReviewBtn" onclick="submitReview()">Submit Review</button>
     </div>
   </div>

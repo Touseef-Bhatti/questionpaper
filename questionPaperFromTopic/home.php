@@ -2,9 +2,9 @@
 session_start();
 require_once __DIR__ . '/../config/env.php';
 $appName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
-$pageTitle       = "Free Online Question Paper Generator | MCQs, Short & Long Questions – " . $appName;
-$metaDescription = "Generate MCQ question papers, short question papers, and long question papers online for free. Instantly create exam-ready papers by topic for 9th, 10th, GCSE, and university students using AI.";
-$metaKeywords    = "online question paper generator, online MCQs paper generator, MCQ generator by topic, generate exam questions online, AI paper generator, question paper maker, free paper generator, 9th class MCQs, short question paper generator, long question paper generator, GCSE question generator, quiz maker AI";
+$pageTitle       = "AI Exam Paper Generator | MCQ Maker for SAT, GCSE, IB & A-Levels – " . $appName;
+$metaDescription = "The #1 AI-powered exam paper generator for teachers and students globally. Create custom MCQs, short questions, and tests for SAT, ACT, GCSE, A-Levels, and IB. Free online assessment builder for USA, UK, Europe, and beyond.";
+$metaKeywords    = "exam paper generator, MCQ maker, test creator, online paper builder, SAT question generator, GCSE test maker, A-Level paper builder, IB exam creator, AI assessment tool, test bank generator, teacher resources USA, UK education tools, European Baccalaureate prep, classroom assessment builder, online quiz maker for schools";
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -245,20 +245,121 @@ $metaKeywords    = "online question paper generator, online MCQs paper generator
         box-shadow: none;
         color: #f8fafc;
     }
+
+    /* Blog-style SEO Section */
+    .seo-blog-section {
+        margin-top: 60px;
+        padding: 40px;
+        background: #ffffff;
+        border-radius: 24px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        color: #1e293b;
+        line-height: 1.7;
+    }
+    .seo-blog-section h2 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 24px;
+        position: relative;
+        padding-bottom: 12px;
+    }
+    .seo-blog-section h2::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 60px;
+        height: 4px;
+        background: var(--primary);
+        border-radius: 2px;
+    }
+    .seo-blog-section h3 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-top: 40px;
+        margin-bottom: 16px;
+    }
+    .seo-blog-section p {
+        margin-bottom: 20px;
+        font-size: 1.05rem;
+        color: #475569;
+    }
+    .seo-blog-section ul {
+        margin-bottom: 24px;
+        padding-left: 20px;
+    }
+    .seo-blog-section li {
+        margin-bottom: 12px;
+        list-style-type: disc;
+        color: #475569;
+    }
+    .seo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+        margin-top: 40px;
+    }
+    .seo-card {
+        padding: 24px;
+        background: #f8fafc;
+        border-radius: 16px;
+        border: 1px solid #f1f5f9;
+        transition: transform 0.3s ease;
+    }
+    .seo-card:hover {
+        transform: translateY(-5px);
+        background: #f1f5f9;
+    }
+    .seo-card i {
+        font-size: 2rem;
+        color: var(--primary);
+        margin-bottom: 16px;
+        display: block;
+    }
+    .seo-card h4 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 12px;
+    }
+    @media (max-width: 768px) {
+        .seo-blog-section {
+            padding: 24px 16px;
+            margin-top: 40px;
+        }
+        .seo-blog-section h2 {
+            font-size: 1.6rem;
+        }
+        .seo-blog-section h3 {
+            font-size: 1.3rem;
+        }
+    }
     </style>
 
-    <!-- Schema.org JSON-LD -->
     <?php
     $host = 'https://' . $_SERVER['HTTP_HOST'];
     $jsonLD = [
         "@context"          => "https://schema.org",
         "@type"             => "WebApplication",
-        "name"              => "Online Question Paper Generator – " . $appName,
-        "alternateName"     => ["Online MCQs Paper Generator","Free Paper Maker","MCQ Generator Online"],
-        "description"       => "Generate MCQ question papers, short answer papers, and long question papers online instantly using AI. Free for students and educators.",
-        "url"               => $host . "/questionPaperFromTopic/",
+        "name"              => "AI Exam Paper Generator & MCQ Maker – " . $appName,
+        "alternateName"     => ["SAT Question Generator", "GCSE Test Maker", "A-Level Paper Builder", "IB Exam Creator", "MCQ Maker Online"],
+        "description"       => "The #1 AI-powered exam paper generator for teachers and students globally. Create custom MCQs, short questions, and tests for SAT, ACT, GCSE, A-Levels, and IB. Free online assessment builder for USA, UK, Europe, and beyond.",
+        "url"               => $host . "/questionPaperFromTopic/home.php",
         "applicationCategory" => "EducationalApplication",
-        "operatingSystem"   => "Any"
+        "operatingSystem"   => "Any",
+        "featureList" => [
+            "AI-driven question generation",
+            "Multi-format file upload support (PDF, DOCX, Images)",
+            "Regional curriculum support (USA, UK, Europe)",
+            "Customizable difficulty levels",
+            "Export to PDF and Word"
+        ]
     ];
     ?>
     <script type="application/ld+json">
@@ -284,9 +385,9 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
     <div class="topic-search-container">
         <!-- TOP AD BANNER -->
 
-        <h1>Create Question Papers</h1>
+        <h1>Free AI Exam Paper Generator & MCQ Maker</h1>
         <p class="desc">
-            The fastest online MCQs, short, and long question paper maker. Search any topic, pick question types, and get an exam-ready paper in seconds.
+            Generate professional assessments for <strong>SAT, GCSE, A-Levels, IB</strong>, and University exams instantly. Search any topic, upload study notes, and get a high-quality exam-ready paper in seconds.
         </p>
 
         <!-- MODE SWITCHER -->
@@ -336,7 +437,7 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
             </div>
             <div class="text-upload-trigger-content">
                 <div class="text-upload-trigger-title">Upload a File & Generate Questions</div>
-                <div class="text-upload-trigger-desc">PDF, Word, PowerPoint, or an image — MCQs, short & long questions from your file only (max 10 MB)</div>
+                <div class="text-upload-trigger-desc">PDF, DOCX, TXT, PPT/PPTX, or images (JPG/PNG) — generate MCQs, short & long questions from your file (max 10 MB)</div>
             </div>
             <div class="text-upload-trigger-arrow">
                 <i class="fas fa-arrow-right"></i>
@@ -360,43 +461,10 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
                         <label class="text-upload-file-label" for="documentUploadInput">
                             <i class="fas fa-paperclip"></i> Choose file
                         </label>
-                        <input type="file" id="documentUploadInput" class="text-upload-file-input" name="document" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/*">
+                        <input type="file" id="documentUploadInput" class="text-upload-file-input" name="document" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.png,.jpg,.jpeg,.webp,.gif,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/*">
                         <div class="text-upload-file-meta">
                             <span id="documentUploadFilename" class="text-upload-filename">No file selected</span>
-                            <span class="text-upload-hint" title="Legacy .doc/.ppt may need to be saved as PDF or DOCX/PPTX if upload fails">PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, WEBP, GIF · max 10 MB</span>
-                        </div>
-                    </div>
-
-                    <div class="text-upload-config">
-                        <div class="text-upload-config-title">Question Types to Generate</div>
-                        <div class="text-upload-types">
-                            <label class="text-upload-type-checkbox">
-                                <input type="checkbox" id="textTypeMcqs" checked>
-                                <span class="text-upload-type-label mcq-label"><i class="fas fa-list-ul"></i> MCQs</span>
-                                <div class="text-upload-count-control">
-                                    <button type="button" onclick="adjustTextCount('textCountMcqs', -1)">−</button>
-                                    <input type="number" id="textCountMcqs" value="5" min="1" max="30">
-                                    <button type="button" onclick="adjustTextCount('textCountMcqs', 1)">+</button>
-                                </div>
-                            </label>
-                            <label class="text-upload-type-checkbox">
-                                <input type="checkbox" id="textTypeShort" checked>
-                                <span class="text-upload-type-label short-label"><i class="fas fa-align-left"></i> Short Q's</span>
-                                <div class="text-upload-count-control">
-                                    <button type="button" onclick="adjustTextCount('textCountShort', -1)">−</button>
-                                    <input type="number" id="textCountShort" value="3" min="1" max="20">
-                                    <button type="button" onclick="adjustTextCount('textCountShort', 1)">+</button>
-                                </div>
-                            </label>
-                            <label class="text-upload-type-checkbox">
-                                <input type="checkbox" id="textTypeLong" checked>
-                                <span class="text-upload-type-label long-label"><i class="fas fa-align-justify"></i> Long Q's</span>
-                                <div class="text-upload-count-control">
-                                    <button type="button" onclick="adjustTextCount('textCountLong', -1)">−</button>
-                                    <input type="number" id="textCountLong" value="2" min="1" max="10">
-                                    <button type="button" onclick="adjustTextCount('textCountLong', 1)">+</button>
-                                </div>
-                            </label>
+                            <span class="text-upload-hint" title="Legacy .doc/.ppt may need to be saved as PDF or DOCX/PPTX if upload fails">PDF, DOCX, TXT, PPT, PPTX, PNG, JPG, WEBP, GIF · max 10 MB</span>
                         </div>
                     </div>
 
@@ -414,7 +482,7 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
                 <div class="text-upload-modal-footer">
                     <button type="button" class="text-upload-cancel-btn" onclick="closeTextUploadModal()">Cancel</button>
                     <button type="button" class="text-upload-generate-btn" id="textGenerateBtn" onclick="generateFromFile()">
-                        <i class="fas fa-bolt"></i> Generate Questions
+                        <i class="fas fa-magic"></i> Analyze File
                     </button>
                 </div>
             </div>
@@ -437,7 +505,7 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
             
             <div class="quiz-config-section" style="margin-top: 32px;">
                 <button type="button" class="professional-generate-btn" id="generateBtn" onclick="finalizePaper()" disabled>
-                    <i class="fas fa-file-signature"></i> Generate Paper
+                    <i class="fas fa-arrow-right"></i> Continue to Settings
                 </button>
             </div>
         </div>
@@ -476,12 +544,83 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
                     </button>
                     
                     <button type="button" class="professional-generate-btn" onclick="finalizePaper()" disabled>
-                        <i class="fas fa-file-signature"></i> Generate Paper
+                        <i class="fas fa-arrow-right"></i> Continue to Settings
                     </button>
                 </div>
             </div>
         </div>
         
+        <!-- Blog Style SEO Section -->
+        <section class="seo-blog-section">
+            <h2>The Future of Assessment: AI Exam Paper Generation</h2>
+            <p>
+                In the rapidly evolving world of education, teachers and students are seeking smarter ways to assess knowledge. Our <strong>AI Exam Paper Generator</strong> is designed to bridge the gap between curriculum standards and high-quality assessments. Whether you are a teacher preparing for a semester exam or a student practicing for standardized tests, our platform provides instant, accurate, and relevant questions.
+            </p>
+
+            <div class="seo-grid">
+                <div class="seo-card">
+                    <i class="fas fa-flag-usa"></i>
+                    <h4>Optimized for USA</h4>
+                    <p>Tailored for US educators focusing on <strong>SAT, ACT, and AP Exams</strong>. Our AI aligns with Common Core standards to provide rigorous testing materials for middle and high schools.</p>
+                </div>
+                <div class="seo-card">
+                    <i class="fas fa-gbp"></i>
+                    <h4>Mastering UK Exams</h4>
+                    <p>Designed for the British curriculum, supporting <strong>GCSEs, A-Levels, and SATS</strong>. Generate questions that match AQA, OCR, and Edexcel board formats perfectly.</p>
+                </div>
+                <div class="seo-card">
+                    <i class="fas fa-globe-europe"></i>
+                    <h4>European & Global Standards</h4>
+                    <p>Comprehensive support for the <strong>International Baccalaureate (IB)</strong> and European Baccalaureate. Ideal for international schools across Europe and the Middle East.</p>
+                </div>
+            </div>
+
+            <h3>Why Use Our AI MCQ Maker & Test Creator?</h3>
+            <p>
+                Traditional paper setting takes hours of manual work. Our platform automates this process using advanced natural language processing. Here is why thousands of educators trust us:
+            </p>
+            <ul>
+                <li><strong>Instant Topic Extraction:</strong> Simply search a topic or upload your study notes, and our AI identifies the core concepts immediately.</li>
+                <li><strong>Difficulty Customization:</strong> From basic definitions to complex numerical problems, tailor your paper to your students' levels.</li>
+                <li><strong>Multi-Format Support:</strong> Upload PDF, DOCX, PPTX, or even handwritten notes (JPG/PNG) for automated question generation.</li>
+                <li><strong>SEO-Friendly Results:</strong> Our papers are structured logically, making them easy to read, edit, and print.</li>
+            </ul>
+
+            <h3>How to Generate the Perfect Exam Paper</h3>
+            <p>
+                Our simple 3-step process ensures you get exactly what you need without any technical hassle:
+            </p>
+            <ol style="padding-left: 20px; margin-bottom: 24px;">
+                <li style="margin-bottom: 12px;"><strong>Search or Upload:</strong> Enter your topics in the search bar or upload a document to analyze.</li>
+                <li style="margin-bottom: 12px;"><strong>Configure Settings:</strong> Select the number of MCQs, short questions, and long questions on the next page. Choose your difficulty level.</li>
+                <li style="margin-bottom: 12px;"><strong>Edit & Export:</strong> Review the generated paper in our live editor. Remove questions you don't like, edit text, and download as PDF or Word.</li>
+            </ol>
+
+            <h3>Frequently Asked Questions (FAQs)</h3>
+            <div style="display: grid; gap: 20px;">
+                <div>
+                    <strong style="display: block; color: #0f172a; margin-bottom: 4px;">Is this exam generator suitable for GCSE and A-Levels?</strong>
+                    <p style="margin-bottom: 0;">Yes! Our AI is trained on UK curriculum standards, making it perfect for GCSE and A-Level preparation across all major examination boards like AQA and Edexcel.</p>
+                </div>
+                <div>
+                    <strong style="display: block; color: #0f172a; margin-bottom: 4px;">Can I generate SAT practice questions?</strong>
+                    <p style="margin-bottom: 0;">Absolutely. We support SAT and ACT formats, providing realistic MCQs and long-form questions for US high school students.</p>
+                </div>
+                <div>
+                    <strong style="display: block; color: #0f172a; margin-bottom: 4px;">What file types can I upload?</strong>
+                    <p style="margin-bottom: 0;">You can upload PDF, DOCX, TXT, PPT/PPTX, and images (JPG/PNG). Our AI extracts text from all these formats to build your customized paper.</p>
+                </div>
+                <div>
+                    <strong style="display: block; color: #0f172a; margin-bottom: 4px;">Is the generated paper editable?</strong>
+                    <p style="margin-bottom: 0;">Yes, our live editor allows you to change text, remove questions, and even adjust the difficulty after the paper is generated.</p>
+                </div>
+            </div>
+
+            <p style="margin-top: 40px;">
+                Start using the world's most advanced <strong>Online Paper Builder</strong> today and experience the power of AI in education!
+            </p>
+        </section>
+
     </div>
 </div>
 
@@ -856,27 +995,11 @@ window.finalizePaper = ()=>{
     if(allTopics.length===0){ toast('Please select at least one topic.','error'); return; }
 
     const genBtns = document.querySelectorAll('.professional-generate-btn');
-    genBtns.forEach(btn => btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...');
+    genBtns.forEach(btn => btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...');
 
-    if(typeof showAILoader==='function'){
-        showAILoader([
-            { label:'Analyzing topics',        duration:3500 },
-            { label:'Extracting key concepts', duration:3500 },
-            { label:'Designing Questions',     duration:3500 },
-            { label:'Validating curriculum',   duration:3500 },
-            { label:'Finalizing paper',        duration:3500 }
-        ], 'Our AI is synthesizing questions based on board standards…');
-    }
-
-    const m=selectionMatrix.mcqs.size, s=selectionMatrix.short.size, l=selectionMatrix.long.size;
-    let action='finalize_paper.php';
-    if(m>0&&s===0&&l===0)          action='online-mcqs-question-paper-generator';
-    else if(m===0&&s>0&&l===0)     action='online-short-question-paper-generator';
-    else if(m===0&&s===0&&l>0)     action='online-long-question-paper-generator';
-    else if(m>0||s>0||l>0)         action='online-mcqs-short-and-long-question-paper-generator';
-
+    // ALWAYS go to finalize_paper.php (settings page) — never generate directly
     const form=document.createElement('form');
-    form.method='POST'; form.action=action;
+    form.method='POST'; form.action='finalize_paper.php';
 
     ['mcqs','short','long'].forEach(type=>{
         selectionMatrix[type].forEach(t=>{
@@ -900,7 +1023,7 @@ window.finalizePaper = ()=>{
     form.appendChild(di);
 
     document.body.appendChild(form);
-    setTimeout(()=>form.submit(),500);
+    setTimeout(()=>form.submit(),300);
 };
 
 // ================================================================
@@ -1011,13 +1134,12 @@ async function generateFromFile() {
 
     progressEl.style.display = 'block';
     genBtn.disabled = true;
-    genBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    genBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
 
     const progressSteps = [
         'Reading your file...',
-        'Sending to AI...',
-        'Crafting questions...',
-        'Validating answers...',
+        'Extracting content...',
+        'Detecting topic...',
         'Finalizing...'
     ];
     let stepIdx = 0;
@@ -1025,7 +1147,7 @@ async function generateFromFile() {
     const pInterval = setInterval(() => {
         pVal = Math.min(pVal + 3, 92);
         if(progressBar) progressBar.style.width = pVal + '%';
-        if(pVal % 18 === 0 && stepIdx < progressSteps.length - 1) {
+        if(pVal % 25 === 0 && stepIdx < progressSteps.length - 1) {
             stepIdx++;
             if(progressText) progressText.textContent = progressSteps[stepIdx];
         }
@@ -1034,10 +1156,7 @@ async function generateFromFile() {
     try {
         const formData = new FormData();
         formData.append('document', file);
-        types.forEach(t => formData.append('question_types[]', t));
-        formData.append('count_mcqs', document.getElementById('textCountMcqs')?.value || 5);
-        formData.append('count_short', document.getElementById('textCountShort')?.value || 3);
-        formData.append('count_long', document.getElementById('textCountLong')?.value || 2);
+        formData.append('detect_topic_only', '1');
 
         const base = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
         const res = await fetch(base + '/generate_from_upload.php', {
@@ -1051,12 +1170,32 @@ async function generateFromFile() {
 
         if(data.success) {
             progressEl.style.display = 'none';
-            window._generatedTextData = data;
-            window._generatedTextTypes = types;
-            submitGeneratedPaper();
+            const topicLabel = (data.detected_topic && String(data.detected_topic).trim()) ? String(data.detected_topic).trim() : 'AI Generated from Upload';
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'finalize_paper.php';
+
+            const addHidden = (name, val) => {
+                const inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = name; inp.value = val;
+                form.appendChild(inp);
+            };
+
+            addHidden('topics[]', topicLabel);
+            addHidden('topics_mcqs[]', topicLabel);
+            addHidden('topics_short[]', topicLabel);
+            addHidden('topics_long[]', topicLabel);
+            addHidden('source', 'file_upload');
+            if (data.file_hash) {
+                addHidden('file_hash', data.file_hash);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
         } else {
             progressEl.style.display = 'none';
-            errorEl.textContent = data.error || 'Failed to generate questions. Please try again.';
+            errorEl.textContent = data.error || 'Failed to analyze file. Please try again.';
             errorEl.style.display = 'block';
         }
     } catch(e) {
@@ -1064,10 +1203,10 @@ async function generateFromFile() {
         progressEl.style.display = 'none';
         errorEl.textContent = 'Network error. Please check your connection and try again.';
         errorEl.style.display = 'block';
-        console.error('Generate from file error:', e);
+        console.error('Analyze file error:', e);
     } finally {
         genBtn.disabled = false;
-        genBtn.innerHTML = '<i class="fas fa-bolt"></i> Generate Questions';
+        genBtn.innerHTML = '<i class="fas fa-magic"></i> Analyze File';
     }
 }
 
@@ -1112,55 +1251,7 @@ function displayTextResults(data, types) {
 }
 
 function submitGeneratedPaper() {
-    const data = window._generatedTextData;
-    const types = window._generatedTextTypes;
-    if(!data) return;
-
-    const topicLabel = (data.detected_topic && String(data.detected_topic).trim()) ? String(data.detected_topic).trim() : 'AI Generated from Upload';
-
-    // Show AI loader
-    if(typeof showAILoader === 'function') {
-        showAILoader([
-            { label: 'Preparing paper', duration: 2000 },
-            { label: 'Formatting questions', duration: 2000 },
-            { label: 'Building layout', duration: 2000 }
-        ], 'Creating your question paper...');
-    }
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'generate_ai_paper.php';
-
-    const topicInput = document.createElement('input');
-    topicInput.type = 'hidden';
-    topicInput.name = 'topics[]';
-    topicInput.value = topicLabel;
-    form.appendChild(topicInput);
-
-    // Add counts
-    const addHidden = (name, val) => {
-        const inp = document.createElement('input');
-        inp.type = 'hidden'; inp.name = name; inp.value = val;
-        form.appendChild(inp);
-    };
-
-    addHidden('total_mcqs', data.mcqs?.length || 0);
-    addHidden('total_shorts', data.short?.length || 0);
-    addHidden('total_longs', data.long?.length || 0);
-    addHidden('source', 'file_upload');
-    addHidden('header_design', selectedDesign);
-
-    // Serialize generated questions into session via hidden fields
-    addHidden('ai_generated_json', JSON.stringify(data));
-
-    if(data.mcqs?.length) addHidden('topics_mcqs[]', topicLabel);
-    if(data.short?.length) addHidden('topics_short[]', topicLabel);
-    if(data.long?.length) addHidden('topics_long[]', topicLabel);
-
-    types.forEach(t => addHidden('active_types[]', t));
-
-    document.body.appendChild(form);
-    setTimeout(() => form.submit(), 500);
+    // This function is no longer used for file upload flow.
 }
 </script>
 

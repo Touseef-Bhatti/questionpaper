@@ -220,7 +220,7 @@
       }
     };
 
-    window.showAILoader = function (stepsInput, noteText, titleText) {
+    window.showAILoader = function (stepsInput, noteText, titleText, onComplete) {
       var modal = document.getElementById('aiLoaderModal');
       var titleEl = document.getElementById('aiLoaderTitle');
       var stepsEl = document.getElementById('aiLoaderSteps');
@@ -287,6 +287,10 @@
             if (stepEl) stepEl.className = 'ai-loader-step completed';
           });
           if (progressBar) progressBar.style.width = '99%';
+          
+          if (typeof onComplete === 'function') {
+            onComplete();
+          }
         }
       }, 200);
     };

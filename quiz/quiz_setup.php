@@ -388,25 +388,23 @@ document.getElementById('quizForm').addEventListener('submit', function(e) {
     const seoUrl = `${classSlug}/${bookText}/${chapterSlug}-MCQs-quiz`;
     this.action = seoUrl;
 
+    // ── Submit the form FIRST — page starts loading immediately ─────────────
+    this.submit();
+
+    // ── Loader is purely cosmetic — steps animate, zero backend link ─
     if (typeof showAILoader === 'function') {
         showAILoader(
             [
-                { label: 'Selecting questions', duration: 1500 },
-                { label: 'Loading content', duration: 1500 },
-                { label: 'Applying difficulty', duration: 1500 },
-                { label: 'Arranging paper', duration: 1500 },
-                { label: 'Starting quiz', duration: 1500 }
+                { label: 'Selecting questions', duration: 3500 },
+                { label: 'Loading content', duration: 3500 },
+                { label: 'Applying difficulty', duration: 3500 },
+                { label: 'Arranging paper', duration: 3500 },
+                { label: 'Starting quiz', duration: 3500 }
             ],
             'Preparing your personalized quiz session...',
-            'Preparing Your Quiz'
+            'Preparing Your Quiz',
+            null // purely cosmetic — no callback
         );
-        
-        // Wait a bit for loader to show before submitting
-        setTimeout(() => {
-            this.submit();
-        }, 1000);
-    } else {
-        this.submit();
     }
 });
 </script>
