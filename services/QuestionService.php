@@ -20,9 +20,11 @@ class QuestionService
      * Get random questions using optimized algorithm
      * Time Complexity: O(1) instead of O(n log n)
      */
-    public function getRandomQuestions($chapterId, $questionType, $limit)
+    public function getRandomQuestions($chapterId, $questionType, $limit, $classId = null, $bookName = null)
     {
         $cacheKey = "questions_ch_{$chapterId}_{$questionType}_{$limit}";
+        if ($classId) $cacheKey .= "_cl_{$classId}";
+        if ($bookName) $cacheKey .= "_bk_" . md5($bookName);
         
         // Try cache first
         if ($this->cache && $cached = $this->cache->get($cacheKey)) {
@@ -33,8 +35,23 @@ class QuestionService
         $countQuery = "SELECT COUNT(*) as total, MIN(id) as min_id, MAX(id) as max_id 
                       FROM questions 
                       WHERE chapter_id = ? AND question_type = ?";
+        
+        $params = [$chapterId, $questionType];
+        $types = "is";
+        
+        if ($classId) {
+            $countQuery .= " AND class_id = ?";
+            $params[] = $classId;
+            $types .= "i";
+        }
+        if ($bookName) {
+            $countQuery .= " AND book_name = ?";
+            $params[] = $bookName;
+            $types .= "s";
+        }
+        
         $stmt = $this->conn->prepare($countQuery);
-        $stmt->bind_param('is', $chapterId, $questionType);
+        $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $countResult = $stmt->get_result()->fetch_assoc();
         
@@ -48,7 +65,7 @@ class QuestionService
         
         // If we want more questions than available, return all
         if ($limit >= $totalQuestions) {
-            return $this->getAllQuestions($chapterId, $questionType);
+            return $this->getAllQuestions($chapterId, $questionType, $classId, $bookName);
         }
         
         $questions = [];
@@ -61,10 +78,26 @@ class QuestionService
             
             $query = "SELECT id, question_text, marks, topic 
                      FROM questions 
-                     WHERE chapter_id = ? AND question_type = ? AND id >= ? 
-                     LIMIT 1";
+                     WHERE chapter_id = ? AND question_type = ? AND id >= ? ";
+            
+            $qParams = [$chapterId, $questionType, $randomId];
+            $qTypes = "isi";
+            
+            if ($classId) {
+                $query .= " AND class_id = ?";
+                $qParams[] = $classId;
+                $qTypes .= "i";
+            }
+            if ($bookName) {
+                $query .= " AND book_name = ?";
+                $qParams[] = $bookName;
+                $qTypes .= "s";
+            }
+            
+            $query .= " LIMIT 1";
+            
             $stmt = $this->conn->prepare($query);
-            $stmt->bind_param('isi', $chapterId, $questionType, $randomId);
+            $stmt->bind_param($qTypes, ...$qParams);
             $stmt->execute();
             $result = $stmt->get_result();
             
@@ -92,15 +125,28 @@ class QuestionService
             
             $query = "SELECT id, question_text, marks, topic 
                      FROM questions 
-                     WHERE chapter_id = ? AND question_type = ? 
-                     AND id NOT IN ($placeholders)
-                     ORDER BY id 
-                     LIMIT ?";
+                     WHERE chapter_id = ? AND question_type = ? ";
+            
+            $fParams = [$chapterId, $questionType];
+            $fTypes = "is";
+            
+            if ($classId) {
+                $query .= " AND class_id = ?";
+                $fParams[] = $classId;
+                $fTypes .= "i";
+            }
+            if ($bookName) {
+                $query .= " AND book_name = ?";
+                $fParams[] = $bookName;
+                $fTypes .= "s";
+            }
+            
+            $query .= " AND id NOT IN ($placeholders) ORDER BY id LIMIT ?";
             
             $stmt = $this->conn->prepare($query);
-            $types = 'is' . str_repeat('i', count($usedIds)) . 'i';
-            $params = array_merge([$chapterId, $questionType], $usedIds, [$limit - count($questions)]);
-            $stmt->bind_param($types, ...$params);
+            $finalParams = array_merge($fParams, $usedIds, [$limit - count($questions)]);
+            $finalTypes = $fTypes . str_repeat('i', count($usedIds)) . 'i';
+            $stmt->bind_param($finalTypes, ...$finalParams);
             $stmt->execute();
             $result = $stmt->get_result();
             
@@ -120,9 +166,11 @@ class QuestionService
     /**
      * Get random MCQs using optimized algorithm
      */
-    public function getRandomMCQs($chapterId, $limit)
+    public function getRandomMCQs($chapterId, $limit, $classId = null, $bookName = null)
     {
         $cacheKey = "mcqs_ch_{$chapterId}_{$limit}";
+        if ($classId) $cacheKey .= "_cl_{$classId}";
+        if ($bookName) $cacheKey .= "_bk_" . md5($bookName);
         
         if ($this->cache && $cached = $this->cache->get($cacheKey)) {
             return json_decode($cached, true);
@@ -131,8 +179,32 @@ class QuestionService
         // Get total count and ID range
         $countQuery = "SELECT COUNT(*) as total, MIN(mcq_id) as min_id, MAX(mcq_id) as max_id 
                       FROM mcqs WHERE chapter_id = ?";
+        
+        $params = [$chapterId];
+        $types = "i";
+        
+        if ($classId) {
+            $countQuery .= " AND class_id = ?";
+            $params[] = $classId;
+            $types .= "i";
+        }
+        if ($bookName) {
+            // Need to join book table to filter by book_name if book_id is not directly available or inconsistent
+            $countQuery = "SELECT COUNT(*) as total, MIN(m.mcq_id) as min_id, MAX(m.mcq_id) as max_id 
+                          FROM mcqs m 
+                          JOIN book b ON m.book_id = b.book_id
+                          WHERE m.chapter_id = ? AND b.book_name = ?";
+            $params = [$chapterId, $bookName];
+            $types = "is";
+            if ($classId) {
+                $countQuery .= " AND m.class_id = ?";
+                $params[] = $classId;
+                $types .= "i";
+            }
+        }
+        
         $stmt = $this->conn->prepare($countQuery);
-        $stmt->bind_param('i', $chapterId);
+        $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $countResult = $stmt->get_result()->fetch_assoc();
         
@@ -145,7 +217,7 @@ class QuestionService
         }
         
         if ($limit >= $totalMcqs) {
-            return $this->getAllMCQs($chapterId);
+            return $this->getAllMCQs($chapterId, $classId, $bookName);
         }
         
         $mcqs = [];
@@ -157,11 +229,29 @@ class QuestionService
             
             $query = "SELECT m.mcq_id, m.chapter_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation 
                      FROM mcqs m
-                     LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id
-                     WHERE m.chapter_id = ? AND m.mcq_id >= ? 
-                     LIMIT 1";
+                     LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id ";
+            
+            $mParams = [$chapterId, $randomId];
+            $mTypes = "ii";
+            
+            if ($bookName) {
+                $query .= " JOIN book b ON m.book_id = b.book_id WHERE m.chapter_id = ? AND b.book_name = ? AND m.mcq_id >= ? ";
+                $mParams = [$chapterId, $bookName, $randomId];
+                $mTypes = "isi";
+            } else {
+                $query .= " WHERE m.chapter_id = ? AND m.mcq_id >= ? ";
+            }
+            
+            if ($classId) {
+                $query .= " AND m.class_id = ?";
+                $mParams[] = $classId;
+                $mTypes .= "i";
+            }
+            
+            $query .= " LIMIT 1";
+            
             $stmt = $this->conn->prepare($query);
-            $stmt->bind_param('ii', $chapterId, $randomId);
+            $stmt->bind_param($mTypes, ...$mParams);
             $stmt->execute();
             $result = $stmt->get_result();
             
@@ -192,14 +282,30 @@ class QuestionService
     /**
      * Get all questions for a chapter and type (when limit >= total)
      */
-    private function getAllQuestions($chapterId, $questionType)
+    private function getAllQuestions($chapterId, $questionType, $classId = null, $bookName = null)
     {
         $query = "SELECT id, question_text, marks, topic 
                  FROM questions 
-                 WHERE chapter_id = ? AND question_type = ?
-                 ORDER BY id";
+                 WHERE chapter_id = ? AND question_type = ?";
+        
+        $params = [$chapterId, $questionType];
+        $types = "is";
+        
+        if ($classId) {
+            $query .= " AND class_id = ?";
+            $params[] = $classId;
+            $types .= "i";
+        }
+        if ($bookName) {
+            $query .= " AND book_name = ?";
+            $params[] = $bookName;
+            $types .= "s";
+        }
+        
+        $query .= " ORDER BY id";
+        
         $stmt = $this->conn->prepare($query);
-        $stmt->bind_param('is', $chapterId, $questionType);
+        $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $result = $stmt->get_result();
         
@@ -214,15 +320,33 @@ class QuestionService
     /**
      * Get all MCQs for a chapter
      */
-    private function getAllMCQs($chapterId)
+    private function getAllMCQs($chapterId, $classId = null, $bookName = null)
     {
         $query = "SELECT m.mcq_id, m.chapter_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation 
                  FROM mcqs m
-                 LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id
-                 WHERE m.chapter_id = ?
-                 ORDER BY m.mcq_id";
+                 LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id ";
+        
+        $params = [$chapterId];
+        $types = "i";
+        
+        if ($bookName) {
+            $query .= " JOIN book b ON m.book_id = b.book_id WHERE m.chapter_id = ? AND b.book_name = ? ";
+            $params = [$chapterId, $bookName];
+            $types = "is";
+        } else {
+            $query .= " WHERE m.chapter_id = ? ";
+        }
+        
+        if ($classId) {
+            $query .= " AND m.class_id = ?";
+            $params[] = $classId;
+            $types .= "i";
+        }
+        
+        $query .= " ORDER BY m.mcq_id";
+        
         $stmt = $this->conn->prepare($query);
-        $stmt->bind_param('i', $chapterId);
+        $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $result = $stmt->get_result();
         

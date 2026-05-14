@@ -68,6 +68,7 @@ $adminUrl = $baseUrl . 'admin/';
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_chapters.php">📝 Chapters</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_questions.php">❓ Questions</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_notes.php">📚 Notes</a></li>
+                        <li><a href="<?= $adminUrl ?>manageExam/index.php">🎓 Exam Preparation</a></li>
                     </ul>
                 </li>
                 <li class="nav-dropdown">

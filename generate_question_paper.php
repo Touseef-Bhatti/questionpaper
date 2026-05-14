@@ -366,7 +366,7 @@ if ($isTopicSource) {
             $chapterId = intval($chapterId);
             if ($count > 0) {
                 // Use optimized question service instead of ORDER BY RAND()
-                $mcqs = $questionService->getRandomMCQs($chapterId, $count);
+                $mcqs = $questionService->getRandomMCQs($chapterId, $count, $classId, $bookName);
                 if (!empty($mcqs)) {
                     $mcqByChapter[$chapterId] = $mcqs;
                 }
@@ -381,7 +381,7 @@ if (!$isTopicSource && !empty($_POST['short_questions'])) {
         $count = intval($count);
         if ($count > 0) {
             // Use optimized question service for short questions
-            $questions = $questionService->getRandomQuestions($chapterId, 'short', $count);
+            $questions = $questionService->getRandomQuestions($chapterId, 'short', $count, $classId, $bookName);
             if (!empty($questions)) {
                 $shortQuestions[$chapterId] = $questions;
                 foreach ($questions as $q) {
@@ -443,17 +443,70 @@ if ($bookNameLower === 'math') {
     $marksPerLongPartA = 4;
     $marksPerLongPartB = 4;
 }
+$isClass11Or12Science = ($classId == 11 || $classId == 12) && in_array($bookNameLower, ['chemistry', 'physics', 'biology']);
+$isClass11Or12Computer = ($classId == 11 || $classId == 12) && $bookNameLower === 'computer';
+$isClass11Or12Math = ($classId == 11 || $classId == 12) && $bookNameLower === 'math';
 
-$section1 = array_slice($allShortQs, 0, $sqPerSection);
-$section2 = array_slice($allShortQs, $sqPerSection, $sqPerSection);
-$section3 = array_slice($allShortQs, $sqPerSection * 2, $sqPerSection);
+if ($isClass11Or12Science) {
+    $section1 = array_slice($allShortQs, 0, 12);
+    $section2 = array_slice($allShortQs, 12, 12);
+    $section3 = array_slice($allShortQs, 24, 9);
+    
+    $sqAttempt1 = 8; $sqAttemptWord1 = "EIGHT";
+    $sqAttempt2 = 8; $sqAttemptWord2 = "EIGHT";
+    $sqAttempt3 = 6; $sqAttemptWord3 = "SIX";
+    
+    $longAttempt = 3;
+    $longAttemptWord = "THREE";
+    
+    if ($bookNameLower === 'physics') {
+        $marksPerLongPartA = 5;
+        $marksPerLongPartB = 3;
+    } else {
+        $marksPerLongPartA = 4;
+        $marksPerLongPartB = 4;
+    }
+} elseif ($isClass11Or12Computer) {
+    $section1 = array_slice($allShortQs, 0, 9);
+    $section2 = array_slice($allShortQs, 9, 9);
+    $section3 = array_slice($allShortQs, 18, 9);
+    
+    $sqAttempt1 = 6; $sqAttemptWord1 = "SIX";
+    $sqAttempt2 = 6; $sqAttemptWord2 = "SIX";
+    $sqAttempt3 = 6; $sqAttemptWord3 = "SIX";
+    
+    $longAttempt = 3;
+    $longAttemptWord = "THREE";
+    $marksPerLongPartA = 8;
+    $marksPerLongPartB = 0;
+} elseif ($isClass11Or12Math) {
+    $section1 = array_slice($allShortQs, 0, 12);
+    $section2 = array_slice($allShortQs, 12, 12);
+    $section3 = array_slice($allShortQs, 24, 13);
+    
+    $sqAttempt1 = 8; $sqAttemptWord1 = "EIGHT";
+    $sqAttempt2 = 8; $sqAttemptWord2 = "EIGHT";
+    $sqAttempt3 = 9; $sqAttemptWord3 = "NINE";
+    
+    $longAttempt = 3;
+    $longAttemptWord = "THREE";
+    $marksPerLongPartA = 5;
+    $marksPerLongPartB = 5;
+} else {
+    $section1 = array_slice($allShortQs, 0, $sqPerSection);
+    $section2 = array_slice($allShortQs, $sqPerSection, $sqPerSection);
+    $section3 = array_slice($allShortQs, $sqPerSection * 2, $sqPerSection);
+    
+    $sqAttempt1 = $sqAttempt2 = $sqAttempt3 = $sqAttempt;
+    $sqAttemptWord1 = $sqAttemptWord2 = $sqAttemptWord3 = $sqAttemptWord;
+}
 $longQuestions = [];
 if (!$isTopicSource && !empty($_POST['long_questions'])) {
     foreach ($_POST['long_questions'] as $chapterId => $count) {
         $count = intval($count);
         if ($count > 0) {
             // Use optimized question service for long questions
-            $questions = $questionService->getRandomQuestions($chapterId, 'long', $count);
+            $questions = $questionService->getRandomQuestions($chapterId, 'long', $count, $classId, $bookName);
             if (!empty($questions)) {
                 $longQuestions[$chapterId] = $questions;
                 foreach ($questions as $q) {
@@ -481,8 +534,8 @@ if ($patternMode === 'with') {
     // MCQs marks
     $totalMarks = $mcqCount * $marksPerMcq;
     
-    // Short questions marks (3 sections * attempt count * marks per SQ)
-    $totalMarks += (3 * $sqAttempt * $marksPerSq);
+    // Short questions marks
+    $totalMarks += (($sqAttempt1 + $sqAttempt2 + $sqAttempt3) * $marksPerSq);
     
     // Long questions marks (attempt count * total marks per full question)
     $totalMarks += ($longAttempt * ($marksPerLongPartA + $marksPerLongPartB));
@@ -1219,10 +1272,10 @@ include 'header.php';
             <div class="section"> 
                 <div class="question-row">
                     <div class="question-content">
-                        <h4>2. Write Short answers to any (<?= $sqAttempt ?>) <?= $sqAttemptWord ?> questions:</h4>
+                        <h4>2. Write Short answers to any (<?= $sqAttempt1 ?>) <?= $sqAttemptWord1 ?> questions:</h4>
                     </div>
                     <div class="marks-container">
-                        <input type="text" value="<?= $marksPerSq ?>*<?= $sqAttempt ?>=<?= $marksPerSq * $sqAttempt ?>" class="marks-input" style="width: 80px;" />
+                        <input type="text" value="<?= $marksPerSq ?>*<?= $sqAttempt1 ?>=<?= $marksPerSq * $sqAttempt1 ?>" class="marks-input" style="width: 80px;" />
                     </div>
                 </div>
  
@@ -1232,10 +1285,10 @@ include 'header.php';
             <div class="section"> 
                 <div class="question-row">
                     <div class="question-content">
-                        <h4>3. Write Short answers to any (<?= $sqAttempt ?>) <?= $sqAttemptWord ?> questions:</h4>
+                        <h4>3. Write Short answers to any (<?= $sqAttempt2 ?>) <?= $sqAttemptWord2 ?> questions:</h4>
                     </div>
                     <div class="marks-container">
-                        <input type="text" value="<?= $marksPerSq ?>*<?= $sqAttempt ?>=<?= $marksPerSq * $sqAttempt ?>" class="marks-input" style="width: 80px;" />
+                        <input type="text" value="<?= $marksPerSq ?>*<?= $sqAttempt2 ?>=<?= $marksPerSq * $sqAttempt2 ?>" class="marks-input" style="width: 80px;" />
                     </div>
                 </div>
                 <?php $idx = 1; displayShortSection($section2, $idx, $marksPerSq); ?> 
@@ -1244,10 +1297,10 @@ include 'header.php';
             <div class="section"> 
                 <div class="question-row">
                     <div class="question-content">
-                        <h4>4. Write Short answers to any (<?= $sqAttempt ?>) <?= $sqAttemptWord ?> questions:</h4>
+                        <h4>4. Write Short answers to any (<?= $sqAttempt3 ?>) <?= $sqAttemptWord3 ?> questions:</h4>
                     </div>
                     <div class="marks-container">
-                        <input type="text" value="<?= $marksPerSq ?>*<?= $sqAttempt ?>=<?= $marksPerSq * $sqAttempt ?>" class="marks-input" style="width: 80px;" />
+                        <input type="text" value="<?= $marksPerSq ?>*<?= $sqAttempt3 ?>=<?= $marksPerSq * $sqAttempt3 ?>" class="marks-input" style="width: 80px;" />
                     </div>
                 </div>
                 <?php $idx = 1; displayShortSection($section3, $idx, $marksPerSq); ?> 
@@ -1280,7 +1333,11 @@ include 'header.php';
                         if ($hasA) { 
                             $qa = $placements[$aKey]; 
                             echo '<div class="question-row">'; 
-                            echo '<div class="question-content">a. <span class="q-text">' . htmlspecialchars($qa['question_text']) . '</span></div>'; 
+                            if ($bookNameLower === 'computer') {
+                                echo '<div class="question-content"><span class="q-text">' . htmlspecialchars($qa['question_text']) . '</span></div>'; 
+                            } else {
+                                echo '<div class="question-content">a. <span class="q-text">' . htmlspecialchars($qa['question_text']) . '</span></div>'; 
+                            }
                             echo '<div class="marks-container"><input type="number" value="' . $marksPerLongPartA . '" class="marks-input" /></div>'; 
                             echo '</div>'; 
                         } 

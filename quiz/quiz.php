@@ -1875,6 +1875,15 @@ if (is_dir($incorrectDir)) {
                     <div class="stat-label"><i class="fas fa-clock"></i> Time</div>
                 </div>
             </div>
+<br>
+            <div class="review-actions" style="border-top: none; padding-top: 0; padding-bottom: 20px;">
+                <button class="btn-quiz primary" onclick="location.reload()">
+                    <i class="fas fa-rocket"></i> One More Quiz!
+                </button>
+                <button class="btn-quiz outline" onclick="loadAdAndNavigate('topic-wise-mcqs-test')">
+                    <i class="fas fa-search"></i> New Topics
+                </button>
+            </div>
 
             <div class="share-challenge-section" id="shareChallengeSection">
                 <h3 class="share-challenge-title"><i class="fas fa-share-nodes"></i> Share & Challenge Your Friend</h3>

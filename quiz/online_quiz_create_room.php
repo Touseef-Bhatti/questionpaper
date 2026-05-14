@@ -141,6 +141,17 @@ if (!$stmt->execute()) {
 $room_id = $stmt->insert_id;
 $stmt->close();
 
+// Fetch bookName for precise question selection
+$bookName = '';
+if ($book_id > 0) {
+    $bnStmt = $conn->prepare("SELECT book_name FROM book WHERE book_id = ? LIMIT 1");
+    $bnStmt->bind_param("i", $book_id);
+    $bnStmt->execute();
+    $bnRes = $bnStmt->get_result()->fetch_assoc();
+    if ($bnRes) $bookName = $bnRes['book_name'];
+    $bnStmt->close();
+}
+
 // Use optimized question service instead of ORDER BY RAND()
 $selectedQuestions = [];
 
@@ -300,7 +311,7 @@ if ($remaining_needed > 0) {
             $collectedMcqs = [];
             
             foreach ($chapterIdsArray as $chapterId) {
-                $mcqs = $questionService->getRandomMCQs($chapterId, $questionsPerChapter); // Note: Service doesn't support exclude yet easily
+                $mcqs = $questionService->getRandomMCQs($chapterId, $questionsPerChapter, $class_id, $bookName); // Note: Service doesn't support exclude yet easily
                 foreach ($mcqs as $mcq) {
                     if (in_array($mcq['mcq_id'], $exclude_ids)) continue; // Manual exclusion check
                     
@@ -341,7 +352,7 @@ if ($remaining_needed > 0) {
                 $collectedMcqs = [];
                 
                 foreach ($availableChapters as $chapterId) {
-                    $mcqs = $questionService->getRandomMCQs($chapterId, $questionsPerChapter);
+                    $mcqs = $questionService->getRandomMCQs($chapterId, $questionsPerChapter, $class_id, $bookName);
                     foreach ($mcqs as $mcq) {
                         if (in_array($mcq['mcq_id'], $exclude_ids)) continue; // Manual exclusion check
                         

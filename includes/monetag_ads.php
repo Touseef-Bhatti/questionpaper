@@ -15,6 +15,8 @@ function inPagePushAds1() {
         'about.php',
         'contact.php',
         'online_quiz_lobby.php',
+        'select_book_for_test.php',
+        'select_chapters_for_test.php',
     ];
     
     if (!shouldShowAdsOnCurrentPage($allowedPages)) {
@@ -29,12 +31,16 @@ function inPagePushAds1() {
 
 function inPagePushAds2() {
     $allowedPages = [
+
+        'quiz_setup_inter.php',
         'select_book.php',
         'select_question.php',
         'mcqs_topic.php',
         // 'home.php',
         'finalize_paper.php',
         'online_quiz_join.php',
+        'select_class_for_test.php',
+      
         
     ];
     
@@ -56,6 +62,8 @@ function vignetteBanner1() {
         'privacy-policy.php',
         'terms-and-conditions.php',
         'select_question.php',
+        'select_book_for_test.php',
+        
     ];
     
     if (!shouldShowAdsOnCurrentPage($allowedPages)) {
@@ -77,6 +85,7 @@ function vignetteBanner2() {
         'contact.php',
         'online_quiz_join.php',
         'online_quiz_lobby.php',
+        'select_chapters_for_test.php',
     ];
     
     if (!shouldShowAdsOnCurrentPage($allowedPages)) {

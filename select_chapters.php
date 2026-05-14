@@ -16,6 +16,17 @@ if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !isset($_GET['book_
 $classId = intval($_GET['class_id']);
 $book_name = trim($conn->real_escape_string($_GET['book_name']));
 
+// For now, restrict only to class 9, 10, 11 and 12 as requested
+if ($classId != 9 && $classId != 10 && $classId != 11 && $classId != 12) {
+    echo "<div style='text-align:center; margin-top:50px; font-family: sans-serif;'>";
+    echo "<h2>Coming Soon!</h2>";
+    echo "<p>Currently, the question paper generator is only available for <strong>Class 9 and 10</strong>.</p>";
+    echo "<p>We are working hard to bring this feature to other classes soon.</p>";
+    echo "<a href='select_class.php' style='display:inline-block; margin-top:20px; padding:10px 20px; background:#007bff; color:white; text-decoration:none; border-radius:5px;'>Go Back</a>";
+    echo "</div>";
+    exit;
+}
+
 // Pre-select chapters from URL if available
 $preSelectedChapters = [];
 if (isset($_GET['chapters_from_url'])) {
@@ -106,6 +117,31 @@ function getPatternDefaults($classId, $book_name) {
         }
     }
     
+    // Check if class is 11 or 12
+    if ($classId == 11 || $classId == 12) {
+        if (in_array($book_name_lower, ['chemistry', 'physics', 'biology'])) {
+            return [
+                'mcqs' => 17,
+                'sq' => 33, // 12 + 12 + 9 = 33
+                'long' => 5
+            ];
+        }
+        if ($book_name_lower == 'computer') {
+            return [
+                'mcqs' => 15,
+                'sq' => 27, // 9 + 9 + 9 = 27
+                'long' => 5
+            ];
+        }
+        if ($book_name_lower == 'math') {
+            return [
+                'mcqs' => 20,
+                'sq' => 37, // 12 + 12 + 13 = 37
+                'long' => 5
+            ];
+        }
+    }
+    
     // Default values if conditions don't match
     return [
         'mcqs' => 0,
@@ -130,9 +166,9 @@ $chapterQuery = "SELECT
                     c.chapter_id, 
                     c.chapter_name,
                     c.chapter_no,
-                    (SELECT COUNT(*) FROM mcqs WHERE chapter_id = c.chapter_id) as mcq_count,
-                    (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'short') as short_count,
-                    (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'long') as long_count
+                    (SELECT COUNT(*) FROM mcqs WHERE chapter_id = c.chapter_id AND class_id = c.class_id AND book_id = c.book_id) as mcq_count,
+                    (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'short' AND class_id = c.class_id AND book_name = c.book_name) as short_count,
+                    (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'long' AND class_id = c.class_id AND book_name = c.book_name) as long_count
                 FROM chapter c
                 WHERE c.class_id = ? AND c.book_name = ? 
                 ORDER BY c.chapter_id ASC";
@@ -250,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to auto-fill pattern defaults
     function applyPatternDefaults() {
-        if (isWithPattern() && (classId === 9 || classId === 10)) {
+        if (isWithPattern() && (classId === 9 || classId === 10 || classId === 11 || classId === 12)) {
             const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
             const isMath = bookName === 'math';
             
@@ -273,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const withPattern = isWithPattern();
         // Use pattern defaults if applicable
         let defaultMcq = 12;
-        if (withPattern && (classId === 9 || classId === 10)) {
+        if (withPattern && (classId === 9 || classId === 10 || classId === 11 || classId === 12)) {
             const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
             const isMath = bookName === 'math';
             if (isScience || isComputer || isMath) {
@@ -313,7 +349,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
         statShort.querySelector('.val').textContent = sumShort;
         const hint = statShort.querySelector('.hint');
-        if ((isScience || isComputer) && withPattern && (classId === 9 || classId === 10)) {
+        if ((isScience || isComputer) && withPattern && (classId === 9 || classId === 10 || classId === 11 || classId === 12)) {
             const targetShort = patternDefaults.sq;
             const delta = targetShort - sumShort;
             statShort.classList.toggle('ok', delta === 0);
@@ -420,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!withPattern) {
             totalShortsLabel.style.display = 'inline-block';
-        } else if ((isScience || isComputer || isMath) && withPattern && (classId === 9 || classId === 10)) {
+        } else if ((isScience || isComputer || isMath) && withPattern && (classId === 9 || classId === 10 || classId === 11 || classId === 12)) {
             totalShortsLabel.style.display = 'none';
             // Use pattern defaults for shorts
             if (totalShortsInput && patternDefaults.sq > 0) {
@@ -513,7 +549,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
         const isMath = bookName === 'math';
-        if ((isScience || isComputer || isMath) && withPattern && (classId === 9 || classId === 10)) {
+        if ((isScience || isComputer || isMath) && withPattern && (classId === 9 || classId === 10 || classId === 11 || classId === 12)) {
             const targetShort = patternDefaults.sq;
             if (sumShort !== targetShort) {
             e.preventDefault();
@@ -1239,10 +1275,6 @@ document.addEventListener('DOMContentLoaded', function() {
 	</div>
   </div>
          
-      
-
-
-
     <?php include 'footer.php'; ?>
 </body>
 </html>

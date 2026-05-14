@@ -674,6 +674,23 @@ if (!$result || $result->num_rows == 0) {
     runQuery($conn, "ALTER TABLE quiz_participants ADD COLUMN time_remaining_sec INT NULL AFTER current_question", "Column: quiz_participants.time_remaining_sec");
 }
 
+// 23. Exam Preparations
+runQuery($conn, "CREATE TABLE IF NOT EXISTS exam_preparations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    class_id INT NOT NULL,
+    book_id INT NOT NULL,
+    chapter_ids TEXT NOT NULL,
+    mcq_count INT DEFAULT 0,
+    short_count INT DEFAULT 0,
+    long_count INT DEFAULT 0,
+    selection_type ENUM('manual', 'random') NOT NULL DEFAULT 'random',
+    question_ids TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES class(class_id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES book(book_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: exam_preparations");
+
 // ========== PERFORMANCE INDEXES - CRITICAL FOR PRODUCTION ==========
 echo "\n\n=== Creating Performance Indexes ===\n";
 

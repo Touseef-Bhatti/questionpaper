@@ -34,8 +34,15 @@ Options -Indexes
     # Specific SEO rule for quiz_setup.php
     RewriteCond %{THE_REQUEST} /quiz/quiz_setup\.php [NC,OR]
     RewriteCond %{THE_REQUEST} /quiz_setup [NC]
-    RewriteRule ^(quiz/)?quiz_setup(\.php)?$ /online-mcqs-test-for-9th-and-10th-board-exams [R=301,L]
+    RewriteRule ^(quiz/)?quiz_setup(\.php)?$ /class-9-and-10-online-mcqs-prepation-test [R=301,L]
+    RewriteRule ^class-9-and-10-online-mcqs-prepation-test/?$ quiz/quiz_setup.php [NC,L]
     RewriteRule ^online-mcqs-test-for-9th-and-10th-board-exams/?$ quiz/quiz_setup.php [NC,L]
+
+    # Specific SEO rule for quiz_setup_inter.php
+    RewriteCond %{THE_REQUEST} /quiz/quiz_setup_inter\.php [NC,OR]
+    RewriteCond %{THE_REQUEST} /quiz_setup_inter [NC]
+    RewriteRule ^(quiz/)?quiz_setup_inter(\.php)?$ /class-11-and-12-online-mcqs-prepation-test [R=301,L]
+    RewriteRule ^class-11-and-12-online-mcqs-prepation-test/?$ quiz/quiz_setup_inter.php [NC,L]
 
     # Specific SEO rule for mcqs_topic.php
     RewriteCond %{THE_REQUEST} /quiz/mcqs_topic\.php [NC,OR]
@@ -100,9 +107,37 @@ Options -Indexes
     RewriteRule ^online-long-question-paper-generator/?$ questionPaperFromTopic/finalize_paper.php [NC,L]
     RewriteRule ^online-mcqs-short-and-long-question-paper-generator/?$ questionPaperFromTopic/finalize_paper.php [NC,L]
 
+    # 5. Map root-level requests to 'examPreparation/' folder
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/examPreparation/$1 -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/examPreparation/$1.php -f
+    RewriteRule ^([^/]+)$ examPreparation/$1 [L]
+
     # 6. Handle SEO pattern for MCQs page
     # Matches patterns like: mcqs/9th-class/physics
     RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ notes/mcqs.php?class_id=$1&book_name=$2&view=1 [QSA,NC,L]
+
+    # 9. Exam Preparation SEO Rules
+    # Level-specific SEO entry points
+    RewriteRule ^Class-9-10-pastPaper-&-Test-Papers/?$ examPreparation/select_class_for_test.php?level=School [NC,L]
+    RewriteRule ^Class-11-12-pastPaper-&-Test-Papers/?$ examPreparation/select_class_for_test.php?level=College [NC,L]
+    RewriteRule ^University-pastPaper-&-Test-Papers/?$ examPreparation/select_class_for_test.php?level=University [NC,L]
+    
+    # Matches /past-papers or /online-test-papers (General fallback)
+    RewriteRule ^online-test-papers-preparation/?$ examPreparation/select_class_for_test.php [NC,L]
+    
+    # Matches /class-9-Physics-PastPapers (Subject Selection) - MUST be before general class rule
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-PastPapers/?$ examPreparation/select_chapters_for_test.php?class_id=$1&book_name=$2 [QSA,NC,L]
+
+    # Matches /class9-PastPapers or /9th-class-PastPapers (Class Selection)
+    RewriteRule ^([a-zA-Z0-9-]+)-PastPapers/?$ examPreparation/select_book_for_test.php?class_slug=$1 [QSA,NC,L]
+    
+    # Matches /class-10-Physics-PastPapers-Online-Test-2 (Pre-created Exams)
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-PastPapers-Online-Test-([0-9]+)/?$ examPreparation/take_test.php?class_id=$1&book_name=$2&exam_id=$3 [QSA,NC,L]
+
+    # Matches /class-9-Physics-Chapter-1-Test (Custom Chapters)
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-Chapter-([0-9-]+)-Test/?$ examPreparation/take_test.php?class_id=$1&book_name=$2&chapter_ids=$3&custom=1 [QSA,NC,L]
 
     # 4. Hide .php extensions for a cleaner URL structure (General Root Files)
     RewriteCond %{REQUEST_FILENAME} !-d

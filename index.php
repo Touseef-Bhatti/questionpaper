@@ -45,7 +45,7 @@ function homeReviewStars(int $rating): string {
 </head>
 <body>
     <?php include 'header.php'; ?>
-    <div class="main-content">
+    <div class="main-content" style="margin-top: -7%;">
 
         <!-- HERO: Futuristic & Clean -->
         <section class="hero-section">
@@ -85,25 +85,25 @@ function homeReviewStars(int $rating): string {
                 </p>
 
                 <div class="hero-prep-grid">
-                    <a href="select_book.php?class_id=9" class="hero-prep-card bypass-user-type">
+                    <a href="examPreparation/select_class_for_test.php" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-graduation-cap"></i></span>
-                        <h3>Class 9 Exam Preparation</h3>
-                        <p>Generate chapter-wise tests and build strong fundamentals with exam-style practice.</p>
+                        <h3>Class 9 & 10 Exam Preparation</h3>
+                        <p>Build strong fundamentals with chapter-wise tests, model papers, and comprehensive board practice.</p>
                         <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="select_book.php?class_id=10" class="hero-prep-card bypass-user-type">
-                        <span class="hero-prep-icon"><i class="fas fa-award"></i></span>
-                        <h3>Class 10 Exam Preparation</h3>
-                        <p>Practice model papers, short questions, long questions, and final revision tests.</p>
+                    <a href="examPreparation/select_class_for_test.php" class="hero-prep-card bypass-user-type">
+                        <span class="hero-prep-icon"><i class="fas fa-university"></i></span>
+                        <h3>Class 11 & 12 Exam Preparation</h3>
+                        <p>Master your subjects with expert-curated chapter tests, short questions, and final revision papers.</p>
                         <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="quiz_setup" class="hero-prep-card bypass-user-type">
+                    <a href="quiz_setup" class="hero-prep-card bypass-user-type ALH_cct" data-action="online_mcqs">
                         <span class="hero-prep-icon"><i class="fas fa-clipboard-check"></i></span>
                         <h3>MCQs Preparation Class 9 & 10</h3>
                         <p>Take topic-wise MCQs tests with instant scoring and smart performance tracking.</p>
                         <span class="prep-card-cta">Start Test <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="class-9th-and-10th-online-question-paper-generator" class="hero-prep-card bypass-user-type">
+                    <a href="examPreparation/select_class_for_test.php" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-file-signature"></i></span>
                         <h3>Board Exam Preparation</h3>
                         <p>Prepare with board-oriented formats, realistic paper structure, and balanced difficulty.</p>
@@ -115,7 +115,7 @@ function homeReviewStars(int $rating): string {
                         <p>Create professional tests for intermediate, college, and university exam preparation.</p>
                         <span class="prep-card-cta">Get Started <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="topic-wise-mcqs-test" class="hero-prep-card bypass-user-type">
+                    <a href="topic-wise-mcqs-test" class="hero-prep-card bypass-user-type ALH_cct" data-action="online_mcqs">
                         <span class="hero-prep-icon"><i class="fas fa-brain"></i></span>
                         <h3>MCQs Practice Hub</h3>
                         <p>Practice objective questions regularly to improve speed, accuracy, and confidence.</p>
@@ -127,10 +127,10 @@ function homeReviewStars(int $rating): string {
                     <li><a href="class-9th-and-10th-online-question-paper-generator" class="bypass-user-type"><i class="fas fa-book-open"></i> Exam Preparation</a></li>
                     <li><a href="select_book.php?class_id=9" class="bypass-user-type"><i class="fas fa-school"></i> Class 9 Exam Preparation</a></li>
                     <li><a href="select_book.php?class_id=10" class="bypass-user-type"><i class="fas fa-graduation-cap"></i> Class 10 Exam Preparation</a></li>
-                    <li><a href="quiz_setup" class="bypass-user-type"><i class="fas fa-check-circle"></i> Class 9 & 10 MCQs Preparation</a></li>
-                    <li><a href="class-9th-and-10th-online-question-paper-generator" class="bypass-user-type"><i class="fas fa-file-alt"></i> Board Exam Preparation</a></li>
-                    <li><a href="online-question-paper-generator" class="bypass-user-type"><i class="fas fa-university"></i> College University Exam Preparation</a></li>
-                    <li><a href="topic-wise-mcqs-test" class="bypass-user-type"><i class="fas fa-pencil-alt"></i> MCQs Practice</a></li>
+                    <li><a href="quiz_setup" class="bypass-user-type ALH_cct" data-action="online_mcqs"><i class="fas fa-check-circle"></i> Class 9 & 10 MCQs Preparation</a></li>
+                    <li><a href="class-9th-and-10th-online-question-paper-generator" class="bypass-user-type ALH_cct" data-action="generate_paper"><i class="fas fa-file-alt"></i> Board Exam Preparation</a></li>
+                    <li><a href="online-question-paper-generator" class="bypass-user-type ALH_cct" data-action="generate_paper"><i class="fas fa-university"></i> College University Exam Preparation</a></li>
+                    <li><a href="topic-wise-mcqs-test" class="bypass-user-type ALH_cct" data-action="online_mcqs"><i class="fas fa-pencil-alt"></i> MCQs Practice</a></li>
                 </ul>
             </div>
         </div>
@@ -253,7 +253,7 @@ function homeReviewStars(int $rating): string {
                                 <li><i class="fas fa-check"></i> Real-time Hosting</li>
                             </ul>
                             <div class="role-actions">
-                                <a href="class-9th-and-10th-online-question-paper-generator" class="role-btn primary ALH_cct" data-action="generate_paper">
+                                <a href="class-9th-and-10th-online-question-paper-generator" class="role-btn primary bypass-user-type ALH_cct" data-action="generate_paper">
                                     <i class="fas fa-file-invoice"></i> Generate Paper
                                 </a>
                                 <div class="role-sub-actions">
@@ -286,7 +286,7 @@ function homeReviewStars(int $rating): string {
                                     <i class="fas fa-gamepad"></i> Join Live Quiz
                                 </a>
                                 <div class="role-sub-actions">
-                                    <a href="online-mcqs-test-for-9th-and-10th-board-exams" class="role-btn secondary ALH_cct" data-action="online_mcqs">Take Online Test</a>
+                                    <a href="online-mcqs-test-for-9th-and-10th-board-exams" class="role-btn secondary bypass-user-type ALH_cct" data-action="online_mcqs">Take Online Test</a>
                                     <a href="note" class="role-btn ghost">View Notes</a>
                                 </div>
                             </div>

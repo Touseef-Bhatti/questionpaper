@@ -32,6 +32,7 @@ $stats = [
             <a href="manageSchool/manage_chapters.php">Manage Chapters</a>
             <a href="manageSchool/manage_questions.php">Manage Questions</a>
             <a href="manageSchool/manage_notes.php">📚 Manage Notes</a>
+            <a href="manageExam/index.php">🎓 Exam Preparation</a>
             <a href="manage_admins.php">Manage Admins</a>
             <a href="users.php">Manage Users</a>
             <a href="manage_reviews.php">Manage Reviews</a>

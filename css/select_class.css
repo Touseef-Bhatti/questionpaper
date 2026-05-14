@@ -74,10 +74,32 @@
         
         .classes-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(40%, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1.5rem;
             margin-top: 2rem;
-            
+        }
+        
+        .class-box {
+            background: linear-gradient(135deg, var(--success-color), #2ecc71);
+            color: white;
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 120px;
+        }
+
+        .class-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
+            filter: brightness(1.1);
         }
         
         

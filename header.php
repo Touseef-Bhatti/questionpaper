@@ -575,6 +575,7 @@ body { padding-top:var(--ah, 66px); }
 }
 .ALH_clsopt:nth-child(1) { background:linear-gradient(135deg,#10b981,#059669); box-shadow:0 6px 18px rgba(16,185,129,0.3); }
 .ALH_clsopt:nth-child(2) { background:linear-gradient(135deg,#4f46e5,#7c3aed); box-shadow:0 6px 18px rgba(79,70,229,0.3); }
+.ALH_clsopt:nth-child(3) { background:linear-gradient(135deg,#f59e0b,#d97706); box-shadow:0 6px 18px rgba(245,158,11,0.3); }
 .ALH_clsopt i { color:#fff; font-size:1.3rem; opacity:0.8; transition:transform .3s; }
 .ALH_clsopt:hover { transform:translateY(-3px); filter:brightness(1.1); box-shadow:0 10px 25px rgba(0,0,0,0.2); }
 .ALH_clsopt:hover i { transform:scale(1.2) rotate(-8deg); opacity:1; }
@@ -657,6 +658,39 @@ body { padding-top:var(--ah, 66px); }
             <a href="<?= $assetBase ?>online_quiz_join" class="ALH_ac <?= is_active('online_quiz_join.php') ?>">
               <i class="fas fa-gamepad"></i>Join Quiz
             </a>
+          </div>
+        </div>
+      </li>
+
+      <!-- Board Exam Prep MEGA -->
+      <li class="ALH_drop" id="ALH_bedrop">
+        <button class="ALH_dbtn <?= is_active('examPreparation/') ? 'alh-active' : '' ?>" type="button" id="ALH_bebtn">
+          <i class="fas fa-user-graduate"></i> Board Exam Prep <i class="fas fa-caret-down ALH_caret"></i>
+        </button>
+        <div class="ALH_panel ALH_mega" id="ALH_bepanel">
+          <div class="ALH_mlabel">Board Exam Preparation</div>
+          <div class="ALH_cg">
+            <button class="ALH_cb ALH_cct" data-action="board_exam_prep" data-class="School" type="button">
+              <span class="ALH_cbico"><i class="fas fa-school"></i></span>
+              <div class="ALH_cbtxt">
+                <span class="ALH_cbtitle">Class 9/10</span>
+                <span class="ALH_cbsub">Secondary Board Exam Preparation</span>
+              </div>
+            </button>
+            <button class="ALH_cb ALH_cct" data-action="board_exam_prep" data-class="College" type="button">
+              <span class="ALH_cbico"><i class="fas fa-university"></i></span>
+              <div class="ALH_cbtxt">
+                <span class="ALH_cbtitle">Class 11/12</span>
+                <span class="ALH_cbsub">Intermediate Board Exam Preparation</span>
+              </div>
+            </button>
+            <button class="ALH_cb ALH_cct" data-action="online_mcqs" type="button">
+              <span class="ALH_cbico"><i class="fas fa-question-circle"></i></span>
+              <div class="ALH_cbtxt">
+                <span class="ALH_cbtitle">Online MCQs Test</span>
+                <span class="ALH_cbsub">Practice chapter-wise MCQs online</span>
+              </div>
+            </button>
           </div>
         </div>
       </li>
@@ -784,7 +818,10 @@ body { padding-top:var(--ah, 66px); }
         <span>School (Class 9 &amp; 10)</span><i class="fas fa-school"></i>
       </button>
       <button class="ALH_clsopt" onclick="alhDoClass('College')" type="button">
-        <span>College / University</span><i class="fas fa-university"></i>
+        <span>College (Class 11 &amp; 12)</span><i class="fas fa-university"></i>
+      </button>
+      <button class="ALH_clsopt" onclick="alhDoClass('University')" type="button">
+        <span>University (Bachelor / Master)</span><i class="fas fa-graduation-cap"></i>
       </button>
     </div>
   </div>
@@ -831,6 +868,41 @@ body { padding-top:var(--ah, 66px); }
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
+
+/* class quick-pick - moved to top for priority */
+let _pa=null,_pg=null;
+document.addEventListener('click',function(e){
+    const btn = e.target && e.target.closest ? e.target.closest('.ALH_cct') : null;
+    if(!btn) return;
+    
+    const action = btn.getAttribute('data-action');
+    if(!action) return;
+
+    e.preventDefault();
+    e.stopPropagation(); 
+    
+    const dc = btn.getAttribute('data-class');
+    const grade = btn.getAttribute('data-grade');
+    const bypass = btn.classList.contains('bypass-user-type');
+    
+    if(dc){ 
+        localStorage.setItem('user_class_level_selection',dc); 
+        alhGo(dc,action,grade); 
+        return; 
+    }
+    
+    const stored = localStorage.getItem('user_class_level_selection');
+    if(stored && !bypass){ 
+        alhGo(stored,action,null); 
+    }
+    else{ 
+        _pa=action; 
+        _pg=grade || null;
+        const m = document.getElementById('ALH_clsmodal');
+        if(m) m.style.setProperty('display','flex','important');
+    }
+});
+
 const burger=$('ALH_burger'), menu=$('ALH_menu'), overlay=$('ALH_overlay'), nav=$('ALH_nav');
 const isMob=()=>window.innerWidth<=768;
 
@@ -859,7 +931,7 @@ function closeSB(){
 
 burger.addEventListener('click',()=>menu.classList.contains('ALH_mopen')?closeSB():openSB());
 overlay.addEventListener('click',closeSB);
-menu.addEventListener('click',e=>e.stopPropagation());
+menu.addEventListener('click',e=>{ if(!e.target.closest('.ALH_cct')) e.stopPropagation(); });
 document.addEventListener('keydown',e=>e.key==='Escape'&&closeSB());
 window.addEventListener('resize',()=>!isMob()&&closeSB());
 
@@ -883,33 +955,31 @@ document.querySelectorAll('.ALH_dbtn').forEach(btn=>{
     });
 });
 
-/* class quick-pick */
-let _pa=null,_pg=null;
-document.querySelectorAll('.ALH_cct').forEach(btn=>{
-    btn.addEventListener('click',function(e){
-        e.preventDefault();
-        const action=this.dataset.action, dc=this.dataset.class, grade=this.dataset.grade;
-        if(dc){ localStorage.setItem('user_class_level_selection',dc); alhGo(dc,action,grade); isMob()&&closeSB(); return; }
-        const stored=localStorage.getItem('user_class_level_selection');
-        if(stored){ alhGo(stored,action,null); isMob()&&closeSB(); }
-        else{ _pa=action; _pg=null; alhShowCls(); }
-    });
-});
+/* moved up */
 
 function alhGo(cls,action,grade){
     const base='<?= $assetBase ?>'; let url='';
     if(action==='generate_paper'){
         if(grade==='9'||grade==='10') url=base+'class-9th-and-10th-online-question-paper-generator';
         else if(grade==='college'||grade==='university') url=base+'online-question-paper-generator';
-        else url=(cls==='School')?base+'class-9th-and-10th-online-question-paper-generator':base+'online-question-paper-generator';
+        else {
+            if(cls==='School') url=base+'class-9th-and-10th-online-question-paper-generator';
+            else url=base+'online-question-paper-generator';
+        }
     } else if(action==='online_mcqs'){
-        url=(cls==='School')?base+'online-mcqs-test-for-9th-and-10th-board-exams':base+'topic-wise-mcqs-test';
+        if(cls==='School') url=base+'online-mcqs-test-for-9th-and-10th-board-exams';
+        else if(cls==='College') url=base+'class-11-and-12-online-mcqs-prepation-test';
+        else if(cls==='University') url=base+'class-11-and-12-online-mcqs-prepation-test';
+    } else if(action==='board_exam_prep'){
+        if(cls==='School') url=base+'Class-9-10-pastPaper-&-Test-Papers';
+        else if(cls==='College') url=base+'Class-11-12-pastPaper-&-Test-Papers';
+        else url=base+'University-pastPaper-&-Test-Papers';
     }
     if(url) window.location.href=url;
 }
 
 /* class modal */
-function alhShowCls(){ const m=$('ALH_clsmodal'); if(m) m.style.display='flex'; }
+function alhShowCls(){ const m=document.getElementById('ALH_clsmodal'); if(m) m.style.setProperty('display','flex','important'); }
 function alhHideCls(){ const m=$('ALH_clsmodal'); if(m) m.style.display='none'; }
 window.alhDoClass=function(cls){ localStorage.setItem('user_class_level_selection',cls); alhHideCls(); if(_pa) alhGo(cls,_pa,_pg); };
 const clsm=$('ALH_clsmodal'); if(clsm) clsm.addEventListener('click',e=>{ if(e.target===clsm) alhHideCls(); });

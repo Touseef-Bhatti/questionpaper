@@ -26,7 +26,7 @@ include '../db_connect.php';
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://ahmadlearninghub.com.pk/online-mcqs-test-for-9th-and-10th-board-exams">
+    <meta property="og:url" content="https://ahmadlearninghub.com.pk/class-9-and-10-online-mcqs-prepation-test">
     <meta property="og:title" content="Online MCQs Test For 9th and 10th Board Exams - Ahmad Learning Hub">
     <meta property="og:description" content="Generate 100% accurate MCQs based on the latest 2026 syllabus using advanced AI. All subjects covered - science and arts.">
     <meta property="og:image" content="https://ahmadlearninghub.com.pk/assets/images/quiz-og.jpg">
@@ -58,7 +58,7 @@ include '../db_connect.php';
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://paper.bhattichemicalsindustry.com.pk/online-mcqs-test-for-9th-and-10th-board-exams">
+    <meta property="twitter:url" content="https://ahmadlearninghub.com.pk/class-9-and-10-online-mcqs-prepation-test">
     <meta property="twitter:title" content="Online MCQs Test For 9th and 10th Board Exams - Ahmad Learning Hub">
     <meta property="twitter:description" content="Tailor your study sessions with our advanced MCQ generator. Practice by class, book, or specific chapters.">
     <meta property="twitter:image" content="https://paper.bhattichemicalsindustry.com.pk/assets/images/quiz-og.jpg">
@@ -90,8 +90,8 @@ include '../db_connect.php';
                     <select class="select" id="class_id" name="class_id" required>
                         <option value="">Select a class</option>
                         <?php
-                        // Load classes
-                        $cls = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC");
+                        // Load classes 9 and 10 specifically
+                        $cls = $conn->query("SELECT class_id, class_name FROM class WHERE class_id IN (9, 10) ORDER BY class_id ASC");
                         if ($cls) {
                             while ($row = $cls->fetch_assoc()) {
                                 echo '<option value="' . (int)$row['class_id'] . '">' . htmlspecialchars($row['class_name']) . '</option>';
@@ -144,42 +144,93 @@ include '../db_connect.php';
     </div>
 
     <!-- SEO Article Section -->
- <!-- SEO Article Section -->
-<article class="seo-article-section">
-    <div class="seo-grid">
-        
-        <div class="seo-card">
-            <div class="seo-icon">📘</div>
-            <h3 class="seo-card-title">Class 9 & 10 MCQs Quiz</h3>
-            <p class="seo-card-text">
-                Practice online MCQs quizzes for Class 9 and Class 10 subjects. Our platform offers chapter-wise MCQs and full syllabus quizzes based on Punjab Board and other educational boards in Pakistan to help students prepare effectively for exams.
-            </p>
-        </div>
+<!-- SEO Article Section - Comprehensive Blog Style -->
+<article class="seo-article-section blog-layout">
+    <div class="blog-container">
+        <header class="blog-header">
+            <h1 class="blog-title">The Ultimate Guide to 9th and 10th Class Online MCQs Test & Board Exam Preparation 2026</h1>
+            <div class="blog-meta">
+                <span class="category">Board Exams 2026</span>
+                <span class="read-time">12 min read</span>
+            </div>
+        </header>
 
-        <div class="seo-card">
-            <div class="seo-icon">📚</div>
-            <h3 class="seo-card-title">Chapter Wise MCQs Selection</h3>
-            <p class="seo-card-text">
-                Select MCQs chapter-wise for all major subjects including Math, Physics, Chemistry, Biology, and Computer Science. Focus on specific chapters to strengthen concepts and improve exam preparation with targeted practice.
+        <section class="blog-content">
+            <p class="lead">
+                In the current educational landscape of Pakistan, the transition toward <strong>SLO-based (Student Learning Outcomes)</strong> examinations has made <strong>online MCQs tests</strong> a critical component of every student's <strong>exam preparation</strong> strategy. Whether you are in Matric Part 1 or Part 2, mastering objective questions is the quickest way to secure a top position in your board results.
             </p>
-        </div>
 
-        <div class="seo-card">
-            <div class="seo-icon">🎯</div>
-            <h3 class="seo-card-title">Topic Wise Online MCQs</h3>
-            <p class="seo-card-text">
-                Choose MCQs by topics within each chapter for deeper understanding. Topic-wise quizzes help students practice difficult concepts, revise important areas, and improve accuracy in board exam questions.
+            <div class="blog-featured-box">
+                <h4>At a Glance: What We Cover</h4>
+                <ul>
+                    <li><strong>Chapter-wise MCQs</strong> for all Science and Arts subjects.</li>
+                    <li>Latest 2026 patterns for <strong>Punjab Board, Federal Board (FBISE)</strong>, and others.</li>
+                    <li>Pro tips for <strong>9th Class Physics</strong> and <strong>10th Class Chemistry</strong>.</li>
+                    <li>Free <strong>online test</strong> sessions with instant grading.</li>
+                </ul>
+            </div>
+
+            <h2>Mastering 9th Class All Subjects MCQs</h2>
+            <p>
+                The 9th class is the foundation of your professional career. High scores in the <strong>Matric board exams</strong> are essential for securing admission to top colleges. Our platform provides a comprehensive <strong>online mcqs test</strong> experience for all major books.
             </p>
-        </div>
 
-        <div class="seo-card">
-            <div class="seo-icon">📝</div>
-            <h3 class="seo-card-title">Board Pattern Based Practice</h3>
-            <p class="seo-card-text">
-                All MCQs are designed according to the latest board exam patterns. Whether you're preparing for Punjab Board or other boards, our quizzes follow real exam-style questions for better preparation and confidence.
+            <h3>9th Class Physics MCQs: Numericals and Concepts</h3>
+            <p>
+                Physics requires a deep understanding of concepts rather than rote learning. Focus on <em>Unit 1: Physical Quantities</em> for SI units and <em>Unit 3: Dynamics</em> for laws of motion. Our <strong>Class 9 Physics MCQs</strong> include both theoretical questions and numerical-based objective problems that are frequently repeated in board papers.
             </p>
-        </div>
 
+            <h3>9th Class Chemistry & Biology Preparation</h3>
+            <p>
+                For Chemistry, pay close attention to the Periodic Table and chemical bonding. In Biology, focus on the structural diagrams and biological terms in chapters like <em>Cell Biology</em> and <em>Bioenergetics</em>. Practicing <strong>chapter-wise MCQs</strong> helps you retain complex scientific terminology.
+            </p>
+
+            <h2>10th Class Board Exam MCQs: The Final Sprint</h2>
+            <p>
+                The 10th class board exams determine your future path (FSc Pre-Medical, Pre-Engineering, or ICS). Therefore, your <strong>exam preparation</strong> must be flawless.
+            </p>
+
+            <h3>10th Class Mathematics & Computer Science</h3>
+            <p>
+                Math MCQs often involve quick formulas from <em>Algebra</em> and <em>Geometry</em>. For Computer Science, focus on C++ basics and logic gates. Our <strong>online test</strong> system simulates the real exam environment, helping you manage your time effectively.
+            </p>
+
+            <h3>10th Class Physics: Optics and Electricity</h3>
+            <p>
+                In the 10th class, Physics becomes more technical. <strong>Online test preparation</strong> should prioritize <em>Unit 12: Geometrical Optics</em> and <em>Unit 14: Current Electricity</em>. These chapters are heavy on MCQs related to lens formulas, circuit diagrams, and Ohm’s Law. Understanding the behavior of light and the flow of electrons is key to scoring 12/12 in the objective portion.
+            </p>
+
+            <h3>10th Class Chemistry: Organic and Biochemistry</h3>
+            <p>
+                Organic Chemistry is the backbone of the 10th-class curriculum. Mastering functional groups and hydrocarbon structures is essential for your <strong>exam preparation</strong>. Our <strong>online mcqs test</strong> provides targeted questions from <em>Unit 11: Organic Chemistry</em> and <em>Unit 13: Biochemistry</em>, helping you memorize complex chemical reactions and biological processes with ease.
+            </p>
+
+            <div class="blog-quote">
+                "Consistency is the key to mastering the objective portion of the board exams. A 15-minute daily <strong>online mcqs test</strong> can improve your memory retention by 60%."
+            </div>
+
+            <h2>Why Choose Online MCQs Tests Over Traditional Notes?</h2>
+            <p>
+                While traditional "Key Books" are helpful, they lack interactivity. Our <strong>online test preparation</strong> platform offers:
+            </p>
+            <ul>
+                <li><strong>Interactive Feedback:</strong> Know why an answer is wrong immediately.</li>
+                <li><strong>Randomized Questions:</strong> Every session is unique, preventing memory-based cheating.</li>
+                <li><strong>Mobile Friendly:</strong> Prepare on the go, whether you are at home or traveling.</li>
+            </ul>
+
+            <h3>Top Tips for High-Score Exam Preparation</h3>
+            <ol>
+                <li><strong>Read the Textbook First:</strong> MCQs are often picked from "Do You Know?" boxes and summaries.</li>
+                <li><strong>Analyze Past Papers:</strong> Identify the <strong>most repeated MCQs</strong> from the last 5 years.</li>
+                <li><strong>Simulate Exam Conditions:</strong> Set a timer when taking our <strong>online mcqs test</strong> to build speed.</li>
+            </ol>
+
+            <div class="blog-cta-box">
+                <h3>Start Your Free Online Test Now!</h3>
+                <p>Don't wait until the last month. Select your Class and Subject from the menu above and begin your journey toward 100% marks in the objective section today!</p>
+            </div>
+        </section>
     </div>
 </article>
 

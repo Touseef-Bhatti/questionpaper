@@ -246,61 +246,187 @@ $metaKeywords    = "exam paper generator, MCQ maker, test creator, online paper 
         color: #f8fafc;
     }
 
-    /* Blog-style SEO Section */
-    .seo-blog-section {
-        margin-top: 60px;
-        padding: 40px;
-        background: #ffffff;
-        border-radius: 24px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        color: #1e293b;
-        line-height: 1.7;
+    /* SEO Article Section - Premium Blog Layout */
+    .seo-blog-section.blog-layout {
+        max-width: 100%;
+        margin: 80px auto 40px auto;
+        padding: 0 20px;
+        font-family: 'Inter', sans-serif;
+        color: #334155;
+        line-height: 1.8;
     }
-    .seo-blog-section h2 {
-        font-family: 'Outfit', sans-serif;
+
+    .blog-container {
+        background: #ffffff;
+        padding: 60px;
+        border-radius: 24px;
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f1f5f9;
+        text-align: left;
+    }
+
+    .blog-header {
+        margin-bottom: 40px;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 30px;
+    }
+
+    .blog-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.2;
+        margin-bottom: 20px;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .blog-meta {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .blog-meta .category {
+        background: #eef2ff;
+        color: #4f46e5;
+        padding: 4px 12px;
+        border-radius: 100px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .blog-meta .read-time {
+        color: #94a3b8;
+        font-size: 0.9rem;
+    }
+
+    .blog-content h2 {
         font-size: 2rem;
         font-weight: 800;
         color: #0f172a;
-        margin-bottom: 24px;
-        position: relative;
-        padding-bottom: 12px;
+        margin: 50px 0 25px;
+        letter-spacing: -0.02em;
+        border-left: 4px solid #6366f1;
+        padding-left: 15px;
     }
-    .seo-blog-section h2::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 60px;
-        height: 4px;
-        background: var(--primary);
-        border-radius: 2px;
-    }
-    .seo-blog-section h3 {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.5rem;
+
+    .blog-content h3 {
+        font-size: 1.75rem;
         font-weight: 700;
         color: #1e293b;
-        margin-top: 40px;
-        margin-bottom: 16px;
+        margin: 40px 0 20px;
+        letter-spacing: -0.01em;
     }
-    .seo-blog-section p {
-        margin-bottom: 20px;
+
+    .blog-content p {
+        margin-bottom: 24px;
+        font-size: 1.1rem;
+        color: #475569;
+    }
+
+    .blog-content .lead {
+        font-size: 1.25rem;
+        color: #475569;
+        font-weight: 500;
+        line-height: 1.6;
+    }
+
+    .blog-content strong {
+        color: #0f172a;
+    }
+
+    .blog-content ul, 
+    .blog-content ol {
+        margin-bottom: 30px;
+        padding-left: 25px;
+    }
+
+    .blog-content li {
+        margin-bottom: 12px;
         font-size: 1.05rem;
         color: #475569;
     }
-    .seo-blog-section ul {
-        margin-bottom: 24px;
+
+    /* Blockquote Style */
+    .blog-quote {
+        font-style: italic;
+        font-size: 1.3rem;
+        color: #4f46e5;
+        border-left: none;
+        padding: 30px;
+        background: #f5f3ff;
+        border-radius: 16px;
+        margin: 40px 0;
+        position: relative;
+        text-align: center;
+    }
+
+    .blog-quote::before {
+        content: '"';
+        font-size: 4rem;
+        position: absolute;
+        top: -10px;
+        left: 20px;
+        opacity: 0.1;
+        font-family: serif;
+    }
+
+    /* Featured Content Box */
+    .blog-featured-box {
+        background: #f8fafc;
+        border-left: 5px solid #6366f1;
+        padding: 30px;
+        border-radius: 0 16px 16px 0;
+        margin: 40px 0;
+    }
+
+    .blog-featured-box h4 {
+        margin: 0 0 15px;
+        font-size: 1.25rem;
+        color: #1e293b;
+        font-weight: 700;
+    }
+
+    .blog-featured-box ul {
+        margin: 0;
         padding-left: 20px;
     }
-    .seo-blog-section li {
-        margin-bottom: 12px;
-        list-style-type: disc;
-        color: #475569;
+
+    .blog-featured-box li {
+        margin-bottom: 10px;
     }
+
+    /* CTA Box */
+    .blog-cta-box {
+        margin-top: 60px;
+        padding: 40px;
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        border-radius: 20px;
+        text-align: center;
+    }
+
+    .blog-cta-box h3 {
+        color: white !important;
+        margin-top: 0;
+        font-size: 1.5rem;
+    }
+
+    .blog-cta-box p {
+        margin-bottom: 0;
+        opacity: 0.9;
+        color: white;
+    }
+
+    /* SEO Cards Grid for Global Context */
     .seo-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 30px;
         margin-top: 40px;
     }
@@ -313,31 +439,45 @@ $metaKeywords    = "exam paper generator, MCQ maker, test creator, online paper 
     }
     .seo-card:hover {
         transform: translateY(-5px);
-        background: #f1f5f9;
+        background: #ffffff;
+        box-shadow: 0 10px 20px -5px rgba(0,0,0,0.05);
     }
     .seo-card i {
         font-size: 2rem;
-        color: var(--primary);
+        color: #4f46e5;
         margin-bottom: 16px;
         display: block;
     }
     .seo-card h4 {
-        font-family: 'Outfit', sans-serif;
         font-size: 1.25rem;
         font-weight: 700;
         color: #0f172a;
         margin-bottom: 12px;
     }
+
     @media (max-width: 768px) {
-        .seo-blog-section {
-            padding: 24px 16px;
-            margin-top: 40px;
+        .seo-blog-section.blog-layout {
+            margin: 40px auto;
         }
-        .seo-blog-section h2 {
+        
+        .blog-container {
+            padding: 30px 20px;
+            border-radius: 0;
+            box-shadow: none;
+            border-left: none;
+            border-right: none;
+        }
+
+        .blog-title {
+            font-size: 1.8rem;
+        }
+        
+        .blog-content h2 {
             font-size: 1.6rem;
         }
-        .seo-blog-section h3 {
-            font-size: 1.3rem;
+
+        .blog-content h3 {
+            font-size: 1.4rem;
         }
     }
     </style>
@@ -549,77 +689,132 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
                 </div>
             </div>
         </div>
-        
-        <!-- Blog Style SEO Section -->
-        <section class="seo-blog-section">
-            <h2>The Future of Assessment: AI Exam Paper Generation</h2>
-            <p>
-                In the rapidly evolving world of education, teachers and students are seeking smarter ways to assess knowledge. Our <strong>AI Exam Paper Generator</strong> is designed to bridge the gap between curriculum standards and high-quality assessments. Whether you are a teacher preparing for a semester exam or a student practicing for standardized tests, our platform provides instant, accurate, and relevant questions.
-            </p>
+</div>
+        <!-- User Guide Section - For First Time Users -->
+        <article class="seo-blog-section blog-layout" style="margin-top: 40px; margin-bottom: 0;">
+            <div class="blog-container" style="background: #fdfdfd; border-left: 5px solid #10b981;">
+                <header class="blog-header">
+                    <h2 class="blog-title" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); -webkit-background-clip: text; background-clip: text;">Quick Start Guide: How to Generate Your First Paper in Seconds</h2>
+                    <p class="lead">Welcome to Ahmad Learning Hub! If you're here for the first time, follow these 5 simple steps to create a professional exam paper using our AI engine.</p>
+                </header>
 
-            <div class="seo-grid">
-                <div class="seo-card">
-                    <i class="fas fa-flag-usa"></i>
-                    <h4>Optimized for USA</h4>
-                    <p>Tailored for US educators focusing on <strong>SAT, ACT, and AP Exams</strong>. Our AI aligns with Common Core standards to provide rigorous testing materials for middle and high schools.</p>
-                </div>
-                <div class="seo-card">
-                    <i class="fas fa-gbp"></i>
-                    <h4>Mastering UK Exams</h4>
-                    <p>Designed for the British curriculum, supporting <strong>GCSEs, A-Levels, and SATS</strong>. Generate questions that match AQA, OCR, and Edexcel board formats perfectly.</p>
-                </div>
-                <div class="seo-card">
-                    <i class="fas fa-globe-europe"></i>
-                    <h4>European & Global Standards</h4>
-                    <p>Comprehensive support for the <strong>International Baccalaureate (IB)</strong> and European Baccalaureate. Ideal for international schools across Europe and the Middle East.</p>
-                </div>
+                <section class="blog-content">
+                    <div class="step-guide">
+                        <div style="margin-bottom: 30px;">
+                            <h3><span style="color: #10b981;">01.</span> Select Your Question Type</h3>
+                            <p>Before doing anything else, click on the mode buttons at the top (<strong>MCQs, Short Q's, or Long Q's</strong>). This tells the AI what specific format you want for your exam paper.</p>
+                        </div>
+
+                        <div style="margin-bottom: 30px;">
+                            <h3><span style="color: #10b981;">02.</span> Choose Your Method</h3>
+                            <p>Now, enter your subject or topic in the search bar. You can also click the <i class="fas fa-file-upload"></i> icon to <strong>Upload a File</strong> (PDF, Word, or Image) and generate questions directly from your own notes.</p>
+                        </div>
+
+                        <div style="margin-bottom: 30px;">
+                            <h3><span style="color: #10b981;">03.</span> Add Topics to Your List</h3>
+                            <p>Click on the <strong>"Topic Cards"</strong> that appear in the results. Each clicked topic is added to your selection. You can search multiple times to add different topics to the same paper.</p>
+                        </div>
+
+                        <div style="margin-bottom: 30px;">
+                            <h3><span style="color: #10b981;">04.</span> Topic Not Found? Use AI Search</h3>
+                            <p>If you don't see the exact topic you need, don't worry! Click the <strong>"Explore More Topics (AI)"</strong> button. Our AI will scan its entire knowledge base to find and create relevant topics for you instantly.</p>
+                        </div>
+
+                        <div style="margin-bottom: 30px;">
+                            <h3><span style="color: #10b981;">05.</span> Settings & Generation</h3>
+                            <p>Once your list is ready, click <strong>"Continue to Settings"</strong> to choose the quantity and difficulty level. Finally, hit <strong>"Generate Paper"</strong> to preview, edit, and download your print-ready PDF!</p>
+                        </div>
+                    </div>
+
+                    <div class="blog-featured-box" style="background: #ecfdf5; border-left-color: #10b981;">
+                        <h4>💡 Pro Tip for Teachers</h4>
+                        <p>Use the <strong>"Explore More Topics (AI)"</strong> button if you want our AI to suggest related sub-topics that you might have missed. It’s perfect for creating deep, challenging assessments!</p>
+                    </div>
+                </section>
             </div>
+        </article>
 
-            <h3>Why Use Our AI MCQ Maker & Test Creator?</h3>
-            <p>
-                Traditional paper setting takes hours of manual work. Our platform automates this process using advanced natural language processing. Here is why thousands of educators trust us:
-            </p>
-            <ul>
-                <li><strong>Instant Topic Extraction:</strong> Simply search a topic or upload your study notes, and our AI identifies the core concepts immediately.</li>
-                <li><strong>Difficulty Customization:</strong> From basic definitions to complex numerical problems, tailor your paper to your students' levels.</li>
-                <li><strong>Multi-Format Support:</strong> Upload PDF, DOCX, PPTX, or even handwritten notes (JPG/PNG) for automated question generation.</li>
-                <li><strong>SEO-Friendly Results:</strong> Our papers are structured logically, making them easy to read, edit, and print.</li>
-            </ul>
+        <!-- Blog Style SEO Section - Premium Layout -->
+        <article class="seo-blog-section blog-layout">
+            <div class="blog-container">
+                <header class="blog-header">
+                    <h1 class="blog-title">The Future of Assessment: AI-Powered Exam Paper Generation & MCQ Making</h1>
+                    <div class="blog-meta">
+                        <span class="category">AI Education 2026</span>
+                        <span class="read-time">10 min read</span>
+                    </div>
+                </header>
 
-            <h3>How to Generate the Perfect Exam Paper</h3>
-            <p>
-                Our simple 3-step process ensures you get exactly what you need without any technical hassle:
-            </p>
-            <ol style="padding-left: 20px; margin-bottom: 24px;">
-                <li style="margin-bottom: 12px;"><strong>Search or Upload:</strong> Enter your topics in the search bar or upload a document to analyze.</li>
-                <li style="margin-bottom: 12px;"><strong>Configure Settings:</strong> Select the number of MCQs, short questions, and long questions on the next page. Choose your difficulty level.</li>
-                <li style="margin-bottom: 12px;"><strong>Edit & Export:</strong> Review the generated paper in our live editor. Remove questions you don't like, edit text, and download as PDF or Word.</li>
-            </ol>
+                <section class="blog-content">
+                    <p class="lead">
+                        In the rapidly evolving world of education, teachers and students are seeking smarter ways to assess knowledge. Our <strong>AI Exam Paper Generator</strong> is designed to bridge the gap between curriculum standards and high-quality assessments globally.
+                    </p>
 
-            <h3>Frequently Asked Questions (FAQs)</h3>
-            <div style="display: grid; gap: 20px;">
-                <div>
-                    <strong style="display: block; color: #0f172a; margin-bottom: 4px;">Is this exam generator suitable for GCSE and A-Levels?</strong>
-                    <p style="margin-bottom: 0;">Yes! Our AI is trained on UK curriculum standards, making it perfect for GCSE and A-Level preparation across all major examination boards like AQA and Edexcel.</p>
-                </div>
-                <div>
-                    <strong style="display: block; color: #0f172a; margin-bottom: 4px;">Can I generate SAT practice questions?</strong>
-                    <p style="margin-bottom: 0;">Absolutely. We support SAT and ACT formats, providing realistic MCQs and long-form questions for US high school students.</p>
-                </div>
-                <div>
-                    <strong style="display: block; color: #0f172a; margin-bottom: 4px;">What file types can I upload?</strong>
-                    <p style="margin-bottom: 0;">You can upload PDF, DOCX, TXT, PPT/PPTX, and images (JPG/PNG). Our AI extracts text from all these formats to build your customized paper.</p>
-                </div>
-                <div>
-                    <strong style="display: block; color: #0f172a; margin-bottom: 4px;">Is the generated paper editable?</strong>
-                    <p style="margin-bottom: 0;">Yes, our live editor allows you to change text, remove questions, and even adjust the difficulty after the paper is generated.</p>
-                </div>
+                    <div class="blog-featured-box">
+                        <h4>At a Glance: Global Standards Support</h4>
+                        <ul>
+                            <li><strong>SAT & ACT:</strong> Optimized for US college admissions.</li>
+                            <li><strong>GCSE & A-Levels:</strong> Tailored for UK board standards (AQA, Edexcel).</li>
+                            <li><strong>IB Diploma:</strong> Comprehensive support for the International Baccalaureate.</li>
+                            <li><strong>File-to-Paper:</strong> Convert PDF, Word, and Images into tests instantly.</li>
+                        </ul>
+                    </div>
+
+                    <h2>Why Use Our AI MCQ Maker & Test Creator?</h2>
+                    <p>
+                        Traditional paper setting takes hours of manual work. Our platform automates this process using advanced natural language processing. Whether you are a teacher preparing for a semester exam or a student practicing for standardized tests, our <strong>online paper builder</strong> provides instant, accurate, and relevant questions.
+                    </p>
+
+                    <div class="seo-grid">
+                        <div class="seo-card">
+                            <i class="fas fa-flag-usa"></i>
+                            <h4>Optimized for USA</h4>
+                            <p>Tailored for US educators focusing on <strong>SAT, ACT, and AP Exams</strong>. Our AI aligns with Common Core standards to provide rigorous testing materials.</p>
+                        </div>
+                        <div class="seo-card">
+                            <i class="fas fa-gbp"></i>
+                            <h4>Mastering UK Exams</h4>
+                            <p>Designed for the British curriculum, supporting <strong>GCSEs, A-Levels, and SATS</strong>. Generate questions that match AQA and OCR board formats.</p>
+                        </div>
+                        <div class="seo-card">
+                            <i class="fas fa-globe-europe"></i>
+                            <h4>European Standards</h4>
+                            <p>Comprehensive support for the <strong>International Baccalaureate (IB)</strong>. Ideal for international schools across Europe and the Middle East.</p>
+                        </div>
+                    </div>
+
+                    <h3>Smart Features for Professional Educators</h3>
+                    <ul>
+                        <li><strong>Instant Topic Extraction:</strong> Simply search a topic or upload your study notes, and our AI identifies core concepts immediately.</li>
+                        <li><strong>Difficulty Customization:</strong> From basic definitions to complex numerical problems, tailor your paper to your students' levels.</li>
+                        <li><strong>Multi-Format Support:</strong> Upload PDF, DOCX, PPTX, or even handwritten notes (JPG/PNG) for automated generation.</li>
+                    </ul>
+
+                    <div class="blog-quote">
+                        "The goal of modern assessment is to test understanding, not just memory. AI allows teachers to create unique, challenging papers that truly reflect student learning."
+                    </div>
+
+                    <h2>How to Generate the Perfect Exam Paper in 3 Steps</h2>
+                    <ol>
+                        <li><strong>Search or Upload:</strong> Enter your topics in the search bar or upload a document to analyze.</li>
+                        <li><strong>Configure Settings:</strong> Select the number of MCQs, short questions, and long questions. Choose your difficulty level.</li>
+                        <li><strong>Edit & Export:</strong> Review the generated paper in our live editor. Remove questions, edit text, and download as PDF or Word.</li>
+                    </ol>
+
+                    <h3>Frequently Asked Questions (FAQs)</h3>
+                    <div class="blog-featured-box" style="background: #f1f5f9; border-left-color: #94a3b8;">
+                        <p><strong>Is this suitable for GCSE and A-Levels?</strong><br>Yes! Our AI is trained on UK curriculum standards, making it perfect for GCSE and A-Level preparation.</p>
+                        <p><strong>Can I generate SAT practice questions?</strong><br>Absolutely. We support SAT and ACT formats, providing realistic MCQs for US high school students.</p>
+                        <p><strong>What file types can I upload?</strong><br>You can upload PDF, DOCX, TXT, PPT/PPTX, and images (JPG/PNG).</p>
+                    </div>
+
+                    <div class="blog-cta-box">
+                        <h3>Start Building Your Professional Paper Now</h3>
+                        <p>Join thousands of educators worldwide. Search a topic above or upload your first file to experience the power of AI in education!</p>
+                    </div>
+                </section>
             </div>
-
-            <p style="margin-top: 40px;">
-                Start using the world's most advanced <strong>Online Paper Builder</strong> today and experience the power of AI in education!
-            </p>
-        </section>
+        </article>
 
     </div>
 </div>
