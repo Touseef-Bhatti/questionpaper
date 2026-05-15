@@ -14,13 +14,6 @@ $bookOptions = [];
 while ($b = $books->fetch_assoc()) {
     $bookOptions[] = $b;
 }
-
-// Fetch chapters for filtering
-$chapters = $conn->query("SELECT * FROM chapter ORDER BY chapter_name ASC");
-$chapterOptions = [];
-while ($c = $chapters->fetch_assoc()) {
-    $chapterOptions[] = $c;
-}
 ?>
 
 <style>
@@ -247,8 +240,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Fetch chapters for selected book
-    bookSel.addEventListener('change', function() {
+    bookSel.addEventListener('change', async function() {
         const bookId = this.value;
+        const clsId = classSel.value;
         const bookName = this.options[this.selectedIndex].text;
         sumBook.textContent = bookName;
         
@@ -259,35 +253,45 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchingChapters.clear();
         updateSummary();
 
-        if (!bookId) {
+        if (!bookId || !clsId) {
             chapterList.innerHTML = '<p class="text-muted p-3">Select a book first...</p>';
             return;
         }
 
         chapterList.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm" role="status"></div> Loading...</div>';
         
-        const bookChapters = <?= json_encode($chapterOptions) ?>.filter(ch => ch.book_id == bookId);
-        
-        if (bookChapters.length === 0) {
-            chapterList.innerHTML = '<p class="text-danger p-3">No chapters found for this book.</p>';
-        } else {
-            chapterList.innerHTML = '';
-            bookChapters.forEach(ch => {
-                const item = document.createElement('div');
-                item.className = 'chapter-item';
-                item.dataset.id = ch.chapter_id;
-                item.innerHTML = `
-                    <div class="d-flex align-items-center">
-                        <input class="form-check-input chapter-checkbox me-2" type="checkbox" name="chapter_ids[]" value="${ch.chapter_id}" id="ch_${ch.chapter_id}">
-                        <label class="form-check-label small" for="ch_${ch.chapter_id}">
-                            Ch ${ch.chapter_no}: ${ch.chapter_name}
-                        </label>
-                    </div>
-                `;
-                chapterList.appendChild(item);
-            });
+        try {
+            const response = await fetch(`ajax_get_chapters.php?class_id=${clsId}&book_id=${bookId}`);
+            const bookChapters = await response.json();
             
-            attachChapterListeners();
+            if (bookChapters.error) {
+                chapterList.innerHTML = `<p class="text-danger p-3">${bookChapters.error}</p>`;
+                return;
+            }
+
+            if (bookChapters.length === 0) {
+                chapterList.innerHTML = '<p class="text-danger p-3">No chapters found for this book.</p>';
+            } else {
+                chapterList.innerHTML = '';
+                bookChapters.forEach(ch => {
+                    const item = document.createElement('div');
+                    item.className = 'chapter-item';
+                    item.dataset.id = ch.chapter_id;
+                    item.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <input class="form-check-input chapter-checkbox me-2" type="checkbox" name="chapter_ids[]" value="${ch.chapter_id}" id="ch_${ch.chapter_id}">
+                            <label class="form-check-label small" for="ch_${ch.chapter_id}">
+                                Ch ${ch.chapter_no}: ${ch.chapter_name}
+                            </label>
+                        </div>
+                    `;
+                    chapterList.appendChild(item);
+                });
+                
+                attachChapterListeners();
+            }
+        } catch (error) {
+            chapterList.innerHTML = '<p class="text-danger p-3">Error loading chapters.</p>';
         }
     });
 
