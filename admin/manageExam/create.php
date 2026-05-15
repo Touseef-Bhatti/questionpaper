@@ -120,9 +120,6 @@ while ($b = $books->fetch_assoc()) {
                             <div class="col-md-7">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <label class="form-label mb-0">Questions Selection</label>
-                                    <button type="button" class="btn btn-sm btn-info" id="btn-auto-select-chapter" style="display:none;">
-                                        <i class="fas fa-magic"></i> Auto Select from Chapter
-                                    </button>
                                 </div>
                                 <div id="questions-display" class="questions-container">
                                     <p class="text-muted text-center mt-5">Select a chapter to see questions</p>
@@ -165,6 +162,11 @@ while ($b = $books->fetch_assoc()) {
                                     <label class="form-label">No. of Long Qs</label>
                                     <input type="number" name="long_count" class="form-control" value="2" min="0">
                                 </div>
+                            </div>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-info w-100" id="btn-global-auto-select">
+                                    <i class="fas fa-magic"></i> Auto Select Questions from Selected Chapters
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -227,7 +229,6 @@ document.addEventListener('DOMContentLoaded', function() {
         bookSel.value = '';
         chapterList.innerHTML = '<p class="text-muted p-3">Select a book first...</p>';
         questionsDisplay.innerHTML = '<p class="text-muted text-center mt-5">Select a chapter to see questions</p>';
-        document.getElementById('btn-auto-select-chapter').style.display = 'none';
         selectedQuestionIds.clear();
         Object.keys(chapterQuestionsCache).forEach(key => delete chapterQuestionsCache[key]);
         fetchingChapters.clear();
@@ -247,7 +248,6 @@ document.addEventListener('DOMContentLoaded', function() {
         sumBook.textContent = bookName;
         
         questionsDisplay.innerHTML = '<p class="text-muted text-center mt-5">Select a chapter to see questions</p>';
-        document.getElementById('btn-auto-select-chapter').style.display = 'none';
         selectedQuestionIds.clear();
         Object.keys(chapterQuestionsCache).forEach(key => delete chapterQuestionsCache[key]);
         fetchingChapters.clear();
@@ -299,90 +299,97 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.chapter-checkbox').forEach(cb => {
             cb.addEventListener('change', function() {
                 updateChapterSummary();
-                if (this.checked) {
-                    const chapterId = this.value;
-                    showChapterQuestions(chapterId);
-                }
+                refreshQuestionsDisplay();
             });
         });
     }
 
-    async function showChapterQuestions(chapterId) {
-        currentChapterId = chapterId;
-        
-        // Show auto-select button
-        document.getElementById('btn-auto-select-chapter').style.display = 'block';
-        
-        // Highlight active chapter
-        document.querySelectorAll('.chapter-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.id == chapterId);
-        });
+    async function refreshQuestionsDisplay() {
+        const selectedChapters = Array.from(document.querySelectorAll('.chapter-checkbox:checked')).map(cb => ({
+            id: cb.value,
+            name: cb.closest('.chapter-item').querySelector('label').textContent.trim()
+        }));
 
-        if (chapterQuestionsCache[chapterId]) {
-            renderQuestions(chapterQuestionsCache[chapterId]);
+        if (selectedChapters.length === 0) {
+            questionsDisplay.innerHTML = '<p class="text-muted text-center mt-5">Select a chapter to see questions</p>';
             return;
         }
 
-        fetchingChapters.add(chapterId);
-        questionsDisplay.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" role="status"></div><p class="mt-2">Fetching questions...</p></div>';
+        questionsDisplay.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading questions...</p></div>';
 
-        try {
-            const response = await fetch(`ajax_get_chapter_questions.php?chapter_id=${chapterId}&book_id=${bookSel.value}&class_id=${classSel.value}`);
-            const data = await response.json();
-            chapterQuestionsCache[chapterId] = data;
-            fetchingChapters.delete(chapterId);
-            if (currentChapterId == chapterId) {
-                renderQuestions(data);
+        // Fetch questions for all selected chapters that aren't cached
+        for (const ch of selectedChapters) {
+            if (!chapterQuestionsCache[ch.id] && !fetchingChapters.has(ch.id)) {
+                fetchingChapters.add(ch.id);
+                try {
+                    const response = await fetch(`ajax_get_chapter_questions.php?chapter_id=${ch.id}&book_id=${bookSel.value}&class_id=${classSel.value}`);
+                    const data = await response.json();
+                    chapterQuestionsCache[ch.id] = data;
+                } catch (error) {
+                    console.error(`Error loading chapter ${ch.id}:`, error);
+                } finally {
+                    fetchingChapters.delete(ch.id);
+                }
             }
-        } catch (error) {
-            fetchingChapters.delete(chapterId);
-            questionsDisplay.innerHTML = '<p class="text-danger text-center mt-5">Error loading questions.</p>';
         }
+
+        renderAllQuestions(selectedChapters);
     }
 
-    function renderQuestions(data) {
+    function renderAllQuestions(selectedChapters) {
         questionsDisplay.innerHTML = '';
         
-        const categories = [
-            { key: 'mcqs', label: 'MCQs', icon: 'check-square' },
-            { key: 'short', label: 'Short Questions', icon: 'align-left' },
-            { key: 'long', label: 'Long Questions', icon: 'file-alt' }
-        ];
+        selectedChapters.forEach(ch => {
+            const data = chapterQuestionsCache[ch.id];
+            if (!data) return;
 
-        categories.forEach(cat => {
-            const section = document.createElement('div');
-            section.className = 'question-category-section';
-            
-            const title = document.createElement('div');
-            title.className = 'question-category-title';
-            title.innerHTML = `
-                <span><i class="fas fa-${cat.icon} me-2"></i>${cat.label}</span>
-                <span class="badge-count">${data[cat.key].length} questions</span>
-            `;
-            section.appendChild(title);
+            const chapterSection = document.createElement('div');
+            chapterSection.className = 'chapter-questions-block mb-4';
+            chapterSection.innerHTML = `<h6 class="border-bottom pb-2 text-primary"><i class="fas fa-book-open me-2"></i>${ch.name}</h6>`;
 
-            if (data[cat.key].length === 0) {
-                const empty = document.createElement('p');
-                empty.className = 'text-muted small ps-3';
-                empty.textContent = 'No questions available.';
-                section.appendChild(empty);
-            } else {
-                data[cat.key].forEach(q => {
-                    const item = document.createElement('div');
-                    item.className = 'question-list-item';
-                    const isChecked = selectedQuestionIds.has(q.id);
-                    item.innerHTML = `
-                        <div class="form-check">
-                            <input class="form-check-input q-checkbox" type="checkbox" value="${q.id}" id="q_${q.id}" ${isChecked ? 'checked' : ''}>
-                            <label class="form-check-label small" for="q_${q.id}">
-                                ${q.text}
-                            </label>
-                        </div>
-                    `;
-                    section.appendChild(item);
-                });
-            }
-            questionsDisplay.appendChild(section);
+            const categories = [
+                { key: 'mcqs', label: 'MCQs', icon: 'check-square' },
+                { key: 'short', label: 'Short Questions', icon: 'align-left' },
+                { key: 'long', label: 'Long Questions', icon: 'file-alt' }
+            ];
+
+            categories.forEach(cat => {
+                const section = document.createElement('div');
+                section.className = 'question-category-section mb-2';
+                
+                const title = document.createElement('div');
+                title.className = 'question-category-title py-1 px-2';
+                title.style.fontSize = '0.85rem';
+                title.innerHTML = `
+                    <span><i class="fas fa-${cat.icon} me-1"></i>${cat.label}</span>
+                    <span class="badge-count">${data[cat.key].length}</span>
+                `;
+                section.appendChild(title);
+
+                if (data[cat.key].length === 0) {
+                    const empty = document.createElement('p');
+                    empty.className = 'text-muted small ps-3 mb-1';
+                    empty.textContent = 'No questions.';
+                    section.appendChild(empty);
+                } else {
+                    data[cat.key].forEach(q => {
+                        const item = document.createElement('div');
+                        item.className = 'question-list-item';
+                        const isChecked = selectedQuestionIds.has(q.id);
+                        item.innerHTML = `
+                            <div class="form-check">
+                                <input class="form-check-input q-checkbox" type="checkbox" value="${q.id}" id="q_${q.id}" ${isChecked ? 'checked' : ''}>
+                                <label class="form-check-label small" for="q_${q.id}">
+                                    ${q.text}
+                                </label>
+                            </div>
+                        `;
+                        section.appendChild(item);
+                    });
+                }
+                chapterSection.appendChild(section);
+            });
+            questionsDisplay.appendChild(chapterSection);
         });
 
         // Attach listeners to question checkboxes
@@ -390,7 +397,6 @@ document.addEventListener('DOMContentLoaded', function() {
             cb.addEventListener('change', function() {
                 if (this.checked) {
                     selectedQuestionIds.add(this.value);
-                    // If any manual question is selected, switch selection mode to manual
                     document.getElementById('type_manual').checked = true;
                 } else {
                     selectedQuestionIds.delete(this.value);
@@ -400,60 +406,56 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    document.getElementById('btn-auto-select-chapter').addEventListener('click', async function() {
-        // Use global settings
-        const mcqCount = parseInt(document.getElementsByName('mcq_count')[0].value) || 0;
-        const shortCount = parseInt(document.getElementsByName('short_count')[0].value) || 0;
-        const longCount = parseInt(document.getElementsByName('long_count')[0].value) || 0;
+    // Global Auto Select Logic
+    document.getElementById('btn-global-auto-select').addEventListener('click', async function() {
+        const mcqTotal = parseInt(document.getElementsByName('mcq_count')[0].value) || 0;
+        const shortTotal = parseInt(document.getElementsByName('short_count')[0].value) || 0;
+        const longTotal = parseInt(document.getElementsByName('long_count')[0].value) || 0;
         
-        if (!currentChapterId) return;
-
-        const btn = this;
-        const originalText = btn.innerHTML;
-        
-        // Wait if still fetching
-        if (fetchingChapters.has(currentChapterId)) {
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Loading...';
-            
-            let attempts = 0;
-            while (fetchingChapters.has(currentChapterId) && attempts < 50) {
-                await new Promise(r => setTimeout(r, 100));
-                attempts++;
-            }
-            
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-
-        if (!chapterQuestionsCache[currentChapterId]) {
-            alert("Questions for this chapter could not be loaded. Please try again.");
+        const selectedChapterIds = Array.from(document.querySelectorAll('.chapter-checkbox:checked')).map(cb => cb.value);
+        if (selectedChapterIds.length === 0) {
+            alert("Please select at least one chapter first.");
             return;
         }
 
-        const data = chapterQuestionsCache[currentChapterId];
-        
-        autoSelectType(data.mcqs, mcqCount);
-        autoSelectType(data.short, shortCount);
-        autoSelectType(data.long, longCount);
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Selecting...';
 
-        renderQuestions(data);
+        // Collect all available questions from selected chapters
+        let allMcqs = [], allShort = [], allLong = [];
+        
+        for (const chId of selectedChapterIds) {
+            if (chapterQuestionsCache[chId]) {
+                allMcqs.push(...chapterQuestionsCache[chId].mcqs);
+                allShort.push(...chapterQuestionsCache[chId].short);
+                allLong.push(...chapterQuestionsCache[chId].long);
+            }
+        }
+
+        // Randomly select from the pools
+        autoSelectFromPool(allMcqs, mcqTotal);
+        autoSelectFromPool(allShort, shortTotal);
+        autoSelectFromPool(allLong, longTotal);
+
+        refreshQuestionsDisplay();
         updateSummary();
         
         document.getElementById('type_manual').checked = true;
         
-        // Visual feedback
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Selection Applied';
         btn.classList.replace('btn-info', 'btn-success');
-        setTimeout(() => btn.classList.replace('btn-success', 'btn-info'), 1000);
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.replace('btn-success', 'btn-info');
+        }, 2000);
     });
 
-    function autoSelectType(questions, count) {
-        // Clear existing selections for this set of questions first? 
-        // User might want to append, so let's not clear.
-        
-        const available = [...questions];
+    function autoSelectFromPool(pool, count) {
+        const available = [...pool];
         const toSelect = Math.min(count, available.length);
-        
         for (let i = 0; i < toSelect; i++) {
             const randomIndex = Math.floor(Math.random() * available.length);
             const q = available.splice(randomIndex, 1)[0];
