@@ -73,14 +73,16 @@ include '../db_connect.php';
                     <select class="select" id="class_id" name="class_id" required>
                         <option value="">Select a class</option>
                         <?php
-                        // Load classes 11 and 12 specifically
-                        $cls = $conn->query("SELECT class_id, class_name FROM class WHERE class_id IN (11, 12) ORDER BY class_id ASC");
+                        // Load all classes
+                        $cls = $conn->query("SELECT class_id, class_name FROM class WHERE class_id IN (9, 10, 11, 12) ORDER BY class_id ASC");
                         if ($cls && $cls->num_rows > 0) {
                             while ($row = $cls->fetch_assoc()) {
                                 echo '<option value="' . (int)$row['class_id'] . '">' . htmlspecialchars($row['class_name']) . '</option>';
                             }
                         } else {
                             // Fallback if class IDs are different in DB
+                            echo '<option value="9">9th Class (Matric Part 1)</option>';
+                            echo '<option value="10">10th Class (Matric Part 2)</option>';
                             echo '<option value="11">11th Class (FSc Part 1)</option>';
                             echo '<option value="12">12th Class (FSc Part 2)</option>';
                         }
