@@ -423,6 +423,9 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Selecting...';
 
+        // Clear existing selections before auto-selecting new ones
+        selectedQuestionIds.clear();
+
         // Collect all available questions from selected chapters
         let allMcqs = [], allShort = [], allLong = [];
         

@@ -24,6 +24,22 @@ if (!$exam) {
     die("Exam not found.");
 }
 
+// Fetch chapter numbers for display
+$chapter_numbers = [];
+if (!empty($exam['chapter_ids'])) {
+    $c_ids = explode(',', $exam['chapter_ids']);
+    $placeholders = implode(',', array_fill(0, count($c_ids), '?'));
+    $c_stmt = $conn->prepare("SELECT chapter_no FROM chapter WHERE chapter_id IN ($placeholders) ORDER BY chapter_no ASC");
+    $c_stmt->bind_param(str_repeat('i', count($c_ids)), ...$c_ids);
+    $c_stmt->execute();
+    $c_res = $c_stmt->get_result();
+    while ($row = $c_res->fetch_assoc()) {
+        $chapter_numbers[] = $row['chapter_no'];
+    }
+    $c_stmt->close();
+}
+$chapters_display = !empty($chapter_numbers) ? implode(', ', $chapter_numbers) : 'None';
+
 include_once __DIR__ . '/../header.php';
 
 // Prepare to fetch selected questions if manual
@@ -77,7 +93,7 @@ if ($exam['selection_type'] === 'manual' && $exam['question_ids']) {
                 <div class="card-body">
                     <p><strong>Class:</strong> <?= htmlspecialchars($exam['class_name']) ?></p>
                     <p><strong>Book:</strong> <?= htmlspecialchars($exam['book_name']) ?></p>
-                    <p><strong>Chapters:</strong> <?= htmlspecialchars($exam['chapter_ids']) ?></p>
+                    <p><strong>Chapters:</strong> <?= htmlspecialchars($chapters_display) ?></p>
                     <p><strong>Selection Type:</strong> 
                         <span class="badge bg-<?= $exam['selection_type'] === 'manual' ? 'warning' : 'info' ?>">
                             <?= ucfirst($exam['selection_type']) ?>
