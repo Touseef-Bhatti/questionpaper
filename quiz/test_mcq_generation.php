@@ -95,7 +95,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'test_key' && isset($_POST['ap
 function testMcqRecheckApiKeyConnection() {
     $key = getRecheckApiKey();
     if ($key === '') {
-        return ['ok' => false, 'message' => 'No recheck key: set RECHECK_API_KEY or GENERATING_KEYWORDS_KEY in config/.env.'];
+        return ['ok' => false, 'message' => 'No recheck key: set RECHECK_API_KEY in config/.env.'];
     }
     $model = getRecheckModel();
     list($text, $code) = callRecheckAi($key, $model, "Reply with exactly one token on one line: RECHECK_OK", 50, 25);
@@ -713,7 +713,7 @@ $generatedMCQs = generateMCQsWithGemini($testTopic, $testCount, '', true);
         // Test 6: RECHECK API (verification + explanations)
         echo '<div class="test-section">';
         echo '<h2>Test 6: RECHECK_API_KEY &amp; MCQ verification</h2>';
-        echo '<p class="info" style="margin:0 0 12px 0;">Uses <code>RECHECK_API_KEY</code> (or <code>GENERATING_KEYWORDS_KEY</code> if empty) and <code>RECHECK_MODEL</code>. Keys starting with <code>nvapi-</code> call NVIDIA (<code>integrate.api.nvidia.com</code>) like keyword generation; OpenRouter keys use <code>openrouter.ai</code>.</p>';
+        echo '<p class="info" style="margin:0 0 12px 0;">Uses <code>RECHECK_API_KEY</code> and <code>RECHECK_MODEL</code>. Keys starting with <code>nvapi-</code> call NVIDIA (<code>integrate.api.nvidia.com</code>); OpenRouter keys use <code>openrouter.ai</code>.</p>';
 
         echo '<p><button type="button" class="test-btn" onclick="testRecheckKeyFromEnv()" id="btn-recheck-env">Test RECHECK key (from .env)</button> <span id="recheck-env-status" class="test-status"></span></p>';
 

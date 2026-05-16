@@ -26,10 +26,11 @@ $aiMcqIds = [];
 $manualMcqIds = [];
 
 foreach ($mcqIds as $id) {
-    if (strpos($id, 'ai_') === 0) {
-        $aiMcqIds[] = intval(substr($id, 3));
+    $idStr = (string)$id;
+    if (strpos($idStr, 'ai_') === 0) {
+        $aiMcqIds[] = intval(substr($idStr, 3));
     } else {
-        $manualMcqIds[] = intval($id);
+        $manualMcqIds[] = intval($idStr);
     }
 }
 
@@ -39,41 +40,58 @@ $results = [
     'explanations' => []
 ];
 
-// Process AI MCQs
+// Batch size for AI verification - reduced for better reliability
+$chunkSize = 5;
+
+// Process AI MCQs in chunks
 if (!empty($aiMcqIds)) {
-    $aiRes = checkMCQsWithAI(count($aiMcqIds), null, null, 'AIGeneratedMCQs', $aiMcqIds);
-    if ($aiRes['success']) {
-        foreach (['checked', 'verified', 'corrected', 'flagged'] as $k) {
-            $results['stats'][$k] += $aiRes['stats'][$k];
-        }
-        $results['stats']['processed_ids'] = array_merge($results['stats']['processed_ids'], $aiRes['stats']['processed_ids']);
-        
-        $idsStr = implode(',', $aiMcqIds);
-        $res = $conn->query("SELECT id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation FROM AIGeneratedMCQs WHERE id IN ($idsStr)");
-        while ($row = $res->fetch_assoc()) {
-            $row['source'] = 'ai';
-            $results['explanations'][] = $row;
+    $chunks = array_chunk($aiMcqIds, $chunkSize);
+    foreach ($chunks as $chunk) {
+        $aiRes = checkMCQsWithAI(count($chunk), null, null, 'AIGeneratedMCQs', $chunk);
+        if ($aiRes['success']) {
+            foreach (['checked', 'verified', 'corrected', 'flagged'] as $k) {
+                $results['stats'][$k] += $aiRes['stats'][$k];
+            }
+            $results['stats']['processed_ids'] = array_merge($results['stats']['processed_ids'], $aiRes['stats']['processed_ids']);
+            
+            $idsStr = implode(',', $chunk);
+            $res = $conn->query("SELECT m.id, m.question_text, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, 
+                                        COALESCE(NULLIF(TRIM(m.explanation), ''), NULLIF(TRIM(v.explanation), '')) as explanation 
+                                 FROM AIGeneratedMCQs m 
+                                 LEFT JOIN MCQVerification v ON v.source = 'AIGeneratedMCQs' AND v.mcq_id = m.id 
+                                 WHERE m.id IN ($idsStr)");
+            while ($row = $res->fetch_assoc()) {
+                $row['source'] = 'ai';
+                $results['explanations'][] = $row;
+            }
         }
     }
 }
 
-// Process Manual MCQs
+// Process Manual MCQs in chunks
 if (!empty($manualMcqIds)) {
-    $manualRes = checkMCQsWithAI(count($manualMcqIds), null, null, 'mcqs', $manualMcqIds);
-    if ($manualRes['success']) {
-        foreach (['checked', 'verified', 'corrected', 'flagged'] as $k) {
-            $results['stats'][$k] += $manualRes['stats'][$k];
-        }
-        $results['stats']['processed_ids'] = array_merge($results['stats']['processed_ids'], $manualRes['stats']['processed_ids']);
-        
-        $idsStr = implode(',', $manualMcqIds);
-        $res = $conn->query("SELECT m.mcq_id as id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation 
-                             FROM mcqs m 
-                             LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id 
-                             WHERE m.mcq_id IN ($idsStr)");
-        while ($row = $res->fetch_assoc()) {
-            $row['source'] = 'manual';
-            $results['explanations'][] = $row;
+    $chunks = array_chunk($manualMcqIds, $chunkSize);
+    foreach ($chunks as $chunk) {
+        $idsStr = implode(',', $chunk);
+        $manualRes = checkMCQsWithAI(count($chunk), null, null, 'mcqs', $chunk);
+        if ($manualRes['success']) {
+            foreach (['checked', 'verified', 'corrected', 'flagged'] as $k) {
+                $results['stats'][$k] += $manualRes['stats'][$k];
+            }
+            $results['stats']['processed_ids'] = array_merge($results['stats']['processed_ids'], $manualRes['stats']['processed_ids']);
+            
+            $res = $conn->query("SELECT m.mcq_id as id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, 
+                                        COALESCE(NULLIF(TRIM(v.explanation), ''), NULLIF(TRIM(m.explanation), '')) as explanation 
+                                 FROM mcqs m 
+                                 LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id 
+                                 WHERE m.mcq_id IN ($idsStr)");
+            while ($row = $res->fetch_assoc()) {
+                $row['source'] = 'manual';
+                $results['explanations'][] = $row;
+            }
+        } else {
+            // Log the failure message to help debug
+            error_log('ajax_verify_background: manual verification failed for IDs (' . $idsStr . '): ' . ($manualRes['message'] ?? 'Unknown error'));
         }
     }
 }

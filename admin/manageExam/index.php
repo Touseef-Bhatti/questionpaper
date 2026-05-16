@@ -18,6 +18,8 @@ $msg = $_GET['msg'] ?? '';
 
     <?php if ($msg === 'created'): ?>
         <div class="alert alert-success">Exam created successfully!</div>
+    <?php elseif ($msg === 'updated'): ?>
+        <div class="alert alert-success">Exam updated successfully!</div>
     <?php elseif ($msg === 'deleted'): ?>
         <div class="alert alert-warning">Exam deleted successfully!</div>
     <?php endif; ?>
@@ -59,8 +61,9 @@ $msg = $_GET['msg'] ?? '';
                                 <td><small><?= $q_counts ?></small></td>
                                 <td><?= date('Y-m-d', strtotime($row['created_at'])) ?></td>
                                 <td>
-                                    <a href="view.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
-                                    <a href="delete.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?')"><i class="fas fa-trash"></i></a>
+                                    <a href="view.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+                                    <a href="edit.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-outline-info" title="Edit"><i class="fas fa-edit"></i></a>
+                                    <a href="delete.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?')" title="Delete"><i class="fas fa-trash"></i></a>
                                 </td>
                             </tr>
                         <?php endwhile; else: ?>

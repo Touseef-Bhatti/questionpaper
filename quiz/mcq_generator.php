@@ -85,6 +85,13 @@ function isNvidiaApiKey($key) {
  */
 function callNvidiaChatCompletions($apiKey, $model, $prompt, $maxTokens = 4096, $timeout = 120) {
     $url = 'https://integrate.api.nvidia.com/v1/chat/completions';
+    
+    // Fallback if model name looks like an OpenRouter name but we are calling NVIDIA
+    if (strpos($model, '/') !== false && strpos($model, 'nvidia/') !== 0 && strpos($model, 'meta/') !== 0 && strpos($model, 'mistralai/') !== 0) {
+        // Many OpenRouter model names don't work on NVIDIA endpoint.
+        // If it has a slash but isn't a known prefix, try a safe default first or let it fail and then retry.
+    }
+
     $payload = [
         'model' => $model,
         'messages' => [['role' => 'user', 'content' => $prompt]],
@@ -104,6 +111,7 @@ function callNvidiaChatCompletions($apiKey, $model, $prompt, $maxTokens = 4096, 
             'Authorization: Bearer ' . $apiKey,
         ],
         CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_SSL_VERIFYPEER => false, // NVIDIA sometimes has cert issues on shared hosts
     ]);
 
     $resp = curl_exec($ch);
@@ -116,17 +124,24 @@ function callNvidiaChatCompletions($apiKey, $model, $prompt, $maxTokens = 4096, 
             return [$dec['choices'][0]['message']['content'], $code];
         }
     }
+    
+    // If it failed with 404 or 400, it might be the model name. Try a safe fallback.
+    if (($code === 404 || $code === 400) && $model !== 'nvidia/llama-3.1-405b-instruct') {
+        return callNvidiaChatCompletions($apiKey, 'nvidia/llama-3.1-405b-instruct', $prompt, $maxTokens, $timeout);
+    }
+    
     return [null, $code];
 }
 
 /**
- * MCQ recheck: OpenRouter keys → OpenRouter; nvapi- keys → NVIDIA (same as GENERATING_KEYWORDS_KEY).
+ * MCQ recheck: OpenRouter keys → OpenRouter; nvapi- keys → NVIDIA.
  */
 function callRecheckAi($apiKey, $model, $prompt, $maxTokens = 12000, $timeout = 120) {
     if (isNvidiaApiKey($apiKey)) {
         $cap = min((int) $maxTokens, 8192);
         return callNvidiaChatCompletions($apiKey, $model, $prompt, $cap, $timeout);
     }
+    
     return callOpenRouter($apiKey, $model, $prompt, $maxTokens, $timeout, 0.1, 0.8);
 }
 
@@ -316,23 +331,20 @@ function estimateMcqTimeout($count) {
  */
 function getRecheckApiKey() {
     $k = EnvLoader::get('RECHECK_API_KEY', '');
-    $k = is_string($k) ? trim($k) : '';
-    if ($k !== '') {
-        return $k;
-    }
-    $fallback = EnvLoader::get('GENERATING_KEYWORDS_KEY', '');
-    return is_string($fallback) ? trim($fallback) : '';
+    return is_string($k) ? trim($k) : '';
 }
 
 /**
- * Model for recheck: RECHECK_MODEL if set; else NVIDIA default for nvapi keys (keyword stack), else AI_DEFAULT_MODEL.
+ * Model for recheck: RECHECK_MODEL if set; else AI_DEFAULT_MODEL.
  */
 function getRecheckModel() {
     $m = EnvLoader::get('RECHECK_MODEL', '');
     $m = is_string($m) ? trim($m) : '';
+    
     if ($m !== '') {
         return $m;
     }
+
     return EnvLoader::get('AI_DEFAULT_MODEL', '');
 }
 
@@ -496,7 +508,7 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
 
     $apiKey = getRecheckApiKey();
     if ($apiKey === '') {
-        return ['success' => false, 'message' => 'No recheck key: set RECHECK_API_KEY or GENERATING_KEYWORDS_KEY in config/.env.'];
+        return ['success' => false, 'message' => 'No recheck key: set RECHECK_API_KEY in config/.env.'];
     }
 
     if ($sourceTable === 'mcqs') {
@@ -522,8 +534,9 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
         . "- If the question or any options are incorrect, misleading, or poorly phrased: status \"corrected\". You MUST rewrite the question text and ANY or ALL options (option_a, option_b, option_c, option_d) to ensure the entire MCQ is factually accurate and high quality. Ensure exactly ONE option is correct.\n"
         . "Explanation: Write only 2-3 lines explaining ONLY why the correct option is right. Do NOT explain why others are wrong.\n"
         . "Return ONLY a JSON array. If status is \"corrected\", return the correct letter, the question text, and the texts for ALL options (option_a, option_b, option_c, option_d).\n"
+        . "CRITICAL: You MUST provide a JSON entry for EVERY SINGLE ID provided below. Do not skip any MCQ.\n"
         . "Format: [{\"id\": <number>, \"status\": \"verified\"|\"corrected\"|\"flagged\", \"correct_option\": \"A\"|\"B\"|\"C\"|\"D\", \"question\": \"...\", \"option_a\": \"...\", \"option_b\": \"...\", \"option_c\": \"...\", \"option_d\": \"...\", \"explanation\": \"<2-3 lines explanation>\"}]\n\n"
-        . "MCQs:\n";
+        . "MCQs to verify:\n";
 
     foreach ($mcqs as $m) {
         $correctText = $m['correct_option'];
@@ -656,12 +669,17 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
         $stmt->execute();
         $stmt->close();
 
-        if (($sourceTable === 'AIGeneratedMCQs' || $sourceTable === 'mcqs') && ($status === 'verified' || $status === 'corrected' || $status === 'flagged') && $explanation !== '') {
-            $updEx = $conn->prepare("UPDATE $mainTable SET explanation = ? WHERE $pk = ?");
-            if ($updEx) {
-                $updEx->bind_param('si', $explanation, $id);
-                $updEx->execute();
-                $updEx->close();
+        if (($sourceTable === 'AIGeneratedMCQs' || $sourceTable === 'mcqs') && ($status === 'verified' || $status === 'corrected' || $status === 'flagged')) {
+            // Update explanation in main table if AI provided one, or if it's already there
+            $finalExplanation = !empty($explanation) ? $explanation : ($original['explanation'] ?? '');
+            
+            if (!empty($finalExplanation)) {
+                $updEx = $conn->prepare("UPDATE $mainTable SET explanation = ? WHERE $pk = ?");
+                if ($updEx) {
+                    $updEx->bind_param('si', $finalExplanation, $id);
+                    $updEx->execute();
+                    $updEx->close();
+                }
             }
         }
 
@@ -677,10 +695,16 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
             // Update correct_option letter/text
             if ($sourceTable === 'mcqs') {
                 $letter = !empty($correctOptionLetter) ? strtoupper($correctOptionLetter) : '';
-                if (!empty($letter)) {
+                $finalCorrectText = '';
+                if ($letter === 'A') $finalCorrectText = $newOptions['option_a'] ?? $original['option_a'];
+                elseif ($letter === 'B') $finalCorrectText = $newOptions['option_b'] ?? $original['option_b'];
+                elseif ($letter === 'C') $finalCorrectText = $newOptions['option_c'] ?? $original['option_c'];
+                elseif ($letter === 'D') $finalCorrectText = $newOptions['option_d'] ?? $original['option_d'];
+                
+                if (!empty($finalCorrectText)) {
                     $updateMainSql = "UPDATE $mainTable SET correct_option = ? WHERE $pk = ?";
                     $stmt = $conn->prepare($updateMainSql);
-                    $stmt->bind_param('si', $letter, $id);
+                    $stmt->bind_param('si', $finalCorrectText, $id);
                     $stmt->execute();
                     $stmt->close();
                 }
@@ -1236,9 +1260,16 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
 
     if ($specificIds !== null && is_array($specificIds) && !empty($specificIds)) {
         $placeholders = implode(',', array_fill(0, count($specificIds), '?'));
+        // When specific IDs are provided (like from a quiz), we force re-verification 
+        // if they miss an explanation, regardless of status.
         $where[] = "m.$pk IN ($placeholders)";
         foreach ($specificIds as $id) {
-            $params[] = intval($id);
+            $idVal = $id;
+            // Handle 'ai_' prefix if it was passed accidentally
+            if (is_string($id) && strpos($id, 'ai_') === 0) {
+                $idVal = substr($id, 3);
+            }
+            $params[] = intval($idVal);
             $types .= "i";
         }
     } elseif ($startId !== null && $endId !== null) {
@@ -1247,8 +1278,8 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
         $params[] = intval($endId);
         $types .= "ii";
     } else {
-        // Pending only
-        $where[] = "(v.verification_status IS NULL OR v.verification_status = 'pending')";
+        // Pending or missing explanation
+        $where[] = "(v.verification_status IS NULL OR v.verification_status = 'pending' OR v.explanation IS NULL OR v.explanation = '')";
     }
 
     $whereSql = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
@@ -1318,8 +1349,9 @@ function verifyQuizRoomQuestions($conn, $roomId, $forceAll = false) {
         . "- If the question or options need improvement: status \"corrected\". Rewrite the question and ALL options to ensure high quality. Ensure exactly ONE option is correct.\n"
         . "Explanation: Write only 2-3 lines explaining ONLY why the correct option is right.\n"
         . "Return ONLY a JSON array.\n"
+        . "CRITICAL: You MUST provide a JSON entry for EVERY SINGLE ID provided below. Do not skip any MCQ.\n"
         . "Format: [{\"id\": <number>, \"status\": \"verified\"|\"corrected\"|\"flagged\", \"correct_option\": \"A\"|\"B\"|\"C\"|\"D\", \"question\": \"...\", \"option_a\": \"...\", \"option_b\": \"...\", \"option_c\": \"...\", \"option_d\": \"...\", \"explanation\": \"...\"}]\n\n"
-        . "MCQs:\n";
+        . "MCQs to verify:\n";
 
     foreach ($mcqs as $m) {
         $prompt .= "ID: {$m['id']}, Q: {$m['question']}, A: {$m['option_a']}, B: {$m['option_b']}, C: {$m['option_c']}, D: {$m['option_d']}, Marked: {$m['correct_option']}\n";

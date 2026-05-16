@@ -78,6 +78,9 @@ if ($exam['selection_type'] === 'manual' && $exam['question_ids']) {
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-eye"></i> Exam Details: <?= htmlspecialchars($exam['title']) ?></h2>
         <div>
+            <a href="edit.php?id=<?= $id ?>" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit
+            </a>
             <a href="index.php" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Back to List
             </a>

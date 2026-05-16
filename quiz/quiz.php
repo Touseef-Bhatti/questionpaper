@@ -407,8 +407,16 @@ if ($sharedQuizToken !== '' && preg_match('/^[a-f0-9]{16,64}$/', $sharedQuizToke
 $hasTopics = !empty($topics) || !empty($topic);
 $hasClassBook = ($class_id > 0 && $book_id > 0);
 
+// Determine dynamic setup URL based on class/level
+$setup_url = 'online-mcqs-test-for-9th-and-10th-board-exams';
+if ($class_id == 11 || $class_id == 12) {
+    $setup_url = 'class-11-and-12-online-mcqs-prepation-test';
+} elseif (isset($studyLevel) && strtolower($studyLevel) === 'university') {
+    $setup_url = 'online-question-paper-generator';
+}
+
 if (!$hasTopics && !$hasClassBook) {
-    die('<h2 style="color:red; text-align:center; margin-top:50px;">Invalid quiz parameters. Redirecting to setup...</h2><script>setTimeout(() => { window.location.href = "online-mcqs-test-for-9th-and-10th-board-exams"; }, 2500);</script>'); 
+    die('<h2 style="color:red; text-align:center; margin-top:50px;">Invalid quiz parameters. Redirecting to setup...</h2><script>setTimeout(() => { window.location.href = "' . $setup_url . '"; }, 1500);</script>'); 
 }
 
 // Build WHERE clause based on filters
@@ -507,7 +515,8 @@ if (!empty($seenIds)) {
 $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
 
 // Fetch random MCQs
-$sql = "SELECT m.mcq_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation
+$sql = "SELECT m.mcq_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, 
+               COALESCE(v.explanation, m.explanation) as explanation
         FROM mcqs m
         LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id
         $whereClause 
@@ -698,10 +707,10 @@ if (count($topicsArray) > 1) {
     $cacheKeyForFinal = '';
 }
 
-// Identify questions missing explanations in the FINAL quiz to verify in background
+// Trigger background verification/correction for all MCQs in the quiz
 $missingExplanationIds = [];
 foreach ($questions as $q) {
-    if (empty($q['explanation'])) {
+    if (isset($q['mcq_id'])) {
         $missingExplanationIds[] = $q['mcq_id'];
     }
 }
@@ -736,8 +745,9 @@ if ($sharedQuizPayload) {
     }
 }
 
+// SEO and Redirection Meta
 $quizOriginType = !empty($topicsArray) ? 'topic' : 'class';
-$quizEntryPage = ($quizOriginType === 'topic') ? 'topic-wise-mcqs-test' : 'online-mcqs-test-for-9th-and-10th-board-exams';
+$quizEntryPage = ($quizOriginType === 'topic') ? 'topic-wise-mcqs-test' : $setup_url;
 $quizContextLabel = ($quizOriginType === 'topic')
     ? ('Topic Quiz: ' . (!empty($topicsArray) ? implode(', ', array_slice($topicsArray, 0, 3)) : $book_name))
     : ('Class Quiz: ' . $class_name . ' - ' . $book_name);
@@ -1880,7 +1890,7 @@ if (is_dir($incorrectDir)) {
                 <button class="btn-quiz primary" onclick="location.reload()">
                     <i class="fas fa-rocket"></i> One More Quiz!
                 </button>
-                <button class="btn-quiz outline" onclick="loadAdAndNavigate('topic-wise-mcqs-test')">
+                <button class="btn-quiz outline" onclick="loadAdAndNavigate('<?= $setup_url ?>')">
                     <i class="fas fa-search"></i> New Topics
                 </button>
             </div>
@@ -1911,10 +1921,10 @@ if (is_dir($incorrectDir)) {
             </div>
 
             <div class="review-actions">
-                <button class="btn-quiz outline" onclick="loadAdAndNavigate('topic-wise-mcqs-test')">
+                <button class="btn-quiz outline" onclick="loadAdAndNavigate('<?= $setup_url ?>')">
                     <i class="fas fa-search"></i> New Topics
                 </button>
-                <button class="btn-quiz outline" onclick="loadAdAndNavigate('online-mcqs-test-for-9th-and-10th-board-exams')">
+                <button class="btn-quiz outline" onclick="loadAdAndNavigate('<?= $setup_url ?>')">
                     <i class="fas fa-home"></i> Back to Setup
                 </button>
                 
@@ -2798,7 +2808,14 @@ initQuiz();
 // Trigger background verification for MCQs missing explanations after a short delay
 if (missingExplanationIds.length > 0) {
     setTimeout(() => {
-        triggerBackgroundVerification(missingExplanationIds);
+        // Only verify MCQs that actually MISS explanations in the 'questions' array
+        const reallyMissingIds = questions
+            .filter(q => !q.explanation || q.explanation.trim() === '')
+            .map(q => q.mcq_id);
+            
+        if (reallyMissingIds.length > 0) {
+            triggerBackgroundVerification(reallyMissingIds);
+        }
     }, 3000); // 3 seconds delay to ensure quiz UI is interactive
 }
 
@@ -2856,6 +2873,39 @@ async function triggerBackgroundVerification(ids) {
                             const newCorrectLetter = getCorrectLetter(questions[qIdx]);
                             answers[qIdx].correct = newCorrectLetter;
                             answers[qIdx].correctText = questions[qIdx]['option_' + (newCorrectLetter || 'a').toLowerCase()];
+                        }
+                    }
+
+                    // CRITICAL: Update the DOM if we are already on the results screen
+                    if (quizCompleted) {
+                        const reviewItems = document.querySelectorAll('.review-item');
+                        if (reviewItems && reviewItems[qIdx]) {
+                            const item = reviewItems[qIdx];
+                            const grid = item.querySelector('.review-options-grid');
+                            
+                            if (grid && upd.explanation) {
+                                // If the button already exists, just update the hidden text
+                                const existingBtn = item.querySelector('.btn-explanation');
+                                const existingText = item.querySelector('.explanation-text');
+                                
+                                if (existingBtn && existingText) {
+                                    existingText.innerHTML = upd.explanation;
+                                } else {
+                                    // Otherwise, inject the whole container
+                                    const expHtml = `
+                                        <button class="btn-explanation" onclick="toggleExplanation(${qIdx})">
+                                            <i class="fas fa-lightbulb"></i> View Explanation
+                                        </button>
+                                        <div class="explanation-container" id="explanation-${qIdx}">
+                                            <div class="explanation-title">
+                                                <i class="fas fa-info-circle"></i> Explanation
+                                            </div>
+                                            <div class="explanation-text">${upd.explanation}</div>
+                                        </div>
+                                    `;
+                                    grid.insertAdjacentHTML('beforeend', expHtml);
+                                }
+                            }
                         }
                     }
                 }
