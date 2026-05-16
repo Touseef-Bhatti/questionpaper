@@ -24,22 +24,39 @@ if (!$class_id && !empty($class_slug)) {
 
 if (!$class_id) header("Location: index.php");
 
-// Fetch class name for SEO
-$classStmt = $conn->prepare("SELECT class_name FROM class WHERE class_id = ?");
-$classStmt->bind_param("i", $class_id);
-$classStmt->execute();
-$className = $classStmt->get_result()->fetch_assoc()['class_name'] ?? 'Class';
-$classStmt->close();
+// --- Caching Logic ---
+require_once '../services/CacheManager.php';
+$cacheManager = new CacheManager();
+$cacheKey = "select_book_list_" . $class_id;
+$cachedData = $cacheManager->get($cacheKey);
 
-$stmt = $conn->prepare("SELECT * FROM book WHERE class_id = ? ORDER BY book_name ASC");
-$stmt->bind_param("i", $class_id);
-$stmt->execute();
-$booksResult = $stmt->get_result();
-$booksData = [];
-while ($row = $booksResult->fetch_assoc()) {
-    $booksData[] = $row;
+if ($cachedData && is_array($cachedData)) {
+    $className = $cachedData['className'];
+    $booksData = $cachedData['booksData'];
+} else {
+    // Fetch class name for SEO
+    $classStmt = $conn->prepare("SELECT class_name FROM class WHERE class_id = ?");
+    $classStmt->bind_param("i", $class_id);
+    $classStmt->execute();
+    $className = $classStmt->get_result()->fetch_assoc()['class_name'] ?? 'Class';
+    $classStmt->close();
+
+    $stmt = $conn->prepare("SELECT * FROM book WHERE class_id = ? ORDER BY book_name ASC");
+    $stmt->bind_param("i", $class_id);
+    $stmt->execute();
+    $booksResult = $stmt->get_result();
+    $booksData = [];
+    while ($row = $booksResult->fetch_assoc()) {
+        $booksData[] = $row;
+    }
+    $stmt->close();
+
+    // Store in cache for 24 hours
+    $cacheManager->setex($cacheKey, 86400, [
+        'className' => $className,
+        'booksData' => $booksData
+    ]);
 }
-$stmt->close();
 
 $assetBase = '../';
 include '../header.php';

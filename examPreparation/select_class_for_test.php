@@ -19,12 +19,25 @@ if ($level === 'School') {
     $metaDesc = "Access the ultimate Exam Preparation Portal for Class 9, 10, 11, and 12. Download past papers, take online test papers, and prepare for board exams.";
 }
 
-$classQuery = "SELECT class_id, class_name FROM class ORDER BY class_id ASC";
-$classResult = $conn->query($classQuery);
-$classesData = [];
+// --- Caching Logic ---
+require_once '../services/CacheManager.php';
+$cacheManager = new CacheManager();
+$cacheKey = "select_class_list";
+$cachedData = $cacheManager->get($cacheKey);
 
-while ($row = $classResult->fetch_assoc()) {
-    $classesData[] = $row;
+if ($cachedData && is_array($cachedData)) {
+    $classesData = $cachedData;
+} else {
+    $classQuery = "SELECT class_id, class_name FROM class ORDER BY class_id ASC";
+    $classResult = $conn->query($classQuery);
+    $classesData = [];
+
+    while ($row = $classResult->fetch_assoc()) {
+        $classesData[] = $row;
+    }
+    
+    // Store in cache for 24 hours
+    $cacheManager->setex($cacheKey, 86400, $classesData);
 }
 
 $assetBase = '../';

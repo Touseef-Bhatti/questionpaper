@@ -20,41 +20,62 @@ if (!$book_id && !empty($book_name_slug)) {
 
 if (!$class_id || !$book_id) header("Location: index.php");
 
-// Fetch class and book names for SEO
-$infoStmt = $conn->prepare("
-    SELECT c.class_name, b.book_name 
-    FROM class c 
-    JOIN book b ON c.class_id = b.class_id 
-    WHERE c.class_id = ? AND b.book_id = ?
-");
-$infoStmt->bind_param("ii", $class_id, $book_id);
-$infoStmt->execute();
-$info = $infoStmt->get_result()->fetch_assoc();
-$className = $info['class_name'] ?? 'Class';
-$bookName = $info['book_name'] ?? 'Subject';
-$infoStmt->close();
+// --- Caching Logic ---
+require_once '../services/CacheManager.php';
+$cacheManager = new CacheManager();
+$cacheKey = "select_chapters_" . $class_id . "_" . $book_id;
+$cachedData = $cacheManager->get($cacheKey);
 
-// Fetch chapters
-$stmt = $conn->prepare("SELECT * FROM chapter WHERE class_id = ? AND book_id = ? ORDER BY chapter_no ASC");
-$stmt->bind_param("ii", $class_id, $book_id);
-$stmt->execute();
-$chaptersResult = $stmt->get_result();
-$chaptersData = [];
-while ($row = $chaptersResult->fetch_assoc()) {
-    $chaptersData[] = $row;
-}
-$stmt->close();
+if ($cachedData && is_array($cachedData)) {
+    $className = $cachedData['className'];
+    $bookName = $cachedData['bookName'];
+    $chaptersData = $cachedData['chaptersData'];
+    $examsData = $cachedData['examsData'];
+} else {
+    // Fetch class and book names for SEO
+    $infoStmt = $conn->prepare("
+        SELECT c.class_name, b.book_name 
+        FROM class c 
+        JOIN book b ON c.class_id = b.class_id 
+        WHERE c.class_id = ? AND b.book_id = ?
+    ");
+    $infoStmt->bind_param("ii", $class_id, $book_id);
+    $infoStmt->execute();
+    $info = $infoStmt->get_result()->fetch_assoc();
+    $className = $info['class_name'] ?? 'Class';
+    $bookName = $info['book_name'] ?? 'Subject';
+    $infoStmt->close();
 
-// Fetch available pre-created exams for this book
-$stmt = $conn->prepare("SELECT * FROM exam_preparations WHERE class_id = ? AND book_id = ? ORDER BY created_at DESC");
-$stmt->bind_param("ii", $class_id, $book_id);
-$stmt->execute();
-$examsResult = $stmt->get_result();
-$examsData = [];
-while ($row = $examsResult->fetch_assoc()) {
-    $examsData[] = $row;
+    // Fetch chapters
+    $stmt = $conn->prepare("SELECT * FROM chapter WHERE class_id = ? AND book_id = ? ORDER BY chapter_no ASC");
+    $stmt->bind_param("ii", $class_id, $book_id);
+    $stmt->execute();
+    $chaptersResult = $stmt->get_result();
+    $chaptersData = [];
+    while ($row = $chaptersResult->fetch_assoc()) {
+        $chaptersData[] = $row;
+    }
+    $stmt->close();
+
+    // Fetch available pre-created exams for this book
+    $stmt = $conn->prepare("SELECT * FROM exam_preparations WHERE class_id = ? AND book_id = ? ORDER BY created_at DESC");
+    $stmt->bind_param("ii", $class_id, $book_id);
+    $stmt->execute();
+    $examsResult = $stmt->get_result();
+    $examsData = [];
+    while ($row = $examsResult->fetch_assoc()) {
+        $examsData[] = $row;
+    }
+    $stmt->close();
+
+    // Store in cache for 24 hours
+    $cacheManager->setex($cacheKey, 86400, [
+        'className' => $className,
+        'bookName' => $bookName,
+        'chaptersData' => $chaptersData,
+        'examsData' => $examsData
+    ]);
 }
-$stmt->close();
 
 $assetBase = '../';
 include '../header.php';
@@ -186,6 +207,103 @@ $pageTitle = str_replace(' ', '-', $className) . "-" . str_replace(' ', '-', $bo
             font-size: 1rem;
         }
     }
+
+    /* Custom Test Banner */
+    .custom-test-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        border-radius: 20px;
+        padding: 25px 35px;
+        margin-bottom: 40px;
+        box-shadow: 0 12px 25px rgba(5, 150, 105, 0.2);
+        text-decoration: none !important;
+        color: white !important;
+        transition: transform 0.3s, box-shadow 0.3s;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .custom-test-banner::before {
+        content: '';
+        position: absolute;
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        top: -100px;
+        right: -50px;
+        border-radius: 50%;
+    }
+
+    .custom-test-banner:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(5, 150, 105, 0.3);
+    }
+
+    .custom-test-content {
+        flex: 1;
+        z-index: 1;
+    }
+
+    .custom-test-title {
+        font-size: 1.6rem;
+        font-weight: 800;
+        margin-bottom: 8px;
+        font-family: 'Outfit', sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .custom-test-desc {
+        font-size: 1rem;
+        opacity: 0.9;
+        max-width: 85%;
+        line-height: 1.4;
+    }
+
+    .custom-test-btn {
+        background: white;
+        color: #059669;
+        padding: 14px 28px;
+        border-radius: 50px;
+        font-weight: 800;
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+        z-index: 1;
+        white-space: nowrap;
+    }
+
+    .custom-test-banner:hover .custom-test-btn {
+        transform: scale(1.05);
+    }
+
+    @media (max-width: 768px) {
+        .custom-test-banner {
+            flex-direction: column;
+            text-align: center;
+            padding: 25px 20px;
+            gap: 20px;
+        }
+        .custom-test-title {
+            font-size: 1.4rem;
+            justify-content: center;
+        }
+        .custom-test-desc {
+            max-width: 100%;
+            font-size: 0.9rem;
+        }
+        .custom-test-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
     </style>
 
     <div class="row">
@@ -196,6 +314,10 @@ $pageTitle = str_replace(' ', '-', $className) . "-" . str_replace(' ', '-', $bo
             $isInter = preg_match('/11|12|inter|higher/i', $className);
             $mcqsRoute = $isInter ? 'class-11-and-12-online-mcqs-prepation-test' : 'online-mcqs-test-for-9th-and-10th-board-exams';
             $mcqsUrl = "{$assetBase}{$mcqsRoute}?class_id={$class_id}&book_id={$book_id}";
+
+            // Custom Test Redirect URL based on Class Level
+            $customTestFile = $isInter ? 'Class-11-and-12-Online-Question-Paper-generator' : 'Class-9-and-10-Online-Question-Paper-generator';
+            $customTestUrl = "{$assetBase}{$customTestFile}";
             ?>
             <a href="<?= $mcqsUrl ?>" class="mcqs-featured-card">
                 <div class="mcqs-featured-content">
@@ -208,6 +330,20 @@ $pageTitle = str_replace(' ', '-', $className) . "-" . str_replace(' ', '-', $bo
                 </div>
                 <div class="mcqs-featured-btn">
                     Start Quiz <i class="fas fa-arrow-right"></i>
+                </div>
+            </a>
+
+            <a href="<?= $customTestUrl ?>" class="custom-test-banner">
+                <div class="custom-test-content">
+                    <div class="custom-test-title">
+                        <i class="fas fa-edit"></i> Create Custom Test
+                    </div>
+                    <div class="custom-test-desc">
+                        Generate a professional question paper with your own choice of chapters and questions.
+                    </div>
+                </div>
+                <div class="custom-test-btn">
+                    Create Now <i class="fas fa-plus-circle"></i>
                 </div>
             </a>
 

@@ -90,8 +90,12 @@ Options -Indexes
     RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-chapter-([a-zA-Z0-9,%\s\-]+)-question-paper-generator/?$ select_question.php?class_id=$1&book_name=$2&chapters_from_url=$3 [QSA,NC,L]
     RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-all-chapter-question-paper-generator/?$ select_question.php?class_id=$1&book_name=$2&chapters_from_url=all [QSA,NC,L]
 
-    # Specific SEO rule for select_class.php
+    # Specific SEO rule for select_class.php (9/10)
+    RewriteRule ^Class-9-and-10-Online-Question-Paper-generator/?$ select_class.php [NC,L]
     RewriteRule ^class-9th-and-10th-online-question-paper-generator/?$ select_class.php [NC,L]
+
+    # Specific SEO rule for select_class_11-12.php
+    RewriteRule ^Class-11-and-12-Online-Question-Paper-generator/?$ select_class_11-12.php [NC,L]
 
     # Specific SEO rule for select_book.php (per class)
     RewriteRule ^class-([0-9]+)-online-question-paper-generator/?$ select_book.php?class_id=$1 [QSA,NC,L]

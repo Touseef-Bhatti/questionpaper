@@ -960,12 +960,12 @@ document.querySelectorAll('.ALH_dbtn').forEach(btn=>{
 function alhGo(cls,action,grade){
     const base='<?= $assetBase ?>'; let url='';
     if(action==='generate_paper'){
-        if(grade==='9'||grade==='10') url=base+'class-9th-and-10th-online-question-paper-generator';
-        else if(grade==='college') url=base+'select_class.php';
+        if(grade==='9'||grade==='10') url=base+'Class-9-and-10-Online-Question-Paper-generator';
+        else if(grade==='college') url=base+'Class-11-and-12-Online-Question-Paper-generator';
         else if(grade==='university') url=base+'online-question-paper-generator';
         else {
-            if(cls==='School') url=base+'class-9th-and-10th-online-question-paper-generator';
-            else if(cls==='College') url=base+'select_class.php';
+            if(cls==='School') url=base+'Class-9-and-10-Online-Question-Paper-generator';
+            else if(cls==='College') url=base+'Class-11-and-12-Online-Question-Paper-generator';
             else url=base+'online-question-paper-generator';
         }
     } else if(action==='online_mcqs'){
