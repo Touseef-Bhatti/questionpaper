@@ -408,11 +408,13 @@ $hasTopics = !empty($topics) || !empty($topic);
 $hasClassBook = ($class_id > 0 && $book_id > 0);
 
 // Determine dynamic setup URL based on class/level
-$setup_url = 'online-mcqs-test-for-9th-and-10th-board-exams';
-if ($class_id == 11 || $class_id == 12) {
-    $setup_url = 'class-11-and-12-online-mcqs-prepation-test';
+$setup_url = $assetBase . 'online-mcqs-test-for-9th-and-10th-board-exams';
+if ($hasTopics) {
+    $setup_url = $assetBase . 'topic-wise-mcqs-test';
+} elseif ($class_id == 11 || $class_id == 12) {
+    $setup_url = $assetBase . 'class-11-and-12-online-mcqs-prepation-test';
 } elseif (isset($studyLevel) && strtolower($studyLevel) === 'university') {
-    $setup_url = 'online-question-paper-generator';
+    $setup_url = $assetBase . 'online-question-paper-generator';
 }
 
 if (!$hasTopics && !$hasClassBook) {
@@ -747,7 +749,7 @@ if ($sharedQuizPayload) {
 
 // SEO and Redirection Meta
 $quizOriginType = !empty($topicsArray) ? 'topic' : 'class';
-$quizEntryPage = ($quizOriginType === 'topic') ? 'topic-wise-mcqs-test' : $setup_url;
+$quizEntryPage = ($quizOriginType === 'topic') ? ($assetBase . 'topic-wise-mcqs-test') : $setup_url;
 $quizContextLabel = ($quizOriginType === 'topic')
     ? ('Topic Quiz: ' . (!empty($topicsArray) ? implode(', ', array_slice($topicsArray, 0, 3)) : $book_name))
     : ('Class Quiz: ' . $class_name . ' - ' . $book_name);
@@ -1887,7 +1889,7 @@ if (is_dir($incorrectDir)) {
             </div>
 <br>
             <div class="review-actions" style="border-top: none; padding-top: 0; padding-bottom: 20px;">
-                <button class="btn-quiz primary" onclick="location.reload()">
+                <button class="btn-quiz primary" onclick="loadAdAndNavigate('<?= $setup_url ?>')">
                     <i class="fas fa-rocket"></i> One More Quiz!
                 </button>
                 <button class="btn-quiz outline" onclick="loadAdAndNavigate('<?= $setup_url ?>')">
@@ -2747,7 +2749,7 @@ window.addEventListener('popstate', () => {
     if (quizStarted && !quizCompleted) {
         history.pushState(null, null, location.href);
         if (confirm('Leave quiz? Your progress will be lost.')) {
-            quizCompleted = true; window.location.href = 'online-mcqs-test-for-9th-and-10th-board-exams';
+            quizCompleted = true; window.location.href = '<?= $setup_url ?>';
         }
     }
 });

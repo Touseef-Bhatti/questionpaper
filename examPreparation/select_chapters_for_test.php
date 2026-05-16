@@ -79,13 +79,14 @@ if ($cachedData && is_array($cachedData)) {
 
 $assetBase = '../';
 include '../header.php';
-$pageTitle = str_replace(' ', '-', $className) . "-" . str_replace(' ', '-', $bookName) . "-PastPapers-Online-Test";
+$pageTitle = $className . " " . $bookName . " Online Exam Preparation & Test Papers 2026";
 ?>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> - Ahmad Learning Hub</title>
-    <meta name="description" content="Practice chapter-wise test papers and solved past papers for <?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?>. Custom generate your board exam preparation tests.">
+    <?php $metaDesc = "Boost your " . $className . " " . $bookName . " board exam score. Take chapter-wise online tests and access important question papers for Class 9-12."; ?>
+    <meta name="description" content="<?= htmlspecialchars($metaDesc) ?>">
     <link rel="stylesheet" href="../css/exam_prep.css?v=<?= time() ?>">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
@@ -380,15 +381,38 @@ $pageTitle = str_replace(' ', '-', $className) . "-" . str_replace(' ', '-', $bo
                         <i class="fas fa-arrow-left"></i> Back to Subjects
                     </a>
             <!-- SEO Blog Section -->
-            <article class="seo-blog-section" style="margin-top: 20px;">
-                <h3 class="blog-title">How to Use <?= htmlspecialchars($bookName) ?> Past Papers for Maximum Marks</h3>
-                <div class="blog-content">
-                    <p>
-                        Preparing for <strong><?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?></strong> requires a strategy. Simply reading the textbook isn't enough. By solving <strong>past papers</strong>, you familiarize yourself with the question wording and the marks distribution.
-                    </p>
-                    <p>
-                        Regularly practicing with <strong>test papers</strong> helps reduce exam anxiety and improves time management. This targeted approach is recommended by toppers for acing <strong>board exams</strong>.
-                    </p>
+            <article class="seo-blog-section" style="margin-top: 40px; background: linear-gradient(to bottom, #ffffff, #f1f5f9); border-radius: 24px; padding: 45px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                <div class="blog-container">
+                    <h3 class="blog-title" style="font-size: 2.2rem; font-weight: 800; color: #0f172a; margin-bottom: 30px; border-bottom: 3px solid #4f46e5; display: inline-block; padding-bottom: 10px;">Mastering <?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?>: Chapter-Wise Exam Strategies</h3>
+                    <div class="blog-content" style="font-size: 1.1rem; line-height: 1.8; color: #334155;">
+                        <p>
+                            The final stage of your <strong><?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?> board exam preparations</strong> is chapter-wise mastery. For students in <strong>Class 9, 10, 11, and 12</strong>, the ability to break down a vast syllabus into manageable chapters is the key to reducing stress and increasing retention. Whether you are a <strong>matric</strong> student in <strong>school</strong> or an <strong>inter</strong> student in <strong>college</strong>, our <strong>online exam preparation</strong> tools are here to simplify your <strong><?= htmlspecialchars($bookName) ?></strong> revision.
+                        </p>
+                        
+                        <h4 style="color: #1e293b; margin-top: 30px; margin-bottom: 15px; font-weight: 700;">Why Focus on <?= htmlspecialchars($bookName) ?> Chapter-Wise Test Papers?</h4>
+                        <p>
+                            A comprehensive <strong>exam test paper</strong> can often feel overwhelming if you haven't mastered the individual building blocks. By taking chapter-specific quizzes, you can pinpoint exactly where you need more work in <strong><?= htmlspecialchars($bookName) ?></strong>. Is it the first chapter's definitions or the third chapter's numericals? Our <strong>online exam preparation</strong> platform gives you that granular insight. For <strong>inter</strong> board exams, where the competition in <strong>college</strong> is fierce, this level of detail can give you the edge you need.
+                        </p>
+
+                        <h4 style="color: #1e293b; margin-top: 30px; margin-bottom: 15px; font-weight: 700;">Finding the Important Question of <?= htmlspecialchars($bookName) ?></h4>
+                        <p>
+                            In every chapter of <strong><?= htmlspecialchars($bookName) ?></strong>, there are certain topics that appear in the <strong>exam test paper</strong> year after year. We have curated these high-priority areas to help you focus your efforts. For <strong>Class 9-10-11-12</strong>, knowing which diagrams to practice and which derivations to memorize for <strong><?= htmlspecialchars($className) ?></strong> is a fundamental part of smart <strong>board exam preparations</strong>.
+                        </p>
+
+                        <div style="background: rgba(79, 70, 229, 0.05); border-radius: 16px; padding: 30px; margin: 35px 0; border: 1px dashed #4f46e5;">
+                            <h5 style="color: #4f46e5; margin-bottom: 15px; font-weight: 800;"><i class="fas fa-rocket"></i> Your <?= htmlspecialchars($bookName) ?> Revision Checklist:</h5>
+                            <ul style="margin-bottom: 0; padding-left: 20px; color: #1e293b; font-weight: 500;">
+                                <li>Review the <strong>important question of <?= htmlspecialchars($bookName) ?></strong> for each chapter.</li>
+                                <li>Take a timed <strong>online exam preparation</strong> quiz for every topic in <strong><?= htmlspecialchars($className) ?></strong>.</li>
+                                <li>Solve at least three <strong>matric</strong> or <strong>inter</strong> level practice tests.</li>
+                                <li>Focus on neat paper presentation—use headings and diagrams effectively.</li>
+                            </ul>
+                        </div>
+
+                        <p>
+                            As you prepare for your <strong><?= htmlspecialchars($className) ?> school</strong> or <strong>college</strong> finals, remember that every chapter of <strong><?= htmlspecialchars($bookName) ?></strong> you master brings you one step closer to your goal. Stay consistent with your <strong>board exam preparations</strong> and use our <strong>exam test paper</strong> generator to evaluate your progress daily. Good luck to all students in <strong>Class 9, 10, 11, and 12</strong>!
+                        </p>
+                    </div>
                 </div>
             </article>
         </div>

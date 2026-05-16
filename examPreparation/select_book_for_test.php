@@ -61,14 +61,14 @@ if ($cachedData && is_array($cachedData)) {
 $assetBase = '../';
 include '../header.php';
 $displayClassName = $className;
-$className = str_replace(' ', '-', $className);
-$pageTitle = $className . "-PastPapers";
+$pageTitle = $displayClassName . " Board Exam Preparation 2026 - Online Test Papers & Past Papers";
 ?>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> - Ahmad Learning Hub</title>
-    <meta name="description" content="Prepare for <?= htmlspecialchars($displayClassName) ?> board exams with our comprehensive collection of past papers and test papers for all subjects.">
+    <?php $metaDesc = "Prepare for " . $displayClassName . " board exams with our comprehensive collection of past papers and test papers for all subjects."; ?>
+    <meta name="description" content="<?= htmlspecialchars($metaDesc) ?>">
     <link rel="stylesheet" href="../css/exam_prep.css?v=<?= time() ?>">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
@@ -102,15 +102,36 @@ $pageTitle = $className . "-PastPapers";
         </div>
 
         <!-- SEO Blog Section -->
-        <article class="seo-blog-section">
+        <article class="seo-blog-section" style="margin-top: 60px; background: #f8fafc; border-radius: 20px; padding: 40px; border: 1px solid #e2e8f0;">
             <div class="blog-container">
-                <h2 class="blog-title">Subject-Wise Preparation with Authentic Past Papers</h2>
-                <div class="blog-content">
+                <h2 class="blog-title" style="font-size: 2.2rem; font-weight: 800; color: #0f172a; margin-bottom: 30px;">Strategic Subject Selection for <?= htmlspecialchars($displayClassName) ?> Board Exam Preparations</h2>
+                <div class="blog-content" style="font-size: 1.1rem; line-height: 1.8; color: #475569;">
                     <p>
-                        Selecting the right subject is the first step towards a targeted study plan. Our <strong><?= htmlspecialchars($className) ?> past papers</strong> collection is designed to give you a competitive edge. By focusing on subject-specific <strong>test papers</strong>, you can master complex concepts in Physics, Mathematics, and Biology with ease.
+                        Choosing which subject to focus on is a critical decision in your <strong><?= htmlspecialchars($displayClassName) ?> board exam preparations</strong>. For students in <strong>Class 9, 10, 11, and 12</strong>, each subject carries its own set of challenges and marking criteria. Whether you are in <strong>school</strong> or <strong>college</strong>, a targeted approach to each book is the secret to a high aggregate. Our <strong>online exam preparation</strong> tools are designed to help you master each <strong><?= htmlspecialchars($displayClassName) ?></strong> book individually.
                     </p>
+                    
+                    <h3 style="color: #1e293b; margin-top: 30px; margin-bottom: 15px;">Identifying High-Yield Topics in <?= htmlspecialchars($displayClassName) ?></h3>
                     <p>
-                        Why choose our <strong>past papers</strong>? We provide updated 2026 content that follows the latest board guidelines. Each <strong>test paper</strong> is generated to test your critical thinking and time management skills.
+                        Every examiner looks for certain "key concepts" in an <strong>exam test paper</strong>. By focusing on the <strong>important question of that selected book</strong>, you can ensure that you are spending your time efficiently. For <strong>matric</strong> students, subjects like Mathematics and Physics require rigorous practice of theorems and numericals. For <strong>inter</strong> students, especially those in Pre-Medical or Pre-Engineering, the depth of conceptual understanding required in <strong>college</strong> is much higher than in <strong>school</strong>.
+                    </p>
+
+                    <h3 style="color: #1e293b; margin-top: 30px; margin-bottom: 15px;">The Benefits of Subject-Wise Testing for <?= htmlspecialchars($displayClassName) ?></h3>
+                    <p>
+                        Randomly studying different books can lead to confusion. Instead, use our <strong>online exam preparation</strong> platform to dedicate entire days to a single subject. This "subject immersion" technique helps in better retention of complex information. When you generate a <strong>matric exam test paper</strong> or an <strong>inter</strong> mock exam, you are essentially rehearsing for the real board day.
+                    </p>
+
+                    <div style="background: white; padding: 25px; border-radius: 12px; margin: 30px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                        <h4 style="color: #4f46e5; margin-bottom: 10px;"><i class="fas fa-check-circle"></i> Why <?= htmlspecialchars($displayClassName) ?> Prep Matters:</h4>
+                        <ul style="margin-bottom: 0; padding-left: 20px;">
+                            <li>Focuses on the unique <strong>exam test paper</strong> pattern of each board.</li>
+                            <li>Helps in mastering the <strong>important question of that selected book</strong>.</li>
+                            <li>Builds confidence for both <strong>school</strong> and <strong>college</strong> board exams.</li>
+                            <li>Provides a realistic simulation of <strong>Class 9-10-11-12</strong> board environments.</li>
+                        </ul>
+                    </div>
+
+                    <p>
+                        Ready to begin? Select a subject from the grid above to start your focused <strong>online exam preparation</strong> for <strong><?= htmlspecialchars($displayClassName) ?></strong>. Whether it's the complex reactions of Chemistry or the intricate details of English Literature, we have the right <strong>board exam preparations</strong> resources to help you succeed in <strong>Class 9, 10, 11, and 12</strong>.
                     </p>
                 </div>
             </div>
