@@ -58,6 +58,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['status' => 'success', 'message' => 'Thank you for your review.']);
         exit;
     }
+
+    if ($action === 'save_answer') {
+        header('Content-Type: application/json');
+        $type = $jsonInput['type'] ?? '';
+        $id = intval($jsonInput['id'] ?? 0);
+        $answer = $jsonInput['answer'] ?? '';
+
+        if (!isset($_SESSION['test_answers'])) {
+            $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+        }
+
+        $_SESSION['test_answers'][$type][$id] = $answer;
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
+    if ($action === 'save_mcq_result') {
+        header('Content-Type: application/json');
+        $id = intval($jsonInput['id'] ?? 0);
+        $isCorrect = $jsonInput['isCorrect'] ?? false;
+        $selected = $jsonInput['selected'] ?? '';
+
+        if (!isset($_SESSION['test_answers'])) {
+            $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+        }
+
+        $_SESSION['test_answers']['mcqs'][$id] = [
+            'isCorrect' => $isCorrect,
+            'selected' => $selected
+        ];
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
+    if ($action === 'save_all_answers') {
+        header('Content-Type: application/json');
+        $answers = $jsonInput['answers'] ?? [];
+        
+        if (!isset($_SESSION['test_answers'])) {
+            $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+        }
+
+        foreach ($answers as $a) {
+            $type = $a['type'] ?? '';
+            $id = intval($a['id'] ?? 0);
+            $val = $a['answer'] ?? '';
+            if ($type && $id) {
+                $_SESSION['test_answers'][$type][$id] = $val;
+            }
+        }
+        
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
 }
 
 // Check if user has already reviewed
@@ -210,6 +264,17 @@ function fetchRandomQuestions($class_id, $book_id, $chapter_ids, $mcq_c, $short_
 
 $assetBase = '../';
 include '../header.php';
+
+// Reset test answers in session only if it's a new test configuration
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $prev_key = $_SESSION['current_test_key'] ?? '';
+    if ($prev_key !== $cacheKey) {
+        $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+    }
+    // Update current test key and questions in session
+    $_SESSION['current_test_key'] = $cacheKey;
+    $_SESSION['current_test_questions'] = $questions_data;
+}
 ?>
 
     <meta charset="UTF-8">
@@ -474,7 +539,7 @@ include '../header.php';
                 <span>Click on any option to check your answer instantly!</span>
             </div>
             <?php foreach ($questions_data['mcqs'] as $index => $m): ?>
-                <div class="question-item">
+                <div class="question-item" data-db-id="<?= $m['mcq_id'] ?>">
                     <p style="font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 20px;">
                         Q<?= $index + 1 ?>. <?= htmlspecialchars($m['question']) ?>
                     </p>
@@ -502,11 +567,16 @@ include '../header.php';
         <?php if (!empty($questions_data['short'])): ?>
             <div class="section-title">Section B: Short Answer Questions</div>
             <?php foreach ($questions_data['short'] as $index => $q): ?>
-                <div class="question-item">
+                <div class="question-item" data-id="<?= $q['id'] ?>" data-type="short">
                     <p style="font-size: 1.1rem; font-weight: 600; color: #1e293b;">
                         Q<?= $index + 1 ?>. <?= htmlspecialchars($q['question_text']) ?>
                     </p>
-                    <textarea class="answer-box no-print" placeholder="Write your answer here for practice..."></textarea>
+                    <textarea class="answer-box no-print" placeholder="Write your answer here for practice..." id="answer_short_<?= $q['id'] ?>"><?= htmlspecialchars($_SESSION['test_answers']['short'][$q['id']] ?? '') ?></textarea>
+                    <div class="text-end mt-2 no-print">
+                        <button class="btn btn-sm btn-outline-primary" onclick="saveAnswer('short', <?= $q['id'] ?>)">
+                            <i class="fas fa-save me-1"></i> Submit
+                        </button>
+                    </div>
                     <div class="print-only" style="display:none; height: 150px; border: 1px solid #eee; margin-top: 10px;"></div>
                 </div>
             <?php endforeach; ?>
@@ -516,15 +586,26 @@ include '../header.php';
         <?php if (!empty($questions_data['long'])): ?>
             <div class="section-title">Section C: Descriptive / Long Questions</div>
             <?php foreach ($questions_data['long'] as $index => $q): ?>
-                <div class="question-item">
+                <div class="question-item" data-id="<?= $q['id'] ?>" data-type="long">
                     <p style="font-size: 1.1rem; font-weight: 600; color: #1e293b;">
                         Q<?= $index + 1 ?>. <?= htmlspecialchars($q['question_text']) ?>
                     </p>
-                    <textarea class="answer-box no-print" placeholder="Write a detailed answer here..."></textarea>
+                    <textarea class="answer-box no-print" placeholder="Write a detailed answer here..." id="answer_long_<?= $q['id'] ?>"><?= htmlspecialchars($_SESSION['test_answers']['long'][$q['id']] ?? '') ?></textarea>
+                    <div class="text-end mt-2 no-print">
+                        <button class="btn btn-sm btn-outline-primary" onclick="saveAnswer('long', <?= $q['id'] ?>)">
+                            <i class="fas fa-save me-1"></i> Submit
+                        </button>
+                    </div>
                     <div class="print-only" style="display:none; height: 300px; border: 1px solid #eee; margin-top: 10px;"></div>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
+
+        <div class="text-center mt-5 no-print">
+            <button class="btn btn-primary btn-lg px-5 shadow" style="border-radius: 12px; font-weight: 700;" onclick="checkAll()">
+                <i class="fas fa-check-double me-2"></i> Check All Answers
+            </button>
+        </div>
 
         <div class="text-center mt-5 pt-4" style="border-top: 1px solid #f1f5f9;">
             <p class="text-muted small">Quality Education by <strong>Ahmad Learning Hub</strong></p>
@@ -568,6 +649,8 @@ include '../header.php';
 </div>
 
 <script>
+const quizApiUrl = window.location.href;
+
 function checkMcq(element) {
     const container = element.closest('.mcq-options-container');
     if (container.classList.contains('answered')) return;
@@ -584,7 +667,6 @@ function checkMcq(element) {
         element.classList.add('correct');
     } else {
         element.classList.add('wrong');
-        // Find and highlight correct one
         container.querySelectorAll('.mcq-option').forEach(opt => {
             const optKey = opt.getAttribute('data-key');
             const optText = opt.querySelector('span').textContent.trim();
@@ -593,6 +675,112 @@ function checkMcq(element) {
             }
         });
     }
+
+    // Save MCQ result to session
+    // We need the database ID of the MCQ. Let's ensure it's in the HTML.
+    const dbId = container.closest('.question-item').getAttribute('data-db-id');
+    if (dbId) {
+        fetch(quizApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'save_mcq_result',
+                id: dbId,
+                isCorrect: isCorrect,
+                selected: selectedKey
+            })
+        });
+    }
+}
+
+async function saveAnswer(type, id) {
+    const textarea = document.getElementById(`answer_${type}_${id}`);
+    if (!textarea) return;
+
+    const answer = textarea.value.trim();
+    const btn = textarea.nextElementSibling.querySelector('button');
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        const response = await fetch(quizApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'save_answer',
+                type: type,
+                id: id,
+                answer: answer
+            })
+        });
+        
+        if (response.ok) {
+            btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-success');
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-primary');
+                btn.disabled = false;
+            }, 2000);
+        } else {
+            throw new Error('Failed to save');
+        }
+    } catch (error) {
+        btn.innerHTML = '<i class="fas fa-times"></i> Error';
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-danger');
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-outline-primary');
+            btn.disabled = false;
+        }, 2000);
+    }
+}
+
+async function checkAll() {
+    const btn = document.querySelector('button[onclick="checkAll()"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Saving & Preparing Results...';
+
+    const answers = [];
+    document.querySelectorAll('.answer-box').forEach(textarea => {
+        const type = textarea.closest('.question-item').getAttribute('data-type');
+        const id = textarea.closest('.question-item').getAttribute('data-id');
+        if (type && id) {
+            answers.push({
+                type: type,
+                id: id,
+                answer: textarea.value.trim()
+            });
+        }
+    });
+
+    try {
+        await fetch(quizApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'save_all_answers',
+                answers: answers
+            })
+        });
+        window.location.href = 'check_test.php' + window.location.search;
+    } catch (error) {
+        console.error('Error saving answers:', error);
+        btn.innerHTML = '<i class="fas fa-times me-2"></i> Error Saving. Try Again.';
+        btn.classList.add('btn-danger');
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('btn-danger');
+            btn.disabled = false;
+        }, 3000);
+    }
 }
 
 // --- Review Modal Logic (Same as quiz.php) ---
@@ -600,7 +788,6 @@ let selectedReviewRating = 0;
 let reviewPopupShown = false;
 const hasAlreadyReviewedServer = <?= json_encode($hasAlreadyReviewed) ?>;
 const isLoggedIn = <?= json_encode($isLoggedIn) ?>;
-const quizApiUrl = window.location.href;
 
 function openReviewModal() {
     const modal = document.getElementById('reviewModal');
