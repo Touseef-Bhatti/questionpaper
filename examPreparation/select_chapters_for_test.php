@@ -20,62 +20,41 @@ if (!$book_id && !empty($book_name_slug)) {
 
 if (!$class_id || !$book_id) header("Location: index.php");
 
-// --- Caching Logic ---
-require_once '../services/CacheManager.php';
-$cacheManager = new CacheManager();
-$cacheKey = "select_chapters_" . $class_id . "_" . $book_id;
-$cachedData = $cacheManager->get($cacheKey);
+// Fetch class and book names for SEO
+$infoStmt = $conn->prepare("
+    SELECT c.class_name, b.book_name 
+    FROM class c 
+    JOIN book b ON c.class_id = b.class_id 
+    WHERE c.class_id = ? AND b.book_id = ?
+");
+$infoStmt->bind_param("ii", $class_id, $book_id);
+$infoStmt->execute();
+$info = $infoStmt->get_result()->fetch_assoc();
+$className = $info['class_name'] ?? 'Class';
+$bookName = $info['book_name'] ?? 'Subject';
+$infoStmt->close();
 
-if ($cachedData && is_array($cachedData)) {
-    $className = $cachedData['className'];
-    $bookName = $cachedData['bookName'];
-    $chaptersData = $cachedData['chaptersData'];
-    $examsData = $cachedData['examsData'];
-} else {
-    // Fetch class and book names for SEO
-    $infoStmt = $conn->prepare("
-        SELECT c.class_name, b.book_name 
-        FROM class c 
-        JOIN book b ON c.class_id = b.class_id 
-        WHERE c.class_id = ? AND b.book_id = ?
-    ");
-    $infoStmt->bind_param("ii", $class_id, $book_id);
-    $infoStmt->execute();
-    $info = $infoStmt->get_result()->fetch_assoc();
-    $className = $info['class_name'] ?? 'Class';
-    $bookName = $info['book_name'] ?? 'Subject';
-    $infoStmt->close();
-
-    // Fetch chapters
-    $stmt = $conn->prepare("SELECT * FROM chapter WHERE class_id = ? AND book_id = ? ORDER BY chapter_no ASC");
-    $stmt->bind_param("ii", $class_id, $book_id);
-    $stmt->execute();
-    $chaptersResult = $stmt->get_result();
-    $chaptersData = [];
-    while ($row = $chaptersResult->fetch_assoc()) {
-        $chaptersData[] = $row;
-    }
-    $stmt->close();
-
-    // Fetch available pre-created exams for this book
-    $stmt = $conn->prepare("SELECT * FROM exam_preparations WHERE class_id = ? AND book_id = ? ORDER BY created_at DESC");
-    $stmt->bind_param("ii", $class_id, $book_id);
-    $stmt->execute();
-    $examsResult = $stmt->get_result();
-    $examsData = [];
-    while ($row = $examsResult->fetch_assoc()) {
-        $examsData[] = $row;
-    }
-    $stmt->close();
-
-    // Store in cache for 24 hours
-    $cacheManager->setex($cacheKey, 86400, [
-        'className' => $className,
-        'bookName' => $bookName,
-        'chaptersData' => $chaptersData,
-        'examsData' => $examsData
-    ]);
+// Fetch chapters
+$stmt = $conn->prepare("SELECT * FROM chapter WHERE class_id = ? AND book_id = ? ORDER BY chapter_no ASC");
+$stmt->bind_param("ii", $class_id, $book_id);
+$stmt->execute();
+$chaptersResult = $stmt->get_result();
+$chaptersData = [];
+while ($row = $chaptersResult->fetch_assoc()) {
+    $chaptersData[] = $row;
 }
+$stmt->close();
+
+// Fetch available pre-created exams for this book
+$stmt = $conn->prepare("SELECT * FROM exam_preparations WHERE class_id = ? AND book_id = ? ORDER BY created_at DESC");
+$stmt->bind_param("ii", $class_id, $book_id);
+$stmt->execute();
+$examsResult = $stmt->get_result();
+$examsData = [];
+while ($row = $examsResult->fetch_assoc()) {
+    $examsData[] = $row;
+}
+$stmt->close();
 
 $assetBase = '../';
 include '../header.php';

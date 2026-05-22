@@ -67,21 +67,6 @@ $questions_data = $_SESSION['current_test_questions'] ?? [
     'long' => []
 ];
 
-// Fallback to cache/DB if session is empty or doesn't match current request
-$current_cache_key = "take_test_" . md5(serialize($_GET));
-$session_is_empty = empty($questions_data['mcqs']) && empty($questions_data['short']) && empty($questions_data['long']);
-$session_key_mismatch = (($_SESSION['current_test_key'] ?? '') !== $current_cache_key);
-
-if ($session_is_empty || $session_key_mismatch) {
-    // If session doesn't match or is empty, try to load from cache
-    require_once '../services/CacheManager.php';
-    $cacheManager = new CacheManager();
-    $cachedData = $cacheManager->get($current_cache_key);
-    if ($cachedData && is_array($cachedData)) {
-        $questions_data = $cachedData['questions_data'];
-    }
-}
-
 // Still empty? Try to reconstruct (simplified fallback)
 if (empty($questions_data['mcqs']) && empty($questions_data['short']) && empty($questions_data['long'])) {
     if ($exam_id) {
@@ -326,6 +311,13 @@ foreach ($subjective_to_check as &$sub) {
         ];
     }
 }
+
+$stmt = $conn->prepare("SELECT class_name FROM class WHERE class_id = ?");
+$stmt->bind_param("i", $class_id);
+$stmt->execute();
+$res = $stmt->get_result()->fetch_assoc();
+$className = $res['class_name'] ?? 'Class';
+$stmt->close();
 
 $assetBase = '../';
 include '../header.php';
