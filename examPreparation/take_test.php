@@ -440,58 +440,113 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
 
         .question-item .btn-outline-primary {
-            border-radius: 12px;
+            border-radius: 10px;
             font-weight: 600;
-            padding: 8px 18px;
-            border: 2px solid #e2e8f0;
-            color: #475569;
-            background: white;
-            transition: all 0.2s ease;
+            padding: 8px 20px;
+            border: 2px solid #4f46e5;
+            color: #4f46e5;
+            background: transparent;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .question-item .btn-outline-primary:hover {
             border-color: #4f46e5;
-            color: #4f46e5;
-            background: #f5f3ff;
-            transform: translateY(-1px);
+            color: white;
+            background: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
         }
         
         .question-item .btn-success {
-            border-radius: 12px;
+            border-radius: 10px;
             font-weight: 600;
-            padding: 8px 18px;
+            padding: 8px 20px;
             border: 2px solid #10b981;
             background: #10b981;
             color: white;
+            transition: all 0.2s ease;
         }
         
         .question-item .btn-danger {
-            border-radius: 12px;
+            border-radius: 10px;
             font-weight: 600;
-            padding: 8px 18px;
+            padding: 8px 20px;
             border: 2px solid #ef4444;
             background: #ef4444;
             color: white;
+            transition: all 0.2s ease;
         }
 
-        .btn-primary.btn-lg.px-5.shadow {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        .btn-premium {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white !important;
+            border: none;
+            border-radius: 14px;
+            font-weight: 700;
+            padding: 12px 26px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.25);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-premium:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+        }
+        .btn-premium:active {
+            transform: translateY(0);
+        }
+
+        .btn-exit {
+            background: #ffffff;
+            color: #475569 !important;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            font-weight: 600;
+            padding: 12px 26px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-exit:hover {
+            background: #f8fafc;
+            color: #0f172a !important;
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        .btn-exit:active {
+            transform: translateY(0);
+        }
+
+        .btn-check-all {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             border: none;
             border-radius: 14px;
             font-weight: 700;
             font-size: 1.1rem;
             padding: 16px 40px !important;
-            box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.35), 0 8px 10px -6px rgba(79, 70, 229, 0.35) !important;
+            color: white;
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.3), 0 8px 10px -6px rgba(16, 185, 129, 0.3) !important;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
         }
         
-        .btn-primary.btn-lg.px-5.shadow:hover {
+        .btn-check-all:hover {
             transform: translateY(-3px);
-            box-shadow: 0 20px 35px -5px rgba(79, 70, 229, 0.45), 0 12px 15px -6px rgba(79, 70, 229, 0.45) !important;
-            background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+            box-shadow: 0 20px 35px -5px rgba(16, 185, 129, 0.4), 0 12px 15px -6px rgba(16, 185, 129, 0.4) !important;
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
         }
         
-        .btn-primary.btn-lg.px-5.shadow:active {
+        .btn-check-all:active {
             transform: translateY(-1px);
         }
 
@@ -550,12 +605,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 <div class="main-content container py-4">
     <div class="no-print d-flex justify-content-between align-items-center mb-5" style="max-width: 900px; margin: 0 auto;">
-        <a href="javascript:history.back()" class="btn btn-light shadow-sm" style="border-radius: 12px; font-weight: 600; padding: 10px 20px;">
+        <a href="javascript:history.back()" class="btn-exit shadow-sm">
             <i class="fas fa-arrow-left me-2"></i> Exit Test
         </a>
         <div class="d-flex gap-2">
-            <button onclick="window.print()" class="btn btn-dark shadow-sm" style="border-radius: 12px; font-weight: 600; padding: 10px 20px;">
-                <i class="fas fa-print me-2"></i> Print Paper
+            <button onclick="handleDownloadClick()" class="btn-premium shadow-sm">
+                <i class="fas fa-download me-2"></i> Download Paper
             </button>
         </div>
     </div>
@@ -644,7 +699,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         <?php endif; ?>
 
         <div class="text-center mt-5 no-print">
-            <button class="btn btn-primary btn-lg px-5 shadow" style="border-radius: 12px; font-weight: 700;" onclick="checkAll()">
+            <button class="btn-check-all px-5 shadow" onclick="checkAll()">
                 <i class="fas fa-check-double me-2"></i> Check All Answers
             </button>
         </div>
@@ -657,9 +712,163 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 </div>
 
 <?php include __DIR__ . '/../includes/ai_loader.php'; ?>
+<?php include_once __DIR__ . '/../includes/AdstraOnClickAds.php'; ?>
+<?php
+// Include and dynamically namespace quiz_ad_gate.php for Check All Answers ad gate to avoid conflict
+$quizAdGatePath = __DIR__ . '/../includes/quiz_ad_gate.php';
+if (file_exists($quizAdGatePath)) {
+    $quizAdGateContent = file_get_contents($quizAdGatePath);
+    $quizAdGateContent = str_replace('ALH_QUIZ_AD_GATE_RENDERED', 'ALH_QUIZ_AD_GATE_RENDERED_TAKE_TEST', $quizAdGateContent);
+    $quizAdGateContent = str_replace('window.ALHQuizAdGate', 'window.ALHQuizAdGateQuiz', $quizAdGateContent);
+    $quizAdGateContent = str_replace('ALHQuizAdGate', 'ALHQuizAdGateQuiz', $quizAdGateContent);
+    $quizAdGateContent = str_replace('id="quizAdModal"', 'id="quizAdModalQuiz"', $quizAdGateContent);
+    $quizAdGateContent = str_replace('id="watchQuizAdBtn"', 'id="watchQuizAdBtnQuiz"', $quizAdGateContent);
+    $quizAdGateContent = str_replace('id="quizAdPremiumBtn"', 'id="quizAdPremiumBtnQuiz"', $quizAdGateContent);
+    $quizAdGateContent = str_replace("document.getElementById('quizAdModal')", "document.getElementById('quizAdModalQuiz')", $quizAdGateContent);
+    $quizAdGateContent = str_replace("document.getElementById('watchQuizAdBtn')", "document.getElementById('watchQuizAdBtnQuiz')", $quizAdGateContent);
+    $quizAdGateContent = str_replace("document.getElementById('quizAdPremiumBtn')", "document.getElementById('quizAdPremiumBtnQuiz')", $quizAdGateContent);
+    $quizAdGateContent = str_replace('quizAdModalTitle', 'quizAdModalTitleQuiz', $quizAdGateContent);
+    echo $quizAdGateContent;
+}
+?>
+
+<form id="downloadForm" action="../questionPaperFromTopic/download_docx.php" method="POST" target="_blank" style="display:none;">
+    <input type="hidden" name="content" id="downloadContent">
+    <input type="hidden" name="filename" id="downloadFilename">
+</form>
 
 <script>
 const quizApiUrl = window.location.href;
+
+function handleDownloadClick() {
+    if (window.ALHQuizAdGate) {
+        window.ALHQuizAdGate.gate({
+            storageKey: 'alh_quiz_ad_seen_until',
+            premiumHref: '../subscription.php',
+            onContinue: function() {
+                triggerActualDownload();
+            }
+        });
+    } else {
+        triggerActualDownload();
+    }
+}
+
+function triggerActualDownload() {
+    const paper = document.querySelector('.paper-container').cloneNode(true);
+    
+    // Remove all no-print elements
+    paper.querySelectorAll('.no-print').forEach(el => el.remove());
+    
+    // Make sure all print-only elements are displayed in the export
+    paper.querySelectorAll('.print-only').forEach(el => {
+        el.style.display = 'block';
+    });
+    
+    // Convert Candidate Name / Roll Number grid to table for perfect Word layout
+    const headerRow = paper.querySelector('.paper-header .row');
+    if (headerRow) {
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.style.marginTop = '20px';
+        table.style.marginBottom = '20px';
+        const tr = document.createElement('tr');
+        
+        const td1 = document.createElement('td');
+        td1.style.width = '50%';
+        td1.innerHTML = '<strong>Candidate Name:</strong> _____________________';
+        
+        const td2 = document.createElement('td');
+        td2.style.width = '50%';
+        td2.style.textAlign = 'right';
+        td2.innerHTML = '<strong>Roll Number:</strong> _________________';
+        
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        table.appendChild(tr);
+        headerRow.replaceWith(table);
+    }
+    
+    // Convert Duration / Total Marks flexbox to table for perfect Word layout
+    const flexRow = paper.querySelector('.paper-header .d-flex.justify-content-between');
+    if (flexRow) {
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.style.marginTop = '10px';
+        table.style.borderBottom = '2px solid #000';
+        table.style.paddingBottom = '10px';
+        const tr = document.createElement('tr');
+        
+        const spans = flexRow.querySelectorAll('span');
+        const td1 = document.createElement('td');
+        td1.style.width = '50%';
+        td1.innerHTML = spans[0] ? spans[0].textContent.trim() : 'Duration: 1.5 Hours';
+        
+        const td2 = document.createElement('td');
+        td2.style.width = '50%';
+        td2.style.textAlign = 'right';
+        td2.innerHTML = spans[1] ? spans[1].textContent.trim() : '';
+        
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        table.appendChild(tr);
+        flexRow.replaceWith(table);
+    }
+
+    // Convert MCQ options to a neat 2-column table for Word export
+    paper.querySelectorAll('.mcq-options-container').forEach(container => {
+        const options = Array.from(container.querySelectorAll('.mcq-option'));
+        if (options.length === 4) {
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.marginTop = '10px';
+            table.style.marginBottom = '15px';
+            
+            const tr1 = document.createElement('tr');
+            const tdA = document.createElement('td');
+            tdA.style.width = '50%';
+            tdA.style.padding = '5px';
+            tdA.innerHTML = `(A) ${options[0].querySelector('span').innerHTML}`;
+            
+            const tdB = document.createElement('td');
+            tdB.style.width = '50%';
+            tdB.style.padding = '5px';
+            tdB.innerHTML = `(B) ${options[1].querySelector('span').innerHTML}`;
+            
+            tr1.appendChild(tdA);
+            tr1.appendChild(tdB);
+            
+            const tr2 = document.createElement('tr');
+            const tdC = document.createElement('td');
+            tdC.style.width = '50%';
+            tdC.style.padding = '5px';
+            tdC.innerHTML = `(C) ${options[2].querySelector('span').innerHTML}`;
+            
+            const tdD = document.createElement('td');
+            tdD.style.width = '50%';
+            tdD.style.padding = '5px';
+            tdD.innerHTML = `(D) ${options[3].querySelector('span').innerHTML}`;
+            
+            tr2.appendChild(tdC);
+            tr2.appendChild(tdD);
+            
+            table.appendChild(tr1);
+            table.appendChild(tr2);
+            
+            container.replaceWith(table);
+        }
+    });
+    
+    const form = document.getElementById('downloadForm');
+    const contentInput = document.getElementById('downloadContent');
+    const filenameInput = document.getElementById('downloadFilename');
+    
+    contentInput.value = paper.innerHTML;
+    const docTitle = document.title.split(' - ')[0] || 'Practice_Test_Assessment';
+    filenameInput.value = docTitle.replace(/[^a-zA-Z0-9_.-]/g, '_') + '_' + new Date().toISOString().slice(0,10);
+    
+    form.submit();
+}
 
 function checkMcq(element) {
     const container = element.closest('.mcq-options-container');

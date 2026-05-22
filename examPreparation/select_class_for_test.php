@@ -1,6 +1,7 @@
 <?php
 session_start();
 include '../db_connect.php';
+require_once '../middleware/SubscriptionCheck.php';
 
 $level = $_GET['level'] ?? '';
 
@@ -38,6 +39,12 @@ if ($cachedData && is_array($cachedData)) {
     
     // Store in cache for 24 hours
     $cacheManager->setex($cacheKey, 86400, $classesData);
+}
+
+$isPremium = false;
+if (isset($_SESSION['user_id'])) {
+    $subscription = getSubscriptionInfo();
+    $isPremium = $subscription ? $subscription['is_premium'] : false;
 }
 
 $assetBase = '../';
@@ -110,7 +117,7 @@ include '../header.php';
 
                 <h2 style="font-size: 2rem; color: #0f172a; margin-top: 50px; margin-bottom: 25px;">2. Maximizing Scores with Online Exam Preparation</h2>
                 <p>
-                    Traditional studying is no longer enough. To truly excel, students in <strong><?= $targetClasses ?></strong> must engage with interactive <strong>exam test papers</strong>. Our <strong>online exam preparation</strong> platform mimics the actual board environment, helping you build the stamina needed for the final day.
+                    Looking to study smart? Try practicing with real-world examples.
                 </p>
 
                 <div class="blog-featured-box" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-left: 6px solid #0ea5e9; padding: 30px; border-radius: 12px; margin: 40px 0;">
@@ -138,13 +145,32 @@ include '../header.php';
     </article>
 </div>
 
+<?php include_once '../includes/quiz_ad_gate.php'; ?>
+<?php include '../footer.php'; ?>
+
 <script>
+    const isPremium = <?= json_encode($isPremium) ?>;
+
     function selectClass(classId, classSlug) {
         // Use class name slug for SEO if available, otherwise fallback to class-ID
         // Pattern: /class9-PastPapers or /class-9-PastPapers
         const slug = classSlug ? classSlug : 'class-' + classId;
-        window.location.href = '<?= $assetBase ?>' + slug + '-PastPapers?class_id=' + classId;
+        const destinationUrl = '<?= $assetBase ?>' + slug + '-PastPapers?class_id=' + classId;
+
+        if (isPremium) {
+            window.location.href = destinationUrl;
+            return;
+        }
+
+        window.ALHQuizAdGate.gate({
+            storageKey: 'alh_select_class_for_test_ad_seen_until',
+            premiumHref: '../subscription.php',
+            onContinue: () => {
+                window.location.href = destinationUrl;
+            }
+        });
     }
 </script>
 
-<?php include '../footer.php'; ?>
+</body>
+</html>

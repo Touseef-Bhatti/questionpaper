@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
+    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Question - Ahmad Learning Hub</title>

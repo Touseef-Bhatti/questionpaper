@@ -639,6 +639,7 @@ include 'header.php';
 <head>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
+    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="css/QPaper.css">
     <link rel="stylesheet" href="css/buttons.css">

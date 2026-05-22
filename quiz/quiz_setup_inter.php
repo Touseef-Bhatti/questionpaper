@@ -9,7 +9,6 @@ include '../db_connect.php';
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Online MCQs Test For 11th and 12th (FSc, ICS) Board Exams - Ahmad Learning Hub</title>
@@ -128,6 +127,8 @@ include '../db_connect.php';
         </form>
     </div>
 
+    <?php include_once __DIR__ . '/../includes/quiz_ad_gate.php'; ?>
+
     <!-- SEO Article Section - Comprehensive Blog Style for Inter -->
     <article class="seo-article-section blog-layout">
         <div class="blog-container">
@@ -217,7 +218,6 @@ const chapterIdsInput = document.getElementById('chapter_ids');
 const resetBtn = document.getElementById('resetBtn');
 
 let selectedChapterIds = [];
-
 function toQuery(params) {
   return Object.entries(params).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
 }
@@ -343,9 +343,7 @@ resetBtn.addEventListener('click', () => {
   clearChapters();
 });
 
-document.getElementById('quizForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
+function submitQuizForm(form) {
     const classText = classSel.options[classSel.selectedIndex].text.trim().toLowerCase();
     const bookText = bookSel.options[bookSel.selectedIndex].text.trim().toLowerCase().replace(/\s+/g, '-');
     const classMatch = classText.match(/^(\d+(st|nd|rd|th))/i);
@@ -362,7 +360,7 @@ document.getElementById('quizForm').addEventListener('submit', function(e) {
                 chapterNums.push(numMatch[1]);
             }
         });
-        
+
         if (chapterNums.length > 0) {
             chapterNums.sort((a, b) => a - b);
             chapterSlug = chapterNums.join('-');
@@ -370,8 +368,8 @@ document.getElementById('quizForm').addEventListener('submit', function(e) {
     }
 
     const seoUrl = `${classSlug}/${bookText}/${chapterSlug}-MCQs-quiz`;
-    this.action = seoUrl;
-    this.submit();
+    form.action = seoUrl;
+    form.submit();
 
     if (typeof showAILoader === 'function') {
         showAILoader(
@@ -387,6 +385,16 @@ document.getElementById('quizForm').addEventListener('submit', function(e) {
             null
         );
     }
+}
+
+document.getElementById('quizForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    window.ALHQuizAdGate.gate({
+        storageKey: 'alh_quiz_setup_inter_ad_seen_until',
+        premiumHref: '../subscription.php',
+        onContinue: () => submitQuizForm(this)
+    });
 });
 </script>
 </body>

@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
+    <?php include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <title>Resend Verification Email</title>
     <link rel="stylesheet" href="../css/login.css">

@@ -9,9 +9,6 @@ include '../db_connect.php';
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
-
-
-
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -149,6 +146,8 @@ include '../db_connect.php';
         </form>
     </div>
 
+    <?php include_once __DIR__ . '/../includes/quiz_ad_gate.php'; ?>
+
     <!-- SEO Article Section -->
 <!-- SEO Article Section - Comprehensive Blog Style -->
 <article class="seo-article-section blog-layout">
@@ -257,7 +256,6 @@ const resetBtn = document.getElementById('resetBtn');
 
 let selectedChapterIds = [];
 let progressInterval;
-
 function startLoaderProgress() {
     const progressBar = document.getElementById('loaderProgressBar');
     if (!progressBar) return;
@@ -409,33 +407,25 @@ resetBtn.addEventListener('click', () => {
   clearChapters();
 });
 
-// Show shared AI loader and redirect to SEO URL on form submit
-document.getElementById('quizForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
+function submitQuizForm(form) {
     const classText = classSel.options[classSel.selectedIndex].text.trim().toLowerCase();
     const bookText = bookSel.options[bookSel.selectedIndex].text.trim().toLowerCase().replace(/\s+/g, '-');
-    const mcqCount = document.getElementById('mcq_count').value;
 
-    // Extract class number part (e.g. "9th Class" -> "9th")
     const classMatch = classText.match(/^(\d+(st|nd|rd|th))/i);
     const classSlug = classMatch ? classMatch[0] : classText.replace(/\s+/g, '-');
 
-    // Handle chapters
     let chapterSlug = 'All-Chapter';
     if (selectedChapterIds.length > 0) {
-        // We need to find the chapter numbers for selected IDs
         const selectedItems = chapterSelector.querySelectorAll('.chapter-item input:checked');
         const chapterNums = [];
         selectedItems.forEach(input => {
             const label = input.nextElementSibling.textContent.trim();
-            // Assuming label starts with "Chapter X" or has the number
             const numMatch = label.match(/Chapter\s+(\d+)/i) || label.match(/^(\d+)/);
             if (numMatch) {
                 chapterNums.push(numMatch[1]);
             }
         });
-        
+
         if (chapterNums.length > 0) {
             chapterNums.sort((a, b) => a - b);
             chapterSlug = chapterNums.join('-');
@@ -443,12 +433,9 @@ document.getElementById('quizForm').addEventListener('submit', function(e) {
     }
 
     const seoUrl = `${classSlug}/${bookText}/${chapterSlug}-MCQs-quiz`;
-    this.action = seoUrl;
+    form.action = seoUrl;
+    form.submit();
 
-    // ── Submit the form FIRST — page starts loading immediately ─────────────
-    this.submit();
-
-    // ── Loader is purely cosmetic — steps animate, zero backend link ─
     if (typeof showAILoader === 'function') {
         showAILoader(
             [
@@ -460,9 +447,19 @@ document.getElementById('quizForm').addEventListener('submit', function(e) {
             ],
             'Preparing your personalized quiz session...',
             'Preparing Your Quiz',
-            null // purely cosmetic — no callback
+            null
         );
     }
+}
+
+document.getElementById('quizForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    window.ALHQuizAdGate.gate({
+        storageKey: 'alh_quiz_setup_ad_seen_until',
+        premiumHref: '../subscription.php',
+        onContinue: () => submitQuizForm(this)
+    });
 });
 </script>
 </body>

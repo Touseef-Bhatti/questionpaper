@@ -15,6 +15,12 @@ $classesData = [];
 while ($row = $classResult->fetch_assoc()) {
     $classesData[] = $row;
 }
+
+$isPremium = false;
+if (isset($_SESSION['user_id'])) {
+    $subscription = getSubscriptionInfo();
+    $isPremium = $subscription ? $subscription['is_premium'] : false;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -22,19 +28,16 @@ while ($row = $classResult->fetch_assoc()) {
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
+    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 
 <meta name="description" content=" Online Question Paper Generator for Class 9 & 10 (Punjab Board). Create chapter-wise tests, MCQs, short & long questions with answers. Generate and download exam papers instantly for school teachers in Pakistan.">
 
 <meta name="keywords" content="Online question paper generator, 9th class Question paper generator, 10th class Question paper generator, Punjab Board question papers,Chapter Wise Question Paper ,MCQs Paper generator for class 9 and 10, online test maker, online paper Software ,Question paper generatr Tool ,  Board Pattern Question Paper, Matric Exam ,Board Exam paper generator ,Online paper generator , Custom Paper generator , Online Exam ,Board Pattern Paper generator,online MCQs test 9th class, 10th class MCQs tests, school exam papers, chapter-wise MCQs, test generator Pakistan">
 
-
-
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_class.css">
-  
 
     <title>Online Question Paper Generator | Punjab Board  & Others</title>
 </head>
@@ -60,8 +63,6 @@ while ($row = $classResult->fetch_assoc()) {
 
 Generator MCQs tests, school exams, and practice papers instantly or attempt online quizzes for better preparation.
             </p>
-
-          
         </div>
         
         <!-- MIDDLE AD BANNER -->
@@ -79,7 +80,7 @@ Generator MCQs tests, school exams, and practice papers instantly or attempt onl
                     <?= htmlspecialchars($row['class_name']); ?>
                 </div>
             <?php } ?>
-            <div class="class-box other-class-box" onclick="window.location.href = 'online-question-paper-generator'">
+            <div class="class-box other-class-box" onclick="selectClass('online-question-paper-generator')">
                University
             </div>
         </div>
@@ -133,12 +134,32 @@ Generator MCQs tests, school exams, and practice papers instantly or attempt onl
 </div>
 </div> <!-- main-content -->
 
-
+<?php include_once 'includes/AdstraOnClickAds.php'; ?>
 <?php include 'footer.php'; ?>
 
 <script>
-    function selectClass(classId) {
-        window.location.href = 'class-' + encodeURIComponent(classId) + '-online-question-paper-generator';
+    const isPremium = <?= json_encode($isPremium) ?>;
+
+    function selectClass(target) {
+        let destinationUrl = '';
+        if (typeof target === 'number') {
+            destinationUrl = 'class-' + encodeURIComponent(target) + '-online-question-paper-generator';
+        } else {
+            destinationUrl = target;
+        }
+
+        if (isPremium) {
+            window.location.href = destinationUrl;
+            return;
+        }
+
+        window.ALHQuizAdGate.gate({
+            storageKey: 'alh_select_class_ad_seen_until',
+            premiumHref: 'subscription.php',
+            onContinue: () => {
+                window.location.href = destinationUrl;
+            }
+        });
     }
 </script>
 

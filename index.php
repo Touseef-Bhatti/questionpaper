@@ -26,6 +26,7 @@ function homeReviewStars(int $rating): string {
 <head>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
+    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Ahmad Learning Hub is an all-in-one question paper generator and exam preparation platform for students and teachers in Pakistan and India. Create school, college, and university tests with board exam patterns, MCQs, subjective questions, past papers, and online quizzes.">

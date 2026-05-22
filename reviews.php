@@ -126,9 +126,7 @@ function renderStars(int $rating): string {
 <head>
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
-
-    
-     
+    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Read verified student and teacher reviews for Ahmad Learning Hub. See real feedback about online quizzes, MCQs practice, and question paper generation tools.">

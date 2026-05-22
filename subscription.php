@@ -23,6 +23,7 @@ $userLimits = $subscriptionService->getUserLimits($userId);
 <head>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
+    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
 

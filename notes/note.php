@@ -5,6 +5,7 @@ include '../db_connect.php';
 <html lang="en">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
+    <?php include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -100,6 +101,34 @@ include '../db_connect.php';
         <h2 class="materials-section-title"><i class="fas fa-folder-open"></i> Study Resources</h2>
         <div class="materials-grid">
 
+            <div class="material-card" onclick="navigateToMaterial('practice-test')">
+                <div class="material-icon practice-test"><i class="fas fa-pencil-alt"></i></div>
+                <div class="material-body">
+                    <div class="material-title">Practice Test for Exams</div>
+                    <div class="material-description">Simulate real board exam conditions with timed practice tests for class 9 &amp; 10.</div>
+                    <span class="material-tag popular">Exam Ready</span>
+                </div>
+                <i class="fas fa-chevron-right material-arrow"></i>
+            </div>
+            <div class="material-card" onclick="navigateToMaterial('book-mcqs')">
+                <div class="material-icon book-mcqs"><i class="fas fa-list-ol"></i></div>
+                <div class="material-body">
+                    <div class="material-title">Complete Book MCQs</div>
+                    <div class="material-description">Browse and practice full-book multiple choice questions for all Punjab Board subjects.</div>
+                    <span class="material-tag free">Free Access</span>
+                </div>
+                <i class="fas fa-chevron-right material-arrow"></i>
+            </div>
+            <div class="material-card" onclick="navigateToMaterial('question-paper')">
+                <div class="material-icon question-paper"><i class="fas fa-file-invoice"></i></div>
+                <div class="material-body">
+                    <div class="material-title">Online Question Paper</div>
+                    <div class="material-description">Access past and sample question papers for Punjab Board class 9 &amp; 10 board exams.</div>
+                    <span class="material-tag new">New</span>
+                </div>
+                <i class="fas fa-chevron-right material-arrow"></i>
+            </div>
+            
             <div class="material-card" onclick="navigateToMaterial('textbook')">
                 <div class="material-icon textbook"><i class="fas fa-book"></i></div>
                 <div class="material-body">
@@ -189,7 +218,10 @@ include '../db_connect.php';
             const routes = {
                 'textbook': 'textbooks.php',
                 'notes': 'uploaded_notes.php',
-                'mcqs': 'mcqs'
+                'mcqs': 'mcqs',
+                'practice-test': '../examPreparation/select_class_for_test.php',
+                'book-mcqs': 'mcqs.php',
+                'question-paper': '../select_class.php'
             };
             const url = routes[type] || '#';
             if (url !== '#') {

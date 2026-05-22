@@ -4,9 +4,13 @@
  * Included dynamically based on subscription status.
  */
 
+if (defined('ALH_MONETAG_ADS_RENDERED')) {
+    return;
+}
+define('ALH_MONETAG_ADS_RENDERED', true);
+
 function inPagePushAds1() {
     $allowedPages = [
-        
         'select_class.php',
         'quiz_setup.php',
         'textbooks.php',
@@ -17,31 +21,14 @@ function inPagePushAds1() {
         'online_quiz_lobby.php',
         'select_book_for_test.php',
         'select_chapters_for_test.php',
-    ];
-    
-    if (!shouldShowAdsOnCurrentPage($allowedPages)) {
-        return '';
-    }
-    
-    return '
-    <!-- In-page push Ads 1 -->
-    <script>(function(s){s.dataset.zone="10752105",s.src="https://nap5k.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>
-    ';
-}
-
-function inPagePushAds2() {
-    $allowedPages = [
-
+        // Merged from removed In-page push Ads 2 script.
         'quiz_setup_inter.php',
         'select_book.php',
         'select_question.php',
         'mcqs_topic.php',
-        // 'home.php',
         'finalize_paper.php',
         'online_quiz_join.php',
         'select_class_for_test.php',
-      
-        
     ];
     
     if (!shouldShowAdsOnCurrentPage($allowedPages)) {
@@ -49,8 +36,8 @@ function inPagePushAds2() {
     }
     
     return '
-    <!-- In-page push Ads 2 -->
-    <script>(function(s){s.dataset.zone="10846120",s.src="https://nap5k.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>
+    <!-- In-page push Ads 1; removed Ads 2 zone 10846120 -->
+    <script async data-zone="10752105" src="https://nap5k.com/tag.min.js"></script>
     ';
 }
 
@@ -63,21 +50,7 @@ function vignetteBanner1() {
         'terms-and-conditions.php',
         'select_question.php',
         'select_book_for_test.php',
-        
-    ];
-    
-    if (!shouldShowAdsOnCurrentPage($allowedPages)) {
-        return '';
-    }
-    
-    return '
-    <!-- Vignette Banner 1 -->
-    <script>(function(s){s.dataset.zone="10752115",s.src="https://izcle.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>
-    ';
-}
-
-function vignetteBanner2() {
-    $allowedPages = [
+        // Merged from removed Vignette Banner 2 script.
         'textbooks.php',
         'mcqs.php',
         'reviews.php',
@@ -93,49 +66,19 @@ function vignetteBanner2() {
     }
     
     return '
-    <!-- Vignette Banner 2 -->
-    <script>(function(s){s.dataset.zone="10846367",s.src="https://n6wxm.com/vignette.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>
-    ';
-}
-
-function onClickAd() {
-    $allowedPages = [
-        // 'index.php',
-        // 'select_class.php',
-        // 'select_book.php',
-        // 'select_chapters.php',
-        // 'select_question.php',
-        // 'quiz_setup.php',
-        // 'mcqs_topic.php',
-        // 'quiz.php',
-        // 'home.php',
-        // 'finalize_paper.php',
-        // 'settings.php',
-        // 'online_quiz_join.php',
-        // 'online_quiz_lobby.php',
-        // 'textbooks.php',
-        // 'mcqs.php',
-        // 'reviews.php',
-        // 'about.php',
-        // 'contact.php',
-        // 'privacy-policy.php',
-        // 'terms-and-conditions.php',
-    ];
-    
-    if (!shouldShowAdsOnCurrentPage($allowedPages)) {
-        return '';
-    }
-    
-    return '
-    <!-- OnClick Ad -->
-    
+    <!-- Vignette Banner 1; removed Banner 2 zone 10846367 -->
+    <script async data-zone="10752115" src="https://izcle.com/vignette.min.js"></script>
     ';
 }
 
 function shouldShowAdsOnCurrentPage($allowedPages) {
-    // // --- LOCALHOST AD TOGGLE ---
-    $hostPart = explode(':', $_SERVER['HTTP_HOST'] ?? '')[0];
-    if ($hostPart === 'localhost' || $hostPart === '127.0.0.1') {
+    if (isMonetagRestrictedRequest()) {
+        return false;
+    }
+
+    // --- LOCALHOST AD TOGGLE ---
+    $hostPart = strtolower(explode(':', $_SERVER['HTTP_HOST'] ?? '')[0]);
+    if (in_array($hostPart, ['', 'localhost', '127.0.0.1', '::1'], true)) {
         return false;
     }
     
@@ -150,10 +93,22 @@ function shouldShowAdsOnCurrentPage($allowedPages) {
     return true;
 }
 
+function isMonetagRestrictedRequest() {
+    if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+        return true;
+    }
+
+    if (isset($_GET['ajax']) || isset($_POST['ajax']) || isset($_GET['modal'])) {
+        return true;
+    }
+
+    $scriptName = basename($_SERVER['SCRIPT_NAME'] ?? '');
+    $forbiddenScripts = ['ai_loader.php', 'download_doc.php', 'download_docx.php', 'generate_sitemap.php'];
+
+    return in_array($scriptName, $forbiddenScripts, true);
+}
+
 // Render all ads by default when file is included
 echo inPagePushAds1();
-echo inPagePushAds2();
 echo vignetteBanner1();
-echo vignetteBanner2();
-echo onClickAd();
 ?>

@@ -206,6 +206,7 @@ if ($viewMcqs) {
 <html lang="en">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
+    <?php include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

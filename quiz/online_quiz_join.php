@@ -61,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
+    <?php include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
   <title>Join Live AI Quiz - Competition & Board Prep - Ahmad Learning Hub</title>
   <!-- SEO & AI Optimization Meta Tags -->
   <meta name="description" content="Join a live AI-powered quiz room at Ahmad Learning Hub. Compete with students on new syllabus board exam MCQs, view real-time leaderboards, and get instant AI-driven performance assessment.">

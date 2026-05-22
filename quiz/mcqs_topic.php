@@ -416,8 +416,6 @@ if (isset($_POST['start_quiz'])) {
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
-
-      
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -455,6 +453,7 @@ if (isset($_POST['start_quiz'])) {
 </head>
 <body>
 <?php include_once '../header.php'; ?>
+<?php include_once __DIR__ . '/../includes/quiz_ad_gate.php'; ?>
 
 <!-- SIDE SKYSCRAPER ADS (Right Only) -->
 
@@ -994,13 +993,7 @@ document.getElementById('searchForm')?.addEventListener('submit', function(e) {
     showLoader('Searching Topics...', 'Deep search in progress.');
 });
 
-document.getElementById('startQuizForm')?.addEventListener('submit', function(e) {
-    if (selectedTopics.length === 0 || !document.getElementById('mcq_count').value) {
-        e.preventDefault();
-        alert('Selection internal error.');
-        return;
-    }
-
+function submitSelectedTopicsQuiz(form) {
     // Build SEO URL
     const topicsArr = [];
     const chapterIds = [];
@@ -1021,32 +1014,21 @@ document.getElementById('startQuizForm')?.addEventListener('submit', function(e)
     if (!seoTopic) seoTopic = 'General';
 
     const seoUrl = `${seoTopic}-MCQs-Quiz`;
-    
-    // For host mode, we submit to the current page to handle redirection back to host dashboard
-    const sourceInput = this.querySelector('input[name="source"]');
+    const sourceInput = form.querySelector('input[name="source"]');
     const isHost = (sourceInput && sourceInput.value === 'host');
-    
-    if (isHost) {
-        this.action = ''; // Submit to current page
-    } else {
-        this.action = seoUrl;
-    }
 
-    // Ensure start_quiz is present in POST data even when using form.submit()
-    if (!this.querySelector('input[name="start_quiz"]')) {
+    form.action = isHost ? '' : seoUrl;
+
+    if (!form.querySelector('input[name="start_quiz"]')) {
         const hiddenSubmit = document.createElement('input');
         hiddenSubmit.type = 'hidden';
         hiddenSubmit.name = 'start_quiz';
         hiddenSubmit.value = '1';
-        this.appendChild(hiddenSubmit);
+        form.appendChild(hiddenSubmit);
     }
 
-    // ── Submit the form FIRST — page starts loading immediately ─────────────
-    e.preventDefault();
-    const formRef = this;
-    formRef.submit(); // browser navigates right now — no waiting
+    form.submit();
 
-    // ── Loader is purely cosmetic — steps animate every 3s, zero backend link ─
     if (typeof showAILoader === 'function') {
         if (isHost) {
             showAILoader(
@@ -1067,12 +1049,27 @@ document.getElementById('startQuizForm')?.addEventListener('submit', function(e)
                     { label: 'Validating difficulty',   duration: 3500 },
                     { label: 'Finalizing paper',        duration: 3500 }
                 ],
-                'Our AI is synthesizing questions based on 2026 board standards…',
+                'Our AI is synthesizing questions based on 2026 board standards...',
                 'Quiz Generation Engine',
                 null
             );
         }
     }
+}
+
+document.getElementById('startQuizForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    if (selectedTopics.length === 0 || !document.getElementById('mcq_count').value) {
+        alert('Selection internal error.');
+        return;
+    }
+
+    window.ALHQuizAdGate.gate({
+        storageKey: 'alh_mcqs_topic_ad_seen_until',
+        premiumHref: '../subscription.php',
+        onContinue: () => submitSelectedTopicsQuiz(this)
+    });
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1353,6 +1350,26 @@ function displayMcqResults(data) {
     window._generatedMcqTopic = data.detected_topic || '';
 }
 
+function submitTextQuizForm(form, topicName) {
+    let seoTopic = topicName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!seoTopic) seoTopic = 'General';
+    form.action = `${seoTopic}-MCQs-Quiz`;
+    form.submit();
+
+    if (typeof showAILoader === 'function') {
+        const isHost = (document.querySelector('input[name="source"]')?.value === 'host');
+        const steps = isHost
+            ? [{ label: 'Saving topics', duration: 3000 }, { label: 'Syncing with dashboard', duration: 3000 }]
+            : [{ label: 'Preparing quiz', duration: 3000 }, { label: 'Loading questions', duration: 3000 }];
+        showAILoader(
+            steps,
+            isHost ? 'Updating your host dashboard...' : 'Setting up your quiz...',
+            isHost ? 'Topic Selection' : 'Quiz Setup',
+            null
+        );
+    }
+}
+
 function startTextQuiz() {
     const mcqs = window._generatedMcqs;
     if(!mcqs || mcqs.length === 0) return;
@@ -1392,27 +1409,11 @@ function startTextQuiz() {
 
     closeTextUploadModal();
 
-    // ── Build the form action URL ─────────────────────────────────────────────
-    let seoTopic = topicName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    if (!seoTopic) seoTopic = 'General';
-    form.action = `${seoTopic}-MCQs-Quiz`;
-
-    // ── Submit the form FIRST — page starts loading immediately ───────────────
-    form.submit(); // browser starts navigating right now
-
-    // ── Show loader as pure visual overlay (cosmetic only, no backend link) ───
-    if (typeof showAILoader === 'function') {
-        const isHost = (document.querySelector('input[name="source"]')?.value === 'host');
-        const steps = isHost
-            ? [{ label: 'Saving topics', duration: 3000 }, { label: 'Syncing with dashboard', duration: 3000 }]
-            : [{ label: 'Preparing quiz', duration: 3000 }, { label: 'Loading questions',     duration: 3000 }];
-        showAILoader(
-            steps,
-            isHost ? 'Updating your host dashboard...' : 'Setting up your quiz...',
-            isHost ? 'Topic Selection' : 'Quiz Setup',
-            null  // purely cosmetic — no callback
-        );
-    }
+    window.ALHQuizAdGate.gate({
+        storageKey: 'alh_mcqs_topic_ad_seen_until',
+        premiumHref: '../subscription.php',
+        onContinue: () => submitTextQuizForm(form, topicName)
+    });
 }
 </script>
 

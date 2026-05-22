@@ -75,6 +75,7 @@ function h($str) {
 <head>
  
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
+    <?php include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Lobby - <?= h($room['room_code']) ?> | Ahmad Learning Hub</title>

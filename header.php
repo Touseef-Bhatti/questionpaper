@@ -1,5 +1,4 @@
 <?php
-require_once __DIR__ . '/ads.php';
 include_once __DIR__ . '/db_connect.php';
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) session_start();
 
@@ -31,8 +30,6 @@ $alh_render_shell = !isset($skip_shell) && !isset($only_navbar) && !$alh_has_pri
 <?php if ($alh_render_shell): ?>
 <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
 <?php endif; ?>
-
-<?= renderMonetagScripts() ?>
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

@@ -199,6 +199,7 @@ while ($row = $result->fetch_assoc()) {
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
+    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_chapter.css">
     <link rel="stylesheet" href="css/buttons.css">
