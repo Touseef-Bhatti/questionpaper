@@ -28,7 +28,7 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
         overflow: hidden;
         width: min(460px, 100%);
         border-radius: 22px;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
         padding: 26px;
         box-shadow: 0 28px 90px rgba(15, 23, 42, 0.34);
         text-align: center;
@@ -65,7 +65,7 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
         place-items: center;
         margin: 0 auto 14px;
         border-radius: 18px;
-        background: linear-gradient(135deg, #10b981, #0ea5e9);
+                background: linear-gradient(135deg, #06b6d4, #3b82f6);
         color: #fff;
         font-size: 1.9rem;
         box-shadow: 0 14px 32px rgba(14, 165, 233, 0.28);
@@ -115,7 +115,7 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
     }
 
     .quiz-ad-actions .primary {
-        background: linear-gradient(135deg, #10b981, #0ea5e9);
+        background: linear-gradient(135deg, #06b6d4, #3b82f6);
         border: 0;
         box-shadow: 0 14px 28px rgba(14, 165, 233, 0.28);
         transform: translateY(0);
@@ -152,16 +152,16 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
 
 <div class="quiz-ad-modal" id="quizAdModal" role="dialog" aria-modal="true" aria-labelledby="quizAdModalTitle">
     <div class="quiz-ad-card">
-        <div class="quiz-ad-badge">Free access unlock</div>
+                <div class="quiz-ad-badge">Access unlocked</div>
         <div class="quiz-ad-icon">&#9654;</div>
-        <h3 id="quizAdModalTitle">Your quiz is ready</h3>
-        <p>Watch one quick ad in a new tab to unlock this quiz now. Return here and continue for 1 hour without this popup.</p>
+        <h3 id="quizAdModalTitle">Quiz ready</h3>
+        <p>Support us by viewing a message to unlock continued access to this content.</p>
         <div class="quiz-ad-perks">
-            <div class="quiz-ad-perk">Instant quiz start</div>
-            <div class="quiz-ad-perk">1 hour unlocked</div>
+            <div class="quiz-ad-perk">Immediate Access</div>
+            <div class="quiz-ad-perk">Timed Access</div>
         </div>
         <div class="quiz-ad-actions">
-            <button type="button" class="btn primary" id="watchQuizAdBtn">Watch Ads & Continue</button>
+            <button type="button" class="btn primary" id="watchQuizAdBtn">Watch Ads</button>
             <button type="button" class="btn secondary" id="quizAdPremiumBtn">Go Premium</button>
         </div>
         <div class="quiz-ad-note">Premium removes ads from your learning flow.</div>
@@ -198,7 +198,7 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
 
     function resetModal() {
         adOpened = false;
-        watchButton.textContent = 'Watch Ads & Continue';
+                watchButton.textContent = 'Watch Ads';
         watchButton.disabled = false;
     }
 
@@ -234,7 +234,7 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
             setPass(currentStorageKey);
             adOpened = true;
             openAdPage();
-            watchButton.textContent = 'Continue Quiz';
+            watchButton.textContent = 'Continue';
             return;
         }
 

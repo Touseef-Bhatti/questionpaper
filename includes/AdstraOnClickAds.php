@@ -152,10 +152,10 @@ define('ALH_ADSTRA_ON_CLICK_ADS_RENDERED', true);
 
 <div class="quiz-ad-modal" id="quizAdModal" role="dialog" aria-modal="true" aria-labelledby="quizAdModalTitle">
     <div class="quiz-ad-card">
-        <div class="quiz-ad-badge">Free access unlock</div>
+        <div class="quiz-ad-badge">Access unlocked</div>
         <div class="quiz-ad-icon">&#9654;</div>
-        <h3 id="quizAdModalTitle">Everything is ready</h3>
-        <p>Watch one quick ad in a new tab to unlock this quiz now. Return here and continue for 1 hour without this popup.</p>
+        <h3 id="quizAdModalTitle">Unlock Content</h3>
+        <p>Watch an ad to unlock this quiz. Return here to continue.</p>
         <div class="quiz-ad-perks">
             <div class="quiz-ad-perk">Instant quiz start</div>
             <div class="quiz-ad-perk">1 hour unlocked</div>
