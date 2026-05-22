@@ -38,6 +38,7 @@ include_once '../header.php';
 <html lang="en">
 <head>
     
+    <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
 <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
 <link rel="stylesheet" href="<?= $assetBase ?>css/online_quiz_host_new.css">
 <link rel="stylesheet" href="<?= $assetBase ?>css/mcqs_topic.css">

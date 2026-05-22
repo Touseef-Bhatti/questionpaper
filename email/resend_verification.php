@@ -36,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
     <title>Resend Verification Email</title>
     <link rel="stylesheet" href="../css/login.css">

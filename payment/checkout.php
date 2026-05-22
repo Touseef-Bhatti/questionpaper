@@ -82,6 +82,7 @@ if (empty($_SESSION['csrf_token'])) {
 <html lang="en">
 <head>
    
+    <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/header.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/checkout.css">

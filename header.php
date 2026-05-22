@@ -18,15 +18,19 @@ foreach ($gen_paper_pages as $p) {
 }
 
 if (isset($only_navbar) && $only_navbar) goto alh_navbar_start;
+$alh_has_prior_output = headers_sent() || (ob_get_level() > 0 && ob_get_length() > 0);
+$alh_render_shell = !isset($skip_shell) && !isset($only_navbar) && !$alh_has_prior_output;
 ?>
-<?php if (!isset($skip_shell)): ?>
+<?php if ($alh_render_shell): ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <?php endif; ?>
 
 <?php include_once __DIR__ . '/includes/favicons.php'; ?>
+<?php if ($alh_render_shell): ?>
 <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
+<?php endif; ?>
 
 <?= renderMonetagScripts() ?>
 
@@ -584,11 +588,11 @@ body { padding-top:var(--ah, 66px); }
 <?php if (isset($extraHead)) echo $extraHead; ?>
 
 <?php if (isset($only_head) && $only_head): ?>
-<?php if (!isset($skip_shell)): ?></head><?php endif; ?>
+<?php if ($alh_render_shell): ?></head><?php endif; ?>
 <?php return; ?>
 <?php endif; ?>
 
-<?php if (!isset($skip_shell) && !isset($only_navbar)): ?>
+<?php if ($alh_render_shell): ?>
 </head>
 <body>
 <?php endif; ?>

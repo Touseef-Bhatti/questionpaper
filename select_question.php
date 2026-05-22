@@ -198,6 +198,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
 
     <link rel="stylesheet" href="css/main.css">
