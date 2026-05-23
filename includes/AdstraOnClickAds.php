@@ -12,159 +12,129 @@ define('ALH_ADSTRA_ON_CLICK_ADS_RENDERED', true);
         display: none;
         align-items: center;
         justify-content: center;
-        padding: 20px;
-        background:
-            radial-gradient(circle at top, rgba(14, 165, 233, 0.24), transparent 34%),
-            rgba(15, 23, 42, 0.78);
-        backdrop-filter: blur(10px);
+        padding: 16px;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
     }
 
     .quiz-ad-modal.is-open {
         display: flex;
+        animation: adGateFadeIn 0.25s ease-out;
+    }
+
+    @keyframes adGateFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes adGateSlideUp {
+        from { transform: scale(0.92); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
     }
 
     .quiz-ad-card {
         position: relative;
-        overflow: hidden;
-        width: min(460px, 100%);
-        border-radius: 22px;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-        padding: 26px;
-        box-shadow: 0 28px 90px rgba(15, 23, 42, 0.34);
+        width: 100%;
+        max-width: 420px;
+        border-radius: 20px;
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        padding: 20px 20px 24px;
         text-align: center;
-        font-family: Inter, system-ui, sans-serif;
-        border: 1px solid rgba(255, 255, 255, 0.7);
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+        animation: adGateSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* Pill handle */
     .quiz-ad-card::before {
         content: "";
-        position: absolute;
-        inset: 0 0 auto;
-        height: 7px;
-        background: linear-gradient(90deg, #10b981, #0ea5e9, #6366f1);
+        display: block;
+        width: 36px;
+        height: 4px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.18);
+        margin: 0 auto 16px;
     }
 
-    .quiz-ad-badge {
-        display: inline-flex;
+    .quiz-ad-msg {
+        display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 34px;
-        padding: 7px 13px;
-        border-radius: 999px;
-        background: #ecfdf5;
-        color: #047857;
-        font-size: 0.82rem;
-        font-weight: 800;
-        margin-bottom: 14px;
+        gap: 6px;
+        margin: 0 0 16px;
+        color: #cbd5e1;
+        font-size: 0.85rem;
+        font-weight: 500;
+        line-height: 1.4;
     }
 
-    .quiz-ad-icon {
-        width: 64px;
-        height: 64px;
-        display: grid;
-        place-items: center;
-        margin: 0 auto 14px;
-        border-radius: 18px;
-        background: linear-gradient(135deg, #10b981, #0ea5e9);
-        color: #fff;
-        font-size: 1.9rem;
-        box-shadow: 0 14px 32px rgba(14, 165, 233, 0.28);
+    .quiz-ad-msg svg {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        color: #38bdf8;
     }
 
-    .quiz-ad-card h3 {
-        margin: 0 0 8px;
-        color: #0f172a;
-        font-size: clamp(1.35rem, 4vw, 1.7rem);
-        line-height: 1.15;
-    }
-
-    .quiz-ad-card p {
-        margin: 0 auto 20px;
-        color: #475569;
-        line-height: 1.55;
-        max-width: 34ch;
-    }
-
-    .quiz-ad-perks {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin: 0 0 20px;
-    }
-
-    .quiz-ad-perk {
-        border-radius: 14px;
-        background: #f1f5f9;
-        color: #334155;
-        padding: 11px 10px;
-        font-size: 0.86rem;
+    .quiz-ad-msg strong {
+        color: #f1f5f9;
         font-weight: 700;
     }
 
-    .quiz-ad-actions {
-        display: grid;
-        gap: 10px;
-    }
-
-    .quiz-ad-actions .btn {
-        width: 100%;
+    /* Watch Ad button */
+    .quiz-ad-watch-btn {
+        display: inline-flex;
+        align-items: center;
         justify-content: center;
-        min-height: 48px;
-        border-radius: 14px;
-        font-weight: 800;
-    }
-
-    .quiz-ad-actions .primary {
+        gap: 8px;
+        width: 100%;
+        max-width: 280px;
+        height: 46px;
+        border: none;
+        border-radius: 12px;
         background: linear-gradient(135deg, #10b981, #0ea5e9);
-        border: 0;
-        box-shadow: 0 14px 28px rgba(14, 165, 233, 0.28);
-        transform: translateY(0);
-        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        color: #fff;
+        font-family: inherit;
+        font-size: 0.92rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
     }
 
-    .quiz-ad-actions .primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 18px 36px rgba(14, 165, 233, 0.34);
+    .quiz-ad-watch-btn:active {
+        transform: scale(0.97);
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
     }
 
-    .quiz-ad-note {
-        margin-top: 12px;
-        color: #64748b;
-        font-size: 0.8rem;
+    .quiz-ad-watch-btn svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
     }
 
-    @media (max-width: 480px) {
-        .quiz-ad-modal {
-            align-items: flex-end;
-            padding: 12px;
-        }
+    @media (min-width: 481px) {
 
-        .quiz-ad-card {
-            border-radius: 20px;
-            padding: 24px 18px 18px;
-        }
-
-        .quiz-ad-perks {
-            grid-template-columns: 1fr;
+        .quiz-ad-watch-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
         }
     }
 </style>
 
-<div class="quiz-ad-modal" id="quizAdModal" role="dialog" aria-modal="true" aria-labelledby="quizAdModalTitle">
+<div class="quiz-ad-modal" id="quizAdModal" role="dialog" aria-modal="true" aria-labelledby="quizAdMsg">
     <div class="quiz-ad-card">
-        <div class="quiz-ad-badge">Access unlocked</div>
-        <div class="quiz-ad-icon">&#9654;</div>
-        <h3 id="quizAdModalTitle">Unlock Content</h3>
-        <p>Watch an ad to unlock this quiz. Return here to continue.</p>
-        <div class="quiz-ad-perks">
-            <div class="quiz-ad-perk">Instant quiz start</div>
-            <div class="quiz-ad-perk">1 hour unlocked</div>
-        </div>
-        <div class="quiz-ad-actions">
-            <button type="button" class="btn primary" id="watchQuizAdBtn">Watch Ads & Continue</button>
-            <button type="button" class="btn secondary" id="quizAdPremiumBtn">Go Premium</button>
-        </div>
-        <div class="quiz-ad-note">Premium removes ads from your learning flow.</div>
+        <p class="quiz-ad-msg" id="quizAdMsg">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Watch <strong>1 ad</strong> to continue free for <strong>1 hour</strong>
+        </p>
+        <button type="button" class="quiz-ad-watch-btn" id="watchQuizAdBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Watch Ad
+        </button>
     </div>
 </div>
 
@@ -174,13 +144,14 @@ define('ALH_ADSTRA_ON_CLICK_ADS_RENDERED', true);
 
     const modal = document.getElementById('quizAdModal');
     const watchButton = document.getElementById('watchQuizAdBtn');
-    const premiumButton = document.getElementById('quizAdPremiumBtn');
     const ttlMs = 60 * 60 * 1000;
     const adUrl = 'https://www.effectivecpmnetwork.com/v0uzsjuw?key=1f575b11219ec29bdc53a937a8aaac03';
 
+    const btnDefault = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5v14l11-7z"/></svg> Watch Ad`;
+    const btnContinue = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="9 18 15 12 9 6"/></svg> Continue`;
+
     let pendingContinue = null;
     let currentStorageKey = 'alh_quiz_ad_seen_until';
-    let currentPremiumHref = 'subscription.php';
     let adOpened = false;
 
     function hasActivePass(storageKey) {
@@ -198,14 +169,12 @@ define('ALH_ADSTRA_ON_CLICK_ADS_RENDERED', true);
 
     function resetModal() {
         adOpened = false;
-        watchButton.textContent = 'Watch Ads & Continue';
+        watchButton.innerHTML = btnDefault;
         watchButton.disabled = false;
     }
 
     function getPageStorageKey(baseKey) {
-        // Uniquely identify the page based on the pathname and query parameters
         const pageId = window.location.pathname + window.location.search;
-        // Sanitize to create a clean and safe localStorage key
         const cleanPageId = pageId.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/__+/g, '_').replace(/^_|_$/g, '');
         return `${baseKey}_${cleanPageId}`;
     }
@@ -222,7 +191,6 @@ define('ALH_ADSTRA_ON_CLICK_ADS_RENDERED', true);
             }
 
             currentStorageKey = storageKey;
-            currentPremiumHref = options.premiumHref || currentPremiumHref;
             pendingContinue = onContinue;
             resetModal();
             modal.classList.add('is-open');
@@ -234,7 +202,7 @@ define('ALH_ADSTRA_ON_CLICK_ADS_RENDERED', true);
             setPass(currentStorageKey);
             adOpened = true;
             openAdPage();
-            watchButton.textContent = 'Continue Quiz';
+            watchButton.innerHTML = btnContinue;
             return;
         }
 
@@ -246,10 +214,6 @@ define('ALH_ADSTRA_ON_CLICK_ADS_RENDERED', true);
         if (typeof onContinue === 'function') {
             onContinue();
         }
-    });
-
-    premiumButton.addEventListener('click', () => {
-        window.location.href = currentPremiumHref;
     });
 })();
 </script>
