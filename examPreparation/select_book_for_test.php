@@ -32,6 +32,16 @@ $res = $stmt->get_result()->fetch_assoc();
 $className = $res['class_name'] ?? 'Class';
 $stmt->close();
 
+$stmt = $conn->prepare("SELECT book_id, book_name FROM book WHERE class_id = ? ORDER BY book_id ASC");
+$stmt->bind_param("i", $class_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$booksData = [];
+while ($row = $result->fetch_assoc()) {
+    $booksData[] = $row;
+}
+$stmt->close();
+
 $assetBase = '../';
 include '../header.php';
 $displayClassName = $className;
