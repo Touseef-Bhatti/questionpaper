@@ -100,6 +100,7 @@ foreach ($staticPages as [$path, $changefreq, $priority]) {
 }
 
 addUrl($urls, $baseUrl, '/class-9th-and-10th-online-question-paper-generator', 'weekly', '0.9', $today);
+addUrl($urls, $baseUrl, '/Class-11-and-12-Online-Question-Paper-generator', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/online-question-paper-generator', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/online-mcqs-test-for-9th-and-10th-board-exams', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/topic-wise-mcqs-test', 'weekly', '0.8', $today);
@@ -107,6 +108,12 @@ addUrl($urls, $baseUrl, '/online-mcqs-question-paper-generator', 'weekly', '0.7'
 addUrl($urls, $baseUrl, '/online-short-question-paper-generator', 'weekly', '0.7', $today);
 addUrl($urls, $baseUrl, '/online-long-question-paper-generator', 'weekly', '0.7', $today);
 addUrl($urls, $baseUrl, '/online-mcqs-short-and-long-question-paper-generator', 'weekly', '0.7', $today);
+
+// Exam Preparation Entry Points
+addUrl($urls, $baseUrl, '/Class-9-10-pastPaper-&-Test-Papers', 'weekly', '0.9', $today);
+addUrl($urls, $baseUrl, '/Class-11-12-pastPaper-&-Test-Papers', 'weekly', '0.9', $today);
+addUrl($urls, $baseUrl, '/University-pastPaper-&-Test-Papers', 'weekly', '0.8', $today);
+addUrl($urls, $baseUrl, '/online-test-papers-preparation', 'weekly', '0.9', $today);
 
 $classRows = [];
 $classQuery = $conn->query('SELECT class_id, class_name FROM class ORDER BY class_id ASC');
@@ -126,10 +133,17 @@ if ($bookQuery) {
 
 foreach ($classRows as $classRow) {
     $classId = (int) ($classRow['class_id'] ?? 0);
+    $className = trim((string) ($classRow['class_name'] ?? ''));
     if ($classId <= 0) {
         continue;
     }
+    
     addUrl($urls, $baseUrl, '/class-' . $classId . '-online-question-paper-generator', 'weekly', '0.8', $today);
+    
+    $classSlug = strtolower(str_replace(' ', '', $className));
+    if ($classSlug !== '') {
+        addUrl($urls, $baseUrl, '/' . $classSlug . '-chapterWise-test-series', 'weekly', '0.8', $today);
+    }
 }
 
 foreach ($bookRows as $bookRow) {
@@ -146,6 +160,25 @@ foreach ($bookRows as $bookRow) {
     $ordinalClass = toOrdinal($classId);
     addUrl($urls, $baseUrl, '/' . $ordinalClass . '-class-' . $bookSlug . '-question-paper-generator', 'weekly', '0.8', $today);
     addUrl($urls, $baseUrl, '/mcqs/' . $ordinalClass . '-class/' . $bookSlug, 'weekly', '0.7', $today);
+    
+    $bookNameUrl = urlencode(str_replace(' ', '-', $bookName));
+    addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookNameUrl . '-chapterWise-test-series', 'weekly', '0.8', $today);
+}
+
+$examQuery = $conn->query('SELECT e.id, e.class_id, b.book_name FROM exam_preparations e JOIN book b ON e.book_id = b.book_id ORDER BY e.id ASC');
+if ($examQuery) {
+    while ($examRow = $examQuery->fetch_assoc()) {
+        $classId = (int) ($examRow['class_id'] ?? 0);
+        $bookName = trim((string) ($examRow['book_name'] ?? ''));
+        $examId = (int) ($examRow['id'] ?? 0);
+        
+        if ($classId <= 0 || $bookName === '' || $examId <= 0) {
+            continue;
+        }
+        
+        $bookNameUrl = urlencode(str_replace(' ', '-', $bookName));
+        addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookNameUrl . '-chapterWise-test-series-Online-Test-' . $examId, 'weekly', '0.7', $today);
+    }
 }
 
 ksort($urls, SORT_NATURAL | SORT_FLAG_CASE);
