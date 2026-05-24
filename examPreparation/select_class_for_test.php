@@ -153,9 +153,9 @@ include '../header.php';
 
     function selectClass(classId, classSlug) {
         // Use class name slug for SEO if available, otherwise fallback to class-ID
-        // Pattern: /class9-PastPapers or /class-9-PastPapers
+        // Pattern: /class9-chapterWise-test-series or /class-9-chapterWise-test-series
         const slug = classSlug ? classSlug : 'class-' + classId;
-        const destinationUrl = '<?= $assetBase ?>' + slug + '-PastPapers?class_id=' + classId;
+        const destinationUrl = '<?= $assetBase ?>' + slug + '-chapterWise-test-series?class_id=' + classId;
 
         if (isPremium) {
             window.location.href = destinationUrl;

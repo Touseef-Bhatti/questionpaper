@@ -331,7 +331,7 @@ $pageTitle = $className . " " . $bookName . " Online Exam Preparation & Test Pap
             <div class="practice-tests-grid mb-4">
                 <?php foreach ($examsData as $exam): 
                     $bookSlug = urlencode(str_replace(' ', '-', $bookName));
-                    $seoExamUrl = "{$assetBase}class-{$class_id}-{$bookSlug}-PastPapers-Online-Test-{$exam['id']}";
+                    $seoExamUrl = "{$assetBase}class-{$class_id}-{$bookSlug}-chapterWise-test-series-Online-Test-{$exam['id']}";
                 ?>
                     <a href="<?= $seoExamUrl ?>" class="test-square-card">
                         <div class="test-icon">
@@ -356,7 +356,7 @@ $pageTitle = $className . " " . $bookName . " Online Exam Preparation & Test Pap
                     <p>No pre-created full <strong>test papers</strong> available for this book yet. Use the Online MCQs Test above to practice!</p>
                 </div>
             <?php endif; ?>
- <a href="<?= $assetBase ?>class-<?= $class_id ?>-PastPapers" class="back-grid-button">
+ <a href="<?= $assetBase ?>class-<?= $class_id ?>-chapterWise-test-series" class="back-grid-button">
                         <i class="fas fa-arrow-left"></i> Back to Subjects
                     </a>
             <!-- SEO Blog Section -->

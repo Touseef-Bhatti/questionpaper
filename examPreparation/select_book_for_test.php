@@ -131,8 +131,8 @@ $pageTitle = $displayClassName . " Board Exam Preparation 2026 - Online Test Pap
 
 <script>
     function selectBook(bookName) {
-        // Updated to SEO-friendly URL pattern: class-X-SubjectName-PastPapers
-        window.location.href = '<?= $assetBase ?>class-<?= $class_id ?>-' + bookName + '-PastPapers';
+        // Updated to SEO-friendly URL pattern: class-X-SubjectName-chapterWise-test-series
+        window.location.href = '<?= $assetBase ?>class-<?= $class_id ?>-' + bookName + '-chapterWise-test-series';
     }
 </script>
 

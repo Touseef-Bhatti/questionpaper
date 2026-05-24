@@ -131,14 +131,14 @@ Options -Indexes
     # Matches /past-papers or /online-test-papers (General fallback)
     RewriteRule ^online-test-papers-preparation/?$ examPreparation/select_class_for_test.php [NC,L]
     
-    # Matches /class-9-Physics-PastPapers (Subject Selection) - MUST be before general class rule
-    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-PastPapers/?$ examPreparation/select_chapters_for_test.php?class_id=$1&book_name=$2 [QSA,NC,L]
+    # Matches /class-9-Physics-chapterWise-test-series (Subject Selection) - MUST be before general class rule
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series/?$ examPreparation/select_chapters_for_test.php?class_id=$1&book_name=$2 [QSA,NC,L]
 
-    # Matches /class9-PastPapers or /9th-class-PastPapers (Class Selection)
-    RewriteRule ^([a-zA-Z0-9-]+)-PastPapers/?$ examPreparation/select_book_for_test.php?class_slug=$1 [QSA,NC,L]
+    # Matches /class9-chapterWise-test-series or /9th-class-chapterWise-test-series (Class Selection)
+    RewriteRule ^([a-zA-Z0-9-]+)-chapterWise-test-series/?$ examPreparation/select_book_for_test.php?class_slug=$1 [QSA,NC,L]
     
-    # Matches /class-10-Physics-PastPapers-Online-Test-2 (Pre-created Exams)
-    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-PastPapers-Online-Test-([0-9]+)/?$ examPreparation/take_test.php?class_id=$1&book_name=$2&exam_id=$3 [QSA,NC,L]
+    # Matches /class-10-Physics-chapterWise-test-series-Online-Test-2 (Pre-created Exams)
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series-Online-Test-([0-9]+)/?$ examPreparation/take_test.php?class_id=$1&book_name=$2&exam_id=$3 [QSA,NC,L]
 
     # Matches /class-9-Physics-Chapter-1-Test (Custom Chapters)
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-Chapter-([0-9-]+)-Test/?$ examPreparation/take_test.php?class_id=$1&book_name=$2&chapter_ids=$3&custom=1 [QSA,NC,L]
