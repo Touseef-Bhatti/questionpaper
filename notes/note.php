@@ -93,7 +93,7 @@ include '../db_connect.php';
         <div class="quick-links">
             <a href="<?= $assetBase ?>select_book.php?class_id=9" class="quick-link bypass-user-type"><i class="fas fa-book-open"></i> Class 9 – All Subjects</a>
             <a href="<?= $assetBase ?>select_book.php?class_id=10" class="quick-link bypass-user-type"><i class="fas fa-book-open"></i> Class 10 – All Subjects</a>
-            <a href="<?= $assetBase ?>quiz_setup" class="quick-link bypass-user-type"><i class="fas fa-clipboard-check"></i> MCQs Practice – 9th & 10th</a>
+            <a href="<?= $assetBase ?>class-9-10-11-12-mcqs-for-board-exams" class="quick-link bypass-user-type"><i class="fas fa-clipboard-check"></i> MCQs Practice – Class 9-12</a>
             <a href="<?= $assetBase ?>topic-wise-mcqs-test" class="quick-link bypass-user-type"><i class="fas fa-brain"></i> Topic-Wise MCQs Test</a>
         </div>
 
@@ -218,8 +218,8 @@ include '../db_connect.php';
             const routes = {
                 'textbook': 'textbooks.php',
                 'notes': 'uploaded_notes.php',
-                'mcqs': 'mcqs',
-                'practice-test': '../examPreparation/select_class_for_test.php',
+                'mcqs': '../class-9-10-11-12-mcqs-for-board-exams',
+                'practice-test': '../class-9-10-11-12-test-series-for-board-exams',
                 'book-mcqs': 'mcqs.php',
                 'question-paper': '../select_class.php'
             };

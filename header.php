@@ -974,8 +974,8 @@ function alhGo(cls,action,grade){
         else if(cls==='College') url=base+'class-11-and-12-online-mcqs-prepation-test';
         else if(cls==='University') url=base+'class-11-and-12-online-mcqs-prepation-test';
     } else if(action==='board_exam_prep'){
-        if(cls==='School') url=base+'Class-9-10-pastPaper-&-Test-Papers';
-        else if(cls==='College') url=base+'Class-11-12-pastPaper-&-Test-Papers';
+        if(cls==='School') url=base+'class-9-10-11-12-test-series-for-board-exams?level=School';
+        else if(cls==='College') url=base+'class-9-10-11-12-test-series-for-board-exams?level=College';
         else url=base+'University-pastPaper-&-Test-Papers';
     }
     if(url) window.location.href=url;

@@ -86,13 +86,13 @@ function homeReviewStars(int $rating): string {
                 </p>
 
                 <div class="hero-prep-grid">
-                    <a href="examPreparation/select_class_for_test.php" class="hero-prep-card bypass-user-type">
+                    <a href="class-9-10-11-12-test-series-for-board-exams" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-graduation-cap"></i></span>
                         <h3>Class 9 & 10 Exam Preparation</h3>
                         <p>Build strong fundamentals with chapter-wise tests, model papers, and comprehensive board practice.</p>
                         <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="examPreparation/select_class_for_test.php" class="hero-prep-card bypass-user-type">
+                    <a href="class-9-10-11-12-test-series-for-board-exams" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-university"></i></span>
                         <h3>Class 11 & 12 Exam Preparation</h3>
                         <p>Master your subjects with expert-curated chapter tests, short questions, and final revision papers.</p>
@@ -104,7 +104,7 @@ function homeReviewStars(int $rating): string {
                         <p>Take topic-wise MCQs tests with instant scoring and smart performance tracking.</p>
                         <span class="prep-card-cta">Start Test <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="examPreparation/select_class_for_test.php" class="hero-prep-card bypass-user-type">
+                    <a href="class-9-10-11-12-test-series-for-board-exams" class="hero-prep-card bypass-user-type">
                         <span class="hero-prep-icon"><i class="fas fa-file-signature"></i></span>
                         <h3>Board Exam Preparation</h3>
                         <p>Prepare with board-oriented formats, realistic paper structure, and balanced difficulty.</p>

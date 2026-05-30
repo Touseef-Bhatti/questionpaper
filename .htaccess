@@ -119,25 +119,51 @@ Options -Indexes
     RewriteRule ^([^/]+)$ examPreparation/$1 [L]
 
     # 6. Handle SEO pattern for MCQs page
+    RewriteRule ^class-9-10-11-12-mcqs-for-board-exams/?$ notes/Mcqs/index.php [NC,L]
+    RewriteRule ^class-?([0-9]+)-all-subjects-mcqs-with-explanations/?$ notes/Mcqs/books.php?class_id=$1 [QSA,NC,L]
+    RewriteRule ^class-?([0-9]+)-all-subjects-mcqs-with-answers/?$ /class-$1-all-subjects-mcqs-with-explanations [R=301,L]
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapter-wise-mcqs-with-explanations/?$ notes/Mcqs/chapters.php?class_id=$1&book_name=$2 [QSA,NC,L]
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapter-wise-mcqs-with-answers/?$ /class-$1-$2-chapter-wise-mcqs-with-explanations [R=301,L]
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-(.+)-mcqs-with-explanations/?$ notes/Mcqs/chapters.php?class_id=$1&book_name=$2&chapter_slug=$3 [QSA,NC,L]
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-(.+)-mcqs-with-answers/?$ /class-$1-$2-$3-mcqs-with-explanations [R=301,L]
+    RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ /class-$1-$2-chapter-wise-mcqs-with-explanations [R=301,L]
+
     # Matches patterns like: mcqs/9th-class/physics
     RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ notes/mcqs.php?class_id=$1&book_name=$2&view=1 [QSA,NC,L]
 
     # 9. Exam Preparation SEO Rules
+    RewriteCond %{THE_REQUEST} \s/+examPreparation/select_class_for_test\.php[\s?] [NC]
+    RewriteRule ^examPreparation/select_class_for_test\.php$ /class-9-10-11-12-test-series-for-board-exams [R=301,L]
+    RewriteCond %{THE_REQUEST} \s/+online-test-papers-preparation[\s?/] [NC]
+    RewriteRule ^online-test-papers-preparation/?$ /class-9-10-11-12-test-series-for-board-exams [R=301,L]
+
     # Level-specific SEO entry points
     RewriteRule ^Class-9-10-pastPaper-&-Test-Papers/?$ examPreparation/select_class_for_test.php?level=School [NC,L]
     RewriteRule ^Class-11-12-pastPaper-&-Test-Papers/?$ examPreparation/select_class_for_test.php?level=College [NC,L]
     RewriteRule ^University-pastPaper-&-Test-Papers/?$ examPreparation/select_class_for_test.php?level=University [NC,L]
     
     # Matches /past-papers or /online-test-papers (General fallback)
+    RewriteRule ^class-9-10-11-12-test-series-for-board-exams/?$ examPreparation/select_class_for_test.php [NC,L]
     RewriteRule ^online-test-papers-preparation/?$ examPreparation/select_class_for_test.php [NC,L]
     
-    # Matches /class-9-Physics-chapterWise-test-series (Subject Selection) - MUST be before general class rule
+    # Matches /class-9-all-subjects-test-series-with-solutions (Class Subject Selection)
+    RewriteRule ^class-?([0-9]+)-all-subjects-test-series-with-solutions/?$ examPreparation/select_book_for_test.php?class_id=$1 [QSA,NC,L]
+    RewriteRule ^class-?([0-9]+)-chapterWise-test-series/?$ /class-$1-all-subjects-test-series-with-solutions [R=301,L]
+
+    # Matches /class-10-Physics-chapterWise-test-series-with-solutions (Chapter Selection)
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series-with-solutions/?$ examPreparation/select_chapters_for_test.php?class_id=$1&book_name=$2 [QSA,NC,L]
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series/?$ /class-$1-$2-chapterWise-test-series-with-solutions [R=301,L]
+
+    # Matches /class-9-Physics-chapterWise-test-series (legacy Subject Selection)
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series/?$ examPreparation/select_chapters_for_test.php?class_id=$1&book_name=$2 [QSA,NC,L]
 
     # Matches /class9-chapterWise-test-series or /9th-class-chapterWise-test-series (Class Selection)
     RewriteRule ^([a-zA-Z0-9-]+)-chapterWise-test-series/?$ examPreparation/select_book_for_test.php?class_slug=$1 [QSA,NC,L]
     
-    # Matches /class-10-Physics-chapterWise-test-series-Online-Test-2 (Pre-created Exams)
+    # Matches /class-10-Physics-selected-test-title-with-solutions (Pre-created Exams)
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-(.+)-with-solutions/?$ examPreparation/take_test.php?class_id=$1&book_name=$2&test_title=$3 [QSA,NC,L]
+
+    # Matches /class-10-Physics-chapterWise-test-series-Online-Test-2 (Legacy Pre-created Exams)
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series-Online-Test-([0-9]+)/?$ examPreparation/take_test.php?class_id=$1&book_name=$2&exam_id=$3 [QSA,NC,L]
 
     # Matches /class-9-Physics-Chapter-1-Test (Custom Chapters)

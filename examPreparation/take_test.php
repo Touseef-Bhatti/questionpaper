@@ -194,6 +194,40 @@ $is_custom = isset($_GET['custom']);
 
 $is_from_paper = isset($_GET['from_paper']);
 
+function testSeriesSlug(string $value): string
+{
+    $slug = strtolower(trim($value));
+    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+    $slug = preg_replace('/-+/', '-', $slug);
+    return trim((string) $slug, '-');
+}
+
+if (!$exam_id && !$is_custom && !$is_from_paper && !empty($_GET['test_title']) && !empty($_GET['class_id']) && !empty($_GET['book_name'])) {
+    $class_id_for_exam = intval($_GET['class_id']);
+    $book_name_from_url = str_replace('-', ' ', (string) $_GET['book_name']);
+    $test_title_slug = testSeriesSlug((string) $_GET['test_title']);
+
+    $stmt = $conn->prepare("
+        SELECT e.id, e.title
+        FROM exam_preparations e
+        JOIN book b ON e.book_id = b.book_id
+        WHERE e.class_id = ?
+          AND b.book_name LIKE ?
+        ORDER BY e.id ASC
+    ");
+    $bookSearchTerm = "%$book_name_from_url%";
+    $stmt->bind_param("is", $class_id_for_exam, $bookSearchTerm);
+    $stmt->execute();
+    $candidateExams = $stmt->get_result();
+    while ($candidateExam = $candidateExams->fetch_assoc()) {
+        if (testSeriesSlug((string) $candidateExam['title']) === $test_title_slug) {
+            $exam_id = (int) $candidateExam['id'];
+            break;
+        }
+    }
+    $stmt->close();
+}
+
 // --- Caching Logic ---
 require_once '../services/CacheManager.php';
 $cacheManager = new CacheManager();
@@ -207,6 +241,7 @@ if ($cachedData && is_array($cachedData)) {
     $exam = $cachedData['exam'] ?? null;
     $pageTitle = $cachedData['pageTitle'];
     $info = $cachedData['info'] ?? null;
+    $displayTestTitle = $cachedData['displayTestTitle'] ?? $pageTitle;
 } else {
     $questions_data = [
         'mcqs' => [],
@@ -223,6 +258,26 @@ if ($cachedData && is_array($cachedData)) {
         $stmt->close();
 
         if (!$exam) die("Exam not found.");
+
+        $infoStmt = $conn->prepare("
+            SELECT c.class_name, b.book_name
+            FROM class c
+            JOIN book b ON c.class_id = b.class_id
+            WHERE c.class_id = ? AND b.book_id = ?
+        ");
+        $infoStmt->bind_param("ii", $exam['class_id'], $exam['book_id']);
+        $infoStmt->execute();
+        $info = $infoStmt->get_result()->fetch_assoc();
+        $infoStmt->close();
+
+        if ($_SERVER['REQUEST_METHOD'] === 'GET' && empty($_GET['test_title'])) {
+            $canonicalBookSlug = urlencode(str_replace(' ', '-', (string) ($info['book_name'] ?? '')));
+            $canonicalTestSlug = testSeriesSlug((string) $exam['title']);
+            if ($canonicalBookSlug !== '' && $canonicalTestSlug !== '') {
+                header("Location: ../class-{$exam['class_id']}-{$canonicalBookSlug}-{$canonicalTestSlug}-with-solutions", true, 301);
+                exit;
+            }
+        }
 
         if ($exam['selection_type'] === 'manual' && !empty($exam['question_ids'])) {
             $qids = json_decode($exam['question_ids'], true);
@@ -286,14 +341,22 @@ if ($cachedData && is_array($cachedData)) {
 
     // Fetch SEO data
     $pageTitle = "Practice-Test-Assessment";
-    $info = null;
+    $displayTestTitle = "Practice Test Assessment";
+    if (!isset($info)) {
+        $info = null;
+    }
     if (isset($exam)) {
-        $pageTitle = str_replace(' ', '-', $exam['title']);
+        $classTitle = $info['class_name'] ?? '';
+        $bookTitle = $info['book_name'] ?? '';
+        $pageTitle = trim($classTitle . " " . $bookTitle . " " . $exam['title'] . " With Solutions");
+        $displayTestTitle = $pageTitle;
     } elseif ($is_custom) {
         $info = $conn->query("SELECT b.book_name, c.class_name FROM book b JOIN class c ON b.class_id = c.class_id WHERE b.book_id = $book_id")->fetch_assoc();
         $pageTitle = str_replace(' ', '-', ($info['class_name'] ?? '')) . "-" . str_replace(' ', '-', ($info['book_name'] ?? '')) . "-Practice-Test";
+        $displayTestTitle = str_replace('-', ' ', $pageTitle);
     } elseif ($is_from_paper) {
         $pageTitle = "Question-Paper-Online-Test";
+        $displayTestTitle = "Question Paper Online Test";
     }
 
     // Store in cache for 1 hour (skip for from_paper mode)
@@ -302,7 +365,8 @@ if ($cachedData && is_array($cachedData)) {
             'questions_data' => $questions_data,
             'exam' => $exam ?? null,
             'pageTitle' => $pageTitle,
-            'info' => $info
+            'info' => $info,
+            'displayTestTitle' => $displayTestTitle
         ]);
     }
 }
@@ -740,7 +804,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     <div class="paper-container">
         <div class="paper-header">
-            <h2><?= isset($exam) ? htmlspecialchars($exam['title']) : 'Practice Test Assessment' ?></h2>
+            <h2><?= htmlspecialchars($displayTestTitle ?? (isset($exam) ? $exam['title'] : 'Practice Test Assessment')) ?></h2>
             <div class="row mt-4 text-start">
                 <div class="col-6"><strong>Candidate Name:</strong> _____________________</div>
                 <div class="col-6 text-end"><strong>Roll Number:</strong> _________________</div>

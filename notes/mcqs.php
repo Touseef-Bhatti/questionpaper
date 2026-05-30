@@ -41,17 +41,33 @@ if ($classId > 0 && $bookId > 0 && (strpos($_SERVER['REQUEST_URI'], 'mcqs.php') 
     }
     
     if (!empty($cleanBookName)) {
-        $slug = strtolower(str_replace(' ', '-', $cleanBookName));
-        $suffix = 'th';
-        if ($classId == 1) $suffix = 'st';
-        elseif ($classId == 2) $suffix = 'nd';
-        elseif ($classId == 3) $suffix = 'rd';
-        
-        $newPath = "/mcqs/{$classId}{$suffix}-class/{$slug}";
+        $slug = strtolower(trim($cleanBookName));
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+        $slug = trim(preg_replace('/-+/', '-', $slug), '-');
+        $newPath = "/class-{$classId}-{$slug}-chapter-wise-mcqs-with-explanations";
+
+        if ($chapterId > 0) {
+            $chapterStmt = $conn->prepare("SELECT chapter_no, chapter_name FROM chapter WHERE chapter_id = ? LIMIT 1");
+            $chapterStmt->bind_param('i', $chapterId);
+            $chapterStmt->execute();
+            $chapterRes = $chapterStmt->get_result();
+            if ($chapterRow = $chapterRes->fetch_assoc()) {
+                $chapterNo = (int) ($chapterRow['chapter_no'] ?? 0);
+                $chapterName = (string) ($chapterRow['chapter_name'] ?? '');
+                $chapterPart = $chapterNo > 0 ? "chapter-{$chapterNo}-{$chapterName}" : $chapterName;
+                $chapterSlug = strtolower(trim($chapterPart));
+                $chapterSlug = preg_replace('/[^a-z0-9]+/', '-', $chapterSlug);
+                $chapterSlug = trim(preg_replace('/-+/', '-', $chapterSlug), '-');
+                if ($chapterSlug !== '') {
+                    $newPath = "/class-{$classId}-{$slug}-{$chapterSlug}-mcqs-with-explanations";
+                }
+            }
+            $chapterStmt->close();
+        }
         
         // Add other params except the ones handled by path
         $remainingParams = $_GET;
-        unset($remainingParams['class_id'], $remainingParams['book_id'], $remainingParams['book_name']);
+        unset($remainingParams['class_id'], $remainingParams['book_id'], $remainingParams['book_name'], $remainingParams['chapter_id']);
         
         // Ensure view=1 is present if we're viewing MCQs
         if ($viewMcqs) {
@@ -831,4 +847,3 @@ if ($viewMcqs) {
     </script>
 </body>
 </html>
-
