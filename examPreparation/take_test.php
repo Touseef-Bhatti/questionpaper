@@ -77,18 +77,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['status' => 'success']);
         exit;
     }
+
+    // Handle "Take Online Test" from generated question paper
+    if (isset($_POST['from_paper']) && $_POST['from_paper'] == '1') {
+        $mcq_ids_json = $_POST['mcq_ids'] ?? '[]';
+        $short_ids_json = $_POST['short_ids'] ?? '[]';
+        $long_ids_json = $_POST['long_ids'] ?? '[]';
+
+        $mcq_ids = array_filter(array_map('intval', json_decode($mcq_ids_json, true) ?: []));
+        $short_ids = array_filter(array_map('intval', json_decode($short_ids_json, true) ?: []));
+        $long_ids = array_filter(array_map('intval', json_decode($long_ids_json, true) ?: []));
+
+        $paper_questions = ['mcqs' => [], 'short' => [], 'long' => []];
+
+        // Fetch MCQs by IDs
+        if (!empty($mcq_ids)) {
+            $placeholders = implode(',', array_fill(0, count($mcq_ids), '?'));
+            $stmt = $conn->prepare("SELECT * FROM mcqs WHERE mcq_id IN ($placeholders)");
+            $types = str_repeat('i', count($mcq_ids));
+            $stmt->bind_param($types, ...$mcq_ids);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($r = $res->fetch_assoc()) {
+                $paper_questions['mcqs'][] = $r;
+            }
+            $stmt->close();
+        }
+
+        // Fetch short and long questions by IDs
+        $all_q_ids = array_merge($short_ids, $long_ids);
+        if (!empty($all_q_ids)) {
+            $placeholders = implode(',', array_fill(0, count($all_q_ids), '?'));
+            $stmt = $conn->prepare("SELECT * FROM questions WHERE id IN ($placeholders)");
+            $types = str_repeat('i', count($all_q_ids));
+            $stmt->bind_param($types, ...$all_q_ids);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($r = $res->fetch_assoc()) {
+                if ($r['question_type'] === 'short') {
+                    $paper_questions['short'][] = $r;
+                } else {
+                    $paper_questions['long'][] = $r;
+                }
+            }
+            $stmt->close();
+        }
+
+        // Store in session and redirect (PRG pattern)
+        $_SESSION['from_paper_questions'] = $paper_questions;
+        $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+        $paper_token = uniqid();
+        $_SESSION['from_paper_token'] = $paper_token;
+        header("Location: take_test.php?from_paper=1&paper_token=$paper_token");
+        exit;
+    }
 }
 
 
 $exam_id = intval($_GET['exam_id'] ?? 0);
 $is_custom = isset($_GET['custom']);
 
+$is_from_paper = isset($_GET['from_paper']);
+
 // --- Caching Logic ---
 require_once '../services/CacheManager.php';
 $cacheManager = new CacheManager();
 // Unique key based on parameters
 $cacheKey = "take_test_" . md5(serialize($_GET));
-$cachedData = $cacheManager->get($cacheKey);
+// Skip cache for from_paper mode (each paper has unique questions)
+$cachedData = $is_from_paper ? null : $cacheManager->get($cacheKey);
 
 if ($cachedData && is_array($cachedData)) {
     $questions_data = $cachedData['questions_data'];
@@ -163,6 +220,13 @@ if ($cachedData && is_array($cachedData)) {
         $long_count = intval($_GET['long_count'] ?? 2);
 
         $questions_data = fetchRandomQuestions($class_id, $book_id, $chapter_ids, $mcq_count, $short_count, $long_count);
+    } elseif (isset($_SESSION['from_paper_questions'])) {
+        // Load questions from the generated question paper (passed via POST redirect)
+        $questions_data = $_SESSION['from_paper_questions'];
+        unset($_SESSION['from_paper_questions']);
+    } elseif ($is_from_paper && isset($_SESSION['current_test_questions'])) {
+        // Load from the active session if refreshed
+        $questions_data = $_SESSION['current_test_questions'];
     }
 
     // Fetch SEO data
@@ -173,15 +237,19 @@ if ($cachedData && is_array($cachedData)) {
     } elseif ($is_custom) {
         $info = $conn->query("SELECT b.book_name, c.class_name FROM book b JOIN class c ON b.class_id = c.class_id WHERE b.book_id = $book_id")->fetch_assoc();
         $pageTitle = str_replace(' ', '-', ($info['class_name'] ?? '')) . "-" . str_replace(' ', '-', ($info['book_name'] ?? '')) . "-Practice-Test";
+    } elseif ($is_from_paper) {
+        $pageTitle = "Question-Paper-Online-Test";
     }
 
-    // Store in cache for 1 hour (3600 seconds)
-    $cacheManager->setex($cacheKey, 3600, [
-        'questions_data' => $questions_data,
-        'exam' => $exam ?? null,
-        'pageTitle' => $pageTitle,
-        'info' => $info
-    ]);
+    // Store in cache for 1 hour (skip for from_paper mode)
+    if (!$is_from_paper) {
+        $cacheManager->setex($cacheKey, 3600, [
+            'questions_data' => $questions_data,
+            'exam' => $exam ?? null,
+            'pageTitle' => $pageTitle,
+            'info' => $info
+        ]);
+    }
 }
 
 function fetchRandomQuestions($class_id, $book_id, $chapter_ids, $mcq_c, $short_c, $long_c) {
@@ -712,25 +780,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 </div>
 
 <?php include __DIR__ . '/../includes/ai_loader.php'; ?>
-<?php include_once __DIR__ . '/../includes/AdstraOnClickAds.php'; ?>
-<?php
-// Include and dynamically namespace quiz_ad_gate.php for Check All Answers ad gate to avoid conflict
-$quizAdGatePath = __DIR__ . '/../includes/quiz_ad_gate.php';
-if (file_exists($quizAdGatePath)) {
-    $quizAdGateContent = file_get_contents($quizAdGatePath);
-    $quizAdGateContent = str_replace('ALH_QUIZ_AD_GATE_RENDERED', 'ALH_QUIZ_AD_GATE_RENDERED_TAKE_TEST', $quizAdGateContent);
-    $quizAdGateContent = str_replace('window.ALHQuizAdGate', 'window.ALHQuizAdGateQuiz', $quizAdGateContent);
-    $quizAdGateContent = str_replace('ALHQuizAdGate', 'ALHQuizAdGateQuiz', $quizAdGateContent);
-    $quizAdGateContent = str_replace('id="quizAdModal"', 'id="quizAdModalQuiz"', $quizAdGateContent);
-    $quizAdGateContent = str_replace('id="watchQuizAdBtn"', 'id="watchQuizAdBtnQuiz"', $quizAdGateContent);
-    $quizAdGateContent = str_replace('id="quizAdPremiumBtn"', 'id="quizAdPremiumBtnQuiz"', $quizAdGateContent);
-    $quizAdGateContent = str_replace("document.getElementById('quizAdModal')", "document.getElementById('quizAdModalQuiz')", $quizAdGateContent);
-    $quizAdGateContent = str_replace("document.getElementById('watchQuizAdBtn')", "document.getElementById('watchQuizAdBtnQuiz')", $quizAdGateContent);
-    $quizAdGateContent = str_replace("document.getElementById('quizAdPremiumBtn')", "document.getElementById('quizAdPremiumBtnQuiz')", $quizAdGateContent);
-    $quizAdGateContent = str_replace('quizAdModalTitle', 'quizAdModalTitleQuiz', $quizAdGateContent);
-    echo $quizAdGateContent;
-}
-?>
+<?php include_once __DIR__ . '/../includes/quiz_ad_gate.php'; ?>
 
 <form id="downloadForm" action="../questionPaperFromTopic/download_docx.php" method="POST" target="_blank" style="display:none;">
     <input type="hidden" name="content" id="downloadContent">

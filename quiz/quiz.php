@@ -1675,156 +1675,10 @@ if (is_dir($incorrectDir)) {
             .review-modal textarea { min-height: 100px; padding: 12px; }
         }
 
-        /* ─── Funny Mode Popup ───────────────────────────────── */
-        .funny-popup-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(8px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            padding: 20px;
-            animation: fadeIn 0.4s ease;
-        }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .funny-popup-card {
-            width: 100%;
-            max-width: 520px;
-            background: #ffffff;
-            border-radius: 32px;
-            padding: 40px 32px;
-            text-align: center;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            overflow: hidden;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-        }
-        @keyframes zoomIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-        .funny-popup-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; height: 8px;
-            background: linear-gradient(90deg, #facc15, #f59e0b, #ef4444, #ec4899, #8b5cf6);
-        }
-
-        .funny-popup-scroll {
-            overflow-y: auto;
-            padding: 0 4px;
-        }
-
-        .funny-popup-icon {
-            font-size: 4.5rem;
-            margin-bottom: 20px;
-            display: block;
-            animation: bounce-loop 2s infinite;
-        }
-        @keyframes bounce-loop {
-            0%, 100% { transform: translateY(0) rotate(0); }
-            50% { transform: translateY(-15px) rotate(10deg); }
-        }
-
-        .funny-popup-title {
-            font-size: 2.2rem;
-            font-weight: 900;
-            color: #0f172a;
-            margin: 0 0 12px;
-            letter-spacing: -0.02em;
-            line-height: 1.1;
-        }
-
-        .funny-popup-text {
-            font-size: 1.1rem;
-            color: #475569;
-            line-height: 1.5;
-            margin-bottom: 32px;
-            font-weight: 500;
-        }
-
-        .funny-popup-actions {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-        }
-
-        .btn-funny-choice {
-            flex: 1;
-            padding: 16px 24px;
-            border-radius: 18px;
-            font-size: 1.05rem;
-            font-weight: 800;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            white-space: nowrap;
-        }
-
-        .btn-funny-yes {
-            background: linear-gradient(135deg, #facc15 0%, #f59e0b 100%);
-            color: #1e293b;
-            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
-        }
-        .btn-funny-yes:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 28px rgba(245, 158, 11, 0.4);
-        }
-
-        .btn-funny-no {
-            background: #f1f5f9;
-            color: #475569;
-            border: 2px solid #e2e8f0;
-        }
-        .btn-funny-no:hover {
-            background: #e2e8f0;
-            color: #1e293b;
-        }
-
-        /* Responsive Adjustments */
-        @media (max-width: 640px) {
-            .funny-popup-card {
-                padding: 32px 24px;
-                border-radius: 24px;
-            }
-            .funny-popup-icon { font-size: 3.5rem; margin-bottom: 16px; }
-            .funny-popup-title { font-size: 1.75rem; }
-            .funny-popup-text { font-size: 0.95rem; margin-bottom: 24px; }
-            .funny-popup-actions { flex-direction: column; gap: 12px; }
-            .btn-funny-choice { padding: 14px 20px; font-size: 1rem; width: 100%; }
-        }
     </style>
 </head>
 <body>
 <?php include_once '../header.php'; ?>
-
-<!-- Funny Mode Welcome Popup -->
-<div id="funnyWelcomePopup" class="funny-popup-overlay" style="display: none;">
-    <div class="funny-popup-card">
-        <div class="funny-popup-scroll">
-            <span class="funny-popup-icon">😂</span>
-            <h2 class="funny-popup-title">Funny Mode?</h2>
-            <p class="funny-popup-text">Enable <strong>Funny Mode</strong> for hilarious sound effects and reactions as you answer! Best enjoyed with sound on.</p>
-        </div>
-        <div class="funny-popup-actions">
-            <button type="button" class="btn-funny-choice btn-funny-yes" onclick="selectFunnyMode(true)">
-                <i class="fas fa-laugh-squint"></i> Yes, Funny!
-            </button>
-            <button type="button" class="btn-funny-choice btn-funny-no" onclick="selectFunnyMode(false)">
-                <i class="fas fa-user-graduate"></i> No, Thanks
-            </button>
-        </div>
-    </div>
-</div>
 
 <!-- SIDE SKYSCRAPER ADS -->
 
@@ -2034,7 +1888,7 @@ function _playNotes(notes, waveType = 'sine', volume = 0.3) {
     });
 }
 
-// ─── CORRECT Sound Effects (uncomment the one you want to use) ───────
+// ─── CORRECT Sound Effects ───────
 
 // [CORRECT #1] Rising chord ding — cheerful, classic quiz feel
 function soundCorrect_1() {
@@ -2044,14 +1898,6 @@ function soundCorrect_1() {
         { f: 784, t: 0.24, d: 0.22 }    // G5
     ], 'sine', 0.3);
 }
-
-// [CORRECT #2] Two-tone success ping
-// function soundCorrect_2() {
-//     _playNotes([
-//         { f: 800, t: 0,    d: 0.1 },
-//         { f: 1050,t: 0.12, d: 0.18 }
-//     ], 'sine', 0.28);
-// }
 
 // [CORRECT #3] Soft ascending 4-note fanfare
 function soundCorrect_3() {
@@ -2063,23 +1909,7 @@ function soundCorrect_3() {
     ], 'triangle', 0.25);
 }
 
-// [CORRECT #4] Video game coin collect (short blip)
-// function soundCorrect_4() {
-//     _playNotes([
-//         { f: 988,  t: 0,    d: 0.07 },
-//         { f: 1319, t: 0.08, d: 0.12 }
-//     ], 'square', 0.15);
-// }
-
-// [CORRECT #5] Deep bell chime
-// function soundCorrect_5() {
-//     _playNotes([
-//         { f: 349, t: 0,   d: 0.4 },
-//         { f: 523, t: 0.1, d: 0.35 }
-//     ], 'sine', 0.2);
-// }
-
-// ─── WRONG Sound Effects (uncomment the one you want to use) ─────────
+// ─── WRONG Sound Effects ─────────
 
 // [WRONG #1] Low descending buzz — default
 function soundWrong_1() {
@@ -2089,13 +1919,6 @@ function soundWrong_1() {
     ], 'sawtooth', 0.28);
 }
 
-// [WRONG #2] Flat buzzer (game-show style)
-// function soundWrong_2() {
-//     _playNotes([
-//         { f: 220, t: 0,   d: 0.35 }
-//     ], 'sawtooth', 0.35);
-// }
-
 // [WRONG #3] Double-drop error tone
 function soundWrong_3() {
     _playNotes([
@@ -2103,23 +1926,6 @@ function soundWrong_3() {
         { f: 280, t: 0.14, d: 0.2  }
     ], 'square', 0.2);
 }
-
-// [WRONG #4] Soft thud (low frequency rumble)
-// function soundWrong_4() {
-//     _playNotes([
-//         { f: 100, t: 0,    d: 0.18 },
-//         { f: 80,  t: 0.12, d: 0.25 }
-//     ], 'sine', 0.4);
-// }
-
-// [WRONG #5] Retro video game fail jingle
-// function soundWrong_5() {
-//     _playNotes([
-//         { f: 494, t: 0,    d: 0.1 },
-//         { f: 370, t: 0.1,  d: 0.1 },
-//         { f: 294, t: 0.2,  d: 0.18 }
-//     ], 'square', 0.18);
-// }
 
 /** Active dispatcher — swap function names above to switch effect */
 function playSound(type) {
@@ -2136,7 +1942,7 @@ function playSound(type) {
 }
 
 /** Funny Mode Logic */
-window.funnyModeActive = localStorage.getItem('funnyMode') === 'true';
+window.funnyModeActive = localStorage.getItem('funnyMode') !== 'false';
 function updateFunnyModeUI() {
     const btn = document.getElementById('funnyModeBtn');
     if (btn) {
@@ -2157,27 +1963,6 @@ function toggleFunnyMode() {
     
     // Play activation sound via manager (handles 3s limit & cache)
     FunnyAudioManager.toggleModeSound();
-}
-
-/** Funny Mode Initial Selection */
-function selectFunnyMode(enabled) {
-    window.funnyModeActive = enabled;
-    localStorage.setItem('funnyMode', enabled);
-    updateFunnyModeUI();
-    
-    // Hide popup
-    const popup = document.getElementById('funnyWelcomePopup');
-    if (popup) popup.style.display = 'none';
-    
-    // If enabled funny mode, play the activation sound
-    if (enabled) {
-        FunnyAudioManager.toggleModeSound();
-    }
-    
-    // Only start if not already started (it should be started by initQuiz though)
-    if (!quizStarted) {
-        startQuizActual();
-    }
 }
 
 function playFunnySound(type) {
@@ -2378,9 +2163,6 @@ function showResults() {
             })
         }).catch(e => console.error('Caching failed:', e));
     }
-
-    // Load Monetag Vignette Ad for navigation
- 
 
     const totalTime = Math.floor((Date.now() - startTime) / 1000);
     const pct = Math.round((score / questions.length) * 100);
@@ -2780,16 +2562,6 @@ document.querySelectorAll('#starRow .star-btn').forEach(star => {
 function initQuiz() {
     // Start the quiz immediately (standard mode)
     startQuizActual();
-    
-    // Ask for funny mode after 5 seconds as requested
-    setTimeout(() => {
-        if (!quizCompleted && !window.funnyModeActive) {
-            const popup = document.getElementById('funnyWelcomePopup');
-            if (popup) {
-                popup.style.display = 'flex';
-            }
-        }
-    }, 5000);
 }
 
 function startQuizActual() {
@@ -2923,3 +2695,5 @@ async function triggerBackgroundVerification(ids) {
 <?php include '../footer.php'; ?>
 </body>
 </html>
+
+

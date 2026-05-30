@@ -134,7 +134,7 @@ Generator MCQs tests, college exams, and practice papers instantly or attempt on
 </div>
 </div> <!-- main-content -->
 
-<?php include_once 'includes/AdstraOnClickAds.php'; ?>
+<?php include_once 'includes/quiz_ad_gate.php'; ?>
 <?php include 'footer.php'; ?>
 
 <script>

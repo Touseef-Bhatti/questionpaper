@@ -633,6 +633,28 @@ if ($patternMode === 'with') {
 
 // Finally, update $patternQCount to ensure the display loop goes up to the highest re-numbered question
 $patternQCount = max($patternQCount, $maxNewQNumGenerated);
+
+// Collect all question IDs for the "Take Online Test" button
+$onlineTestMcqIds = [];
+foreach ($mcqByChapter as $cid => $qs) {
+    foreach ($qs as $q) {
+        if (isset($q['mcq_id'])) $onlineTestMcqIds[] = intval($q['mcq_id']);
+    }
+}
+$onlineTestShortIds = [];
+foreach ($shortQuestions as $cid => $qs) {
+    foreach ($qs as $q) {
+        if (isset($q['id'])) $onlineTestShortIds[] = intval($q['id']);
+    }
+}
+$onlineTestLongIds = [];
+foreach ($longQuestions as $cid => $qs) {
+    foreach ($qs as $q) {
+        if (isset($q['id'])) $onlineTestLongIds[] = intval($q['id']);
+    }
+}
+$hasOnlineTestQuestions = !empty($onlineTestMcqIds) || !empty($onlineTestShortIds) || !empty($onlineTestLongIds);
+
 include 'header.php';
 ?>
 <!-- All your HTML output code starts here -->
@@ -729,6 +751,7 @@ include 'header.php';
             /* Print / Download / Go Back button strip - center and align in a row */
             .print-buttons {
                 display: flex;
+                flex-wrap: wrap;
                 gap: 12px;
                 justify-content: center;
                 align-items: center;
@@ -741,6 +764,73 @@ include 'header.php';
                 z-index: 1200;
                 border-radius: 12px;
                 box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                width: max-content;
+                max-width: 95%;
+            }
+
+            /* Take Online Test Button */
+            .take-test-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 20px;
+                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+                color: #fff !important;
+                font-weight: 700;
+                font-size: 0.95rem;
+                border: none;
+                border-radius: 12px;
+                cursor: pointer;
+                text-decoration: none;
+                position: relative;
+                overflow: hidden;
+                box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35), 0 2px 4px rgba(139, 92, 246, 0.2);
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                white-space: nowrap;
+                letter-spacing: 0.01em;
+            }
+            .take-test-btn::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(255,255,255,0.05) 100%);
+                border-radius: inherit;
+                pointer-events: none;
+            }
+            .take-test-btn:hover {
+                transform: translateY(-2px) scale(1.03);
+                box-shadow: 0 8px 25px rgba(99, 102, 241, 0.45), 0 4px 10px rgba(139, 92, 246, 0.3);
+                background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+            }
+            .take-test-btn:active {
+                transform: translateY(0) scale(0.98);
+            }
+            .take-test-btn .btn-icon {
+                font-size: 1.1rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            @keyframes rocketBounce {
+                0%, 100% { transform: translateY(0) rotate(0deg); }
+                25% { transform: translateY(-2px) rotate(-5deg); }
+                50% { transform: translateY(-3px) rotate(0deg); }
+                75% { transform: translateY(-1px) rotate(5deg); }
+            }
+            .take-test-btn .btn-pulse {
+                position: absolute;
+                top: -2px;
+                right: -2px;
+                width: 10px;
+                height: 10px;
+                background: #22c55e;
+                border-radius: 50%;
+                border: 2px solid #fff;
+                animation: pulseGreen 1.5s ease-in-out infinite;
+            }
+            @keyframes pulseGreen {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.4); opacity: 0.6; }
             }
             .print-buttons .go-back-btn {
                 margin: 0;
@@ -748,6 +838,7 @@ include 'header.php';
                 display: inline-flex;
                 align-items: center;
                 padding: 0 14px;
+                gap: 8px;
             }
 
             /* Design Selector Styles */
@@ -914,7 +1005,7 @@ include 'header.php';
             }
 
             @media print {
-                .print-buttons, .design-selector, .navbar, footer, .alert, .review-modal { display: none !important; }
+                .print-buttons, .design-selector, .navbar, footer, .alert, .review-modal, .online-quiz-top { display: none !important; }
             }
 
             @media (max-width: 640px) {
@@ -1057,7 +1148,7 @@ include 'header.php';
                     padding: 8px 10px;
                     box-sizing: border-box;
                     justify-content: center;
-                    flex-wrap: nowrap;
+                    flex-wrap: wrap !important;
                 }
 
                 .print-buttons .go-back-btn {
@@ -1070,6 +1161,13 @@ include 'header.php';
                     font-size: 13px;
                     padding: 0 10px;
                     height: 38px;
+                }
+
+                .print-buttons .take-test-btn {
+                    font-size: 12px;
+                    padding: 6px 12px;
+                    height: 38px;
+                    gap: 5px;
                 }
 
                 .print-buttons button,
@@ -1123,6 +1221,7 @@ include 'header.php';
                 .print-buttons {
                     gap: 4px;
                     padding: 6px 6px;
+                    flex-wrap: wrap !important;
                 }
 
                 .print-buttons .go-back-btn,
@@ -1148,6 +1247,22 @@ include 'header.php';
         <div class="design-option" onclick="changeHeader(5, this)">Design 5 (Boxed)</div>
         <div class="design-option" onclick="changeHeader(6, this)">Design 6 (AI Style)</div>
     </div> -->
+
+    <?php if ($hasOnlineTestQuestions): ?>
+    <div class="online-quiz-top" style="max-width: 900px; margin: 10% auto 10px; width: 95%; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); padding: 20px 15px; border-radius: 12px; border: 1px solid #c7d2fe; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.08); box-sizing: border-box;">
+        <h3 style="margin: 0; color: #3730a3; font-size: 1.35rem; font-weight: 800;">Interactive Online Quiz Available!</h3>
+        <p style="margin: 0 0 4px 0; color: #4338ca; font-size: 0.95rem; max-width: 650px; line-height: 1.5;">
+            Don't just print the paper—practice right now! Attempt these exact questions in a simulated interactive environment, evaluate your preparation, and get instant feedback on your performance.
+        </p>
+        <button onclick="takeOnlineTest()" class="take-test-btn" id="takeOnlineTestBtnTop">
+            <span class="btn-pulse"></span>
+            <span class="btn-icon" style="display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm1 2v10h14V5H5zm2 14h10v2H7v-2zM7 7h4v2H7V7zm6 0h4v2h-4V7zM7 11h10v2H7v-2z"/></svg>
+            </span>
+            <span>Take Online Test</span>
+        </button>
+    </div>
+    <?php endif; ?>
 
     <div class="paper-container" id="paper"> 
         <div class="header" id="dynamic-header"> 
@@ -1361,8 +1476,30 @@ include 'header.php';
         </div>
     </div>
                  
+        <?php if ($hasOnlineTestQuestions): ?>
+        <form id="onlineTestForm" action="examPreparation/take_test.php" method="POST" style="display:none;">
+            <input type="hidden" name="from_paper" value="1">
+            <input type="hidden" name="mcq_ids" value="<?= htmlspecialchars(json_encode($onlineTestMcqIds)) ?>">
+            <input type="hidden" name="short_ids" value="<?= htmlspecialchars(json_encode($onlineTestShortIds)) ?>">
+            <input type="hidden" name="long_ids" value="<?= htmlspecialchars(json_encode($onlineTestLongIds)) ?>">
+        </form>
+        <?php endif; ?>
+
         <div class="print-buttons">
-                <a href="select_chapters.php" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center;">⬅️ Go Back</a>
+                <a href="select_chapters.php" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M7.828 11H20v2H7.828l5.364 5.364-1.414 1.414L4 12l7.778-7.778 1.414 1.414z"/></svg>
+                    <span>Go Back</span>
+                </a>
+
+                <?php if ($hasOnlineTestQuestions): ?>
+                <button onclick="takeOnlineTest()" class="take-test-btn" id="takeOnlineTestBtn">
+                    <span class="btn-pulse"></span>
+                    <span class="btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm1 2v10h14V5H5zm2 14h10v2H7v-2zM7 7h4v2H7V7zm6 0h4v2h-4V7zM7 11h10v2H7v-2z"/></svg>
+                    </span>
+                    <span>Take Online Test</span>
+                </button>
+                <?php endif; ?>
 
                 <button onclick="window.print()" class="cssbuttons-io-button">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="none" d="M0 0h24v24H0z"></path><path fill="currentColor" d="M6 9h12v6H6z"/><path fill="currentColor" d="M6 3h12v2H6z"/><path fill="currentColor" d="M8 15v4h8v-4"/></svg>
@@ -2092,6 +2229,14 @@ async function downloadDOCX() {
     }
 }
 
+function takeOnlineTest() {
+    const form = document.getElementById('onlineTestForm');
+    if (form) {
+        form.submit();
+    } else {
+        alert('No questions available for online test.');
+    }
+}
 
 </script>
 <div style="margin-top: 10%;">
