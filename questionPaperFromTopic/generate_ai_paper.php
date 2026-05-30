@@ -705,6 +705,69 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
         box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
     }
 
+    /* Take Online Test Button */
+    .take-test-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+        color: #fff !important;
+        font-weight: 700;
+        font-size: 0.95rem;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        text-decoration: none;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35), 0 2px 4px rgba(139, 92, 246, 0.2);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        white-space: nowrap;
+        letter-spacing: 0.01em;
+    }
+    .take-test-btn::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(255,255,255,0.05) 100%);
+        border-radius: inherit;
+        pointer-events: none;
+    }
+    .take-test-btn:hover {
+        transform: translateY(-2px) scale(1.03);
+        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.45), 0 4px 10px rgba(139, 92, 246, 0.3);
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+    }
+    .take-test-btn:active {
+        transform: translateY(0) scale(0.98);
+    }
+    .take-test-btn .btn-icon {
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .take-test-btn .btn-pulse {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 10px;
+        height: 10px;
+        background: #22c55e;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        animation: pulseGreen 1.5s ease-in-out infinite;
+    }
+    @keyframes pulseGreen {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.4); opacity: 0.6; }
+    }
+    .btn-float.btn-take-test {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+    }
+
     .btn-float:hover {
         transform: translateY(-5px) scale(1.03);
         filter: brightness(1.1);
@@ -1044,7 +1107,7 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
             max-width: none;
             min-height: auto;
         }
-        .action-bar, .navbar, footer, .alert, .review-modal { display: none !important; }
+        .action-bar, .navbar, footer, .alert, .review-modal, .online-quiz-top { display: none !important; }
         .section-title { background-color: #eee !important; }
         .marks-badge { border: none; padding: 0; }
     }
@@ -1063,9 +1126,9 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
 
 
 
-<div class="container main-content paper-builder-main-content">
+<div class="container-fluid main-content d-flex flex-column align-items-center justify-content-center" style="min-height: calc(100vh - 80px); width: 100%;">
     <?php if ($error): ?>
-        <div class="alert alert-danger shadow-sm border-0 rounded-4 p-4 mt-5 d-flex align-items-center gap-3">
+        <div class="alert alert-danger shadow-sm border-0 rounded-4 p-4 mt-5 d-flex align-items-center justify-content-center gap-3" style="max-width: 600px; width: 100%;">
             <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
             <div>
                 <h5 class="mb-1 fw-bold">Generation Failed</h5>
@@ -1077,12 +1140,12 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
     <?php elseif (empty($generatedContent['mcqs']) && empty($generatedContent['short']) && empty($generatedContent['long'])): ?>
         
         <!-- Modern Processing State -->
-        <div class="processing-card">
+        <div class="processing-card d-flex flex-column align-items-center justify-content-center text-center" style="margin: auto;">
             <div class="spinner-border text-primary mb-4" style="width: 4rem; height: 4rem;" role="status"></div>
             <h3 class="fw-bold text-dark mb-3">Crafting Your Paper</h3>
             <p class="text-muted mb-4">Our AI is generating professional quality questions based on your topics.</p>
             
-            <div class="progress" style="height: 6px; border-radius: 10px;">
+            <div class="progress w-100" style="height: 6px; border-radius: 10px; max-width: 300px;">
                 <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 100%"></div>
             </div>
             <div class="mt-3 text-muted small">Estimated time: 15-30 seconds</div>
@@ -1102,6 +1165,26 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
         </div>
 
     <?php else: ?>
+        <?php
+        // Determine if we have questions for online test
+        $hasOnlineTestQuestions = !empty($generatedContent['mcqs']) || !empty($generatedContent['short']) || !empty($generatedContent['long']);
+        ?>
+
+        <?php if ($hasOnlineTestQuestions): ?>
+        <div class="online-quiz-top" style="max-width: 210mm; margin: 10% auto 10px; width: 100%; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); padding: 20px 15px; border-radius: 12px; border: 1px solid #c7d2fe; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.08); box-sizing: border-box;">
+            <h3 style="margin: 0; color: #3730a3; font-size: 1.35rem; font-weight: 800; font-family: 'Inter', sans-serif;">Interactive Online Quiz Available!</h3>
+            <p style="margin: 0 0 4px 0; color: #4338ca; font-size: 0.95rem; max-width: 650px; line-height: 1.5; font-family: 'Inter', sans-serif;">
+                Don't just print the paper—practice right now! Attempt these exact questions in a simulated interactive environment, evaluate your preparation, and get instant feedback on your performance.
+            </p>
+            <button onclick="takeOnlineTest()" class="take-test-btn" id="takeOnlineTestBtnTop">
+                <span class="btn-pulse"></span>
+                <span class="btn-icon" style="display: flex; align-items: center; justify-content: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm1 2v10h14V5H5zm2 14h10v2H7v-2zM7 7h4v2H7V7zm6 0h4v2h-4V7zM7 11h10v2H7v-2z"/></svg>
+                </span>
+                <span>Take Online Test</span>
+            </button>
+        </div>
+        <?php endif; ?>
         <?php $selectedDesign = intval($_POST['header_design'] ?? 1); ?>
         <!-- Editing Controls Sidebar (Hidden for now)
         <div class="edit-controls no-print">
@@ -1316,7 +1399,19 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
             <?php endif; ?>
         </div>
 
+        <?php if ($hasOnlineTestQuestions): ?>
+        <form id="onlineTestForm" action="../examPreparation/take_test.php" method="POST" style="display:none;">
+            <input type="hidden" name="from_ai_paper" value="1">
+            <input type="hidden" name="ai_questions_json" value="<?= htmlspecialchars(json_encode($generatedContent)) ?>">
+        </form>
+        <?php endif; ?>
+
         <div class="action-bar no-print">
+            <?php if ($hasOnlineTestQuestions): ?>
+            <button onclick="takeOnlineTest()" class="btn-float btn-take-test" id="takeOnlineTestBtn">
+                <i class="fas fa-laptop-code"></i> <span>Take Online Test</span>
+            </button>
+            <?php endif; ?>
             <button onclick="downloadDocx('paper')" class="btn-float btn-download-paper">
                 <i class="fas fa-download"></i> <span>Download Paper</span>
             </button>
@@ -1618,6 +1713,15 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
             inp.name = name;
             inp.value = value;
             form.appendChild(inp);
+        }
+
+        function takeOnlineTest() {
+            const form = document.getElementById('onlineTestForm');
+            if (form) {
+                form.submit();
+            } else {
+                alert('No questions available for online test.');
+            }
         }
         </script>
 

@@ -78,6 +78,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // Handle "Take Online Test" from AI-generated paper (generate_ai_paper.php)
+    if (isset($_POST['from_ai_paper']) && $_POST['from_ai_paper'] == '1') {
+        $ai_questions_json = $_POST['ai_questions_json'] ?? '{}';
+        $ai_questions = json_decode($ai_questions_json, true) ?: [];
+
+        $paper_questions = ['mcqs' => [], 'short' => [], 'long' => []];
+
+        // Convert AI MCQs to the format expected by take_test.php
+        if (!empty($ai_questions['mcqs']) && is_array($ai_questions['mcqs'])) {
+            foreach ($ai_questions['mcqs'] as $i => $q) {
+                $paper_questions['mcqs'][] = [
+                    'mcq_id' => -($i + 1), // Synthetic negative ID
+                    'question' => $q['question'] ?? '',
+                    'option_a' => $q['option_a'] ?? '',
+                    'option_b' => $q['option_b'] ?? '',
+                    'option_c' => $q['option_c'] ?? '',
+                    'option_d' => $q['option_d'] ?? '',
+                    'correct_option' => $q['correct_option'] ?? '',
+                ];
+            }
+        }
+
+        // Convert AI short questions
+        if (!empty($ai_questions['short']) && is_array($ai_questions['short'])) {
+            foreach ($ai_questions['short'] as $i => $q) {
+                $paper_questions['short'][] = [
+                    'id' => -($i + 1),
+                    'question_text' => $q['question'] ?? '',
+                    'question_type' => 'short',
+                    'typical_answer' => $q['typical_answer'] ?? '',
+                ];
+            }
+        }
+
+        // Convert AI long questions
+        if (!empty($ai_questions['long']) && is_array($ai_questions['long'])) {
+            foreach ($ai_questions['long'] as $i => $q) {
+                $paper_questions['long'][] = [
+                    'id' => -(1000 + $i + 1), // Offset to avoid collision with short IDs
+                    'question_text' => $q['question'] ?? '',
+                    'question_type' => 'long',
+                    'typical_answer' => $q['typical_answer'] ?? '',
+                ];
+            }
+        }
+
+        // Store in session and redirect (PRG pattern)
+        $_SESSION['from_paper_questions'] = $paper_questions;
+        $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+        $paper_token = uniqid();
+        $_SESSION['from_paper_token'] = $paper_token;
+        header("Location: take_test.php?from_paper=1&paper_token=$paper_token");
+        exit;
+    }
+
     // Handle "Take Online Test" from generated question paper
     if (isset($_POST['from_paper']) && $_POST['from_paper'] == '1') {
         $mcq_ids_json = $_POST['mcq_ids'] ?? '[]';

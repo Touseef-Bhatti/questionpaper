@@ -106,6 +106,10 @@ foreach ($questions_data['mcqs'] as $m) {
     $results['mcqs'][$id] = [
         'mcq_id' => $id,
         'question' => $m['question'],
+        'option_a' => $m['option_a'] ?? '',
+        'option_b' => $m['option_b'] ?? '',
+        'option_c' => $m['option_c'] ?? '',
+        'option_d' => $m['option_d'] ?? '',
         'correct_option' => $m['correct_option'],
         'user_selected' => $user_ans['selected'] ?? 'Not attempted',
         'is_correct' => $is_correct,
@@ -607,11 +611,235 @@ include '../header.php';
         border: 1px dashed #cbd5e1;
     }
 
+    /* MCQ Options Styling in Results */
+    .mcq-options-display {
+        margin-top: 15px;
+    }
+
+    .mcq-opt-item {
+        padding: 14px 18px;
+        border-radius: 14px;
+        border: 2px solid #e2e8f0;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 4px rgba(15, 23, 42, 0.01);
+        min-height: 58px;
+    }
+
+    .mcq-opt-item .opt-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.95rem;
+        color: #334155;
+        font-weight: 500;
+        flex: 1;
+    }
+
+    .mcq-opt-item .opt-content strong {
+        width: 32px;
+        height: 32px;
+        background: #f1f5f9;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+    }
+
+    /* MCQ State Styling */
+    .mcq-opt-item.correct-selected {
+        background: #ecfdf5;
+        border-color: #10b981;
+        color: #065f46;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.06);
+    }
+    .mcq-opt-item.correct-selected .opt-content strong {
+        background: #10b981;
+        color: #fff;
+    }
+
+    .mcq-opt-item.correct-unselected {
+        background: #f0fdf4;
+        border-color: #34d399;
+        color: #166534;
+        border-style: dashed;
+    }
+    .mcq-opt-item.correct-unselected .opt-content strong {
+        background: #34d399;
+        color: #fff;
+    }
+
+    .mcq-opt-item.incorrect-selected {
+        background: #fef2f2;
+        border-color: #f87171;
+        color: #991b1b;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.06);
+    }
+    .mcq-opt-item.incorrect-selected .opt-content strong {
+        background: #ef4444;
+        color: #fff;
+    }
+
+    .mcq-opt-item.neutral {
+        background: #fff;
+        border-color: #f1f5f9;
+        color: #475569;
+    }
+
+    .mcq-opt-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.04);
+    }
+
+    /* Option Badge Styles */
+    .opt-badge {
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 5px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .badge-correct-sel {
+        background: #10b981;
+        color: white;
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15);
+    }
+    .badge-correct-only {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+    .badge-incorrect-sel {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+
+    /* MCQ Explanation Box Styling */
+    .mcq-explanation-box {
+        background: #f8fafc;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        padding: 16px;
+        transition: all 0.25s ease;
+    }
+    
+    .mcq-result-item.correct .mcq-explanation-box {
+        background: rgba(255, 255, 255, 0.75);
+        border-color: rgba(16, 185, 129, 0.2);
+    }
+    
+    .mcq-result-item.incorrect .mcq-explanation-box {
+        background: rgba(255, 255, 255, 0.75);
+        border-color: rgba(239, 68, 68, 0.15);
+    }
+
+    .explanation-title {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        color: #4f46e5;
+        letter-spacing: 0.05em;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .explanation-text {
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: #475569;
+        font-weight: 500;
+    }
+
+    /* Custom Actions Buttons */
+    .action-buttons-container {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 40px;
+        padding-top: 30px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .btn-print {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: white !important;
+        border: none;
+        border-radius: 14px;
+        font-weight: 700;
+        padding: 14px 32px;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 0.95rem;
+    }
+
+    .btn-print:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    }
+
+    .btn-print:active {
+        transform: translateY(0);
+    }
+
+    .btn-redo {
+        background: #ffffff;
+        color: #4f46e5 !important;
+        border: 2px solid #4f46e5;
+        border-radius: 14px;
+        font-weight: 700;
+        padding: 12px 32px;
+        box-shadow: 0 2px 4px rgba(79, 70, 229, 0.05);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 0.95rem;
+    }
+
+    .btn-redo:hover {
+        background: #f5f3ff;
+        color: #4338ca !important;
+        border-color: #4338ca;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(79, 70, 229, 0.15);
+    }
+
+    .btn-redo:active {
+        transform: translateY(0);
+    }
+
     @media print {
         body { background: white; }
         .results-container { margin: 0; max-width: 100%; }
         .main-card { box-shadow: none; border: none; }
         .no-print { display: none !important; }
+        .mcq-opt-item { border-color: #cbd5e1; box-shadow: none; }
+        .mcq-explanation-box { border-color: #cbd5e1; }
     }
 </style>
 
@@ -636,21 +864,58 @@ include '../header.php';
                             </span>
                             <p class="fw-bold text-dark mb-3">Q. <?= htmlspecialchars($m['question']) ?></p>
                             
-                            <div class="row g-3 mb-3">
-                                <div class="col-sm-6 col-md-4">
-                                    <div class="small text-muted mb-1">Your Selection</div>
-                                    <div class="fw-bold"><?= htmlspecialchars($m['user_selected']) ?></div>
-                                </div>
-                                <div class="col-sm-6 col-md-4">
-                                    <div class="small text-muted mb-1">Correct Option</div>
-                                    <div class="fw-bold text-success"><?= htmlspecialchars($m['correct_option']) ?></div>
-                                </div>
+                            <div class="row g-3 mcq-options-display mb-4">
+                                <?php 
+                                $options = [
+                                    'A' => $m['option_a'],
+                                    'B' => $m['option_b'],
+                                    'C' => $m['option_c'],
+                                    'D' => $m['option_d']
+                                ];
+                                foreach ($options as $key => $val): 
+                                    if (empty($val)) continue;
+                                    
+                                    $is_selected = (trim((string)$m['user_selected']) === $key) || (trim((string)$m['user_selected']) === trim((string)$val));
+                                    $is_correct = (trim((string)$m['correct_option']) === $key) || (trim((string)$m['correct_option']) === trim((string)$val));
+                                    
+                                    $option_class = 'mcq-opt-item';
+                                    $badge_text = '';
+                                    
+                                    if ($is_correct && $is_selected) {
+                                        $option_class .= ' correct-selected';
+                                        $badge_text = '<span class="opt-badge badge-correct-sel"><i class="fas fa-check-circle"></i> Correct & Selected</span>';
+                                    } elseif ($is_correct) {
+                                        $option_class .= ' correct-unselected';
+                                        $badge_text = '<span class="opt-badge badge-correct-only"><i class="fas fa-check"></i> Correct Answer</span>';
+                                    } elseif ($is_selected) {
+                                        $option_class .= ' incorrect-selected';
+                                        $badge_text = '<span class="opt-badge badge-incorrect-sel"><i class="fas fa-times-circle"></i> Your Selection</span>';
+                                    } else {
+                                        $option_class .= ' neutral';
+                                    }
+                                ?>
+                                    <div class="col-md-6">
+                                        <div class="<?= $option_class ?>">
+                                            <div class="opt-content">
+                                                <strong><?= $key ?></strong>
+                                                <span><?= htmlspecialchars($val) ?></span>
+                                            </div>
+                                            <?= $badge_text ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
                             
-                            <div class="mt-3 pt-3 border-top border-2 border-white opacity-75">
-                                <small class="fw-bold d-block mb-1"><i class="fas fa-info-circle me-1"></i> Explanation:</small>
-                                <p class="mb-0 small"><?= htmlspecialchars($m['explanation']) ?></p>
-                            </div>
+                            <?php if (!empty($m['explanation'])): ?>
+                                <div class="mcq-explanation-box">
+                                    <div class="explanation-title mb-2">
+                                        <i class="fas fa-lightbulb"></i> Explanation
+                                    </div>
+                                    <div class="explanation-text">
+                                        <?= htmlspecialchars($m['explanation']) ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -733,11 +998,11 @@ include '../header.php';
                 </div>
             <?php endif; ?>
 
-            <div class="text-center mt-5 no-print pt-4 border-top">
-                <button onclick="window.print()" class="btn btn-dark btn-lg px-5 shadow-sm me-3" style="border-radius: 14px; font-weight: 700;">
+            <div class="action-buttons-container no-print">
+                <button onclick="window.print()" class="btn-print">
                     <i class="fas fa-print me-2"></i> Print Analysis
                 </button>
-                <a href="take_test.php<?= $_SERVER['QUERY_STRING'] ? '?' . $_SERVER['QUERY_STRING'] : '' ?>" class="btn btn-outline-primary btn-lg px-5" style="border-radius: 14px; font-weight: 700;">
+                <a href="take_test.php<?= $_SERVER['QUERY_STRING'] ? '?' . $_SERVER['QUERY_STRING'] : '' ?>" class="btn-redo">
                     <i class="fas fa-redo me-2"></i> Re-take Test
                 </a>
             </div>
