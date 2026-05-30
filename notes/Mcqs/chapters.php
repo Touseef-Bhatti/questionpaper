@@ -1,8 +1,16 @@
 <?php
+session_start();
 $assetBase = '../../';
 include '../../db_connect.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/seo_content.php';
+require_once '../../middleware/SubscriptionCheck.php';
+
+$isPremium = false;
+if (isset($_SESSION['user_id'])) {
+    $subscription = getSubscriptionInfo();
+    $isPremium = $subscription ? $subscription['is_premium'] : false;
+}
 
 $classId = (int) ($_GET['class_id'] ?? 0);
 $bookSlug = (string) ($_GET['book_name'] ?? '');
@@ -135,11 +143,11 @@ $canonicalUrl = alh_mcqs_abs_url(ltrim($canonicalPath, '/'));
     <?php if (!$selectedChapter): ?>
         <section class="alh-mcq-grid" aria-label="Select chapter">
             <?php foreach ($chapters as $chapter): ?>
-                <a class="alh-mcq-card" href="<?= htmlspecialchars(alh_mcqs_chapter_url($classId, $bookName, $chapter)) ?>">
+                <div class="alh-mcq-card" onclick="selectChapter('<?= htmlspecialchars(alh_mcqs_chapter_url($classId, $bookName, $chapter)) ?>')" style="cursor: pointer;">
                     <span class="alh-mcq-badge"><?= (int) $chapter['mcq_count'] ?> MCQs</span>
                     <h2><?= (int) $chapter['chapter_no'] > 0 ? 'Chapter ' . (int) $chapter['chapter_no'] . ': ' : '' ?><?= htmlspecialchars($chapter['chapter_name']) ?></h2>
                     <p>Open MCQs with explanations for this chapter.</p>
-                </a>
+                </div>
             <?php endforeach; ?>
         </section>
     <?php else: ?>
@@ -191,7 +199,25 @@ $canonicalUrl = alh_mcqs_abs_url(ltrim($canonicalPath, '/'));
     <?php alh_mcqs_seo_content($className, $bookName, $selectedChapter['chapter_name'] ?? ''); ?>
 </main>
 <?php include '../../footer.php'; ?>
+<?php include_once '../../includes/quiz_ad_gate.php'; ?>
 <script>
+const isPremium = <?= json_encode($isPremium) ?>;
+
+function selectChapter(destinationUrl) {
+    if (isPremium) {
+        window.location.href = destinationUrl;
+        return;
+    }
+
+    window.ALHQuizAdGate.gate({
+        storageKey: 'alh_mcqs_chapter_ad_seen_until',
+        premiumHref: '../../subscription.php',
+        onContinue: () => {
+            window.location.href = destinationUrl;
+        }
+    });
+}
+
 function checkMcqOption(button) {
     const question = button.closest('.alh-question');
     const options = question.querySelectorAll('.alh-option');

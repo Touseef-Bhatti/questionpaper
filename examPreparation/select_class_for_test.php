@@ -145,7 +145,6 @@ include '../header.php';
     </article>
 </div>
 
-<?php include_once '../includes/quiz_ad_gate.php'; ?>
 <?php include '../footer.php'; ?>
 
 <script>
@@ -154,19 +153,7 @@ include '../header.php';
     function selectClass(classId, classSlug) {
         // Pattern: /class-9-all-subjects-test-series-with-solutions
         const destinationUrl = '<?= $assetBase ?>class-' + classId + '-all-subjects-test-series-with-solutions';
-
-        if (isPremium) {
-            window.location.href = destinationUrl;
-            return;
-        }
-
-        window.ALHQuizAdGate.gate({
-            storageKey: 'alh_select_class_for_test_ad_seen_until',
-            premiumHref: '../subscription.php',
-            onContinue: () => {
-                window.location.href = destinationUrl;
-            }
-        });
+        window.location.href = destinationUrl;
     }
 </script>
 

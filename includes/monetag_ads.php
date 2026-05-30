@@ -29,6 +29,8 @@ function inPagePushAds1() {
         'finalize_paper.php',
         'online_quiz_join.php',
         'select_class_for_test.php',
+        'books.php',
+        'chapters.php',
     ];
     
     if (!shouldShowAdsOnCurrentPage($allowedPages)) {
@@ -59,6 +61,8 @@ function vignetteBanner1() {
         'online_quiz_join.php',
         'online_quiz_lobby.php',
         'select_chapters_for_test.php',
+        'books.php',
+        'chapters.php',
     ];
     
     if (!shouldShowAdsOnCurrentPage($allowedPages)) {

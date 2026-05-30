@@ -1,6 +1,7 @@
 <?php
 session_start();
 include '../db_connect.php';
+require_once '../middleware/SubscriptionCheck.php';
 
 $class_id = intval($_GET['class_id'] ?? 0);
 $book_id = intval($_GET['book_id'] ?? 0);
@@ -65,6 +66,13 @@ function testSeriesSlug(string $value): string
 }
 
 $assetBase = '../';
+
+$isPremium = false;
+if (isset($_SESSION['user_id'])) {
+    $subscription = getSubscriptionInfo();
+    $isPremium = $subscription ? $subscription['is_premium'] : false;
+}
+
 include '../header.php';
 $pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solutions";
 ?>
@@ -342,7 +350,7 @@ $pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solut
                     $testTitleSlug = testSeriesSlug($exam['title']);
                     $seoExamUrl = "{$assetBase}class-{$class_id}-{$bookSlug}-{$testTitleSlug}-with-solutions";
                 ?>
-                    <a href="<?= $seoExamUrl ?>" class="test-square-card">
+                    <div class="test-square-card" onclick="selectExam('<?= $seoExamUrl ?>')" style="cursor: pointer;">
                         <div class="test-icon">
                             <i class="fas fa-file-signature"></i>
                         </div>
@@ -355,7 +363,7 @@ $pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solut
                         <div class="btn start-test-btn">
                             Start Test <i class="fas fa-play-circle"></i>
                         </div>
-                    </a>
+                    </div>
                 <?php endforeach; ?>
             </div>
             
@@ -408,8 +416,25 @@ $pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solut
 
 </div>
 
+<?php include_once '../includes/quiz_ad_gate.php'; ?>
+
 <script>
-    // Navigation and interactive logic
+    const isPremium = <?= json_encode($isPremium) ?>;
+
+    function selectExam(destinationUrl) {
+        if (isPremium) {
+            window.location.href = destinationUrl;
+            return;
+        }
+
+        window.ALHQuizAdGate.gate({
+            storageKey: 'alh_select_chapter_for_test_ad_seen_until',
+            premiumHref: '../subscription.php',
+            onContinue: () => {
+                window.location.href = destinationUrl;
+            }
+        });
+    }
 </script>
 
 <?php include '../footer.php'; ?>

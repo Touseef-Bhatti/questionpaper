@@ -972,7 +972,7 @@ function alhGo(cls,action,grade){
     } else if(action==='online_mcqs'){
         if(cls==='School') url=base+'online-mcqs-test-for-9th-and-10th-board-exams';
         else if(cls==='College') url=base+'class-11-and-12-online-mcqs-prepation-test';
-        else if(cls==='University') url=base+'class-11-and-12-online-mcqs-prepation-test';
+        else if(cls==='University') url=base+'quiz/mcqs_topic.php';
     } else if(action==='board_exam_prep'){
         if(cls==='School') url=base+'class-9-10-11-12-test-series-for-board-exams?level=School';
         else if(cls==='College') url=base+'class-9-10-11-12-test-series-for-board-exams?level=College';
@@ -984,7 +984,7 @@ function alhGo(cls,action,grade){
 /* class modal */
 function alhShowCls(){ const m=document.getElementById('ALH_clsmodal'); if(m) m.style.setProperty('display','flex','important'); }
 function alhHideCls(){ const m=$('ALH_clsmodal'); if(m) m.style.display='none'; }
-window.alhDoClass=function(cls){ localStorage.setItem('user_class_level_selection',cls); alhHideCls(); if(_pa) alhGo(cls,_pa,_pg); };
+window.alhDoClass=function(cls){ localStorage.setItem('user_class_level_selection',cls); alhHideCls(); if(_pa) alhGo(cls,_pa,_pg); else if(cls==='University') window.location.href='<?= $assetBase ?>quiz/mcqs_topic.php'; };
 const clsm=$('ALH_clsmodal'); if(clsm) clsm.addEventListener('click',e=>{ if(e.target===clsm) alhHideCls(); });
 
 /* upgrade modal */
