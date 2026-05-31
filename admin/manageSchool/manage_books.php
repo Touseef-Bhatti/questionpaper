@@ -153,7 +153,7 @@ include_once __DIR__ . '/../header.php';
                             <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="book_id" value="<?= (int)$row['book_id'] ?>">
-                            <button type="submit">Delete</button>
+                            <!-- <button type="submit">Delete</button> -->
                         </form>
                     </td>
                 </tr>

@@ -32,10 +32,20 @@ $maxFileSize = 50 * 1024 * 1024; // 50MB
 $message = '';
 $error = '';
 
+// Check for session messages and clear them
+if (isset($_SESSION['notes_message'])) {
+    $message = $_SESSION['notes_message'];
+    unset($_SESSION['notes_message']);
+}
+if (isset($_SESSION['notes_error'])) {
+    $error = $_SESSION['notes_error'];
+    unset($_SESSION['notes_error']);
+}
+
 // Handle file upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Invalid security token';
+        $_SESSION['notes_error'] = 'Invalid security token';
     } else {
         $title = sanitizeInput($_POST['title'] ?? '');
         $description = sanitizeInput($_POST['description'] ?? '');
@@ -44,9 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $chapterId = validateInt($_POST['chapter_id'] ?? 0);
         
         if (empty($title)) {
-            $error = 'Title is required';
+            $_SESSION['notes_error'] = 'Title is required';
         } elseif (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-            $error = 'File upload failed';
+            $_SESSION['notes_error'] = 'File upload failed';
         } else {
             $file = $_FILES['file'];
             $fileSize = $file['size'];
@@ -56,11 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             
             // Validate file size
             if ($fileSize > $maxFileSize) {
-                $error = 'File size exceeds 50MB limit';
+                $_SESSION['notes_error'] = 'File size exceeds 50MB limit';
             }
             // Validate file extension
             elseif (!array_key_exists($fileExtension, $allowedTypes)) {
-                $error = 'File type not allowed. Allowed types: ' . implode(', ', array_keys($allowedTypes));
+                $_SESSION['notes_error'] = 'File type not allowed. Allowed types: ' . implode(', ', array_keys($allowedTypes));
             } else {
                 // Get MIME type securely
                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -69,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 
                 // Validate MIME type
                 if (!in_array($mimeType, $allowedTypes[$fileExtension])) {
-                    $error = 'Invalid file type. File content does not match extension.';
+                    $_SESSION['notes_error'] = 'Invalid file type. File content does not match extension.';
                 } else {
                     // Generate secure filename
                     $newFileName = uniqid('note_', true) . '_' . time() . '.' . $fileExtension;
@@ -91,26 +101,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         );
                         
                         if ($stmt->execute()) {
-                            $message = 'File uploaded successfully!';
+                            $_SESSION['notes_message'] = 'File uploaded successfully!';
                             logAdminAction('upload_note', "Uploaded: $title");
                         } else {
-                            $error = 'Database error: ' . $stmt->error;
+                            $_SESSION['notes_error'] = 'Database error: ' . $stmt->error;
                             unlink($destination); // Remove file if DB insert fails
                         }
                         $stmt->close();
                     } else {
-                        $error = 'Failed to move uploaded file';
+                        $_SESSION['notes_error'] = 'Failed to move uploaded file';
                     }
                 }
             }
         }
     }
+    // Redirect to prevent duplicate submission
+    header('Location: ' . $_SERVER['REQUEST_URI']);
+    exit;
 }
 
 // Handle soft delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Invalid security token';
+        $_SESSION['notes_error'] = 'Invalid security token';
     } else {
         $noteId = validateInt($_POST['note_id'] ?? 0);
         if ($noteId) {
@@ -118,38 +131,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $adminId = $_SESSION['user_id'];
             $stmt->bind_param('ii', $adminId, $noteId);
             if ($stmt->execute()) {
-                $message = 'Note moved to trash';
+                $_SESSION['notes_message'] = 'Note moved to trash';
                 logAdminAction('soft_delete_note', "Note ID: $noteId");
             }
             $stmt->close();
         }
     }
+    // Redirect to prevent duplicate submission
+    header('Location: ' . $_SERVER['REQUEST_URI']);
+    exit;
 }
 
 // Handle restore
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'restore') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Invalid security token';
+        $_SESSION['notes_error'] = 'Invalid security token';
     } else {
         $noteId = validateInt($_POST['note_id'] ?? 0);
         if ($noteId) {
             $stmt = $conn->prepare("UPDATE uploaded_notes SET is_deleted = 0, deleted_at = NULL, deleted_by = NULL WHERE note_id = ?");
             $stmt->bind_param('i', $noteId);
             if ($stmt->execute()) {
-                $message = 'Note restored successfully';
+                $_SESSION['notes_message'] = 'Note restored successfully';
                 logAdminAction('restore_note', "Note ID: $noteId");
             }
             $stmt->close();
         }
     }
+    // Redirect to prevent duplicate submission
+    header('Location: ' . $_SERVER['REQUEST_URI']);
+    exit;
 }
 
 // Handle permanent delete (Super Admin only)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'permanent_delete') {
     if ($_SESSION['role'] !== 'superadmin') {
-        $error = 'Only super admin can permanently delete notes';
+        $_SESSION['notes_error'] = 'Only super admin can permanently delete notes';
     } elseif (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Invalid security token';
+        $_SESSION['notes_error'] = 'Invalid security token';
     } else {
         $noteId = validateInt($_POST['note_id'] ?? 0);
         if ($noteId) {
@@ -169,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     if (file_exists($filePath)) {
                         unlink($filePath);
                     }
-                    $message = 'Note permanently deleted';
+                    $_SESSION['notes_message'] = 'Note permanently deleted';
                     logAdminAction('permanent_delete_note', "Note ID: $noteId");
                 }
                 $deleteStmt->close();
@@ -177,12 +196,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->close();
         }
     }
+    // Redirect to prevent duplicate submission
+    header('Location: ' . $_SERVER['REQUEST_URI']);
+    exit;
 }
 
 // Handle update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Invalid security token';
+        $_SESSION['notes_error'] = 'Invalid security token';
     } else {
         $noteId = validateInt($_POST['note_id'] ?? 0);
         $title = sanitizeInput($_POST['title'] ?? '');
@@ -195,12 +217,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt = $conn->prepare("UPDATE uploaded_notes SET title = ?, description = ?, class_id = ?, book_id = ?, chapter_id = ? WHERE note_id = ?");
             $stmt->bind_param('ssiiii', $title, $description, $classId, $bookId, $chapterId, $noteId);
             if ($stmt->execute()) {
-                $message = 'Note updated successfully';
+                $_SESSION['notes_message'] = 'Note updated successfully';
                 logAdminAction('update_note', "Note ID: $noteId");
             }
             $stmt->close();
         }
     }
+    // Redirect to prevent duplicate submission
+    header('Location: ' . $_SERVER['REQUEST_URI']);
+    exit;
 }
 
 // Fetch classes for filter
@@ -457,7 +482,7 @@ include_once __DIR__ . '/../header.php';
             font-size: 1.5rem;
             cursor: pointer;
         }
-
+    </style>
     
     <div class="notes-container">
         <h1>📚 Manage Uploaded Notes</h1>
@@ -579,7 +604,7 @@ include_once __DIR__ . '/../header.php';
                                 <td>
                                     <div class="actions">
                                         <button class="btn btn-warning" onclick="editNote(<?= $note['note_id'] ?>)">✏️ Edit</button>
-                                        <a href="../<?= htmlspecialchars($note['file_path']) ?>" target="_blank" class="btn btn-success">👁️ View</a>
+                                        <a href="../../<?= htmlspecialchars($note['file_path']) ?>" target="_blank" class="btn btn-success">👁️ View</a>
                                         <form method="POST" style="display: inline;" onsubmit="return confirm('Move to trash?')">
                                             <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                             <input type="hidden" name="action" value="delete">
@@ -725,7 +750,7 @@ include_once __DIR__ . '/../header.php';
                 return;
             }
             
-            fetch(`../quiz/quiz_data.php?type=books&class_id=${classId}`)
+            fetch(`../../quiz/quiz_data.php?type=books&class_id=${classId}`)
                 .then(response => response.json())
                 .then(books => {
                     bookSelect.innerHTML = '<option value="0">All Books</option>';
@@ -754,7 +779,7 @@ include_once __DIR__ . '/../header.php';
                 return;
             }
             
-            fetch(`../quiz/quiz_data.php?type=chapters&class_id=${classId}&book_id=${bookId}`)
+            fetch(`../../quiz/quiz_data.php?type=chapters&class_id=${classId}&book_id=${bookId}`)
                 .then(response => response.json())
                 .then(chapters => {
                     chapterSelect.innerHTML = '<option value="0">All Chapters</option>';
@@ -805,7 +830,7 @@ include_once __DIR__ . '/../header.php';
                 return;
             }
             
-            fetch(`../quiz/quiz_data.php?type=books&class_id=${classId}`)
+            fetch(`../../quiz/quiz_data.php?type=books&class_id=${classId}`)
                 .then(response => response.json())
                 .then(books => {
                     bookSelect.innerHTML = '<option value="0">All Books</option>';
@@ -837,7 +862,7 @@ include_once __DIR__ . '/../header.php';
                 return;
             }
             
-            fetch(`../quiz/quiz_data.php?type=chapters&class_id=${classId}&book_id=${bookId}`)
+            fetch(`../../quiz/quiz_data.php?type=chapters&class_id=${classId}&book_id=${bookId}`)
                 .then(response => response.json())
                 .then(chapters => {
                     chapterSelect.innerHTML = '<option value="0">All Chapters</option>';
