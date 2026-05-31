@@ -88,6 +88,29 @@ include '../db_connect.php';
 
     <div class="study-materials-container">
 
+        <!-- Test Series & Guess Papers -->
+        <h2 class="materials-section-title"><i class="fas fa-star"></i> Exam Prep Tools</h2>
+        <div class="materials-grid">
+            <div class="material-card" onclick="navigateToMaterial('test-series')">
+                <div class="material-icon practice-test"><i class="fas fa-trophy"></i></div>
+                <div class="material-body">
+                    <div class="material-title">Test Series</div>
+                    <div class="material-description">Full-length practice test series for class 9 &amp; 10 board exams with detailed solutions.</div>
+                    <span class="material-tag popular">Popular</span>
+                </div>
+                <i class="fas fa-chevron-right material-arrow"></i>
+            </div>
+            <div class="material-card" onclick="navigateToMaterial('guess-papers')">
+                <div class="material-icon question-paper"><i class="fas fa-lightbulb"></i></div>
+                <div class="material-body">
+                    <div class="material-title">Guess Papers</div>
+                    <div class="material-description">Important guess papers and expected questions for upcoming board exams.</div>
+                    <span class="material-tag new">New</span>
+                </div>
+                <i class="fas fa-chevron-right material-arrow"></i>
+            </div>
+        </div>
+
         <!-- Quick Class Links -->
         <h2 class="materials-section-title"><i class="fas fa-bolt"></i> Quick Access</h2>
         <div class="quick-links">
@@ -220,6 +243,8 @@ include '../db_connect.php';
                 'notes': 'uploaded_notes.php',
                 'mcqs': '../class-9-10-11-12-mcqs-for-board-exams',
                 'practice-test': '../class-9-10-11-12-test-series-for-board-exams',
+                'test-series': '../class-9-10-11-12-test-series-for-board-exams',
+                'guess-papers': 'uploaded_notes.php',
                 'book-mcqs': 'Mcqs/index.php',
                 'question-paper': '../select_class.php'
             };

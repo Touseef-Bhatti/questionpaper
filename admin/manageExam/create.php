@@ -37,8 +37,8 @@ while ($b = $books->fetch_assoc()) {
         border-radius: 8px;
         padding: 15px;
         background: white;
-        min-height: 400px;
-        max-height: 600px;
+        min-height: 300px;
+        max-height: 500px;
         overflow-y: auto;
     }
     .question-category-title {
@@ -66,6 +66,34 @@ while ($b = $books->fetch_assoc()) {
         padding: 2px 8px;
         border-radius: 10px;
     }
+    
+    /* Responsive styles */
+    @media (max-width: 991.98px) {
+        .questions-container {
+            max-height: 400px;
+        }
+    }
+    
+    @media (max-width: 767.98px) {
+        .chapter-list-container,
+        .questions-section {
+            margin-bottom: 20px;
+        }
+        
+        #chapter-list {
+            max-height: 300px !important;
+        }
+        
+        .questions-container {
+            max-height: 350px;
+            min-height: 250px;
+        }
+        
+        .card.shadow.position-sticky {
+            position: static !important;
+            margin-top: 20px;
+        }
+    }
 </style>
 
 <div class="container-fluid py-4">
@@ -80,7 +108,7 @@ while ($b = $books->fetch_assoc()) {
         <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
         
         <div class="row">
-            <div class="col-md-8">
+            <div class="col-12 col-lg-8">
                 <div class="card shadow mb-4">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">1. Basic Information</h5>
@@ -91,7 +119,7 @@ while ($b = $books->fetch_assoc()) {
                             <input type="text" name="title" class="form-control" placeholder="e.g. Midterm Test - Chapter 1 & 2" required>
                         </div>
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-12 col-md-6 mb-3">
                                 <label class="form-label">Class</label>
                                 <select name="class_id" id="class_id" class="form-select" required>
                                     <option value="">Select Class</option>
@@ -100,7 +128,7 @@ while ($b = $books->fetch_assoc()) {
                                     <?php endwhile; ?>
                                 </select>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-12 col-md-6 mb-3">
                                 <label class="form-label">Book</label>
                                 <select name="book_id" id="book_id" class="form-select" required disabled>
                                     <option value="">Select Book</option>
@@ -111,18 +139,18 @@ while ($b = $books->fetch_assoc()) {
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-5">
+                            <div class="col-12 col-md-5 chapter-list-container">
                                 <label class="form-label">Chapters</label>
                                 <div id="chapter-list" class="border rounded" style="max-height: 500px; overflow-y: auto; background: #f8f9fa;">
                                     <p class="text-muted p-3">Select a book first...</p>
                                 </div>
                             </div>
-                            <div class="col-md-7">
+                            <div class="col-12 col-md-7 questions-section">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <label class="form-label mb-0">Questions Selection</label>
                                 </div>
                                 <div class="row mb-2">
-                                    <div class="col-md-6">
+                                    <div class="col-12 col-md-6 mb-2 mb-md-0">
                                         <select id="question-type-filter" class="form-select">
                                             <option value="all">All Types</option>
                                             <option value="mcqs">MCQs</option>
@@ -130,7 +158,7 @@ while ($b = $books->fetch_assoc()) {
                                             <option value="long">Long Questions</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-12 col-md-6">
                                         <input type="text" id="question-search" class="form-control" placeholder="Search questions...">
                                     </div>
                                 </div>
@@ -148,7 +176,7 @@ while ($b = $books->fetch_assoc()) {
                     </div>
                     <div class="card-body">
                         <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label">Default Mode</label>
                                 <div class="btn-group w-100" role="group">
                                     <input type="radio" class="btn-check" name="selection_type" id="type_random" value="random" checked>
@@ -163,15 +191,15 @@ while ($b = $books->fetch_assoc()) {
                         <div id="random-settings">
                             <p class="text-muted small mb-3">These settings apply if no manual questions are selected or if "System Random" is active.</p>
                             <div class="row">
-                                <div class="col-md-4 mb-3">
+                                <div class="col-12 col-md-4 mb-3">
                                     <label class="form-label">No. of MCQs</label>
                                     <input type="number" name="mcq_count" class="form-control" value="10" min="0">
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-12 col-md-4 mb-3">
                                     <label class="form-label">No. of Short Qs</label>
                                     <input type="number" name="short_count" class="form-control" value="5" min="0">
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-12 col-md-4 mb-3">
                                     <label class="form-label">No. of Long Qs</label>
                                     <input type="number" name="long_count" class="form-control" value="2" min="0">
                                 </div>
@@ -186,8 +214,8 @@ while ($b = $books->fetch_assoc()) {
                 </div>
             </div>
 
-            <div class="col-md-4">
-                <div class="card shadow position-sticky" style="top: 90px;">
+            <div class="col-12 col-lg-4">
+                <div class="card shadow sticky-top" style="top: 90px;">
                     <div class="card-body">
                         <h5>Summary</h5>
                         <hr>
