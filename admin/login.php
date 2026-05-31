@@ -13,9 +13,59 @@ if (!empty($_SESSION['role']) && in_array($_SESSION['role'], ['admin','superadmi
 
 $error = '';
 $success = '';
-$verificationEmail = 'touseef12345bhatti@gmail.com';
+$showOtpForm = false;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Handle OTP verification
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_otp'])) {
+    if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid CSRF token. Please reload the page.';
+    } else {
+        $otp = isset($_POST['otp']) ? trim($_POST['otp']) : '';
+        $email = isset($_SESSION['pending_login_email']) ? $_SESSION['pending_login_email'] : '';
+        
+        if ($otp !== '' && $email !== '') {
+            // Find the pending login action with this OTP
+            $stmt = $conn->prepare("SELECT pa.*, a.name, a.role FROM pending_admin_actions pa JOIN admins a ON pa.admin_id = a.id WHERE pa.action_type = 'login' AND pa.email = ? AND pa.token = ? AND pa.expires_at > NOW() ORDER BY pa.created_at DESC LIMIT 1");
+            $stmt->bind_param("ss", $email, $otp);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            
+            if ($res && $res->num_rows === 1) {
+                $action = $res->fetch_assoc();
+                
+                // Login successful
+                session_regenerate_id(true);
+                $_SESSION['user_id'] = $action['admin_id'];
+                $_SESSION['admin_id'] = $action['admin_id'];
+                $_SESSION['id'] = $action['admin_id'];
+                $_SESSION['name'] = $action['name'];
+                $_SESSION['email'] = $action['email'];
+                $_SESSION['role'] = strtolower($action['role']);
+                
+                // Delete the pending action
+                $stmt2 = $conn->prepare("DELETE FROM pending_admin_actions WHERE id = ?");
+                $stmt2->bind_param("i", $action['id']);
+                $stmt2->execute();
+                $stmt2->close();
+                
+                // Clear session variables
+                unset($_SESSION['pending_login_email']);
+                
+                header('Location: dashboard.php');
+                exit;
+            } else {
+                $error = 'Invalid or expired OTP. Please try again.';
+                $showOtpForm = true;
+            }
+            $stmt->close();
+        } else {
+            $error = 'Please enter the OTP.';
+            $showOtpForm = true;
+        }
+    }
+}
+// Handle initial login with email/password
+elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF
     if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid CSRF token. Please reload the page.';
@@ -37,29 +87,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $valid = password_verify($password, $user['password']) || $password === $user['password'];
                     
                     if ($valid && in_array(strtolower($user['role']), ['admin', 'superadmin'])) {
-                        // Create a login verification request
-                        $token = bin2hex(random_bytes(32));
+                        // Generate 6-digit OTP
+                        $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
                         $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
                         $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-                        $expiresAt = date('Y-m-d H:i:s', strtotime('+30 minutes'));
+                        $expiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
                         
+                        // Store OTP in pending_admin_actions (using token field for OTP)
                         $stmt2 = $conn->prepare("INSERT INTO pending_admin_actions (action_type, admin_id, email, token, ip_address, user_agent, created_at, expires_at) VALUES ('login', ?, ?, ?, ?, ?, NOW(), ?)");
-                        $stmt2->bind_param("isssss", $user['id'], $user['email'], $token, $ipAddress, $userAgent, $expiresAt);
+                        $stmt2->bind_param("isssss", $user['id'], $user['email'], $otp, $ipAddress, $userAgent, $expiresAt);
                         
                         if ($stmt2->execute()) {
-                            $details = "<strong>Admin:</strong> " . htmlspecialchars($user['name']) . " (" . htmlspecialchars($user['email']) . ")<br>";
-                            $details .= "<strong>IP Address:</strong> " . htmlspecialchars($ipAddress) . "<br>";
-                            $details .= "<strong>Time:</strong> " . date('Y-m-d H:i:s');
-                            
-                            if (sendAdminActionVerificationEmail($verificationEmail, 'login', $token, $details)) {
-                                $success = 'Login credentials verified! A verification email has been sent to ' . htmlspecialchars($verificationEmail) . '. Please check your email and click the verification link to complete login.';
-                                // Store email in session for reference (optional)
+                            // Send OTP to admin's own email
+                            if (sendAdminOtpEmail($user['email'], $otp, $user['name'])) {
+                                $success = 'Login credentials verified! A 6-digit OTP has been sent to ' . htmlspecialchars($user['email']) . '. Please enter the OTP below to complete login.';
                                 $_SESSION['pending_login_email'] = $email;
+                                $showOtpForm = true;
                             } else {
-                                $error = 'Credentials verified but failed to send verification email. Please try again later.';
+                                $error = 'Credentials verified but failed to send OTP email. Please try again later.';
                             }
                         } else {
-                            $error = 'Error processing login verification. Please try again.';
+                            $error = 'Error processing login. Please try again.';
                         }
                         $stmt2->close();
                     } else {
@@ -101,13 +149,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         <?php if (!empty($success)): ?>
             <div class="success" style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
-                <h3 style="margin-top: 0; color: #155724;">✓ Check Your Email</h3>
+                <h3 style="margin-top: 0; color: #155724;">✓ OTP Sent!</h3>
                 <p><?= $success ?></p>
                 <p style="margin-bottom: 0; font-size: 0.9em; color: #0c5aa0;">
-                    <strong>Verification Link Valid For:</strong> 30 minutes<br>
-                    <strong>Not Received Email?</strong> Check your spam folder or try logging in again.
+                    <strong>OTP Valid For:</strong> 10 minutes
                 </p>
             </div>
+        <?php endif; ?>
+        
+        <?php if ($showOtpForm): ?>
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
+                <input type="hidden" name="verify_otp" value="1">
+                <label for="otp">Enter 6-digit OTP</label>
+                <input type="text" id="otp" name="otp" maxlength="6" pattern="[0-9]{6}" required placeholder="000000" style="text-align: center; font-size: 24px; letter-spacing: 10px;">
+                <button type="submit">Verify OTP & Login</button>
+            </form>
+            <p style="margin-top: 15px;">
+                <a href="login.php" style="color: #667eea; text-decoration: none;">← Use different email</a>
+            </p>
         <?php else: ?>
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
@@ -115,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="email" id="email" name="email" required>
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" required>
-                <button type="submit">Sign in</button>
+                <button type="submit">Send OTP</button>
             </form>
         <?php endif; ?>
         

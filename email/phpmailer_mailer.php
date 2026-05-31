@@ -724,3 +724,107 @@ function send_reset_email($to, $reset_link) {
         }
     }
 }
+
+
+/**
+ * Send Admin OTP Email for Login Verification
+ * @param string $to - Admin's email address
+ * @param string $otp - 6-digit OTP
+ * @param string $adminName - Admin's name
+ */
+function sendAdminOtpEmail($to, $otp, $adminName) {
+    try {
+        if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            error_log('Invalid email address: ' . $to);
+            return false;
+        }
+
+        $mail = new PHPMailer(true);
+        configureMailerSmtp($mail);
+
+        // Recipients
+        $fromName = getMailerFromName();
+        $mail->setFrom(getMailerFromAddress(), $fromName);
+        $mail->addAddress($to);
+
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = 'Your Admin Login OTP - ' . $fromName;
+
+        // Beautiful HTML email with OTP
+        $htmlMessage = '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login OTP</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f4f4; padding: 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
+                            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">?? Admin Login OTP</h1>
+                            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">' . htmlspecialchars($fromName) . '</p>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #667eea; margin: 0 0 20px 0; font-size: 24px;">Hello ' . htmlspecialchars($adminName) . ',</h2>
+                            <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">Use the following 6-digit OTP to complete your admin login. This OTP is valid for 10 minutes only.</p>
+                            
+                            <!-- OTP Display -->
+                            <div style="background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border-radius: 12px; padding: 30px; margin: 30px 0; text-align: center;">
+                                <p style="color: #666; font-size: 14px; margin: 0 0 15px 0;">Your One-Time Password</p>
+                                <div style="font-size: 48px; font-weight: bold; color: #667eea; letter-spacing: 15px; font-family: monospace;">' . htmlspecialchars($otp) . '</div>
+                            </div>
+                            
+                            <p style="color: #666; font-size: 14px; line-height: 1.5; margin: 30px 0 10px 0;">If you didn\'t request this login, please ignore this email and contact support immediately.</p>
+                            
+                            <hr style="border: none; height: 1px; background: #eee; margin: 30px 0;">
+                            <p style="color: #888; font-size: 12px; margin: 0;">Best regards,<br><strong>The ' . htmlspecialchars($fromName) . ' Security Team</strong></p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>';
+        
+        $mail->Body = $htmlMessage;
+        $mail->AltBody = "Hello $adminName,\n\nYour admin login OTP is: $otp\n\nThis OTP is valid for 10 minutes.\n\nIf you didn't request this login, please ignore this email.\n\nBest regards,\nThe $fromName Team";
+
+        $mail->send();
+        
+        error_log('Admin OTP email sent to: ' . $to);
+        return true;
+        
+    } catch (Exception $e) {
+        error_log('Admin OTP email error: ' . $e->getMessage());
+        // Fallback to PHP mail()
+        try {
+            $fromEmail = getMailerFromAddress();
+            $fromName = getMailerFromName();
+            $subject = 'Your Admin Login OTP - ' . $fromName;
+            $subject = str_replace(["\r", "\n"], '', $subject);
+
+            $message = "Hello $adminName,\n\nYour admin login OTP is: $otp\n\nThis OTP is valid for 10 minutes.\n\nIf you didn't request this login, please ignore this email.\n\nBest regards,\nThe $fromName Team";
+            
+            $headers = "From: " . $fromName . " <" . $fromEmail . ">\r\n" .
+                      "Reply-To: " . $fromEmail . "\r\n" .
+                      "MIME-Version: 1.0\r\n" .
+                      "Content-Type: text/plain; charset=UTF-8\r\n";
+            
+            return mail($to, $subject, $message, $headers);
+        } catch (Exception $ex) {
+            error_log('Admin OTP fallback email error: ' . $ex->getMessage());
+            return false;
+        }
+    }
+}
