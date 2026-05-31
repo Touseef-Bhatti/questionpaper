@@ -121,6 +121,19 @@ while ($b = $books->fetch_assoc()) {
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <label class="form-label mb-0">Questions Selection</label>
                                 </div>
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <select id="question-type-filter" class="form-select">
+                                            <option value="all">All Types</option>
+                                            <option value="mcqs">MCQs</option>
+                                            <option value="short">Short Questions</option>
+                                            <option value="long">Long Questions</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" id="question-search" class="form-control" placeholder="Search questions...">
+                                    </div>
+                                </div>
                                 <div id="questions-display" class="questions-container">
                                     <p class="text-muted text-center mt-5">Select a chapter to see questions</p>
                                 </div>
@@ -304,6 +317,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Event listeners for type filter and search
+    document.getElementById('question-type-filter').addEventListener('change', refreshQuestionsDisplay);
+    document.getElementById('question-search').addEventListener('input', refreshQuestionsDisplay);
+
     async function refreshQuestionsDisplay() {
         const selectedChapters = Array.from(document.querySelectorAll('.chapter-checkbox:checked')).map(cb => ({
             id: cb.value,
@@ -337,6 +354,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderAllQuestions(selectedChapters) {
+        const typeFilter = document.getElementById('question-type-filter').value;
+        const searchText = document.getElementById('question-search').value.toLowerCase();
+        
         questionsDisplay.innerHTML = '';
         
         selectedChapters.forEach(ch => {
@@ -354,6 +374,16 @@ document.addEventListener('DOMContentLoaded', function() {
             ];
 
             categories.forEach(cat => {
+                // Skip category if type filter is active and doesn't match
+                if (typeFilter !== 'all' && cat.key !== typeFilter) {
+                    return;
+                }
+
+                // Filter questions by search text
+                const filteredQuestions = data[cat.key].filter(q => 
+                    q.text.toLowerCase().includes(searchText)
+                );
+
                 const section = document.createElement('div');
                 section.className = 'question-category-section mb-2';
                 
@@ -362,17 +392,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 title.style.fontSize = '0.85rem';
                 title.innerHTML = `
                     <span><i class="fas fa-${cat.icon} me-1"></i>${cat.label}</span>
-                    <span class="badge-count">${data[cat.key].length}</span>
+                    <span class="badge-count">${filteredQuestions.length}</span>
                 `;
                 section.appendChild(title);
 
-                if (data[cat.key].length === 0) {
+                if (filteredQuestions.length === 0) {
                     const empty = document.createElement('p');
                     empty.className = 'text-muted small ps-3 mb-1';
                     empty.textContent = 'No questions.';
                     section.appendChild(empty);
                 } else {
-                    data[cat.key].forEach(q => {
+                    filteredQuestions.forEach(q => {
                         const item = document.createElement('div');
                         item.className = 'question-list-item';
                         const isChecked = selectedQuestionIds.has(q.id);

@@ -220,7 +220,7 @@ include '../db_connect.php';
                 'notes': 'uploaded_notes.php',
                 'mcqs': '../class-9-10-11-12-mcqs-for-board-exams',
                 'practice-test': '../class-9-10-11-12-test-series-for-board-exams',
-                'book-mcqs': 'mcqs.php',
+                'book-mcqs': 'Mcqs/index.php',
                 'question-paper': '../select_class.php'
             };
             const url = routes[type] || '#';
