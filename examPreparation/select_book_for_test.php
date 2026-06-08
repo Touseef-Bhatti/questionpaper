@@ -45,13 +45,13 @@ $stmt->close();
 $assetBase = '../';
 include '../header.php';
 $displayClassName = $className;
-$pageTitle = $displayClassName . " All Subjects Test Series With Solutions";
+$pageTitle = $displayClassName . " Board Exam Preparation 2026 - Online Test Papers & Past Papers";
 ?>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> - Ahmad Learning Hub</title>
-    <?php $metaDesc = "Practice " . $displayClassName . " all subjects test series with solutions, chapter-wise online tests, past papers, and important board exam questions."; ?>
+    <?php $metaDesc = "Prepare for " . $displayClassName . " board exams with our comprehensive collection of past papers and test papers for all subjects."; ?>
     <meta name="description" content="<?= htmlspecialchars($metaDesc) ?>">
     <link rel="stylesheet" href="../css/exam_prep.css?v=<?= time() ?>">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -60,8 +60,8 @@ $pageTitle = $displayClassName . " All Subjects Test Series With Solutions";
 
 <div class="main-content container">
     <div class="prep-hero shadow-lg">
-        <h1><?= htmlspecialchars($displayClassName) ?> All Subjects Test Series With Solutions</h1>
-        <p>Expertly curated <strong>test series with solutions</strong> for every major subject. Select your book to start practicing now.</p>
+        <h1>📖 <?= htmlspecialchars($className) ?> Subjects</h1>
+        <p>Expertly curated <strong>past papers</strong> and <strong>test papers</strong> for every major subject. Select your book to start practicing now.</p>
     </div>
 
     <div class="selection-section mb-5">
@@ -122,7 +122,7 @@ $pageTitle = $displayClassName . " All Subjects Test Series With Solutions";
         </article>
 
         <div class="text-center mt-5">
-            <a href="<?= $assetBase ?>class-9-10-11-12-test-series-for-board-exams" class="btn btn-outline-secondary" style="border-radius: 12px; padding: 10px 25px;">
+            <a href="<?= $assetBase ?>online-test-papers-preparation" class="btn btn-outline-secondary" style="border-radius: 12px; padding: 10px 25px;">
                 <i class="fas fa-arrow-left"></i> Back to Classes
             </a>
         </div>
@@ -131,8 +131,8 @@ $pageTitle = $displayClassName . " All Subjects Test Series With Solutions";
 
 <script>
     function selectBook(bookName) {
-        // Pattern: class-X-SubjectName-chapterWise-test-series-with-solutions
-        window.location.href = '<?= $assetBase ?>class-<?= $class_id ?>-' + bookName + '-chapterWise-test-series-with-solutions';
+        // Updated to SEO-friendly URL pattern: class-X-SubjectName-chapterWise-test-series
+        window.location.href = '<?= $assetBase ?>class-<?= $class_id ?>-' + bookName + '-chapterWise-test-series';
     }
 </script>
 

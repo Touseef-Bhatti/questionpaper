@@ -6,8 +6,8 @@ require_once '../middleware/SubscriptionCheck.php';
 $level = $_GET['level'] ?? '';
 
 // SEO Titles based on level
-$pageTitle = "Class 9, 10, 11, 12 Test Series For Board Exams";
-$metaDesc = "Start the Class 9, 10, 11, and 12 test series for board exams. Practice chapter-wise online test papers, solved past papers, and important questions for all subjects.";
+$pageTitle = "Board Exam Preparation Portal 2026 - Ahmad Learning Hub";
+$metaDesc = "The ultimate Exam Preparation Portal for Class 9, 10, 11, and 12. Get solved past papers, important questions, and take online test papers for all subjects.";
 
 if ($level === 'School') {
     $pageTitle = "Class 9 & 10 Matric Board Exam Preparation 2026 - Online Test Papers";
@@ -16,8 +16,8 @@ if ($level === 'School') {
     $pageTitle = "Class 11 & 12 Intermediate Board Exam Preparation 2026 - Online Test Papers";
     $metaDesc = "Achieve top marks in Class 11 and 12 Intermediate exams. Get the best online exam preparation tools, past papers, and important questions for all college subjects.";
 } else {
-    $pageTitle = "Class 9, 10, 11, 12 Test Series For Board Exams";
-    $metaDesc = "Access the Class 9, 10, 11, and 12 test series for board exams. Download past papers, take online test papers, and prepare for board exams.";
+    $pageTitle = "Class 9-10-11-12 Board Exam Preparation & Online Test Papers 2026";
+    $metaDesc = "Access the ultimate Exam Preparation Portal for Class 9, 10, 11, and 12. Download past papers, take online test papers, and prepare for board exams.";
 }
 
 // --- Caching Logic ---
@@ -62,7 +62,7 @@ include '../header.php';
 
 <div class="main-content container">
     <div class="prep-hero shadow-lg">
-        <h1>Class 9, 10, 11, 12 Test Series For Board Exams</h1>
+        <h1>🎓 Exam Preparation Portal</h1>
         <p>Your journey to academic excellence starts here. Select your class to access curated practice tests, past papers, and AI-generated assessments.</p>
     </div>
 
@@ -145,15 +145,30 @@ include '../header.php';
     </article>
 </div>
 
+<?php include_once '../includes/quiz_ad_gate.php'; ?>
 <?php include '../footer.php'; ?>
 
 <script>
     const isPremium = <?= json_encode($isPremium) ?>;
 
     function selectClass(classId, classSlug) {
-        // Pattern: /class-9-all-subjects-test-series-with-solutions
-        const destinationUrl = '<?= $assetBase ?>class-' + classId + '-all-subjects-test-series-with-solutions';
-        window.location.href = destinationUrl;
+        // Use class name slug for SEO if available, otherwise fallback to class-ID
+        // Pattern: /class9-chapterWise-test-series or /class-9-chapterWise-test-series
+        const slug = classSlug ? classSlug : 'class-' + classId;
+        const destinationUrl = '<?= $assetBase ?>' + slug + '-chapterWise-test-series?class_id=' + classId;
+
+        if (isPremium) {
+            window.location.href = destinationUrl;
+            return;
+        }
+
+        window.ALHQuizAdGate.gate({
+            storageKey: 'alh_select_class_for_test_ad_seen_until',
+            premiumHref: '../subscription.php',
+            onContinue: () => {
+                window.location.href = destinationUrl;
+            }
+        });
     }
 </script>
 

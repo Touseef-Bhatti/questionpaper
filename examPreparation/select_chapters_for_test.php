@@ -1,7 +1,6 @@
 <?php
 session_start();
 include '../db_connect.php';
-require_once '../middleware/SubscriptionCheck.php';
 
 $class_id = intval($_GET['class_id'] ?? 0);
 $book_id = intval($_GET['book_id'] ?? 0);
@@ -57,30 +56,15 @@ while ($row = $examsResult->fetch_assoc()) {
 }
 $stmt->close();
 
-function testSeriesSlug(string $value): string
-{
-    $slug = strtolower(trim($value));
-    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
-    $slug = preg_replace('/-+/', '-', $slug);
-    return trim((string) $slug, '-');
-}
-
 $assetBase = '../';
-
-$isPremium = false;
-if (isset($_SESSION['user_id'])) {
-    $subscription = getSubscriptionInfo();
-    $isPremium = $subscription ? $subscription['is_premium'] : false;
-}
-
 include '../header.php';
-$pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solutions";
+$pageTitle = $className . " " . $bookName . " Online Exam Preparation & Test Papers 2026";
 ?>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> - Ahmad Learning Hub</title>
-    <?php $metaDesc = "Practice " . $className . " " . $bookName . " chapter-wise test series with solutions, online tests, past papers, and important board exam questions."; ?>
+    <?php $metaDesc = "Boost your " . $className . " " . $bookName . " board exam score. Take chapter-wise online tests and access important question papers for Class 9-12."; ?>
     <meta name="description" content="<?= htmlspecialchars($metaDesc) ?>">
     <link rel="stylesheet" href="../css/exam_prep.css?v=<?= time() ?>">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -89,8 +73,8 @@ $pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solut
 
 <div class="main-content container">
     <div class="prep-hero shadow-lg">
-        <h1><?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?> ChapterWise Test Series With Solutions</h1>
-        <p>Access <strong>test series with solutions</strong>, past papers, model tests, and chapter-wise <strong>test papers</strong> for <?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?>.</p>
+        <h1>🎯 <?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?> Prep</h1>
+        <p>Access <strong>past papers</strong>, model tests, and chapter-wise <strong>test papers</strong> for <?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?>. Custom generate your success.</p>
     </div>
 
     <style>
@@ -347,10 +331,9 @@ $pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solut
             <div class="practice-tests-grid mb-4">
                 <?php foreach ($examsData as $exam): 
                     $bookSlug = urlencode(str_replace(' ', '-', $bookName));
-                    $testTitleSlug = testSeriesSlug($exam['title']);
-                    $seoExamUrl = "{$assetBase}class-{$class_id}-{$bookSlug}-{$testTitleSlug}-with-solutions";
+                    $seoExamUrl = "{$assetBase}class-{$class_id}-{$bookSlug}-chapterWise-test-series-Online-Test-{$exam['id']}";
                 ?>
-                    <div class="test-square-card" onclick="selectExam('<?= $seoExamUrl ?>')" style="cursor: pointer;">
+                    <a href="<?= $seoExamUrl ?>" class="test-square-card">
                         <div class="test-icon">
                             <i class="fas fa-file-signature"></i>
                         </div>
@@ -363,7 +346,7 @@ $pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solut
                         <div class="btn start-test-btn">
                             Start Test <i class="fas fa-play-circle"></i>
                         </div>
-                    </div>
+                    </a>
                 <?php endforeach; ?>
             </div>
             
@@ -373,7 +356,7 @@ $pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solut
                     <p>No pre-created full <strong>test papers</strong> available for this book yet. Use the Online MCQs Test above to practice!</p>
                 </div>
             <?php endif; ?>
- <a href="<?= $assetBase ?>class-<?= $class_id ?>-all-subjects-test-series-with-solutions" class="back-grid-button">
+ <a href="<?= $assetBase ?>class-<?= $class_id ?>-chapterWise-test-series" class="back-grid-button">
                         <i class="fas fa-arrow-left"></i> Back to Subjects
                     </a>
             <!-- SEO Blog Section -->
@@ -416,25 +399,8 @@ $pageTitle = $className . " " . $bookName . " ChapterWise Test Series With Solut
 
 </div>
 
-<?php include_once '../includes/quiz_ad_gate.php'; ?>
-
 <script>
-    const isPremium = <?= json_encode($isPremium) ?>;
-
-    function selectExam(destinationUrl) {
-        if (isPremium) {
-            window.location.href = destinationUrl;
-            return;
-        }
-
-        window.ALHQuizAdGate.gate({
-            storageKey: 'alh_select_chapter_for_test_ad_seen_until',
-            premiumHref: '../subscription.php',
-            onContinue: () => {
-                window.location.href = destinationUrl;
-            }
-        });
-    }
+    // Navigation and interactive logic
 </script>
 
 <?php include '../footer.php'; ?>
