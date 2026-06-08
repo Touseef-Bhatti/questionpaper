@@ -106,8 +106,14 @@ foreach ($questions_data['mcqs'] as $m) {
     $results['mcqs'][$id] = [
         'mcq_id' => $id,
         'question' => $m['question'],
-        'correct_option' => $m['correct_option'],
-        'user_selected' => $user_ans['selected'] ?? 'Not attempted',
+        'options' => [
+            'A' => $m['option_a'],
+            'B' => $m['option_b'],
+            'C' => $m['option_c'],
+            'D' => $m['option_d']
+        ],
+        'correct_option_key' => $m['correct_option'],
+        'user_selected_key' => $user_ans['selected'] ?? null,
         'is_correct' => $is_correct,
         'explanation' => $explanation
     ];
@@ -455,6 +461,91 @@ include '../header.php';
         box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2); 
     }
 
+    /* MCQ Options Styling */
+    .mcq-option {
+        padding: 16px 22px;
+        border: 2px solid #e2e8f0;
+        border-radius: 14px;
+        margin-bottom: 14px;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: #fff;
+        color: #334155;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.01);
+    }
+
+    .mcq-option strong {
+        width: 36px;
+        height: 36px;
+        background: #f1f5f9;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .mcq-option.correct {
+        background: #ecfdf5 !important;
+        border-color: #10b981 !important;
+        color: #065f46 !important;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.08) !important;
+        font-weight: 600;
+    }
+
+    .mcq-option.correct strong {
+        background: #10b981 !important;
+        color: white !important;
+    }
+
+    .mcq-option.selected {
+        background: #fef2f2 !important;
+        border-color: #ef4444 !important;
+        color: #991b1b !important;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.08) !important;
+        font-weight: 600;
+    }
+
+    .mcq-option.selected strong {
+        background: #ef4444 !important;
+        color: white !important;
+    }
+
+    /* Explanation Box Styling */
+    .explanation-box {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f0f9ff;
+        border-radius: 16px;
+        border-left: 5px solid #0ea5e9;
+        border-top: 1px solid #bae6fd;
+        border-right: 1px solid #bae6fd;
+        border-bottom: 1px solid #bae6fd;
+    }
+
+    .explanation-box small {
+        display: block;
+        margin-bottom: 8px;
+        color: #0369a1;
+        font-weight: 700;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .explanation-box p {
+        margin: 0;
+        color: #0c4a6e;
+        line-height: 1.6;
+        font-weight: 500;
+    }
+
     /* Subjective Card Styling */
     .subjective-card {
         background: #ffffff;
@@ -634,22 +725,31 @@ include '../header.php';
                             <span class="mcq-badge <?= $m['is_correct'] ? 'badge-correct' : 'badge-incorrect' ?>">
                                 <?= $m['is_correct'] ? '<i class="fas fa-check-circle me-1"></i> Correct' : '<i class="fas fa-times-circle me-1"></i> Incorrect' ?>
                             </span>
-                            <p class="fw-bold text-dark mb-3">Q. <?= htmlspecialchars($m['question']) ?></p>
+                            <p class="fw-bold text-dark mb-4">Q. <?= htmlspecialchars($m['question']) ?></p>
                             
-                            <div class="row g-3 mb-3">
-                                <div class="col-sm-6 col-md-4">
-                                    <div class="small text-muted mb-1">Your Selection</div>
-                                    <div class="fw-bold"><?= htmlspecialchars($m['user_selected']) ?></div>
-                                </div>
-                                <div class="col-sm-6 col-md-4">
-                                    <div class="small text-muted mb-1">Correct Option</div>
-                                    <div class="fw-bold text-success"><?= htmlspecialchars($m['correct_option']) ?></div>
-                                </div>
+                            <div class="mcq-options">
+                                <?php foreach ($m['options'] as $key => $option): ?>
+                                    <?php 
+                                    $classes = 'mcq-option';
+                                    $isCorrect = ($key === $m['correct_option_key']);
+                                    $isSelected = ($m['user_selected_key'] && $key === $m['user_selected_key']);
+                                    
+                                    if ($isCorrect) {
+                                        $classes .= ' correct';
+                                    } elseif ($isSelected) {
+                                        $classes .= ' selected';
+                                    }
+                                    ?>
+                                    <div class="<?= $classes ?>">
+                                        <strong><?= $key ?></strong>
+                                        <span><?= htmlspecialchars($option) ?></span>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
                             
-                            <div class="mt-3 pt-3 border-top border-2 border-white opacity-75">
-                                <small class="fw-bold d-block mb-1"><i class="fas fa-info-circle me-1"></i> Explanation:</small>
-                                <p class="mb-0 small"><?= htmlspecialchars($m['explanation']) ?></p>
+                            <div class="explanation-box">
+                                <small><i class="fas fa-lightbulb me-2"></i> Explanation</small>
+                                <p><?= htmlspecialchars($m['explanation']) ?></p>
                             </div>
                         </div>
                     </div>

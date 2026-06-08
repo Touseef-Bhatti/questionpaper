@@ -62,7 +62,7 @@ include '../header.php';
 
 <div class="main-content container">
     <div class="prep-hero shadow-lg">
-        <h1>🎓 Exam Preparation Portal</h1>
+        <h1>Exam Preparation Portal , Test Serires For Board Exam 2026</h1>
         <p>Your journey to academic excellence starts here. Select your class to access curated practice tests, past papers, and AI-generated assessments.</p>
     </div>
 
@@ -145,30 +145,17 @@ include '../header.php';
     </article>
 </div>
 
-<?php include_once '../includes/quiz_ad_gate.php'; ?>
+
 <?php include '../footer.php'; ?>
 
 <script>
-    const isPremium = <?= json_encode($isPremium) ?>;
-
     function selectClass(classId, classSlug) {
         // Use class name slug for SEO if available, otherwise fallback to class-ID
         // Pattern: /class9-chapterWise-test-series or /class-9-chapterWise-test-series
         const slug = classSlug ? classSlug : 'class-' + classId;
         const destinationUrl = '<?= $assetBase ?>' + slug + '-chapterWise-test-series?class_id=' + classId;
 
-        if (isPremium) {
-            window.location.href = destinationUrl;
-            return;
-        }
-
-        window.ALHQuizAdGate.gate({
-            storageKey: 'alh_select_class_for_test_ad_seen_until',
-            premiumHref: '../subscription.php',
-            onContinue: () => {
-                window.location.href = destinationUrl;
-            }
-        });
+        window.location.href = destinationUrl;
     }
 </script>
 

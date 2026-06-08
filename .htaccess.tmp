@@ -1,4 +1,4 @@
-# Force PHP 8.1 for this subdomain
+﻿# Force PHP 8.1 for this subdomain
 AddHandler application/x-httpd-ea-php81 .php
 
 # Default index file
@@ -43,15 +43,6 @@ Options -Indexes
     RewriteCond %{THE_REQUEST} /quiz_setup_inter [NC]
     RewriteRule ^(quiz/)?quiz_setup_inter(\.php)?$ /class-11-and-12-online-mcqs-prepation-test [R=301,L]
     RewriteRule ^class-11-and-12-online-mcqs-prepation-test/?$ quiz/quiz_setup_inter.php [NC,L]
-
-
-    # Redirect old URLs with query params OR trailing number to clean URLs
-    RewriteCond %{THE_REQUEST} \s/+class-([0-9]+)-([a-zA-Z0-9-]+)-mcqs\?mcq_count=([0-9]+)&class_id=([0-9]+)&book_id=([0-9]+)\s [NC]
-    RewriteRule ^class-([0-9]+)-([a-zA-Z0-9-]+)-mcqs/?$ /class-$1-$2-mcqs? [R=301,L]
-    RewriteCond %{THE_REQUEST} \s/+class-([0-9]+)-([a-zA-Z0-9-]+)-mcqs/([0-9]+)\s [NC]
-    RewriteRule ^class-([0-9]+)-([a-zA-Z0-9-]+)-mcqs/([0-9]+)/?$ /class-$1-$2-mcqs? [R=301,L]
-    # SEO rule for class-{number}-{subject}-mcqs (no trailing number)
-    RewriteRule ^class-([0-9]+)-([a-zA-Z0-9-]+)-mcqs/?$ quiz/mcqs-quiz.php?class_slug=$1&book_slug=$2 [QSA,NC,L]
 
     # Specific SEO rule for mcqs_topic.php
     RewriteCond %{THE_REQUEST} /quiz/mcqs_topic\.php [NC,OR]

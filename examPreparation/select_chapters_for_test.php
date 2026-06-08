@@ -73,7 +73,7 @@ $pageTitle = $className . " " . $bookName . " Online Exam Preparation & Test Pap
 
 <div class="main-content container">
     <div class="prep-hero shadow-lg">
-        <h1>🎯 <?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?> Prep</h1>
+        <h1>🎯 <?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?> Test Series Chapter-Wise 2026</h1>
         <p>Access <strong>past papers</strong>, model tests, and chapter-wise <strong>test papers</strong> for <?= htmlspecialchars($className) ?> <?= htmlspecialchars($bookName) ?>. Custom generate your success.</p>
     </div>
 

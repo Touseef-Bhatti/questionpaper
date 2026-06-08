@@ -60,7 +60,7 @@ $pageTitle = $displayClassName . " Board Exam Preparation 2026 - Online Test Pap
 
 <div class="main-content container">
     <div class="prep-hero shadow-lg">
-        <h1>📖 <?= htmlspecialchars($className) ?> Subjects</h1>
+        <h1>📖 <?= htmlspecialchars($className) ?> All Subjects Test Series For Board Exam 2026</h1>
         <p>Expertly curated <strong>past papers</strong> and <strong>test papers</strong> for every major subject. Select your book to start practicing now.</p>
     </div>
 

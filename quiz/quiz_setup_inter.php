@@ -2,6 +2,18 @@
 session_start();
 // quiz_setup_inter.php - Public quiz setup page for Class 11 & 12
 include '../db_connect.php';
+
+// Function to create a slug from a string
+function createSlug($string) {
+    // Convert to lowercase
+    $slug = strtolower($string);
+    // Replace spaces and other separators with hyphens
+    $slug = preg_replace('/[\s_]+/', '-', $slug);
+    // Remove special characters
+    $slug = preg_replace('/[^a-z0-9-]/', '', $slug);
+    // Remove leading and trailing hyphens
+    return trim($slug, '-');
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -64,66 +76,94 @@ include '../db_connect.php';
             <p class="desc">Prepare for HSSC Part 1 & 2 Board Exams and Entry Tests (MDCAT/ECAT). Select your Class below to generate a focused MCQ practice session.</p>
         </header>
 
-        <form id="quizForm" method="POST" action="quiz.php">
-            <br>
-            <div class="grid">
-                <div>
-                    <label for="class_id">Class</label>
-                    <select class="select" id="class_id" name="class_id" required>
-                        <option value="">Select a class</option>
-                        <?php
-                        // Load all classes
-                        $cls = $conn->query("SELECT class_id, class_name FROM class WHERE class_id IN (9, 10, 11, 12) ORDER BY class_id ASC");
-                        if ($cls && $cls->num_rows > 0) {
-                            while ($row = $cls->fetch_assoc()) {
-                                echo '<option value="' . (int)$row['class_id'] . '">' . htmlspecialchars($row['class_name']) . '</option>';
-                            }
-                        } else {
-                            // Fallback if class IDs are different in DB
-                            echo '<option value="9">9th Class (Matric Part 1)</option>';
-                            echo '<option value="10">10th Class (Matric Part 2)</option>';
-                            echo '<option value="11">11th Class (FSc Part 1)</option>';
-                            echo '<option value="12">12th Class (FSc Part 2)</option>';
-                        }
-                        ?>
-                    </select>
-                </div>
-                <div>
-                    <label for="book_id">Book</label>
-                    <div class="input-with-action">
-                        <select id="book_id" name="book_id" required disabled>
-                            <option value="">Select a book</option>
-                        </select>
-                        <button type="button" class="btn topic-btn" onclick="window.location.href='topic-wise-mcqs-test'">Topic</button>
-                    </div>
-                    <div class="hint">Books are filtered by class.</div>
-                </div>
+        <form id="quizForm" method="POST" action="mcqs-quiz.php">
+            <input type="hidden" id="class_id" name="class_id" value="">
+            <input type="hidden" id="book_id" name="book_id" value="">
+            <input type="hidden" id="book_name_hidden" name="book_name" value="">
+
+            <!-- Step 1: Class Selection Cards -->
+            <div class="section-title">
+                <span class="icon" aria-hidden="true"></span> Select Your Class
+            </div>
+            <div class="class-cards" id="classCards">
+                <?php
+                $icons = [
+                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H20v16H5.5A2.5 2.5 0 0 1 3 17.5v-11z"/></svg>',
+                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l7 4-7 4-7-4 7-4z"/><path d="M5 10v7a2 2 0 0 0 2 2h10"/></svg>',
+                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-2-2h-4l-2-2H9L7 6H5a2 2 0 0 0-2 2v8"/><path d="M7 13h10"/></svg>',
+                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a7 7 0 0 0 0-6"/><path d="M4.6 9a7 7 0 0 0 0 6"/></svg>'
+                ];
+                $subs = ['Matric Part 1', 'Matric Part 2', 'FSc Part 1', 'FSc Part 2'];
+                $cls = $conn->query("SELECT class_id, class_name FROM class WHERE class_id IN (11, 12) ORDER BY class_id ASC");
+                $i = 0;
+                if ($cls && $cls->num_rows > 0) {
+                    while ($row = $cls->fetch_assoc()) {
+                        $cid = (int)$row['class_id'];
+                        $cname = htmlspecialchars($row['class_name']);
+                        $icon = $icons[$i % 4];
+                        $sub = ($i < count($subs)) ? $subs[$i % count($subs)] : '';
+                        echo '<div class="class-card" tabindex="0" data-class-id="' . $cid . '" data-class-name="' . $cname . '">';
+                        echo '  <div class="class-card-icon">' . $icon . '</div>';
+                        echo '  <div class="class-card-info">';
+                        echo '    <div class="class-card-name">' . $cname . '</div>';
+                        echo '    <div class="class-card-sub">' . $sub . '</div>';
+                        echo '  </div>';
+                        echo '  <div class="class-card-check"></div>';
+                        echo '</div>';
+                        $i++;
+                    }
+                } else {
+                    // Fallback for inter
+                    $fallback = [
+                        ['11', '11th Class', 'FSc Part 1', ''],
+                        ['12', '12th Class', 'FSc Part 2', ''],
+                    ];
+                    foreach ($fallback as $fb) {
+                        $fi = $i % 4;
+                        $iconHtml = $icons[$fi];
+                        echo '<div class="class-card" tabindex="0" data-class-id="' . $fb[0] . '" data-class-name="' . $fb[1] . '">';
+                        echo '  <div class="class-card-icon">' . $iconHtml . '</div>';
+                        echo '  <div class="class-card-info">';
+                        echo '    <div class="class-card-name">' . $fb[1] . '</div>';
+                        echo '    <div class="class-card-sub">' . $fb[2] . '</div>';
+                        echo '  </div>';
+                        echo '  <div class="class-card-check"></div>';
+                        echo '</div>';
+                        $i++;
+                    }
+                }
+                ?>
             </div>
 
-            <div class="grid full">
-                <div>
-                    <label for="chapters">Chapters (optional, multi-select)</label>
-                    <div class="chapter-selector" id="chapterSelector">
-                        <div class="selector-hint">Select a book first to see available chapters</div>
-                    </div>
-                    <input type="hidden" name="chapter_ids" id="chapter_ids">
-                    <div class="hint">If you don't select any chapters, we'll include all chapters from the selected book.</div>
-                </div>
-            </div>
+            <a href="topic-wise-mcqs-test" class="topic-link after-class">
+                Or try Topic-Wise MCQs <span class="arrow">&rarr;</span>
+            </a>
 
-            <div class="grid full">
-                <div>
-                    <label for="mcq_count">Number of MCQs</label>
-                    <input type="number" id="mcq_count" name="mcq_count" min="1" max="100" value="10" required>
-                    <div class="hint">We will pick this many MCQs randomly from your selection.</div>
+            <div class="setup-divider"></div>
+
+            <!-- Step 2: Book Selection Cards -->
+            <div class="book-section" id="bookSection">
+                <div class="section-title">
+                    <span class="icon" aria-hidden="true"></span> Select Your Book
+                </div>
+                <div class="book-cards-wrapper">
+                    <div class="book-cards" id="bookCards">
+                        <div class="book-empty-state">
+                            <span class="empty-icon" aria-hidden="true"></span>
+                            Pick a class above to see available books
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="actions">
                 <button type="button" class="btn secondary" id="resetBtn">Reset</button>
-                <button type="submit" class="btn primary">Start Quiz</button>
+                <button type="submit" class="btn primary" id="startBtn" disabled>
+                    Start Quiz <span>&rarr;</span>
+                </button>
             </div>
-            <br>
+
+            <!-- MIDDLE AD BANNER -->
         </form>
     </div>
 
@@ -211,190 +251,249 @@ include '../db_connect.php';
 <?php include '../footer.php'; ?>
 
 <script>
-const classSel = document.getElementById('class_id');
-const bookSel = document.getElementById('book_id');
-const chapterSelector = document.getElementById('chapterSelector');
-const chapterIdsInput = document.getElementById('chapter_ids');
+// ─── DOM References ───
+const classInput = document.getElementById('class_id');
+const bookInput = document.getElementById('book_id');
+const bookNameInput = document.getElementById('book_name_hidden');
+const classCards = document.querySelectorAll('.class-card');
+const bookCardsContainer = document.getElementById('bookCards');
+const bookSection = document.getElementById('bookSection');
+const startBtn = document.getElementById('startBtn');
 const resetBtn = document.getElementById('resetBtn');
 
-let selectedChapterIds = [];
+// Step indicators (add if page has them)
+const stepDot1 = document.getElementById('stepDot1');
+const stepDot2 = document.getElementById('stepDot2');
+const stepLine1 = document.getElementById('stepLine1');
+const stepLabel1 = document.getElementById('stepLabel1');
+const stepLabel2 = document.getElementById('stepLabel2');
+
+// Choose an appropriate SVG icon and color based on book name
+function chooseBookIcon(name) {
+    const n = (name || '').toLowerCase();
+    const icons = {
+        science: { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5"/><path d="M8 21V11"/><path d="M16 21V11"/><path d="M12 3v8"/><path d="M8 7h8"/></svg>`, color: '#0ea5a4' },
+        chemistry: { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12"/><path d="M8 6h8l-2 6a4 4 0 1 1-8 0L8 6z"/></svg>`, color: '#f97316' },
+        math: { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v14"/><path d="M16 5v14"/><path d="M3 12h18"/></svg>`, color: '#7c3aed' },
+        computer: { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 20h8"/></svg>`, color: '#2563eb' },
+        geography: { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>`, color: '#16a34a' },
+        default: { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H20v16H5.5A2.5 2.5 0 0 1 3 17.5v-11z"/></svg>`, color: getComputedStyle(document.documentElement).getPropertyValue('--primary-color') || '#4f46e5' }
+    };
+
+    if (n.match(/physics|science|biology|chemistry/)) return icons.science;
+    if (n.match(/chemistry|organic|inorganic/)) return icons.chemistry;
+    if (n.match(/math|mathematics|calculus|algebra/)) return icons.math;
+    if (n.match(/computer|computer science|cs|programming|c\+\+|python/)) return icons.computer;
+    if (n.match(/geograph|geography|earth|world/)) return icons.geography;
+    return icons.default;
+}
+
+let progressInterval;
+function startLoaderProgress() {
+    const progressBar = document.getElementById('loaderProgressBar');
+    if (!progressBar) return;
+    progressBar.style.width = '0%';
+    clearInterval(progressInterval);
+    let width = 0;
+    progressInterval = setInterval(() => {
+        if (width >= 90) {
+            if (width < 95) width += 0.1;
+        } else {
+            const increment = Math.max(0.5, (90 - width) / 20);
+            width += increment;
+        }
+        progressBar.style.width = width + '%';
+    }, 100);
+}
+
 function toQuery(params) {
   return Object.entries(params).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
 }
 
-async function loadBooks() {
-  bookSel.innerHTML = '<option value="">Loading...</option>';
-  bookSel.disabled = true;
-  clearChapters();
-  
-  const cid = classSel.value;
-  if (!cid) { 
-    bookSel.innerHTML = '<option value="">Select a book</option>'; 
-    return; 
-  }
-  
-  try {
-    const res = await fetch('quiz_data.php?' + toQuery({ type: 'books', class_id: cid }));
-    const data = await res.json();
-    bookSel.innerHTML = '<option value="">Select a book</option>' + data.map(b => `<option value="${b.book_id}">${b.book_name}</option>`).join('');
-    bookSel.disabled = false;
-  } catch (error) {
-    bookSel.innerHTML = '<option value="">Error loading books</option>';
-    console.error('Error loading books:', error);
-  }
-}
-
-async function loadChapters() {
-  clearChapters();
-  chapterSelector.innerHTML = '<div class="selector-hint">Loading chapters...</div>';
-  
-  const cid = classSel.value; 
-  const bid = bookSel.value;
-  
-  if (!cid || !bid) {
-    chapterSelector.innerHTML = '<div class="selector-hint">Select a book first to see available chapters</div>';
-    return;
-  }
-  
-  try {
-    const res = await fetch('quiz_data.php?' + toQuery({ type: 'chapters', class_id: cid, book_id: bid }));
-    const data = await res.json();
-    
-    if (data.length === 0) {
-      chapterSelector.innerHTML = '<div class="selector-hint">No chapters found for this book</div>';
-      return;
+// ─── Step Updates ───
+function updateSteps(step) {
+    if (step >= 1) {
+        if (stepDot1) stepDot1.classList.add('active');
+        if (stepLabel1) stepLabel1.classList.add('active');
     }
-    
-    const chapterHTML = data.map(chapter => `
-      <div class="chapter-item" onclick="toggleChapter(${chapter.chapter_id}, this)">
-        <input type="checkbox" id="ch_${chapter.chapter_id}" value="${chapter.chapter_id}" onchange="handleChapterChange(${chapter.chapter_id})" onclick="event.stopPropagation()">
-        <label for="ch_${chapter.chapter_id}" onclick="event.stopPropagation()">${chapter.chapter_name}</label>
-      </div>
-    `).join('');
-    
-    chapterSelector.innerHTML = chapterHTML;
-  } catch (error) {
-    chapterSelector.innerHTML = '<div class="selector-hint">Error loading chapters</div>';
-    console.error('Error loading chapters:', error);
-  }
-}
-
-function toggleChapter(chapterId, itemElement) {
-  const checkbox = itemElement.querySelector('input[type="checkbox"]');
-  checkbox.checked = !checkbox.checked;
-  handleChapterChange(chapterId);
-}
-
-function handleChapterChange(chapterId) {
-  if (selectedChapterIds.includes(chapterId)) {
-    selectedChapterIds = selectedChapterIds.filter(id => id !== chapterId);
-  } else {
-    selectedChapterIds.push(chapterId);
-  }
-  updateChapterInput();
-}
-
-function updateChapterInput() {
-  chapterIdsInput.value = selectedChapterIds.join(',');
-}
-
-function clearChapters() {
-  selectedChapterIds = [];
-  chapterIdsInput.value = '';
-  chapterSelector.innerHTML = '<div class="selector-hint">Select a book first to see available chapters</div>';
-}
-
-classSel.addEventListener('change', loadBooks);
-bookSel.addEventListener('change', loadChapters);
-
-// Pre-fill form from URL
-(async function() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const urlClassId = urlParams.get('class_id');
-  const urlBookId = urlParams.get('book_id');
-  const urlChapterId = urlParams.get('chapter_id');
-
-  if (urlClassId) {
-    classSel.value = urlClassId;
-    await loadBooks();
-    
-    if (urlBookId) {
-      bookSel.value = urlBookId;
-      await loadChapters();
-      
-      if (urlChapterId) {
-        setTimeout(() => {
-          const chapterCheckbox = document.getElementById(`ch_${urlChapterId}`);
-          if (chapterCheckbox) {
-            chapterCheckbox.checked = true;
-            handleChapterChange(parseInt(urlChapterId));
-          }
-        }, 500);
-      }
+    if (step >= 2) {
+        if (stepDot1) { stepDot1.classList.remove('active'); stepDot1.classList.add('completed'); stepDot1.textContent = ''; }
+        if (stepLabel1) { stepLabel1.classList.remove('active'); stepLabel1.classList.add('completed'); }
+        if (stepLine1) stepLine1.classList.add('active');
+        if (stepDot2) stepDot2.classList.add('active');
+        if (stepLabel2) stepLabel2.classList.add('active');
+        if (bookSection) bookSection.classList.add('active');
+    } else {
+        if (stepDot1) { stepDot1.classList.remove('completed'); stepDot1.classList.add('active'); stepDot1.textContent = '1'; }
+        if (stepLabel1) { stepLabel1.classList.remove('completed'); stepLabel1.classList.add('active'); }
+        if (stepLine1) stepLine1.classList.remove('active');
+        if (stepDot2) stepDot2.classList.remove('active');
+        if (stepLabel2) stepLabel2.classList.remove('active');
+        if (bookSection) bookSection.classList.remove('active');
     }
-  }
-})();
+}
 
-resetBtn.addEventListener('click', () => {
-  const form = document.getElementById('quizForm');
-  form.reset();
-  bookSel.innerHTML = '<option value="">Select a book</option>';
-  bookSel.disabled = true;
-  clearChapters();
+// ─── Class Card Click ───
+classCards.forEach(card => {
+    const activateClassCard = async () => {
+        // Deselect all
+        classCards.forEach(c => c.classList.remove('selected'));
+        // Select this one
+        card.classList.add('selected');
+        const cid = card.getAttribute('data-class-id');
+        classInput.value = cid;
+
+        // Reset book selection
+        bookInput.value = '';
+        bookNameInput.value = '';
+        startBtn.disabled = true;
+
+        // Move to step 2
+        updateSteps(2);
+
+        // Load books
+        await loadBooks(cid);
+    };
+
+    card.addEventListener('click', activateClassCard);
+    card.addEventListener('keydown', async (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            await activateClassCard();
+        }
+    });
+    
 });
 
-function submitQuizForm(form) {
-    const classText = classSel.options[classSel.selectedIndex].text.trim().toLowerCase();
-    const bookText = bookSel.options[bookSel.selectedIndex].text.trim().toLowerCase().replace(/\s+/g, '-');
-    const classMatch = classText.match(/^(\d+(st|nd|rd|th))/i);
-    const classSlug = classMatch ? classMatch[0] : classText.replace(/\s+/g, '-');
+// ─── Load Books ───
+async function loadBooks(classId) {
+    // Show skeleton
+    bookCardsContainer.innerHTML = `
+        <div class="book-skeleton">
+            <div class="book-skeleton-item"></div>
+            <div class="book-skeleton-item"></div>
+            <div class="book-skeleton-item"></div>
+        </div>
+    `;
 
-    let chapterSlug = 'All-Chapter';
-    if (selectedChapterIds.length > 0) {
-        const selectedItems = chapterSelector.querySelectorAll('.chapter-item input:checked');
-        const chapterNums = [];
-        selectedItems.forEach(input => {
-            const label = input.nextElementSibling.textContent.trim();
-            const numMatch = label.match(/Chapter\s+(\d+)/i) || label.match(/^(\d+)/);
-            if (numMatch) {
-                chapterNums.push(numMatch[1]);
+    try {
+        const res = await fetch('quiz_data.php?' + toQuery({ type: 'books', class_id: classId }));
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+            bookCardsContainer.innerHTML = `
+                <div class="book-empty-state">
+                    <span class="empty-icon" aria-hidden="true"></span>
+                    No books found for this class
+                </div>
+            `;
+            return;
+        }
+
+        bookCardsContainer.innerHTML = data.map((b, idx) => `
+            <div class="book-card" tabindex="0" data-book-id="${b.book_id}" data-book-name="${b.book_name}">
+                <div class="book-card-emoji"></div>
+                <div class="book-card-name">${b.book_name}</div>
+                <div class="book-card-radio"></div>
+            </div>
+        `).join('');
+
+        // Inject per-book icons and attach click handlers to book cards
+        document.querySelectorAll('.book-card').forEach(bcard => {
+            const bname = bcard.getAttribute('data-book-name') || '';
+            const icon = chooseBookIcon(bname);
+            const emojiEl = bcard.querySelector('.book-card-emoji');
+            if (emojiEl) {
+                emojiEl.innerHTML = icon.svg;
+                emojiEl.style.color = icon.color;
             }
+            const selectBookCard = () => {
+                document.querySelectorAll('.book-card').forEach(bc => bc.classList.remove('selected'));
+                bcard.classList.add('selected');
+                bookInput.value = bcard.getAttribute('data-book-id');
+                bookNameInput.value = bcard.getAttribute('data-book-name');
+                startBtn.disabled = false;
+            };
+
+            bcard.addEventListener('click', selectBookCard);
+            bcard.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    selectBookCard();
+                }
+            });
         });
 
-        if (chapterNums.length > 0) {
-            chapterNums.sort((a, b) => a - b);
-            chapterSlug = chapterNums.join('-');
+    } catch (error) {
+        bookCardsContainer.innerHTML = `
+            <div class="book-empty-state">
+                <span class="empty-icon" aria-hidden="true"></span>
+                Error loading books. Please try again.
+            </div>
+        `;
+        console.error('Error loading books:', error);
+    }
+}
+
+// ─── Pre-fill from URL ───
+(async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlClassId = urlParams.get('class_id');
+    const urlBookId = urlParams.get('book_id');
+
+    if (urlClassId) {
+        const matchCard = document.querySelector(`.class-card[data-class-id="${urlClassId}"]`);
+        if (matchCard) {
+            matchCard.classList.add('selected');
+            classInput.value = urlClassId;
+            updateSteps(2);
+            await loadBooks(urlClassId);
+
+            if (urlBookId) {
+                const matchBook = document.querySelector(`.book-card[data-book-id="${urlBookId}"]`);
+                if (matchBook) {
+                    matchBook.classList.add('selected');
+                    bookInput.value = urlBookId;
+                    bookNameInput.value = matchBook.getAttribute('data-book-name');
+                    startBtn.disabled = false;
+                }
+            }
         }
     }
+})();
 
-    const seoUrl = `${classSlug}/${bookText}/${chapterSlug}-MCQs-quiz`;
-    form.action = seoUrl;
-    form.submit();
+// ─── Reset ───
+resetBtn.addEventListener('click', () => {
+    classCards.forEach(c => c.classList.remove('selected'));
+    classInput.value = '';
+    bookInput.value = '';
+    bookNameInput.value = '';
+    startBtn.disabled = true;
+    updateSteps(1);
+    bookCardsContainer.innerHTML = `
+        <div class="book-empty-state">
+            <span class="empty-icon" aria-hidden="true"></span>
+            Pick a class above to see available books
+        </div>
+    `;
+});
 
-    if (typeof showAILoader === 'function') {
-        showAILoader(
-            [
-                { label: 'Analyzing syllabus', duration: 3500 },
-                { label: 'Selecting MDCAT/ECAT questions', duration: 3500 },
-                { label: 'Loading content', duration: 3500 },
-                { label: 'Applying difficulty', duration: 3500 },
-                { label: 'Starting quiz', duration: 3500 }
-            ],
-            'Preparing your personalized intermediate quiz session...',
-            'Preparing Your Quiz',
-            null
-        );
-    }
+// ─── Form Submit ───
+function createSlug(string) {
+    let slug = string.toLowerCase();
+    slug = slug.replace(/[\s_]+/g, '-');
+    slug = slug.replace(/[^a-z0-9-]/g, '');
+    return slug.replace(/^-+|-+$/g, '');
 }
 
 document.getElementById('quizForm').addEventListener('submit', function(e) {
     e.preventDefault();
-
-    window.ALHQuizAdGate.gate({
-        storageKey: 'alh_quiz_setup_inter_ad_seen_until',
-        premiumHref: '../subscription.php',
-        onContinue: () => submitQuizForm(this)
-    });
+    const selectedClass = classInput.value;
+    const bookName = bookNameInput.value;
+    if (!selectedClass || !bookName) return;
+    const bookSlug = createSlug(bookName);
+    const seoUrl = `/class-${selectedClass}-${bookSlug}-mcqs`;
+    window.location.href = seoUrl;
 });
 </script>
 </body>

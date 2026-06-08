@@ -712,7 +712,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 </div>
 
 <?php include __DIR__ . '/../includes/ai_loader.php'; ?>
-<?php include_once __DIR__ . '/../includes/AdstraOnClickAds.php'; ?>
 <?php
 // Include and dynamically namespace quiz_ad_gate.php for Check All Answers ad gate to avoid conflict
 $quizAdGatePath = __DIR__ . '/../includes/quiz_ad_gate.php';
