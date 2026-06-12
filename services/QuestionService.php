@@ -9,6 +9,11 @@ class QuestionService
 {
     private $conn;
     private $cache;
+
+    private function isMathBookName($bookName)
+    {
+        return in_array(strtolower(trim((string)$bookName)), ['math', 'maths', 'mathematics'], true);
+    }
     
     public function __construct($connection, $cache = null)
     {
@@ -45,9 +50,13 @@ class QuestionService
             $types .= "i";
         }
         if ($bookName) {
-            $countQuery .= " AND book_name = ?";
-            $params[] = $bookName;
-            $types .= "s";
+            if ($this->isMathBookName($bookName)) {
+                $countQuery .= " AND LOWER(TRIM(book_name)) IN ('math', 'maths', 'mathematics')";
+            } else {
+                $countQuery .= " AND book_name = ?";
+                $params[] = $bookName;
+                $types .= "s";
+            }
         }
         
         $stmt = $this->conn->prepare($countQuery);
@@ -89,9 +98,13 @@ class QuestionService
                 $qTypes .= "i";
             }
             if ($bookName) {
-                $query .= " AND book_name = ?";
-                $qParams[] = $bookName;
-                $qTypes .= "s";
+                if ($this->isMathBookName($bookName)) {
+                    $query .= " AND LOWER(TRIM(book_name)) IN ('math', 'maths', 'mathematics')";
+                } else {
+                    $query .= " AND book_name = ?";
+                    $qParams[] = $bookName;
+                    $qTypes .= "s";
+                }
             }
             
             $query .= " LIMIT 1";
@@ -136,9 +149,13 @@ class QuestionService
                 $fTypes .= "i";
             }
             if ($bookName) {
-                $query .= " AND book_name = ?";
-                $fParams[] = $bookName;
-                $fTypes .= "s";
+                if ($this->isMathBookName($bookName)) {
+                    $query .= " AND LOWER(TRIM(book_name)) IN ('math', 'maths', 'mathematics')";
+                } else {
+                    $query .= " AND book_name = ?";
+                    $fParams[] = $bookName;
+                    $fTypes .= "s";
+                }
             }
             
             $query .= " AND id NOT IN ($placeholders) ORDER BY id LIMIT ?";
@@ -297,9 +314,13 @@ class QuestionService
             $types .= "i";
         }
         if ($bookName) {
-            $query .= " AND book_name = ?";
-            $params[] = $bookName;
-            $types .= "s";
+            if ($this->isMathBookName($bookName)) {
+                $query .= " AND LOWER(TRIM(book_name)) IN ('math', 'maths', 'mathematics')";
+            } else {
+                $query .= " AND book_name = ?";
+                $params[] = $bookName;
+                $types .= "s";
+            }
         }
         
         $query .= " ORDER BY id";

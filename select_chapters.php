@@ -5,6 +5,7 @@ session_start();
 
 include 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
+require_once __DIR__ . '/includes/seo_content_Question_paper.php';
 
 // Ensure class_id and book_name are provided
 if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !isset($_GET['book_name']) || empty($_GET['book_name'])) {
@@ -15,6 +16,7 @@ if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !isset($_GET['book_
 // Retrieve and sanitize input
 $classId = intval($_GET['class_id']);
 $book_name = trim($conn->real_escape_string($_GET['book_name']));
+$book_name_lower = strtolower(trim($book_name));
 
 // For now, restrict only to class 9, 10, 11 and 12 as requested
 if ($classId != 9 && $classId != 10 && $classId != 11 && $classId != 12) {
@@ -87,7 +89,10 @@ if (isset($_GET['chapters_from_url'])) {
 
 // Function to get pattern defaults based on class and book name
 function getPatternDefaults($classId, $book_name) {
-    $book_name_lower = strtolower($book_name);
+    $book_name_lower = strtolower(trim($book_name));
+    if (in_array($book_name_lower, ['mathematics', 'maths'])) {
+        $book_name_lower = 'math';
+    }
     
     // Check if class is 9 or 10
     if ($classId == 9 || $classId == 10) {
@@ -152,6 +157,7 @@ function getPatternDefaults($classId, $book_name) {
 
 // Get pattern defaults
 $patternDefaults = getPatternDefaults($classId, $book_name);
+$questionPaperSeo = getQuestionPaperSeoContent($classId, $book_name);
 
 // Check if we are coming from a submission to show select_question.php content
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chapters'])) {
@@ -167,8 +173,28 @@ $chapterQuery = "SELECT
                     c.chapter_name,
                     c.chapter_no,
                     (SELECT COUNT(*) FROM mcqs WHERE chapter_id = c.chapter_id AND class_id = c.class_id AND book_id = c.book_id) as mcq_count,
-                    (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'short' AND class_id = c.class_id AND book_name = c.book_name) as short_count,
-                    (SELECT COUNT(*) FROM questions WHERE chapter_id = c.chapter_id AND question_type = 'long' AND class_id = c.class_id AND book_name = c.book_name) as long_count
+                    (SELECT COUNT(*) FROM questions q
+                     WHERE q.chapter_id = c.chapter_id
+                       AND q.question_type = 'short'
+                       AND q.class_id = c.class_id
+                       AND (
+                           LOWER(TRIM(q.book_name)) = LOWER(TRIM(c.book_name))
+                           OR (
+                               LOWER(TRIM(c.book_name)) IN ('math', 'maths', 'mathematics')
+                               AND LOWER(TRIM(q.book_name)) IN ('math', 'maths', 'mathematics')
+                           )
+                       )) as short_count,
+                    (SELECT COUNT(*) FROM questions q
+                     WHERE q.chapter_id = c.chapter_id
+                       AND q.question_type = 'long'
+                       AND q.class_id = c.class_id
+                       AND (
+                           LOWER(TRIM(q.book_name)) = LOWER(TRIM(c.book_name))
+                           OR (
+                               LOWER(TRIM(c.book_name)) IN ('math', 'maths', 'mathematics')
+                               AND LOWER(TRIM(q.book_name)) IN ('math', 'maths', 'mathematics')
+                           )
+                       )) as long_count
                 FROM chapter c
                 WHERE c.class_id = ? AND c.book_name = ? 
                 ORDER BY c.chapter_id ASC";
@@ -223,13 +249,13 @@ if (!empty($preSelectedChapters)) {
     }
 }
 
-$seo_title = "{$classId}th Class " . ucfirst($book_name) . " {$chapter_info}Question Paper Generator | Chapter-Wise MCQs & Tests";
-$seo_description = "Generate professional " . ucfirst($book_name) . " question papers for {$classId}th class " . trim($chapter_info) . " based on Punjab Board (BISE) patterns. Create chapter-wise MCQs, short and long questions instantly.";
+$seo_title = $questionPaperSeo['title'];
+$seo_description = $questionPaperSeo['description'];
 ?>
 <meta name="description" content="<?= htmlspecialchars($seo_description) ?>">
 
 
-<meta name="keywords" content="<?= htmlspecialchars($classId) ?>th class <?= htmlspecialchars($book_name) ?> <?= $chapter_info ?> paper generator, <?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> chapter wise test, Punjab Board MCQs maker, online paper setter, <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?> guess paper, BISE Punjab exam preparation">
+<meta name="keywords" content="<?= htmlspecialchars($questionPaperSeo['keywords']) ?>">
 
 
 
@@ -268,11 +294,12 @@ document.addEventListener('DOMContentLoaded', function() {
         long: <?= $patternDefaults['long'] ?>
     };
     const classId = <?= $classId ?>;
-    const bookName = '<?= strtolower($book_name) ?>';
+    const rawBookName = '<?= strtolower(trim($book_name)) ?>';
+    const bookName = (['mathematics', 'maths'].includes(rawBookName)) ? 'math' : (rawBookName === 'computer-science' ? 'computer' : rawBookName);
     const isComputer = bookName === 'computer';
     
     const numberInputs = document.querySelectorAll('input[type="number"]');
-    const form = document.querySelector('form[action="select_question.php"]');
+    const form = document.getElementById('chapter-selection-form');
     const patternYes = document.getElementById('pattern_yes');
     const patternNo = document.getElementById('pattern_no');
     const totalMcqsInput = document.getElementById('total_mcqs');
@@ -348,9 +375,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // SHORT tile
         const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
+        const isMath = bookName === 'math';
         statShort.querySelector('.val').textContent = sumShort;
         const hint = statShort.querySelector('.hint');
-        if ((isScience || isComputer) && withPattern && (classId === 9 || classId === 10 || classId === 11 || classId === 12)) {
+        if ((isScience || isComputer || isMath) && withPattern && (classId === 9 || classId === 10 || classId === 11 || classId === 12)) {
             const targetShort = patternDefaults.sq;
             const delta = targetShort - sumShort;
             statShort.classList.toggle('ok', delta === 0);
@@ -454,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const withPattern = isWithPattern();
         const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
         const isMath = bookName === 'math';
-        
+
         if (!withPattern) {
             totalShortsLabel.style.display = 'inline-block';
         } else if ((isScience || isComputer || isMath) && withPattern && (classId === 9 || classId === 10 || classId === 11 || classId === 12)) {
@@ -538,7 +566,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             let message;
             if (withPattern && !isComputer) {
-                message = `Total long questions across chapters (${sumLongs}) must equal 2 × requested long questions (${targetLongs}). Each long prints as parts (a) and (b).`;
+                message = `Total long questions across chapters (${sumLongs}) must equal 2 x requested long questions (${targetLongs}). Each long prints as parts (a) and (b).`;
             } else if (withPattern && isComputer) {
                 message = `Total long questions across chapters (${sumLongs}) must equal the requested long questions (${targetLongs}).`;
             } else {
@@ -734,60 +762,43 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalShorts = parseInt(totalShortsInput?.value) || 0;
 
     /**
-     * Smart distribution that respects available counts.
-     * If a chapter has less than its share, it gets 0, and the amount is redistributed.
+     * Distribute across chapters without requiring every chapter to hold an equal share.
+     * This matters for Math, where short and long question availability varies by chapter.
      */
     function distributeSmart(total, chaptersList, availableType) {
-      let remaining = total;
-      let pool = chaptersList.map(c => ({
+      const pool = chaptersList.map(c => ({
         id: c.id,
         available: getAvailable(c, availableType),
         assigned: 0,
-        active: true,
         input: c.wrap.querySelector(`input[name^="${availableType === 'mcq' ? 'mcqs' : availableType === 'short' ? 'short_questions' : 'long_questions'}["]`)
       }));
 
-      let changed = true;
-      while (remaining > 0 && changed) {
-        changed = false;
-        let activePool = pool.filter(p => p.active);
-        if (activePool.length === 0) break;
+      let remaining = Math.max(0, parseInt(total) || 0);
+      let madeProgress = true;
 
-        let share = Math.floor(remaining / activePool.length);
-        let extra = remaining % activePool.length;
+      while (remaining > 0 && madeProgress) {
+        madeProgress = false;
 
-        for (let i = 0; i < activePool.length; i++) {
-          let p = activePool[i];
-          let target = share + (i < extra ? 1 : 0);
-          
-          if (target > p.available) {
-            p.assigned = 0;
-            p.active = false;
-            changed = true;
-            // We need to restart the distribution calculation because the share just increased
-            break; 
+        for (const item of pool) {
+          if (remaining <= 0) break;
+
+          if (item.assigned < item.available) {
+            item.assigned++;
+            remaining--;
+            madeProgress = true;
           }
-        }
-
-        if (!changed) {
-          // Everyone can handle their share
-          activePool.forEach((p, i) => {
-            p.assigned = share + (i < extra ? 1 : 0);
-          });
-          remaining = 0;
-        } else {
-          // Restart loop with remaining total and fewer active chapters
-          remaining = total; 
-          pool.forEach(p => { if (!p.active) p.assigned = 0; });
         }
       }
       
-      // Update inputs
-      pool.forEach(p => {
-        if (p.input) p.input.value = p.assigned;
+      pool.forEach(item => {
+        if (item.input) item.input.value = item.assigned;
       });
       
-      return pool;
+      return {
+        pool,
+        assigned: (parseInt(total) || 0) - remaining,
+        remaining
+      };
     }
 
     // MCQs
@@ -799,7 +810,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Shorts
     let targetShorts = totalShorts;
-    if (withPattern && (classId === 9 || classId === 10)) {
+    if (withPattern && (classId === 9 || classId === 10 || classId === 11 || classId === 12)) {
       const isScience = ['biology', 'chemistry', 'physics'].includes(bookName);
       const isMath = bookName === 'math';
       if ((isScience || isComputer || isMath) && patternDefaults.sq > 0) {
@@ -918,10 +929,47 @@ document.addEventListener('DOMContentLoaded', function() {
   // Attach handler to all auto-fill buttons
   document.querySelectorAll('.auto-fill-btn').forEach(btn => btn.addEventListener('click', autoFillHandler));
 
+    const selectionPopup = document.getElementById('selection-mode-popup');
+    const manualSelectionBtn = document.getElementById('manual-selection-btn');
+    const autoNextBtn = document.getElementById('auto-next-btn');
+
+    function closeSelectionPopup() {
+        if (!selectionPopup) return;
+        selectionPopup.classList.remove('is-visible');
+        selectionPopup.setAttribute('aria-hidden', 'true');
+    }
+
+    setTimeout(function() {
+        if (!selectionPopup) return;
+        selectionPopup.classList.add('is-visible');
+        selectionPopup.setAttribute('aria-hidden', 'false');
+        manualSelectionBtn?.focus();
+    }, 3000);
+
+    manualSelectionBtn?.addEventListener('click', closeSelectionPopup);
+
+    autoNextBtn?.addEventListener('click', function() {
+        autoFillHandler(true);
+        closeSelectionPopup();
+        form?.requestSubmit();
+    });
+
+    selectionPopup?.addEventListener('click', function(event) {
+        if (event.target === selectionPopup) {
+            closeSelectionPopup();
+        }
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && selectionPopup?.classList.contains('is-visible')) {
+            closeSelectionPopup();
+        }
+    });
+
     recalcStatus();
     
     // SEO URL update on form submit
-    const mainForm = document.querySelector('form');
+    const mainForm = form;
     if (mainForm) {
         mainForm.addEventListener('submit', function(e) {
             const allCheckboxes = Array.from(document.querySelectorAll('input[name="chapters[]"]'));
@@ -929,7 +977,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (checkedCheckboxes.length > 0) {
                 // Get current base SEO URL
-                const bookSlug = "<?= strtolower(str_replace(' ', '-', $book_name)) ?>";
+                const bookSlug = "<?= strtolower(str_replace([' ', 'science'], ['-', ''], $book_name)) ?>".replace(/-+/g, '-').replace(/^-|-$/g, '').replace('computer-science', 'computer').replace('mathematics', 'math').replace('maths', 'math');
                 const classOrdinal = "<?= $classId . ( ($classId % 10 == 1 && $classId % 100 != 11) ? 'st' : (($classId % 10 == 2 && $classId % 100 != 12) ? 'nd' : (($classId % 10 == 3 && $classId % 100 != 13) ? 'rd' : 'th')) ) ?>";
                 let newSlug = "";
                 
@@ -968,35 +1016,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Auto-trigger auto-fill if pattern defaults are applicable
+    // Keep the original behavior: auto-fill the chapter distribution on page load.
     const isScience = ['physics', 'chemistry', 'biology'].includes(bookName);
     const isMath = bookName === 'math';
-    if ((isScience || isComputer || isMath) && (classId === 9 || classId === 10) && patternDefaults.mcqs > 0) {
-      // Apply pattern defaults to inputs first
-      applyPatternDefaults();
-      updateShortsVisibility();
-      
-      // Wait a bit for DOM to be fully ready, then auto-trigger auto-fill
-      setTimeout(function() {
-        // Check if there are chapters available
-        const chapters = Array.from(document.querySelectorAll('label > input[type="checkbox"][name="chapters[]"]'));
-        if (chapters.length > 0) {
-          autoFillHandler(true); // Suppress alert for auto-trigger
-        }
-      }, 100);
+    if ((isScience || isComputer || isMath) && (classId === 9 || classId === 10 || classId === 11 || classId === 12) && patternDefaults.mcqs > 0) {
+        applyPatternDefaults();
+        updateShortsVisibility();
+
+        setTimeout(function() {
+            const chapters = document.querySelectorAll('label > input[type="checkbox"][name="chapters[]"]');
+            if (chapters.length > 0) {
+                autoFillHandler(true);
+            }
+        }, 100);
     }
+
 });
 </script>
 <?php include 'header.php'; ?>
 
 	<!-- SIDE SKYSCRAPER ADS (Double Vertical) -->
 	
+    <div id="selection-mode-popup" class="selection-mode-popup" aria-hidden="true">
+        <div class="selection-mode-dialog" role="dialog" aria-modal="true" aria-labelledby="selection-mode-title">
+            <h2 id="selection-mode-title">Choose Selection Mode</h2>
+            <p>Select chapters yourself or continue with automatic selection.</p>
+            <div class="selection-mode-actions">
+                <button type="button" id="manual-selection-btn" class="selection-mode-btn selection-mode-btn--manual">Manual Selection</button>
+                <button type="button" id="auto-next-btn" class="selection-mode-btn selection-mode-btn--auto">Next (Auto)</button>
+            </div>
+        </div>
+    </div>
 	
 	
 	<div class="chapter-container">
         <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
-<h1>Select Chapters from "<?= htmlspecialchars($book_name) ?> (Class <?= htmlspecialchars($classId) ?>)"</h1></form></form></form>
-		<form action="<?= htmlspecialchars($_SERVER['REQUEST_URI']) ?>" method="POST">
+<h1>Select Chapters from "<?= htmlspecialchars($book_name) ?> (Class <?= htmlspecialchars($classId) ?>)"</h1>
+		<form id="chapter-selection-form" action="<?= htmlspecialchars($_SERVER['REQUEST_URI']) ?>" method="POST">
 			<input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">
 			<input type="hidden" name="book_name" value="<?= htmlspecialchars($book_name) ?>">
 
@@ -1031,7 +1087,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				<div style="font-size:14px; color:#333; text-align:left;">
 					<ul style="margin:8px 0 0 18px;">
 						<li>Enter <strong>Total MCQs</strong> (maximum 20). Then distribute MCQs across selected chapters so the sum matches.</li>
-						<li><strong>With pattern:</strong> For most subjects, each long prints as parts <strong>(a)</strong> and <strong>(b)</strong>. Distribute exactly <strong>2 × Total Longs</strong> across chapters. For <strong>Computer</strong>, long questions have no parts - distribute exactly <strong>Total Longs</strong> across chapters.</li>
+						<li><strong>With pattern:</strong> For most subjects, each long prints as parts <strong>(a)</strong> and <strong>(b)</strong>. Distribute exactly <strong>2 x Total Longs</strong> across chapters. For <strong>Computer</strong>, long questions have no parts - distribute exactly <strong>Total Longs</strong> across chapters.</li>
 						<li><strong>Without pattern:</strong> Each long prints as a single question. Distribute exactly <strong>Total Longs</strong> across chapters.</li>
 						<li><strong>With pattern only:</strong> For <strong>Biology, Chemistry, Physics</strong> - enter <strong>exactly 24 short questions</strong> across chapters. For <strong>Math</strong> - enter <strong>exactly 27 short questions</strong> across chapters. For <strong>Computer</strong> - enter <strong>exactly 18 short questions</strong> across chapters.</li>
 						<li><strong>Without pattern:</strong> Enter any number of short questions as desired.</li>
@@ -1116,11 +1172,11 @@ document.addEventListener('DOMContentLoaded', function() {
                              data-available-short="<?= $row['short_count'] ?? 0 ?>" 
                              data-available-long="<?= $row['long_count'] ?? 0 ?>">
 							<?= htmlspecialchars($chapter_display) ?>
-							<div style="margin-top: 10px;">
-								<input type="number" name="mcqs[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="MCQs" min="0" style="margin-right: 10px; padding: 5px; width: 100px;" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
-								<input type="number" name="short_questions[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="Short Questions" min="0" style="margin-right: 10px; padding: 5px; width: 120px;" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
-								<input type="number" name="long_questions[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="Long Questions" min="0" style="padding: 5px; width: 120px;" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
-								<div id="long-placement-<?= htmlspecialchars($row['chapter_id']) ?>" style="margin-top:8px;"></div>
+							<div class="chapter-question-controls">
+								<input type="number" name="mcqs[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="MCQs" min="0" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
+								<input type="number" name="short_questions[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="Short Questions" min="0" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
+								<input type="number" name="long_questions[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="Long Questions" min="0" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
+								<div id="long-placement-<?= htmlspecialchars($row['chapter_id']) ?>" class="long-placement"></div>
 							</div>
 						</div>
 					</label>
@@ -1132,10 +1188,10 @@ document.addEventListener('DOMContentLoaded', function() {
 			?>
 
 			<br>
-			<div class="button-container"style=" justify-content: center; display: flex;align-items: center; padding: 10px; border-radius: 5px; color: white; font-weight: bold; margin-bottom: 15px;">
-<a href="class-<?= $classId ?>-online-question-paper-generator" style="height: 55px; margin-top:6% ; align-items:center ;justify-content:center; text-decoration: none; display: inline-flex; " class="go-back-btn">⬅ Go Back </a>
+			<div class="button-container chapter-actions">
+<a href="class-<?= $classId ?>-online-question-paper-generator" class="go-back-btn chapter-back-link">Go Back</a>
   <!-- Stylish Animated Button -->
-<div style="margin-top: 8%;" class="btn-wrapper">
+<div class="btn-wrapper">
   <button type="button" class="btn auto-fill-btn">
     <svg class="btn-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
       <path
@@ -1176,7 +1232,7 @@ document.addEventListener('DOMContentLoaded', function() {
   </button>
 </div>
       <!--================== NEXT BUTTON -->
-           <button style="margin-top: 6%;" type="submit" class="Btn-Container">
+           <button type="submit" class="Btn-Container">
   <span class="text">Next</span>
   <span class="icon-Container">
     <svg
@@ -1203,75 +1259,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 		</form>
 
-        <!-- SEO Content Section -->
-        <div class="book-features-seo">
-            <h2 class="features-title">🚀 Ultimate <?= htmlspecialchars($classId) ?>th Class <?= htmlspecialchars($book_name) ?> Paper Generator</h2>
-            <p style="text-align: center; color: #64748b; margin-top: -2rem; margin-bottom: 3rem; font-size: 1.1rem;">
-                Create professional, board-standard question papers for <strong>class <?= htmlspecialchars($classId) ?> <?= htmlspecialchars($book_name) ?></strong>. Our <strong>chapter-wise paper generator</strong> is designed specifically for Punjab Board (BISE) patterns, including Lahore, Multan, Faisalabad, and Rawalpindi boards.
-            </p>
-            
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon-wrapper">
-                        <span class="icon">📄</span>
-                    </div>
-                    <div class="feature-text">
-                        <strong>BISE Board Patterns</strong>
-                        <p>Generate papers following the exact weightage of <strong>Punjab Board exams</strong> for <?= htmlspecialchars($classId) ?>th <?= htmlspecialchars($book_name) ?>.</p>
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon-wrapper">
-                        <span class="icon">✅</span>
-                    </div>
-                    <div class="feature-text">
-                        <strong>Dynamic MCQs Maker</strong>
-                        <p>Create a custom <strong>mcqs paper generator</strong> for <?= htmlspecialchars($classId) ?> class <?= htmlspecialchars($book_name) ?> with randomized options.</p>
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon-wrapper">
-                        <span class="icon">⚡</span>
-                    </div>
-                    <div class="feature-text">
-                        <strong>Short & Long Questions</strong>
-                        <p>Easily select <strong>short questions</strong> and <strong>long questions</strong> from any chapter to build comprehensive tests.</p>
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon-wrapper">
-                        <span class="icon">🔍</span>
-                    </div>
-                    <div class="feature-text">
-                        <strong>Smart Paper Setter</strong>
-                        <p>The best <strong>online paper setter tool</strong> for teachers to prepare school and academy tests in minutes.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SEO FAQ Section -->
-            <div class="seo-faq-section" style="margin-top: 4rem; border-top: 1px solid #e2e8f0; padding-top: 3rem;">
-                <h3 style="text-align: center; color: #0f172a; margin-bottom: 2rem;">Frequently Asked Questions (FAQs)</h3>
-                <div class="faq-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; text-align: left;">
-                    <div class="faq-item">
-                        <h4 style="color: #1e293b; margin-bottom: 0.5rem;">How to generate <?= htmlspecialchars($classId) ?>th <?= htmlspecialchars($book_name) ?> paper chapter-wise?</h4>
-                        <p style="color: #475569; font-size: 0.95rem;">Simply select your class and book, then choose the chapters you want to include. Our tool will automatically fetch relevant questions based on the BISE pattern.</p>
-                    </div>
-                    <div class="faq-item">
-                        <h4 style="color: #1e293b; margin-bottom: 0.5rem;">Is this paper generator for Punjab Board?</h4>
-                        <p style="color: #475569; font-size: 0.95rem;">Yes, this tool is fully optimized for all Punjab Boards, including BISE Lahore, Gujranwala, Sahiwal, and others, following the latest up-to-date syllabus.</p>
-                    </div>
-                    <div class="faq-item">
-                        <h4 style="color: #1e293b; margin-bottom: 0.5rem;">Can I create only MCQs papers for <?= htmlspecialchars($book_name) ?>?</h4>
-                        <p style="color: #475569; font-size: 0.95rem;">Absolutely! You can set the number of short and long questions to zero if you only want to generate a <strong>class <?= htmlspecialchars($classId) ?> MCQs test</strong>.</p>
-                    </div>
-                    <div class="faq-item">
-                        <h4 style="color: #1e293b; margin-bottom: 0.5rem;">Can I download the papers in Word format?</h4>
-                        <p style="color: #475569; font-size: 0.95rem;">Yes, once the paper is generated, you can download it as a professional PDF or editable Word (DOCX) document for further customization.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <?php renderQuestionPaperSeoContent($questionPaperSeo); ?>
 		
 	</div>
   </div>

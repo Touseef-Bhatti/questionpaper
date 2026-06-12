@@ -279,6 +279,16 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
         <script>
         document.addEventListener('DOMContentLoaded', function() {
             const genForm = document.getElementById('generatePaperForm');
+            const generatePopup = document.getElementById('generate-paper-popup');
+            const reviewDetailsButton = document.getElementById('review-paper-details');
+            const popupGenerateButton = document.getElementById('popup-generate-paper');
+
+            function closeGeneratePopup() {
+                if (!generatePopup) return;
+                generatePopup.classList.remove('is-visible');
+                generatePopup.setAttribute('aria-hidden', 'true');
+            }
+
             if (genForm) {
                 genForm.addEventListener('submit', function(e) {
                     // Prevent default to ensure we can build the URL and redirect manually if needed
@@ -311,6 +321,32 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
                     // To be safe and professional, we'll let the submit proceed after updating action.
                 });
             }
+
+            setTimeout(function() {
+                if (!generatePopup) return;
+                generatePopup.classList.add('is-visible');
+                generatePopup.setAttribute('aria-hidden', 'false');
+                popupGenerateButton?.focus();
+            }, 3000);
+
+            reviewDetailsButton?.addEventListener('click', closeGeneratePopup);
+
+            popupGenerateButton?.addEventListener('click', function() {
+                closeGeneratePopup();
+                genForm?.requestSubmit();
+            });
+
+            generatePopup?.addEventListener('click', function(event) {
+                if (event.target === generatePopup) {
+                    closeGeneratePopup();
+                }
+            });
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && generatePopup?.classList.contains('is-visible')) {
+                    closeGeneratePopup();
+                }
+            });
         });
         </script>
         <input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">
@@ -501,6 +537,17 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
     </div>
 </div>
 
+<div id="generate-paper-popup" class="generate-paper-popup" aria-hidden="true">
+    <div class="generate-paper-dialog" role="dialog" aria-modal="true" aria-labelledby="generate-paper-popup-title">
+        <h2 id="generate-paper-popup-title">Your Paper Is Ready</h2>
+        <p>Review the question totals or continue to generate your question paper.</p>
+        <div class="generate-paper-actions">
+            <button type="button" id="review-paper-details" class="generate-paper-button generate-paper-button--review">Review Details</button>
+            <button type="button" id="popup-generate-paper" class="generate-paper-button generate-paper-button--primary">Generate Question Paper</button>
+        </div>
+    </div>
+</div>
+
 <?php include 'footer.php' ?>
 </body>
 </html>
@@ -540,6 +587,88 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
         margin: 10px 0;
         border: 1px solid #ccc;
         border-radius: 4px;
+    }
+
+    .generate-paper-popup {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, 0.45);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    .generate-paper-popup.is-visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .generate-paper-dialog {
+        width: min(100%, 430px);
+        padding: 24px;
+        text-align: center;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+        transform: translateY(12px) scale(0.98);
+        transition: transform 0.2s ease;
+    }
+
+    .generate-paper-popup.is-visible .generate-paper-dialog {
+        transform: translateY(0) scale(1);
+    }
+
+    .generate-paper-dialog h2 {
+        margin: 0 0 8px;
+        color: #0f172a;
+        font-size: 22px;
+    }
+
+    .generate-paper-dialog p {
+        margin: 0 0 20px;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .generate-paper-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .generate-paper-button {
+        flex: 1;
+        min-height: 46px;
+        margin: 0;
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 9px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .generate-paper-button--review {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+
+    .generate-paper-button--review:hover {
+        background: #cbd5e1;
+    }
+
+    .generate-paper-button--primary {
+        background: #087bff;
+        color: #fff;
+    }
+
+    .generate-paper-button--primary:hover {
+        background: #0668d8;
     }
 
     /* SEO Content Styles Refined - Same as Book Selection Page */
@@ -645,6 +774,10 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
     }
 
     @media (max-width: 480px) {
+        .generate-paper-actions {
+            flex-direction: column;
+        }
+
         .features-grid {
             grid-template-columns: 1fr;
         }

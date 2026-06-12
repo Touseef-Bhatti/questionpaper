@@ -46,7 +46,7 @@
         </div>
     </div>
     <div class="footer-bottom">
-        <p class="footer-copyright">&copy; <?php echo date('Y'); ?> Ahmad Learning Hub. All rights reserved. | Built with ❤️ for Education</p>
+        <p class="footer-copyright">&copy; <?php echo date('Y'); ?> Ahmad Learning Hub. All rights reserved. | Built for Education</p>
     </div>
 </footer>
 <?php include __DIR__ . '/cookie_consent.php'; ?>

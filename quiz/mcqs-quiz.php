@@ -225,7 +225,7 @@ $pageDesc = "Free {$class_name} {$book_name} chapter wise MCQs online test with 
           <p class="lead" style="margin-top:12px;">Top searches: "<?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?> MCQs 2026", "online mcqs Pakistan 2026", "chapter wise mcqs <?= htmlspecialchars($book_name) ?>"</p>
         </header>
 
-        <form id="quizForm" method="POST" action="quiz.php">
+        <form id="quizForm" method="POST" action="<?= htmlspecialchars($assetBase . $class_id . '-' . $book_slug, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="class_id" value="<?= $class_id ?>">
             <input type="hidden" name="book_id" value="<?= $book_id ?>">
             
