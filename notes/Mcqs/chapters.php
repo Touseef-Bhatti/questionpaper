@@ -151,6 +151,26 @@ $canonicalUrl = alh_mcqs_abs_url(ltrim($canonicalPath, '/'));
             <?php endforeach; ?>
         </section>
     <?php else: ?>
+        <?php
+        // Online MCQs Test Card
+        $isInter = preg_match('/11|12|inter|higher/i', $className);
+        $mcqsRoute = $isInter ? 'class-11-and-12-online-mcqs-prepation-test' : 'online-mcqs-test-for-9th-and-10th-board-exams';
+        $mcqsUrl = "{$assetBase}{$mcqsRoute}?class_id={$classId}&book_id={$bookId}";
+        ?>
+        <br><br>
+        <a href="<?= $mcqsUrl ?>" class="mcqs-featured-card">
+            <div class="mcqs-featured-content">
+                <div class="mcqs-featured-title">
+                    <i class="fas fa-laptop-code"></i> Live Online MCQs Test
+                </div>
+                <div class="mcqs-featured-desc">
+                    Create a custom, interactive chapter-wise MCQs quiz. Perfect for quick revision and entry test preparation!
+                </div>
+            </div>
+            <div class="mcqs-featured-btn">
+                Start Quiz <i class="fas fa-arrow-right"></i>
+            </div>
+        </a>
         <section class="alh-mcq-section">
             <h2><?= htmlspecialchars($selectedChapter['chapter_name']) ?> MCQs With Explanations</h2>
             <?php if (count($mcqs) === 0): ?>
@@ -199,23 +219,12 @@ $canonicalUrl = alh_mcqs_abs_url(ltrim($canonicalPath, '/'));
     <?php alh_mcqs_seo_content($className, $bookName, $selectedChapter['chapter_name'] ?? ''); ?>
 </main>
 <?php include '../../footer.php'; ?>
-<?php include_once '../../includes/quiz_ad_gate.php'; ?>
+
 <script>
 const isPremium = <?= json_encode($isPremium) ?>;
 
 function selectChapter(destinationUrl) {
-    if (isPremium) {
-        window.location.href = destinationUrl;
-        return;
-    }
-
-    window.ALHQuizAdGate.gate({
-        storageKey: 'alh_mcqs_chapter_ad_seen_until',
-        premiumHref: '../../subscription.php',
-        onContinue: () => {
-            window.location.href = destinationUrl;
-        }
-    });
+    window.location.href = destinationUrl;
 }
 
 function checkMcqOption(button) {

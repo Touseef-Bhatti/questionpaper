@@ -248,7 +248,7 @@ function createSlug($string) {
         </form>
     </div>
 
-    <?php include_once __DIR__ . '/../includes/quiz_ad_gate.php'; ?>
+
 
     <!-- SEO Article Section - Comprehensive Blog Style -->
 <article class="seo-article-section blog-layout">

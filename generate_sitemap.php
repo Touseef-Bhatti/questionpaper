@@ -103,6 +103,7 @@ addUrl($urls, $baseUrl, '/class-9th-and-10th-online-question-paper-generator', '
 addUrl($urls, $baseUrl, '/Class-11-and-12-Online-Question-Paper-generator', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/online-question-paper-generator', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/online-mcqs-test-for-9th-and-10th-board-exams', 'weekly', '0.8', $today);
+addUrl($urls, $baseUrl, '/study-material-for-board-exam-preparations', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/topic-wise-mcqs-test', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/class-9-10-11-12-mcqs-for-board-exams', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/online-mcqs-question-paper-generator', 'weekly', '0.7', $today);

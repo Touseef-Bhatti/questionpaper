@@ -73,6 +73,11 @@ Options -Indexes
     RewriteCond %{DOCUMENT_ROOT}/questionPaperFromTopic/$1 -f
     RewriteRule ^([^/]+)$ questionPaperFromTopic/$1 [L]
 
+    # Specific SEO rule for study materials page
+    RewriteCond %{THE_REQUEST} \s/+(notes/note\.php|note)(?:[\s?/]|\s) [NC]
+    RewriteRule ^(?:notes/note\.php|note)/?$ /study-material-for-board-exam-preparations [R=301,L]
+    RewriteRule ^study-material-for-board-exam-preparations/?$ notes/note.php [NC,L]
+
     # 3. Map root-level requests to 'notes/' folder
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d

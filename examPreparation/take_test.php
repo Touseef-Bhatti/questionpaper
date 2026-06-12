@@ -712,24 +712,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 </div>
 
 <?php include __DIR__ . '/../includes/ai_loader.php'; ?>
-<?php
-// Include and dynamically namespace quiz_ad_gate.php for Check All Answers ad gate to avoid conflict
-$quizAdGatePath = __DIR__ . '/../includes/quiz_ad_gate.php';
-if (file_exists($quizAdGatePath)) {
-    $quizAdGateContent = file_get_contents($quizAdGatePath);
-    $quizAdGateContent = str_replace('ALH_QUIZ_AD_GATE_RENDERED', 'ALH_QUIZ_AD_GATE_RENDERED_TAKE_TEST', $quizAdGateContent);
-    $quizAdGateContent = str_replace('window.ALHQuizAdGate', 'window.ALHQuizAdGateQuiz', $quizAdGateContent);
-    $quizAdGateContent = str_replace('ALHQuizAdGate', 'ALHQuizAdGateQuiz', $quizAdGateContent);
-    $quizAdGateContent = str_replace('id="quizAdModal"', 'id="quizAdModalQuiz"', $quizAdGateContent);
-    $quizAdGateContent = str_replace('id="watchQuizAdBtn"', 'id="watchQuizAdBtnQuiz"', $quizAdGateContent);
-    $quizAdGateContent = str_replace('id="quizAdPremiumBtn"', 'id="quizAdPremiumBtnQuiz"', $quizAdGateContent);
-    $quizAdGateContent = str_replace("document.getElementById('quizAdModal')", "document.getElementById('quizAdModalQuiz')", $quizAdGateContent);
-    $quizAdGateContent = str_replace("document.getElementById('watchQuizAdBtn')", "document.getElementById('watchQuizAdBtnQuiz')", $quizAdGateContent);
-    $quizAdGateContent = str_replace("document.getElementById('quizAdPremiumBtn')", "document.getElementById('quizAdPremiumBtnQuiz')", $quizAdGateContent);
-    $quizAdGateContent = str_replace('quizAdModalTitle', 'quizAdModalTitleQuiz', $quizAdGateContent);
-    echo $quizAdGateContent;
-}
-?>
 
 <form id="downloadForm" action="../questionPaperFromTopic/download_docx.php" method="POST" target="_blank" style="display:none;">
     <input type="hidden" name="content" id="downloadContent">
@@ -740,17 +722,7 @@ if (file_exists($quizAdGatePath)) {
 const quizApiUrl = window.location.href;
 
 function handleDownloadClick() {
-    if (window.ALHQuizAdGate) {
-        window.ALHQuizAdGate.gate({
-            storageKey: 'alh_quiz_ad_seen_until',
-            premiumHref: '../subscription.php',
-            onContinue: function() {
-                triggerActualDownload();
-            }
-        });
-    } else {
-        triggerActualDownload();
-    }
+    triggerActualDownload();
 }
 
 function triggerActualDownload() {

@@ -5,7 +5,6 @@ include '../db_connect.php';
 <html lang="en">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
-    <?php include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,7 +21,7 @@ include '../db_connect.php';
     <meta property="og:type" content="website">
 
     <!-- Canonical -->
-    <link rel="canonical" href="https://ahmadlearninghub.com/note">
+    <link rel="canonical" href="https://ahmadlearninghub.com/study-material-for-board-exam-preparations">
 
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/notes.css">
@@ -245,7 +244,7 @@ include '../db_connect.php';
                 'practice-test': '../class-9-10-11-12-test-series-for-board-exams',
                 'test-series': '../class-9-10-11-12-test-series-for-board-exams',
                 'guess-papers': 'uploaded_notes.php',
-                'book-mcqs': 'Mcqs/index.php',
+                'book-mcqs': '<?= $assetBase ?>notes/Mcqs/index.php',
                 'question-paper': '../select_class.php'
             };
             const url = routes[type] || '#';

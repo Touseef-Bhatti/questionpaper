@@ -152,8 +152,31 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == 1) {
 }
 $searchQuery = '';
 $searchResults = [];
+$suggestedTopics = [];
 $showResults = false;
 $studyLevel = $_POST['study_level'] ?? 'medium';
+
+try {
+    $suggestStmt = $conn->prepare("
+        SELECT topic_name, question_count
+        FROM TopicQuestionCounts
+        WHERE question_count >= 10
+          AND topic_name IS NOT NULL
+          AND TRIM(topic_name) != ''
+        ORDER BY RAND()
+        LIMIT 3
+    ");
+    if ($suggestStmt) {
+        $suggestStmt->execute();
+        $suggestRes = $suggestStmt->get_result();
+        while ($row = $suggestRes->fetch_assoc()) {
+            $suggestedTopics[] = $row;
+        }
+        $suggestStmt->close();
+    }
+} catch (Exception $e) {
+    error_log("Failed to load MCQs topic suggestions: " . $e->getMessage());
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['topic_search']) && !empty(trim($_POST['topic_search']))) {
     $searchQuery = trim($_POST['topic_search']);
@@ -453,7 +476,6 @@ if (isset($_POST['start_quiz'])) {
 </head>
 <body>
 <?php include_once '../header.php'; ?>
-<?php include_once __DIR__ . '/../includes/quiz_ad_gate.php'; ?>
 
 <!-- SIDE SKYSCRAPER ADS (Right Only) -->
 
@@ -583,6 +605,30 @@ if (isset($_POST['start_quiz'])) {
         <i class="fas fa-arrow-up"></i>
     </button>
 </div>
+<?php if (!empty($suggestedTopics)): ?>
+    <div class="topic-suggestions" aria-label="Suggested topics">
+        <span class="topic-suggestions-label">Try:</span>
+        <?php foreach ($suggestedTopics as $suggestion):
+            $suggestedTopicName = trim((string)($suggestion['topic_name'] ?? ''));
+            if ($suggestedTopicName === '') continue;
+            $suggestedTopicData = [
+                'topic' => $suggestedTopicName,
+                'similarity' => 100,
+                'type' => 'topic'
+            ];
+            $suggestedTopicJson = htmlspecialchars(json_encode($suggestedTopicData), ENT_QUOTES);
+        ?>
+            <button
+                type="button"
+                class="topic-suggestion-chip topic-selectable"
+                data-topic-data="<?= $suggestedTopicJson ?>"
+                onclick="selectSuggestedTopic(this)"
+            >
+                <?= htmlspecialchars($suggestedTopicName) ?>
+            </button>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
             </form>
         </div>
 
@@ -694,7 +740,7 @@ if (isset($_POST['start_quiz'])) {
                             
                             $topicJson = htmlspecialchars(json_encode($topicData), ENT_QUOTES);
                         ?>
-                            <div class="topic-item" data-topic-data="<?= $topicJson ?>" onclick="toggleTopic(this, '<?= $topicJson ?>')">
+                            <div class="topic-item topic-selectable" data-topic-data="<?= $topicJson ?>" onclick="toggleTopic(this, '<?= $topicJson ?>')">
                                 <div class="topic-name"><?= htmlspecialchars($result['topic']) ?></div>
                                 <div class="topic-similarity"><?= $result['similarity'] ?>% match</div>
                             </div>
@@ -903,11 +949,48 @@ function toggleTopic(element, topicJson) {
     updateSelectedTopicsUI();
 }
 
+function selectSuggestedTopic(element) {
+    const topicJson = element.getAttribute('data-topic-data');
+    if (!topicJson) return;
+
+    const topicData = JSON.parse(topicJson);
+    const searchInput = document.getElementById('topic_search');
+    const searchForm = document.getElementById('searchForm');
+
+    if (searchInput) {
+        searchInput.value = topicData.topic;
+    }
+
+    const index = selectedTopics.findIndex(t => JSON.parse(t).topic === topicData.topic);
+    if (index === -1) {
+        if (topicLimit !== -1 && selectedTopics.length >= topicLimit) {
+            showUpgradeModal();
+            return;
+        }
+        selectedTopics.push(topicJson);
+    }
+
+    document.querySelectorAll('.topic-selectable').forEach(item => {
+        const itemData = item.getAttribute('data-topic-data');
+        if (itemData && JSON.parse(itemData).topic === topicData.topic) {
+            item.classList.add('selected');
+        }
+    });
+
+    saveSelectedTopicsToSession();
+    updateSelectedTopicsUI();
+
+    if (searchForm) {
+        showLoader('Searching Topics...', 'Loading related matches.');
+        searchForm.submit();
+    }
+}
+
 function removeTopic(topicJson) {
     const topicData = JSON.parse(topicJson);
     selectedTopics = selectedTopics.filter(t => JSON.parse(t).topic !== topicData.topic);
     
-    document.querySelectorAll('.topic-item').forEach(item => {
+    document.querySelectorAll('.topic-selectable').forEach(item => {
         const itemData = item.getAttribute('data-topic-data');
         if (itemData && JSON.parse(itemData).topic === topicData.topic) item.classList.remove('selected');
     });
@@ -917,7 +1000,7 @@ function removeTopic(topicJson) {
 
 function clearAllTopics() {
     selectedTopics = [];
-    document.querySelectorAll('.topic-item').forEach(item => item.classList.remove('selected'));
+    document.querySelectorAll('.topic-selectable').forEach(item => item.classList.remove('selected'));
     saveSelectedTopicsToSession();
     updateSelectedTopicsUI();
 }
@@ -1065,11 +1148,7 @@ document.getElementById('startQuizForm')?.addEventListener('submit', function(e)
         return;
     }
 
-    window.ALHQuizAdGate.gate({
-        storageKey: 'alh_mcqs_topic_ad_seen_until',
-        premiumHref: '../subscription.php',
-        onContinue: () => submitSelectedTopicsQuiz(this)
-    });
+    submitSelectedTopicsQuiz(this);
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1083,7 +1162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSelectedTopicsUI();
     selectedTopics.forEach(topicJson => {
         const topicData = JSON.parse(topicJson);
-        document.querySelectorAll('.topic-item').forEach(item => {
+        document.querySelectorAll('.topic-selectable').forEach(item => {
             const itemData = item.getAttribute('data-topic-data');
             if (itemData && JSON.parse(itemData).topic === topicData.topic) item.classList.add('selected');
         });
@@ -1123,7 +1202,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const excludeTopics = [];
-            document.querySelectorAll('.topic-item[data-topic-data]').forEach(item => {
+            document.querySelectorAll('.topic-selectable[data-topic-data]').forEach(item => {
                 try {
                     const d = JSON.parse(item.getAttribute('data-topic-data'));
                     if (d && d.topic) excludeTopics.push(d.topic);
@@ -1161,7 +1240,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         const topicJson = JSON.stringify(tData);
                         const div = document.createElement('div');
-                        div.className = 'topic-item' + (isSelected ? ' selected' : '');
+                        div.className = 'topic-item topic-selectable' + (isSelected ? ' selected' : '');
                         div.setAttribute('data-topic-data', topicJson);
                         div.onclick = () => toggleTopic(div, topicJson);
                         div.innerHTML = '<div class="topic-name">' + topicName + '</div><div class="topic-similarity">' + similarity + '% match</div>';
@@ -1169,7 +1248,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         added++;
                     });
                     if (resultsHeader) {
-                        const total = document.querySelectorAll('.topic-item[data-topic-data]').length;
+                        const total = document.querySelectorAll('#topicList .topic-item[data-topic-data]').length;
                         resultsHeader.innerHTML = '<i class="fas fa-magic" style="color: var(--primary);"></i> Found ' + total + ' search results';
                     }
                 }
@@ -1409,11 +1488,7 @@ function startTextQuiz() {
 
     closeTextUploadModal();
 
-    window.ALHQuizAdGate.gate({
-        storageKey: 'alh_mcqs_topic_ad_seen_until',
-        premiumHref: '../subscription.php',
-        onContinue: () => submitTextQuizForm(form, topicName)
-    });
+    submitTextQuizForm(form, topicName);
 }
 </script>
 

@@ -142,12 +142,62 @@
     text-align: center;
   }
   @media (max-width: 768px) {
-    .ai-loader-overlay { padding: 12px; }
-    .ai-loader-card { max-width: 100%; border-radius: 14px; padding: 16px 14px; }
-    .ai-loader-title { font-size: 1rem; margin-bottom: 10px; }
-    .ai-loader-step { font-size: 0.9rem; padding: 8px 9px; margin-bottom: 6px; gap: 10px; }
-    .ai-loader-dot { width: 12px; height: 12px; flex-basis: 12px; }
-    .ai-loader-note { font-size: 0.78rem; }
+    .ai-loader-overlay {
+      align-items: flex-start;
+      padding: 14px;
+      overflow-y: auto;
+      background: rgba(2, 6, 23, 0.92);
+    }
+    .ai-loader-card {
+      max-width: 100%;
+      margin: auto 0;
+      border-radius: 14px;
+      padding: 16px 14px;
+      background: #0f172a;
+      border-color: rgba(148, 163, 184, 0.2);
+      box-shadow: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      overflow: visible;
+    }
+    .ai-loader-card::before,
+    .ai-loader-card::after {
+      display: none;
+    }
+    .ai-loader-title {
+      font-size: 1rem;
+      margin-bottom: 10px;
+      text-shadow: none;
+    }
+    .ai-loader-step {
+      font-size: 0.9rem;
+      padding: 8px 9px;
+      margin-bottom: 6px;
+      gap: 10px;
+      background: rgba(30, 41, 59, 0.78);
+      transition: background-color 0.12s linear, border-color 0.12s linear, color 0.12s linear;
+    }
+    .ai-loader-step.active {
+      transform: none;
+      box-shadow: none;
+      background: rgba(37, 99, 235, 0.32);
+    }
+    .ai-loader-step.active .ai-loader-dot,
+    .ai-loader-step.completed .ai-loader-dot {
+      box-shadow: none;
+    }
+    .ai-loader-dot {
+      width: 12px;
+      height: 12px;
+      flex-basis: 12px;
+    }
+    .ai-loader-progress-bar {
+      box-shadow: none;
+      transition: width 0.12s linear;
+    }
+    .ai-loader-note {
+      font-size: 0.78rem;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     .ai-loader-step { transition: none; }
@@ -249,6 +299,24 @@
       var startTime = Date.now();
       var lastActiveIdx = -1;
 
+      function setActiveStep(activeIdx) {
+        if (activeIdx === lastActiveIdx) return;
+        lastActiveIdx = activeIdx;
+        steps.forEach(function (_, idx) {
+          var stepEl = document.getElementById('ai-loader-step-' + idx);
+          if (!stepEl) return;
+          if (idx < activeIdx) {
+            stepEl.className = 'ai-loader-step completed';
+          } else if (idx === activeIdx) {
+            stepEl.className = 'ai-loader-step active';
+          } else {
+            stepEl.className = 'ai-loader-step';
+          }
+        });
+      }
+
+      setActiveStep(0);
+
       window.__aiLoaderTimer = setInterval(function () {
         var elapsed = Date.now() - startTime;
         var progress = Math.min((elapsed / totalDuration) * 100, 99);
@@ -264,20 +332,7 @@
           }
         }
 
-        if (activeIdx !== lastActiveIdx) {
-          lastActiveIdx = activeIdx;
-          steps.forEach(function (_, idx) {
-            var stepEl = document.getElementById('ai-loader-step-' + idx);
-            if (!stepEl) return;
-            if (idx < activeIdx) {
-              stepEl.className = 'ai-loader-step completed';
-            } else if (idx === activeIdx) {
-              stepEl.className = 'ai-loader-step active';
-            } else {
-              stepEl.className = 'ai-loader-step';
-            }
-          });
-        }
+        setActiveStep(activeIdx);
 
         if (elapsed >= totalDuration) {
           clearInterval(window.__aiLoaderTimer);

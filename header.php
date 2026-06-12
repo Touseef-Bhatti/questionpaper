@@ -698,7 +698,7 @@ body { padding-top:var(--ah, 66px); }
 
       <!-- Notes -->
       <li>
-        <a href="<?= $assetBase ?>note" class="ALH_link <?= is_active('note.php') ?>">
+        <a href="<?= $assetBase ?>study-material-for-board-exam-preparations" class="ALH_link <?= is_active('note.php') ?>">
           <i class="fas fa-book-open"></i> Notes
         </a>
       </li>

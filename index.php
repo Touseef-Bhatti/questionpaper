@@ -283,8 +283,8 @@ function homeReviewStars(int $rating): string {
                                 <li><i class="fas fa-check"></i> Interactive Leaderboards</li>
                             </ul>
                             <div class="role-actions">
-                                <a href="online_quiz_join" class="role-btn primary">
-                                    <i class="fas fa-gamepad"></i> Join Live Quiz
+                                <a href="examPreparation/select_class_for_test.php" class="role-btn primary">
+                                    <i class="fas fa-graduation-cap"></i> Board Exam Preparations
                                 </a>
                                 <div class="role-sub-actions">
                                     <a href="online-mcqs-test-for-9th-and-10th-board-exams" class="role-btn secondary bypass-user-type ALH_cct" data-action="online_mcqs">Take Online Test</a>

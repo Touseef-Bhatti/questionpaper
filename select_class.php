@@ -134,7 +134,6 @@ Generator MCQs tests, school exams, and practice papers instantly or attempt onl
 </div>
 </div> <!-- main-content -->
 
-<?php include_once 'includes/quiz_ad_gate.php'; ?>
 <?php include 'footer.php'; ?>
 
 <script>
@@ -148,18 +147,7 @@ Generator MCQs tests, school exams, and practice papers instantly or attempt onl
             destinationUrl = target;
         }
 
-        if (isPremium) {
-            window.location.href = destinationUrl;
-            return;
-        }
-
-        window.ALHQuizAdGate.gate({
-            storageKey: 'alh_select_class_ad_seen_until',
-            premiumHref: 'subscription.php',
-            onContinue: () => {
-                window.location.href = destinationUrl;
-            }
-        });
+        window.location.href = destinationUrl;
     }
 </script>
 
