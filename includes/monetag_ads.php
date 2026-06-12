@@ -11,6 +11,7 @@ define('ALH_MONETAG_ADS_RENDERED', true);
 
 function inPagePushAds1() {
     $allowedPages = [
+        
         // 'select_class.php',
         // 'quiz_setup.php',
         // 'textbooks.php',
@@ -80,18 +81,21 @@ function shouldShowAdsOnCurrentPage($allowedPages) {
         return false;
     }
 
-    // --- LOCALHOST AD TOGGLE ---
-    $hostPart = strtolower(explode(':', $_SERVER['HTTP_HOST'] ?? '')[0]);
-    if (in_array($hostPart, ['', 'localhost', '127.0.0.1', '::1'], true)) {
+    // An empty allowlist means this ad placement is disabled everywhere.
+    if (empty($allowedPages)) {
         return false;
     }
+
+    // --- LOCALHOST AD TOGGLE ---
+    // $hostPart = strtolower(explode(':', $_SERVER['HTTP_HOST'] ?? '')[0]);
+    // if (in_array($hostPart, ['', 'localhost', '127.0.0.1', '::1'], true)) {
+    //     return false;
+    // }
     
     // --- PAGE SPECIFIC ADS ---
-    if (!empty($allowedPages)) {
-        $currentPage = basename($_SERVER['SCRIPT_NAME']);
-        if (!in_array($currentPage, $allowedPages)) {
-            return false;
-        }
+    $currentPage = basename($_SERVER['SCRIPT_NAME'] ?? '');
+    if (!in_array($currentPage, $allowedPages, true)) {
+        return false;
     }
     
     return true;
