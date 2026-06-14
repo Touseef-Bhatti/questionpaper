@@ -5,6 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
 // require_once 'auth/auth_check.php';
 include_once 'db_connect.php';
 require_once 'middleware/SubscriptionCheck.php';
+require_once __DIR__ . '/includes/seo_content_Question_paper.php';
 
 $classId = intval($_POST['class_id'] ?? $_GET['class_id'] ?? 0);
 $book_name = trim($_POST['book_name'] ?? $_GET['book_name'] ?? '');
@@ -152,6 +153,10 @@ $shortQuestions = $_POST['short_questions'] ?? [];
 $mcqs = isset($_POST['mcqs']) ? $_POST['mcqs'] : [];
 $longQuestions = $_POST['long_questions'] ?? [];
 $chaptersSerialized = htmlspecialchars(json_encode($selectedChapters));
+$totalSelectedMcqs = array_sum(array_map('intval', $mcqs));
+$totalSelectedShorts = array_sum(array_map('intval', $shortQuestions));
+$totalSelectedLongs = array_sum(array_map('intval', $longQuestions));
+$questionPaperSeo = getQuestionPaperSeoContent($classId, $book_name);
 
 // Define page SEO title and description
 $seo_title = "{$className} " . ucfirst($book_name) . " {$chapter_info} MCQs, Short, Long Questions | Question Paper Generator";
@@ -194,6 +199,27 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
     }
     $seoBackUrl = "{$classOrdinal}-class-{$bookSlug}-chapter-{$chapterSlugPart}-question-paper-generator";
 }
+
+$siteBaseUrl = 'https://ahmadlearninghub.com';
+$canonicalUrl = $siteBaseUrl . '/' . ltrim($seoBackUrl, '/');
+$pageTitle = "{$className} {$book_name} {$chapter_info} Question Paper Review";
+$pageDescription = "Review {$totalSelectedMcqs} MCQs, {$totalSelectedShorts} short questions and {$totalSelectedLongs} long questions for {$className} {$book_name} {$chapter_info}, then generate a printable paper.";
+$softwareSchema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'WebApplication',
+    'name' => "{$className} {$book_name} Question Paper Generator",
+    'url' => $canonicalUrl,
+    'description' => $pageDescription,
+    'applicationCategory' => 'EducationalApplication',
+    'operatingSystem' => 'Any',
+    'isAccessibleForFree' => true,
+    'inLanguage' => 'en',
+    'provider' => [
+        '@type' => 'EducationalOrganization',
+        'name' => 'Ahmad Learning Hub',
+        'url' => $siteBaseUrl,
+    ],
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -203,37 +229,25 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
 
     <link rel="stylesheet" href="css/main.css">
-     <link rel="stylesheet" href="css/buttons.css">
+    <link rel="stylesheet" href="css/select_question.css">
 
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta name="description" content="Generate <?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> question paper for <?= htmlspecialchars($chapter_info) ?>. Custom MCQs, short and long questions based on Punjab Board pattern for teachers.">
-
-
-<meta name="keywords" content="<?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> paper generator, mcqs paper maker, chapter wise paper generator, short questions long questions generator, Punjab Board test setter">
-
-
-
-<title><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> Paper Generator | MCQs & Questions</title>
-
-<!-- Schema.org Markup for SEO -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "<?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> Paper Generator",
-  "operatingSystem": "Web",
-  "applicationCategory": "EducationalApplication",
-  "description": "Professional question selection for <?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> <?= htmlspecialchars($chapter_info) ?> based on Punjab Board patterns.",
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.9",
-    "ratingCount": "850"
-  }
-}
-</script>
+    <title><?= htmlspecialchars($pageTitle) ?> | Ahmad Learning Hub</title>
+    <meta name="description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <meta name="keywords" content="<?= htmlspecialchars($questionPaperSeo['keywords']) ?>">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="<?= htmlspecialchars($canonicalUrl) ?>">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="<?= htmlspecialchars($canonicalUrl) ?>">
+    <meta property="og:title" content="<?= htmlspecialchars($pageTitle) ?>">
+    <meta property="og:description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="<?= htmlspecialchars($pageTitle) ?>">
+    <meta name="twitter:description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <script type="application/ld+json"><?= json_encode($softwareSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
 
 </head>
 <body>
@@ -243,36 +257,81 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
 
 
    
+<main class="question-page">
 <div class="question-container">
-    <h3>Generate Question Paper for Book: <?= htmlspecialchars($book_name) ?> (<?= htmlspecialchars($className) ?>)</h3>
-    
-    <!-- TOP AD BANNER MOVED HERE FROM HEADER -->
+    <header class="question-hero">
+        <div class="question-hero-icon" aria-hidden="true">
+            <i class="fas fa-file-signature"></i>
+        </div>
+        <div class="question-hero-copy">
+            <span class="question-eyebrow">Question Paper Review</span>
+            <h1><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> Paper</h1>
+            <p>Review the chapter-wise distribution for <?= htmlspecialchars($chapter_info) ?> before generating your final question paper.</p>
+        </div>
+    </header>
 
+    <section class="paper-summary" aria-label="Selected question totals">
+        <article class="paper-summary-card paper-summary-card--mcq">
+            <i class="fas fa-check-square" aria-hidden="true"></i>
+            <span><strong><?= $totalSelectedMcqs ?></strong><small>MCQs</small></span>
+        </article>
+        <article class="paper-summary-card paper-summary-card--short">
+            <i class="fas fa-align-left" aria-hidden="true"></i>
+            <span><strong><?= $totalSelectedShorts ?></strong><small>Short Questions</small></span>
+        </article>
+        <article class="paper-summary-card paper-summary-card--long">
+            <i class="fas fa-file-alt" aria-hidden="true"></i>
+            <span><strong><?= $totalSelectedLongs ?></strong><small>Long Questions</small></span>
+        </article>
+        <article class="paper-summary-card paper-summary-card--chapters">
+            <i class="fas fa-book-open" aria-hidden="true"></i>
+            <span><strong><?= count($selectedChapters) ?></strong><small>Chapters</small></span>
+        </article>
+    </section>
 
     <form method="POST" action="select_topics.php">
         <input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">
         <input type="hidden" name="book_name" value="<?= htmlspecialchars($book_name) ?>">
         <input type="hidden" name="chapters" value="<?= $chaptersSerialized ?>">
 
-        <!-- MIDDLE AD BANNER -->
-
-        <h4>Specify the total number of questions for each chapter:</h4>
+        <section class="chapter-review" aria-labelledby="chapter-review-title">
+        <div class="section-heading">
+            <span class="section-heading-icon"><i class="fas fa-layer-group" aria-hidden="true"></i></span>
+            <div>
+                <h2 id="chapter-review-title">Chapter Distribution</h2>
+                <p>These readonly totals will be used to build your paper.</p>
+            </div>
+        </div>
+        <div class="chapter-review-grid">
         <?php
         foreach ($selectedChapters as $chapter) {
             list($chapterId, $chapterName) = explode('|', $chapter);
             $shortCount = isset($shortQuestions[$chapterId]) ? intval($shortQuestions[$chapterId]) : 0;
             $mcqCount = isset($mcqs[$chapterId]) ? intval($mcqs[$chapterId]) : 0;
             $longCount = isset($longQuestions[$chapterId]) ? intval($longQuestions[$chapterId]) : 0;
-            echo "<div style='margin-bottom: 15px;'>";
-            echo "<strong>" . htmlspecialchars($chapterName) . "</strong><br>";
-            echo "MCQs: <input type='number' name='mcqs[$chapterId]' value='$mcqCount' min='0' style='margin-right: 10px; padding: 5px; width: 80px;' readonly>";
-            echo "Short Questions: <input type='number' name='short_questions[$chapterId]' value='$shortCount' min='0' style='margin-right: 10px; padding: 5px; width: 80px;' readonly>";
-            echo "Long Questions: <input type='number' name='long_questions[$chapterId]' value='$longCount' min='0' style='padding: 5px; width: 80px;' readonly>";
-            echo "</div>";
+            ?>
+            <article class="chapter-review-card">
+                <h3><i class="fas fa-bookmark" aria-hidden="true"></i><?= htmlspecialchars($chapterName) ?></h3>
+                <div class="chapter-counts">
+                    <label>
+                        <input type="number" name="mcqs[<?= htmlspecialchars($chapterId) ?>]" value="<?= $mcqCount ?>" min="0" readonly>
+                        <span>MCQs</span>
+                    </label>
+                    <label>
+                        <input type="number" name="short_questions[<?= htmlspecialchars($chapterId) ?>]" value="<?= $shortCount ?>" min="0" readonly>
+                        <span>Short</span>
+                    </label>
+                    <label>
+                        <input type="number" name="long_questions[<?= htmlspecialchars($chapterId) ?>]" value="<?= $longCount ?>" min="0" readonly>
+                        <span>Long</span>
+                    </label>
+                </div>
+            </article>
+            <?php
         }
         ?>
-
-       
+        </div>
+        </section>
     </form>
 
     <form id="generatePaperForm" method="POST" action="generate_question_paper.php">
@@ -385,7 +444,8 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
         }
         ?>
 
-       <div class="btn-wrapper">
+       <?php if (false): ?>
+       <div class="btn-wrapper legacy-generate-control" aria-hidden="true">
   <button type="submit" class="btn">
     <svg class="btn-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
       <path
@@ -457,18 +517,29 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
     </div>
   </button>
 </div>
+       <?php endif; ?>
 
 
-        <br><br>
+        <section class="paper-actions" aria-label="Question paper actions">
+            <a href="<?= htmlspecialchars($seoBackUrl) ?>" class="paper-action paper-action--back">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                <span><strong>Back to Chapters</strong><small>Change chapter distribution</small></span>
+            </a>
+            <button type="submit" class="paper-action paper-action--generate">
+                <i class="fas fa-magic" aria-hidden="true"></i>
+                <span><strong>Generate Question Paper</strong><small>Create the final printable paper</small></span>
+            </button>
+        </section>
 
            
     </form>
     
-    <a href="<?= $seoBackUrl ?>" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center;">⬅ Go Back to Chapters</a>
+    <?php if (false): ?>
+    <a href="<?= htmlspecialchars($seoBackUrl) ?>" class="go-back-btn legacy-back-link"><i class="fas fa-arrow-left" aria-hidden="true"></i> Go Back to Chapters</a>
 
-    <!-- SEO Content Section -->
-    <div class="book-features-seo">
-        <h2 class="features-title">🚀 <?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> Question Paper Maker</h2>
+    <!-- Legacy summary retained temporarily for compatibility; replaced below. -->
+    <div class="book-features-seo legacy-seo-content" aria-hidden="true">
+        <h2 class="features-title"><i class="fas fa-file-alt" aria-hidden="true"></i> <?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?> Question Paper Maker</h2>
         <p style="text-align: center; color: #64748b; margin-top: -2rem; margin-bottom: 3rem; font-size: 1.1rem;">
             Generate professional exam papers for <strong><?= htmlspecialchars($className) ?> <?= htmlspecialchars($book_name) ?></strong> focusing on <strong><?= htmlspecialchars($chapter_info) ?></strong>. Our tool helps teachers create high-quality <strong>mcqs papers</strong>, <strong>short questions</strong>, and <strong>long questions</strong> in minutes.
         </p>
@@ -476,7 +547,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
         <div class="features-grid">
             <div class="feature-card">
                 <div class="feature-icon-wrapper">
-                    <span class="icon">📄</span>
+                    <i class="fas fa-file-alt icon" aria-hidden="true"></i>
                 </div>
                 <div class="feature-text">
                     <strong>Board Pattern Papers</strong>
@@ -485,7 +556,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
             </div>
             <div class="feature-card">
                 <div class="feature-icon-wrapper">
-                    <span class="icon">✅</span>
+                    <i class="fas fa-check-circle icon" aria-hidden="true"></i>
                 </div>
                 <div class="feature-text">
                     <strong>Chapter-Wise Selection</strong>
@@ -494,7 +565,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
             </div>
             <div class="feature-card">
                 <div class="feature-icon-wrapper">
-                    <span class="icon">⚡</span>
+                    <i class="fas fa-bolt icon" aria-hidden="true"></i>
                 </div>
                 <div class="feature-text">
                     <strong>MCQs Paper Generator</strong>
@@ -503,7 +574,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
             </div>
             <div class="feature-card">
                 <div class="feature-icon-wrapper">
-                    <span class="icon">🔍</span>
+                    <i class="fas fa-search icon" aria-hidden="true"></i>
                 </div>
                 <div class="feature-text">
                     <strong>Print-Ready Format</strong>
@@ -535,22 +606,37 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
             </div>
         </div>
     </div>
+    <?php endif; ?>
+    <?php renderQuestionPaperSeoContent($questionPaperSeo); ?>
 </div>
+</main>
 
 <div id="generate-paper-popup" class="generate-paper-popup" aria-hidden="true">
     <div class="generate-paper-dialog" role="dialog" aria-modal="true" aria-labelledby="generate-paper-popup-title">
-        <h2 id="generate-paper-popup-title">Your Paper Is Ready</h2>
-        <p>Review the question totals or continue to generate your question paper.</p>
-        <div class="generate-paper-actions">
-            <button type="button" id="review-paper-details" class="generate-paper-button generate-paper-button--review">Review Details</button>
-            <button type="button" id="popup-generate-paper" class="generate-paper-button generate-paper-button--primary">Generate Question Paper</button>
+        <div class="generate-paper-icon" aria-hidden="true">
+            <i class="fas fa-file-alt"></i>
         </div>
+        <span class="generate-paper-kicker">Final Step</span>
+        <h2 id="generate-paper-popup-title">Your Paper Is Ready</h2>
+        <p>Review your selected questions or continue to generate the complete question paper.</p>
+        <div class="generate-paper-actions">
+            <button type="button" id="review-paper-details" class="generate-paper-button generate-paper-button--review">
+                <i class="fas fa-tasks" aria-hidden="true"></i>
+                <span><strong>Review Details</strong><small>Check selected questions again</small></span>
+            </button>
+            <button type="button" id="popup-generate-paper" class="generate-paper-button generate-paper-button--primary">
+                <i class="fas fa-magic" aria-hidden="true"></i>
+                <span><strong>Generate Paper</strong><small>Create your question paper now</small></span>
+            </button>
+        </div>
+        <span class="generate-paper-note"><i class="fas fa-shield-alt" aria-hidden="true"></i> Your selected question distribution will be preserved.</span>
     </div>
 </div>
 
 <?php include 'footer.php' ?>
 </body>
 </html>
+<?php if (false): ?>
 <style>
     .question-container {
         max-width: 80%;
@@ -596,10 +682,14 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 18px;
-        background: rgba(15, 23, 42, 0.45);
+        padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+        background:
+            radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.28), transparent 38%),
+            rgba(8, 18, 43, 0.72);
         opacity: 0;
         visibility: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
         transition: opacity 0.2s ease, visibility 0.2s ease;
     }
 
@@ -609,66 +699,250 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
     }
 
     .generate-paper-dialog {
-        width: min(100%, 430px);
-        padding: 24px;
+        position: relative;
+        width: min(100%, 480px);
+        margin: auto;
+        padding: 34px;
+        overflow: hidden;
         text-align: center;
-        background: #fff;
-        border-radius: 16px;
-        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
-        transform: translateY(12px) scale(0.98);
-        transition: transform 0.2s ease;
+        background: linear-gradient(145deg, #ffffff 0%, #f7faff 100%);
+        border: 1px solid rgba(255,255,255,0.75);
+        border-radius: 26px;
+        box-shadow: 0 22px 48px rgba(2, 12, 34, 0.32);
+        transform: translateY(16px);
+        transition: transform 0.22s ease;
+    }
+
+    .generate-paper-dialog::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb, #0ea5e9, #7c3aed);
     }
 
     .generate-paper-popup.is-visible .generate-paper-dialog {
-        transform: translateY(0) scale(1);
+        transform: translateY(0);
+    }
+
+    .generate-paper-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-size: 25px;
+        background: linear-gradient(135deg, #2563eb, #0ea5e9);
+        border-radius: 19px;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
+        transform: rotate(-4deg);
+    }
+
+    .generate-paper-kicker {
+        display: block;
+        margin-bottom: 7px;
+        color: #2563eb;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
     }
 
     .generate-paper-dialog h2 {
-        margin: 0 0 8px;
+        margin: 0 0 10px;
         color: #0f172a;
-        font-size: 22px;
+        font-size: clamp(22px, 5vw, 28px);
+        line-height: 1.2;
+        letter-spacing: -0.025em;
     }
 
     .generate-paper-dialog p {
-        margin: 0 0 20px;
-        color: #64748b;
-        font-size: 14px;
-        line-height: 1.5;
+        max-width: 390px;
+        margin: 0 auto 24px;
+        color: #3f4f65;
+        font-size: 15px;
+        font-weight: 500;
+        line-height: 1.6;
     }
 
     .generate-paper-actions {
-        display: flex;
-        gap: 10px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
     }
 
     .generate-paper-button {
-        flex: 1;
-        min-height: 46px;
+        width: 100%;
+        min-height: 92px;
         margin: 0;
-        padding: 10px 14px;
-        border: 0;
-        border-radius: 9px;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 11px;
+        text-align: left;
+        border: 1px solid transparent;
+        border-radius: 16px;
         cursor: pointer;
         font-size: 14px;
         font-weight: 700;
+        box-shadow: none;
+        transition: transform 0.18s ease, background-color 0.18s ease;
+    }
+
+    .generate-paper-button > i {
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 11px;
+    }
+
+    .generate-paper-button span {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .generate-paper-button strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1.3;
+    }
+
+    .generate-paper-button small {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
     }
 
     .generate-paper-button--review {
-        background: #e2e8f0;
+        background: #f1f5f9;
+        color: #1e293b;
+        border-color: #dbe4ef;
+    }
+
+    .generate-paper-button--review strong {
         color: #0f172a;
     }
 
+    .generate-paper-button--review small {
+        color: #475569;
+    }
+
+    .generate-paper-button--review > i {
+        color: #2563eb;
+        background: #dbeafe;
+    }
+
     .generate-paper-button--review:hover {
-        background: #cbd5e1;
+        background: #e7eef7;
+        transform: translateY(-2px);
     }
 
     .generate-paper-button--primary {
-        background: #087bff;
+        background: linear-gradient(135deg, #2563eb, #087bff);
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+    }
+
+    .generate-paper-button--primary strong,
+    .generate-paper-button--primary small {
         color: #fff;
     }
 
+    .generate-paper-button--primary > i {
+        color: #fff;
+        background: rgba(255,255,255,0.17);
+    }
+
     .generate-paper-button--primary:hover {
-        background: #0668d8;
+        background: linear-gradient(135deg, #1d4ed8, #0369d8);
+        transform: translateY(-2px);
+    }
+
+    .generate-paper-button:focus-visible {
+        outline: 3px solid rgba(14, 165, 233, 0.4);
+        outline-offset: 3px;
+    }
+
+    .generate-paper-note {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 18px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    .generate-paper-note i {
+        color: #10b981;
+    }
+
+    @media (max-width: 480px) {
+        .generate-paper-popup {
+            align-items: flex-end;
+            padding: 12px 10px max(10px, env(safe-area-inset-bottom));
+        }
+
+        .generate-paper-dialog {
+            width: 100%;
+            max-height: calc(100dvh - 22px);
+            padding: 25px 16px 18px;
+            overflow-y: auto;
+            border-radius: 22px 22px 16px 16px;
+        }
+
+        .generate-paper-icon {
+            width: 52px;
+            height: 52px;
+            margin-bottom: 12px;
+            font-size: 21px;
+            border-radius: 15px;
+        }
+
+        .generate-paper-dialog h2 {
+            margin-bottom: 7px;
+            font-size: 22px;
+        }
+
+        .generate-paper-dialog p {
+            margin-bottom: 17px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .generate-paper-actions {
+            grid-template-columns: 1fr;
+            gap: 9px;
+        }
+
+        .generate-paper-button {
+            min-height: 67px;
+            padding: 11px 13px;
+            border-radius: 14px;
+        }
+
+        .generate-paper-note {
+            margin-top: 13px;
+            font-size: 11px;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .generate-paper-popup,
+        .generate-paper-dialog,
+        .generate-paper-button {
+            transition: none;
+        }
     }
 
     /* SEO Content Styles Refined - Same as Book Selection Page */
@@ -793,3 +1067,4 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
         }
     }
 </style>
+<?php endif; ?>

@@ -1039,12 +1039,23 @@ document.addEventListener('DOMContentLoaded', function() {
 	
     <div id="selection-mode-popup" class="selection-mode-popup" aria-hidden="true">
         <div class="selection-mode-dialog" role="dialog" aria-modal="true" aria-labelledby="selection-mode-title">
-            <h2 id="selection-mode-title">Choose Selection Mode</h2>
-            <p>Select chapters yourself or continue with automatic selection.</p>
-            <div class="selection-mode-actions">
-                <button type="button" id="manual-selection-btn" class="selection-mode-btn selection-mode-btn--manual">Manual Selection</button>
-                <button type="button" id="auto-next-btn" class="selection-mode-btn selection-mode-btn--auto">Next (Auto)</button>
+            <div class="selection-mode-icon" aria-hidden="true">
+                <i class="fas fa-layer-group"></i>
             </div>
+            <span class="selection-mode-kicker">Question Paper Setup</span>
+            <h2 id="selection-mode-title">Choose Selection Mode</h2>
+            <p>Fine-tune each chapter yourself or let Ahmad Learning Hub prepare a balanced selection automatically.</p>
+            <div class="selection-mode-actions">
+                <button type="button" id="manual-selection-btn" class="selection-mode-btn selection-mode-btn--manual">
+                    <i class="fas fa-sliders-h" aria-hidden="true"></i>
+                    <span><strong>Manual Selection</strong><small>Choose chapter counts yourself</small></span>
+                </button>
+                <button type="button" id="auto-next-btn" class="selection-mode-btn selection-mode-btn--auto">
+                    <i class="fas fa-magic" aria-hidden="true"></i>
+                    <span><strong>Continue Automatically</strong><small>Use the recommended distribution</small></span>
+                </button>
+            </div>
+            <span class="selection-mode-note"><i class="fas fa-shield-alt" aria-hidden="true"></i> You can review the selection before generating.</span>
         </div>
     </div>
 	
@@ -1171,11 +1182,20 @@ document.addEventListener('DOMContentLoaded', function() {
                              data-available-mcq="<?= $row['mcq_count'] ?? 0 ?>" 
                              data-available-short="<?= $row['short_count'] ?? 0 ?>" 
                              data-available-long="<?= $row['long_count'] ?? 0 ?>">
-							<?= htmlspecialchars($chapter_display) ?>
+							<span class="chapter-title"><?= htmlspecialchars($chapter_display) ?></span>
 							<div class="chapter-question-controls">
-								<input type="number" name="mcqs[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="MCQs" min="0" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
-								<input type="number" name="short_questions[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="Short Questions" min="0" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
-								<input type="number" name="long_questions[<?= htmlspecialchars($row['chapter_id']) ?>]" placeholder="Long Questions" min="0" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
+								<div class="chapter-question-field">
+									<input type="number" name="mcqs[<?= htmlspecialchars($row['chapter_id']) ?>]" aria-label="MCQs for <?= htmlspecialchars($chapter_display) ?>" min="0" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
+									<span>MCQs</span>
+								</div>
+								<div class="chapter-question-field">
+									<input type="number" name="short_questions[<?= htmlspecialchars($row['chapter_id']) ?>]" aria-label="Short questions for <?= htmlspecialchars($chapter_display) ?>" min="0" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
+									<span>Short</span>
+								</div>
+								<div class="chapter-question-field">
+									<input type="number" name="long_questions[<?= htmlspecialchars($row['chapter_id']) ?>]" aria-label="Long questions for <?= htmlspecialchars($chapter_display) ?>" min="0" data-chapter-id="<?= htmlspecialchars($row['chapter_id']) ?>">
+									<span>Long</span>
+								</div>
 								<div id="long-placement-<?= htmlspecialchars($row['chapter_id']) ?>" class="long-placement"></div>
 							</div>
 						</div>

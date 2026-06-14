@@ -23,6 +23,9 @@ Options -Indexes
     RewriteBase /
     Options -MultiViews
 
+    # Class/book live quiz URL, e.g. /class-9-physics-mcqs-test-2026
+    RewriteRule ^class-([0-9]+)-([a-zA-Z0-9-]+)-mcqs-test-2026/?$ quiz/quiz.php?class_name=$1&book_name=$2 [QSA,NC,L]
+
     # Handle clean Class/Book quiz URLs, e.g. /9-biology
     RewriteRule ^([0-9]+)-([a-zA-Z0-9-]+)/?$ quiz/quiz.php?class_name=$1&book_name=$2 [QSA,NC,L]
 

@@ -222,6 +222,50 @@ $canonicalUrl = alh_mcqs_abs_url(ltrim($canonicalPath, '/'));
 
 <script>
 const isPremium = <?= json_encode($isPremium) ?>;
+let mcqAudioContext = null;
+
+function playMcqNotes(notes, waveType = 'sine', volume = 0.3) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    if (!mcqAudioContext) {
+        mcqAudioContext = new AudioContextClass();
+    }
+
+    if (mcqAudioContext.state === 'suspended') {
+        mcqAudioContext.resume();
+    }
+
+    notes.forEach(({ frequency, delay, duration }) => {
+        const oscillator = mcqAudioContext.createOscillator();
+        const gain = mcqAudioContext.createGain();
+        const startTime = mcqAudioContext.currentTime + delay;
+
+        oscillator.connect(gain);
+        gain.connect(mcqAudioContext.destination);
+        oscillator.frequency.value = frequency;
+        oscillator.type = waveType;
+        gain.gain.setValueAtTime(volume, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration + 0.05);
+    });
+}
+
+function playCorrectMcqSound() {
+    playMcqNotes([
+        { frequency: 523, delay: 0, duration: 0.12 },
+        { frequency: 659, delay: 0.12, duration: 0.12 },
+        { frequency: 784, delay: 0.24, duration: 0.22 }
+    ], 'sine', 0.3);
+}
+
+function playIncorrectMcqSound() {
+    playMcqNotes([
+        { frequency: 311, delay: 0, duration: 0.15 },
+        { frequency: 261, delay: 0.15, duration: 0.28 }
+    ], 'sawtooth', 0.28);
+}
 
 function selectChapter(destinationUrl) {
     window.location.href = destinationUrl;
@@ -241,9 +285,11 @@ function checkMcqOption(button) {
     });
 
     if (isCorrect) {
+        playCorrectMcqSound();
         feedback.textContent = 'Correct answer: ' + formatCorrectAnswer(button);
         feedback.className = 'alh-feedback good';
     } else {
+        playIncorrectMcqSound();
         button.classList.add('is-wrong');
         feedback.textContent = 'Correct answer: ' + formatCorrectAnswer(button);
         feedback.className = 'alh-feedback bad';

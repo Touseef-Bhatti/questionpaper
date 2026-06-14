@@ -696,11 +696,22 @@ body { padding-top:var(--ah, 66px); }
         </div>
       </li>
 
-      <!-- Notes -->
-      <li>
-        <a href="<?= $assetBase ?>study-material-for-board-exam-preparations" class="ALH_link <?= is_active('note.php') ?>">
-          <i class="fas fa-book-open"></i> Notes
-        </a>
+      <!-- Notes dropdown -->
+      <li class="ALH_drop" id="ALH_notesdrop">
+        <button class="ALH_dbtn <?= is_active('notes/')||is_active('examPreparation/')?'alh-active':'' ?>" type="button" id="ALH_notesbtn">
+          <i class="fas fa-book-open"></i> Notes <i class="fas fa-caret-down ALH_caret"></i>
+        </button>
+        <div class="ALH_panel" id="ALH_notespanel">
+          <a href="<?= $assetBase ?>study-material-for-board-exam-preparations" class="ALH_ditem <?= is_active('note.php') ?>">
+            <span class="ALH_dico"><i class="fas fa-book"></i></span>Notes
+          </a>
+          <a href="<?= $assetBase ?>class-9-10-11-12-mcqs-for-board-exams" class="ALH_ditem <?= is_active('notes/Mcqs/') ?>">
+            <span class="ALH_dico"><i class="fas fa-tasks"></i></span>Board MCQs
+          </a>
+          <a href="<?= $assetBase ?>class-9-10-11-12-test-series-for-board-exams" class="ALH_ditem <?= is_active('examPreparation/') ?>">
+            <span class="ALH_dico"><i class="fas fa-clipboard-check"></i></span>Test Series
+          </a>
+        </div>
       </li>
 
       <!-- Join CTA pill -->

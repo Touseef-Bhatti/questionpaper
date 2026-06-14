@@ -747,6 +747,15 @@ if ($sharedQuizPayload) {
     }
 }
 
+$stmt = $conn->prepare("SELECT book_name FROM book WHERE book_id = ? AND class_id = ?");
+$stmt->bind_param('ii', $book_id, $class_id);
+$stmt->execute();
+$result = $stmt->get_result();
+if ($row = $result->fetch_assoc()) {
+    $book_name = $row['book_name'];
+}
+$stmt->close();
+
 // SEO and Redirection Meta
 $quizOriginType = !empty($topicsArray) ? 'topic' : 'class';
 $quizEntryPage = ($quizOriginType === 'topic') ? ($assetBase . 'topic-wise-mcqs-test') : $setup_url;
@@ -755,14 +764,73 @@ $quizContextLabel = ($quizOriginType === 'topic')
     : ('Class Quiz: ' . $class_name . ' - ' . $book_name);
 $quizScriptDir = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/quiz'), '/\\');
 $quizApiPath = ($quizScriptDir === '' ? '' : $quizScriptDir) . '/quiz.php';
-$stmt = $conn->prepare("SELECT book_name FROM book WHERE book_id = ?");
-$stmt->bind_param('i', $book_id);
-$stmt->execute();
-$result = $stmt->get_result();
-if ($row = $result->fetch_assoc()) {
-    $book_name = $row['book_name'];
+
+function quizSeoSlug(string $value): string {
+    $slug = strtolower(trim($value));
+    $slug = preg_replace('/[\s_]+/', '-', $slug);
+    $slug = preg_replace('/[^a-z0-9-]/', '', $slug);
+    return trim($slug, '-');
 }
-$stmt->close();
+
+$isClassBookQuiz = $quizOriginType === 'class' && $class_id > 0 && $book_id > 0;
+$bookSlug = quizSeoSlug($book_name);
+$quizSeoPath = 'class-' . $class_id . '-' . $bookSlug . '-mcqs-test-2026';
+$siteBaseUrl = rtrim(EnvLoader::get('APP_URL', EnvLoader::get('SITE_URL', 'https://ahmadlearninghub.com.pk')), '/');
+$canonicalUrl = $isClassBookQuiz
+    ? $siteBaseUrl . '/' . $quizSeoPath
+    : $siteBaseUrl . strtok($_SERVER['REQUEST_URI'] ?? '/quiz/quiz.php', '?');
+$pageTitle = $isClassBookQuiz
+    ? $class_name . ' ' . $book_name . ' MCQs Test 2026 with Funny Mode'
+    : $book_name . ' Online MCQs Quiz';
+$pageDescription = $isClassBookQuiz
+    ? 'Take a free ' . $class_name . ' ' . $book_name . ' MCQs test for 2026 with instant answers, explanations, scoring, Funny Mode and meme sound effects for board exam practice.'
+    : 'Take a free online MCQs quiz with instant scoring, answer explanations and optional Funny Mode.';
+$quizSchema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'Quiz',
+    'name' => $pageTitle,
+    'description' => $pageDescription,
+    'url' => $canonicalUrl,
+    'about' => $class_name . ' ' . $book_name,
+    'educationalLevel' => $class_name,
+    'inLanguage' => 'en',
+    'isAccessibleForFree' => true,
+    'provider' => [
+        '@type' => 'EducationalOrganization',
+        'name' => 'Ahmad Learning Hub',
+        'url' => $siteBaseUrl
+    ]
+];
+$faqSchema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'FAQPage',
+    'mainEntity' => [
+        [
+            '@type' => 'Question',
+            'name' => 'What is included in this ' . $class_name . ' ' . $book_name . ' MCQs test?',
+            'acceptedAnswer' => [
+                '@type' => 'Answer',
+                'text' => 'The quiz includes multiple-choice questions, instant answer checking, a final score, detailed review and explanations where available.'
+            ]
+        ],
+        [
+            '@type' => 'Question',
+            'name' => 'What does Funny Mode do?',
+            'acceptedAnswer' => [
+                '@type' => 'Answer',
+                'text' => 'Funny Mode adds lighthearted reactions and plays short meme-style sound effects for correct and incorrect answers. It can be switched on or off during the quiz.'
+            ]
+        ],
+        [
+            '@type' => 'Question',
+            'name' => 'Can students in Pakistan use this quiz for board exam preparation?',
+            'acceptedAnswer' => [
+                '@type' => 'Answer',
+                'text' => 'Yes. Students can use the class and book-specific MCQs for revision alongside the textbook and syllabus prescribed by their own board.'
+            ]
+        ]
+    ]
+];
 
 // Scan funny sounds directories
 $correctSounds = [];
@@ -799,7 +867,21 @@ if (is_dir($incorrectDir)) {
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz - <?= htmlspecialchars($book_name) ?> | Ahmad Learning Hub</title>
+    <title><?= htmlspecialchars($pageTitle) ?> | Ahmad Learning Hub</title>
+    <meta name="description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="<?= htmlspecialchars($canonicalUrl) ?>">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="<?= htmlspecialchars($canonicalUrl) ?>">
+    <meta property="og:title" content="<?= htmlspecialchars($pageTitle) ?>">
+    <meta property="og:description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="<?= htmlspecialchars($pageTitle) ?>">
+    <meta name="twitter:description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <script type="application/ld+json"><?= json_encode($quizSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
+    <?php if ($isClassBookQuiz): ?>
+    <script type="application/ld+json"><?= json_encode($faqSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
+    <?php endif; ?>
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1675,6 +1757,40 @@ if (is_dir($incorrectDir)) {
             .review-modal textarea { min-height: 100px; padding: 12px; }
         }
 
+        .quiz-seo-content {
+            width: min(1050px, calc(100% - 32px));
+            margin: 48px auto 0;
+            padding: 42px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            box-shadow: 0 18px 50px -30px rgba(15, 23, 42, 0.35);
+            color: #334155;
+            line-height: 1.8;
+        }
+        .quiz-seo-content h1,
+        .quiz-seo-content h2,
+        .quiz-seo-content h3 {
+            color: #0f172a;
+            line-height: 1.3;
+        }
+        .quiz-seo-content h1 { margin: 0 0 16px; font-size: clamp(1.8rem, 4vw, 2.55rem); }
+        .quiz-seo-content h2 { margin: 32px 0 12px; font-size: 1.55rem; }
+        .quiz-seo-content h3 { margin: 24px 0 8px; font-size: 1.15rem; }
+        .quiz-seo-content p { margin: 0 0 16px; }
+        .quiz-seo-content ul,
+        .quiz-seo-content ol { padding-left: 24px; }
+        .quiz-seo-content li { margin-bottom: 9px; }
+        .quiz-seo-intro {
+            padding: 20px 22px;
+            background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+            border-left: 4px solid #6d28d9;
+            border-radius: 14px;
+        }
+        @media (max-width: 640px) {
+            .quiz-seo-content { padding: 26px 20px; }
+        }
+
     </style>
 </head>
 <body>
@@ -1823,7 +1939,98 @@ if (is_dir($incorrectDir)) {
         </div>
     </div>
 
- 
+    <?php if ($isClassBookQuiz): ?>
+    <article class="quiz-seo-content">
+        <h1><?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?> MCQs Test 2026</h1>
+        <p class="quiz-seo-intro">
+            This free <strong><?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?> MCQs test 2026</strong>
+            gives students a quick way to practise objective questions online, check answers instantly and review mistakes.
+            The quiz is designed for focused revision from the selected class and book, with a timer, progress tracking,
+            final score, answer review, optional explanations and a <strong>Funny Mode with meme sound effects</strong>.
+        </p>
+
+        <h2>Online <?= htmlspecialchars($book_name) ?> MCQs Practice for <?= htmlspecialchars($class_name) ?></h2>
+        <p>
+            Multiple-choice questions can look easy until two options appear almost identical. Regular practice helps
+            students notice definitions, formulas, facts, units, dates, rules and small textbook details that are often
+            tested in objective sections. This <?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?>
+            online quiz turns revision into an active task: choose an answer, receive immediate feedback and continue
+            through a fresh set of questions. Instead of only reading solved MCQs, students make a decision and learn
+            from the result. That process is useful for school tests, monthly assessments, pre-board preparation and
+            final examinations in 2026.
+        </p>
+        <p>
+            Students can start with a short quiz when revising one topic or attempt a larger set after completing the
+            book. The progress bar shows how much of the test remains, while the timer provides a simple picture of
+            answering speed. At the end, the result screen separates correct and incorrect responses and provides a
+            detailed review. Repeating the quiz can expose weak concepts and improve accuracy without requiring a new
+            worksheet every time.
+        </p>
+
+        <h2>Funny Mode and Meme Sound Effects</h2>
+        <p>
+            Funny Mode is available directly inside the quiz and can be switched on with the button near the quiz
+            heading. When enabled, the page adds playful reactions to the learning experience. Short celebratory meme
+            sounds may play after a correct answer, while funny fail sounds may react to an incorrect choice. The sound
+            library includes varied correct and incorrect effects so every response does not feel exactly the same.
+            There is also a quiz-start sound and a separate effect when the mode is switched.
+        </p>
+        <p>
+            The humour is optional. Students who prefer silent, serious practice can leave Funny Mode off and use the
+            same questions, scoring and review tools. Those who enjoy a lighter atmosphere can turn it on to make a
+            difficult <?= htmlspecialchars($book_name) ?> practice session feel less repetitive. The sound effect is a
+            reaction, not a replacement for learning: students should still read the correct answer and explanation,
+            identify why their choice was wrong and return to the relevant textbook section when needed.
+        </p>
+
+        <h2>Useful for Pakistani Students and Board Exam Revision</h2>
+        <p>
+            This class-and-book-specific MCQs page is useful for learners searching from Pakistan, including students
+            preparing under Punjab educational boards, Federal Board, Sindh boards, Khyber Pakhtunkhwa boards,
+            Balochistan Board and AJK Board. Textbook editions and syllabuses can vary, so every student should compare
+            the selected <?= htmlspecialchars($book_name) ?> questions with the book and syllabus issued by their own
+            school or board. The online format is accessible from home, school, an academy or a mobile device, making
+            it practical for students in Lahore, Karachi, Islamabad, Rawalpindi, Faisalabad, Multan, Peshawar, Quetta
+            and other cities and regions.
+        </p>
+        <p>
+            Teachers and tutors can also use the quiz as a quick classroom activity or revision challenge. A student
+            can complete one attempt, note the score, revise weak areas and try again later. For better preparation,
+            combine these MCQs with textbook reading, written questions, numerical practice where relevant and past
+            papers from the correct board.
+        </p>
+
+        <h2>How to Get Better Results from This MCQs Test</h2>
+        <ol>
+            <li>Read the selected <?= htmlspecialchars($book_name) ?> chapter before starting the quiz.</li>
+            <li>Answer from memory first instead of immediately checking notes or searching online.</li>
+            <li>Use the timer to improve speed, but do not rush through wording such as “not,” “except” or “incorrect.”</li>
+            <li>Review every wrong answer and write down the concept that caused the mistake.</li>
+            <li>Retake the test after revision and compare accuracy, not only the total score.</li>
+            <li>Turn on Funny Mode when you want meme sounds and a more playful practice session.</li>
+        </ol>
+
+        <h2>Frequently Asked Questions</h2>
+        <h3>What is included in this <?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?> MCQs test?</h3>
+        <p>
+            It includes interactive multiple-choice questions, immediate answer feedback, progress and time tracking,
+            a final percentage, correct and incorrect totals, detailed review and explanations where available.
+        </p>
+
+        <h3>Does Funny Mode change the correct answers?</h3>
+        <p>
+            No. Funny Mode changes the style of the experience by adding lighthearted reactions and meme sound effects.
+            The question data, correct option and score remain the same.
+        </p>
+
+        <h3>Is this quiz free for 2026 exam preparation?</h3>
+        <p>
+            Yes. Students can use this online <?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?>
+            MCQs test as a free revision resource. Always follow the latest syllabus and textbook specified by your
+            own school or examination board.
+        </p>
+    </article>
+    <?php endif; ?>
 </div>
 
 <script src="<?= $assetBase ?>quiz/funny_sounds/funny_audio_manager.js"></script>

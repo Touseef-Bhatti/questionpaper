@@ -13,26 +13,42 @@ if (isset($_GET['clear_topics'])) {
 
 // Get user info for personalized experience
 $user_name = $_SESSION['name'] ?? 'Instructor';
-$pageTitle = "Live Quiz Maker for Teachers | AI-Powered Quiz Generator";
+$pageTitle = "Host an Online Quiz Free | Live MCQ Quiz Maker";
 
-$metaDescription = "Create and host live quizzes using AI or your own questions. Conduct real-time classroom assessments with instant results, interactive leaderboards, and performance tracking for students.";
+$metaDescription = "Create and host a live online MCQ quiz for classrooms, academies and remote learners. Choose textbook questions, topics, saved MCQs or upload a file, then share the room code and manage results live.";
 
-$metaKeywords = "live quiz maker for teachers, AI quiz generator, host live quiz online, classroom assessment tool, MCQ quiz maker, online test platform, live leaderboard quizzes, teacher dashboard tool, digital learning platform";
+$metaKeywords = "host online quiz free, live quiz maker, MCQ quiz host Pakistan, classroom quiz room, teacher quiz generator, online test host, live leaderboard quiz, AI quiz maker, quiz room code";
+$siteBaseUrl = rtrim(EnvLoader::get('APP_URL', EnvLoader::get('SITE_URL', 'https://ahmadlearninghub.com.pk')), '/');
+$canonicalUrl = $siteBaseUrl . '/online_quiz_host_new';
+
+$hostHowToSchema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'HowTo',
+    'name' => 'How to host a live online quiz',
+    'description' => $metaDescription,
+    'totalTime' => 'PT5M',
+    'step' => [
+        ['@type' => 'HowToStep', 'position' => 1, 'name' => 'Choose quiz questions', 'text' => 'Select a class and book, search by topic, upload a file, or add custom and saved MCQs.'],
+        ['@type' => 'HowToStep', 'position' => 2, 'name' => 'Select chapters', 'text' => 'Choose specific textbook chapters or leave the selection empty to use the complete selected book.'],
+        ['@type' => 'HowToStep', 'position' => 3, 'name' => 'Set questions and duration', 'text' => 'Enter the number of questions and choose a suitable quiz duration.'],
+        ['@type' => 'HowToStep', 'position' => 4, 'name' => 'Create the quiz room', 'text' => 'Review the quiz preview and select Create Quiz Room.'],
+        ['@type' => 'HowToStep', 'position' => 5, 'name' => 'Share and host live', 'text' => 'Share the generated room code or join link, open the host dashboard, wait for participants and start the quiz.']
+    ]
+];
+
+$hostFaqSchema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'FAQPage',
+    'mainEntity' => [
+        ['@type' => 'Question', 'name' => 'How do I host an online quiz?', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Sign in, choose questions from a class and book, topic, uploaded file, saved list or custom MCQs, set the question count and duration, create the room, and share its code or link.']],
+        ['@type' => 'Question', 'name' => 'How do students join the live quiz?', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Students open the Join Quiz page and enter the room code, or use the direct join link shared by the host.']],
+        ['@type' => 'Question', 'name' => 'Can I create MCQs from a PDF or Word file?', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Yes. The host page accepts supported PDF, Word, PowerPoint and image files up to 10 MB and can generate MCQs from the uploaded content.']],
+        ['@type' => 'Question', 'name' => 'Can I use my own quiz questions?', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Yes. Add custom questions manually or select MCQs previously saved to your profile.']]
+    ]
+];
 
 include_once '../header.php';
 ?>
-
-<!-- JSON-LD Structured Data for Teachers -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "Live Quiz Hosting Tool",
-  "operatingSystem": "Web",
-  "applicationCategory": "EducationSupport",
-  "description": "An interactive digital classroom tool to host live MCQ competitions and assessments."
-}
-</script>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -47,11 +63,19 @@ include_once '../header.php';
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Live Quiz Maker for Teachers | AI-Powered Quiz Generator</title>
+<title><?= htmlspecialchars($pageTitle) ?> | Ahmad Learning Hub</title>
 
-<meta name="description" content="Create and host live quizzes using AI or your own questions. Conduct real-time classroom assessments with instant results, interactive leaderboards, and performance tracking for students.">
+<meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
 
-<meta name="keywords" content="live quiz maker for teachers, AI quiz generator, host live quiz online, classroom assessment tool, MCQ quiz maker, online test platform, live leaderboard quizzes, teacher dashboard tool, digital learning platform">
+<meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="<?= htmlspecialchars($canonicalUrl) ?>">
+<meta property="og:type" content="website">
+<meta property="og:url" content="<?= htmlspecialchars($canonicalUrl) ?>">
+<meta property="og:title" content="<?= htmlspecialchars($pageTitle) ?>">
+<meta property="og:description" content="<?= htmlspecialchars($metaDescription) ?>">
+<script type="application/ld+json"><?= json_encode($hostHowToSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
+<script type="application/ld+json"><?= json_encode($hostFaqSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
 
 </head>
 
@@ -65,7 +89,7 @@ include_once '../header.php';
 <div class="quiz-creator">
     <div class="creator-header">
             <div>
-                <h1>🚀 Create Quiz Room</h1>
+                <h1><i class="fas fa-tower-broadcast" aria-hidden="true"></i> Create Quiz Room</h1>
                 <p class="subtitle">Welcome back, <?= htmlspecialchars($user_name) ?>! Let's create an amazing quiz experience.</p>
             </div>
             
@@ -79,12 +103,43 @@ include_once '../header.php';
         ?>
 
         <div class="creator-body">
+            <section class="teaching-capabilities" aria-labelledby="teaching-capabilities-title">
+                <div class="teaching-capabilities-intro">
+                    <span class="teaching-capabilities-label">Live teaching toolkit</span>
+                    <h2 id="teaching-capabilities-title">Built for Live Teaching and Assessment</h2>
+                    <p>Create questions faster, manage a live room and review participant performance from one workflow.</p>
+                </div>
+                <div class="teaching-capabilities-grid">
+                    <div class="teaching-capability">
+                        <span class="teaching-capability-icon"><i class="fas fa-chart-line"></i></span>
+                        <div>
+                            <h3>Live Performance</h3>
+                            <p>Monitor participation, answers and scores from the host dashboard.</p>
+                        </div>
+                    </div>
+                    <div class="teaching-capability">
+                        <span class="teaching-capability-icon"><i class="fas fa-wand-magic-sparkles"></i></span>
+                        <div>
+                            <h3>Flexible Question Creation</h3>
+                            <p>Use textbook MCQs, topic search, file generation or your own saved questions.</p>
+                        </div>
+                    </div>
+                    <div class="teaching-capability">
+                        <span class="teaching-capability-icon"><i class="fas fa-ranking-star"></i></span>
+                        <div>
+                            <h3>Engaging Live Sessions</h3>
+                            <p>Share a room code and use the leaderboard to keep learners involved.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <form id="quizForm" method="POST" action="online_quiz_create_room.php">
                 <input type="hidden" name="source" value="host">
                 <!-- Quiz Configuration -->
                 <div class="form-section">
                     <div class="section-header">
-                        <div class="section-icon">⚙️</div>
+                        <div class="section-icon"><i class="fas fa-sliders"></i></div>
                         <div>
                             <h2 class="section-title">Quiz Configuration</h2>
                             <p class="section-description">Set up basic quiz parameters and timing</p>
@@ -93,12 +148,12 @@ include_once '../header.php';
                     
                     <div class="form-grid">
                         <div class="form-group" style="grid-column: 1 / -1;">
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
-                                <button type="button" class="btn btn-secondary" style="width: 100%; border: 2px dashed #6366f1; color: #6366f1; background: #f5f3ff; font-weight: 600;" onclick="goToTopicSearch()">
-                                    🔍 Search Questions by Topic
+                            <div class="host-source-actions">
+                                <button type="button" class="btn host-source-btn host-source-btn--topic" onclick="goToTopicSearch()">
+                                    <i class="fas fa-magnifying-glass"></i> Search Questions by Topic
                                 </button>
-                                <button type="button" class="btn btn-secondary" style="width: 100%; border: 2px dashed #0d9488; color: #0d9488; background: #ecfdf5; font-weight: 600;" onclick="openHostFileUploadModal()">
-                                    📄 Upload file → MCQs
+                                <button type="button" class="btn host-source-btn host-source-btn--file" onclick="openHostFileUploadModal()">
+                                    <i class="fas fa-file-arrow-up"></i> Upload File to Create MCQs
                                 </button>
                             </div>
                             <div class="form-hint" style="text-align: center; margin-top: 8px;">Search by topic, or upload a PDF/Word/PPT/image and AI will build MCQs from your file only (max 10 MB)</div>
@@ -106,8 +161,8 @@ include_once '../header.php';
                             <?php if ($hasTopics): ?>
                             <div id="selectedTopicsContainer" class="topic-container">
                                 <h4 class="topic-header">
-                                    <span>✅ Selected Topics (<?= count($selectedTopics) ?>)</span>
-                                    <button type="button" onclick="clearSelectedTopics()" class="topic-clear-btn">Clear</button>
+                                    <span><i class="fas fa-circle-check" aria-hidden="true"></i> Selected Topics (<?= count($selectedTopics) ?>)</span>
+                                    <button type="button" onclick="clearSelectedTopics()" class="topic-clear-btn"><i class="fas fa-xmark" aria-hidden="true"></i> Clear</button>
                                 </h4>
                                 <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                     <?php foreach ($selectedTopics as $topic): ?>
@@ -123,7 +178,7 @@ include_once '../header.php';
 
                         <?php if (!$hasTopics): ?>
                         <div class="form-group">
-                            <label class="form-label">📚 Class</label>
+                            <label class="form-label"><i class="fas fa-graduation-cap" aria-hidden="true"></i> Class</label>
                             <select class="form-select" id="class_id" name="class_id">
                                 <option value="">Choose your class</option>
                                 <?php
@@ -138,7 +193,7 @@ include_once '../header.php';
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label">📖 Book</label>
+                            <label class="form-label"><i class="fas fa-book-open" aria-hidden="true"></i> Book</label>
                             <select class="form-select" id="book_id" name="book_id" disabled>
                                 <option value="">Select class first</option>
                             </select>
@@ -153,21 +208,21 @@ include_once '../header.php';
                             <div class="toggle-knob"></div>
                         </div>
                         <div>
-                            <h3 style="margin: 0; font-size: 1.25rem;">✨ Add Custom Questions</h3>
+                            <h3 class="toggle-title"><i class="fas fa-pen-to-square" aria-hidden="true"></i> Add Custom Questions</h3>
                             <p style="margin: 5px 0 0; color: #6b7280;">Create your own questions. They will be <b>automatically saved</b> to your profile.</p>
                         </div>
                     </div>
                     
                     <div class="mcq-builder" id="customQuestions">
-                        <div style="margin-bottom: 20px;">
-                            <button type="button" class="btn btn-secondary" style="color: black;border: 1px solid black;" onclick="addCustomQuestion()">
-                                ➕ Add Question
+                        <div class="custom-question-actions">
+                            <button type="button" class="btn btn-secondary" onclick="addCustomQuestion()">
+                                <i class="fas fa-plus"></i> Add Question
                             </button>
-                            <button type="button" class="btn btn-secondary" style="color: black;border: 1px solid black;" onclick="openSavedQuestionsModal()">
-                                📂 Select from Saved Questions
+                            <button type="button" class="btn btn-secondary" onclick="openSavedQuestionsModal()">
+                                <i class="fas fa-folder-open"></i> Select Saved Questions
                             </button>
-                            <button type="button" class="btn btn-secondary" style="color: black;border: 1px solid black;" onclick="clearCustomQuestions()">
-                                🗑️ Clear All
+                            <button type="button" class="btn btn-secondary" onclick="clearCustomQuestions()">
+                                <i class="fas fa-trash"></i> Clear All
                             </button>
                         </div>
                         
@@ -181,7 +236,7 @@ include_once '../header.php';
                 <div id="savedQuestionsModal" class="modal-overlay" style="display: none;">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h3>📂 Select Saved Questions</h3>
+                            <h3><i class="fas fa-folder-open" aria-hidden="true"></i> Select Saved Questions</h3>
                             <button type="button" class="close-btn" onclick="closeSavedQuestionsModal()">&times;</button>
                         </div>
                         <div class="modal-body">
@@ -259,7 +314,7 @@ include_once '../header.php';
                 <?php if (!$hasTopics): ?>
                 <div class="form-section">
                     <div class="section-header">
-                        <div class="section-icon">❓</div>
+                        <div class="section-icon"><i class="fas fa-list-check"></i></div>
                         <div>
                             <h2 class="section-title">Question Selection</h2>
                             <p class="section-description">Choose which topics and chapters to include</p>
@@ -267,7 +322,7 @@ include_once '../header.php';
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">📑 Chapters (Optional)</label>
+                        <label class="form-label"><i class="fas fa-layer-group" aria-hidden="true"></i> Chapters (Optional)</label>
                         <div id="chapterSelector" class="chapter-selector">
                             <div class="selector-hint">Select a book to view available chapters</div>
                         </div>
@@ -279,7 +334,7 @@ include_once '../header.php';
                         
                 <div class="form-section">
                     <div class="section-header">
-                        <div class="section-icon">⚙️</div>
+                        <div class="section-icon"><i class="fas fa-gear"></i></div>
                         <div>
                             <h2 class="section-title">Quiz Settings</h2>
                             <p class="section-description">Finalize question count and duration</p>
@@ -288,13 +343,13 @@ include_once '../header.php';
                     
                     <div class="form-grid">
                         <div class="form-group">
-                            <label class="form-label">🎯 Number of Questions</label>
+                            <label class="form-label"><i class="fas fa-list-ol" aria-hidden="true"></i> Number of Questions</label>
                             <input type="number" class="form-input" id="mcq_count" name="mcq_count" min="1" max="50" value="<?= htmlspecialchars($urlMcqCount) ?>" required>
                             <div class="form-hint">Recommended: 10-20 questions for optimal experience</div>
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label">⏱️ Quiz Duration</label>
+                            <label class="form-label"><i class="fas fa-clock" aria-hidden="true"></i> Quiz Duration</label>
                             <input type="number" class="form-input" id="quiz_duration" name="quiz_duration_minutes" min="1" max="120" value="<?= htmlspecialchars($urlDuration) ?>" required>
                             <div class="form-hint">Duration in minutes</div>
                             
@@ -319,7 +374,7 @@ include_once '../header.php';
                 <!-- Quiz Preview -->
                 <div class="preview-section">
                     <h3 style="margin: 0 0 20px; color: #0369a1; display: flex; justify-content: space-between; align-items: center;">
-                        <span>📊 Quiz Preview</span>
+                        <span><i class="fas fa-chart-column" aria-hidden="true"></i> Quiz Preview</span>
 
                     </h3>
                     <div class="preview-stats">
@@ -344,33 +399,16 @@ include_once '../header.php';
 
                 <!-- Action Bar -->
                 <div class="action-bar">
-                    <button  type="button" class="btn " onclick="resetForm()">
-                        🔄 Reset Form
+                    <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                        <i class="fas fa-rotate-left"></i> Reset Form
                     </button>
                     <button type="submit" class="btn btn-primary">
-                        🚀 Create Quiz Room
+                        <i class="fas fa-plus"></i> Create Quiz Room
                     </button>
                 </div>
                 
-                <!-- SEO Informational Section for Teachers -->
-                <div style="margin-top: 60px; padding: 40px; background: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0;">
-                    <h2 style="color: #1e293b; font-size: 1.5rem; font-weight: 800; margin-bottom: 24px; text-align: center;">Enhanced Teaching with AI-Driven Assessments</h2>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 30px;">
-                        <div>
-                            <h4 style="color: var(--primary); margin-bottom: 10px;">📊 Real-time Analytics</h4>
-                            <p style="font-size: 0.9rem; line-height: 1.6; color: #64748b;">Monitor student progress live as they answer. Identify collective weak points and 2026 Board Exam readiness instantly.</p>
-                        </div>
-                        <div>
-                            <h4 style="color: var(--primary); margin-bottom: 10px;">✨ AI Content Creation</h4>
-                            <p style="font-size: 0.9rem; line-height: 1.6; color: #64748b;">Save hours of preparation. Our AI can draft questions for any subject level, mirroring the difficulty of new syllabus board papers.</p>
-                        </div>
-                        <div>
-                            <h4 style="color: var(--primary); margin-bottom: 10px;">🥇 Gamified Learning</h4>
-                            <p style="font-size: 0.9rem; line-height: 1.6; color: #64748b;">Boost classroom engagement. Students compete on a live leaderboard, making exam preparation an exciting and collaborative activity.</p>
-                        </div>
-                    </div>
-                </div>
             </form>
+            <?php include __DIR__ . '/../includes/online_quiz_host_guide.php'; ?>
         </div>
     </div>
 
@@ -764,7 +802,7 @@ include_once '../header.php';
                         <h4 class="mcq-card-title">Question ${index + 1}</h4>
                         <div class="mcq-card-actions">
                             <button type="button" class="btn btn-primary btn-remove-question" onclick="removeCustomQuestion(${index})">
-                                🗑️ Remove
+                                <i class="fas fa-trash"></i> Remove
                             </button>
                         </div>
                     </div>

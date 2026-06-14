@@ -663,6 +663,7 @@ include 'header.php';
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/QPaper.css">
     <link rel="stylesheet" href="css/buttons.css">
 
@@ -1229,6 +1230,117 @@ include 'header.php';
                     font-size: 11.5px;
                     padding: 0 8px;
                     height: 34px;
+                }
+            }
+
+            /* Mobile layout corrections only; desktop and print remain unchanged. */
+            @media screen and (max-width: 768px) {
+                *, *::before, *::after {
+                    box-sizing: border-box;
+                }
+
+                .online-quiz-top {
+                    width: calc(100% - 20px) !important;
+                    max-width: none !important;
+                    margin: 82px 10px 10px !important;
+                    padding: 16px 12px !important;
+                }
+
+                .paper-container {
+                    width: calc(100% - 16px) !important;
+                    margin: 8px auto 18px !important;
+                    overflow-wrap: anywhere;
+                }
+
+                .header,
+                .header > div,
+                .section,
+                .mcq-compact {
+                    max-width: 100%;
+                    min-width: 0;
+                }
+
+                .header table {
+                    width: 100% !important;
+                    table-layout: fixed;
+                }
+
+                .header td,
+                .header th {
+                    min-width: 0 !important;
+                    padding-left: 4px !important;
+                    padding-right: 4px !important;
+                    overflow-wrap: anywhere;
+                }
+
+                .header [contenteditable="true"] {
+                    min-width: 0 !important;
+                    max-width: 100%;
+                    white-space: normal;
+                    overflow-wrap: anywhere;
+                }
+
+                .h2-meta,
+                .h2-student-row,
+                .h3-main,
+                .h3-meta-row,
+                .h5-header-bar,
+                .h5-body,
+                .h6-meta {
+                    flex-wrap: wrap;
+                    gap: 6px;
+                }
+
+                .h3-logo,
+                .h3-stamp {
+                    width: 70px !important;
+                    min-width: 70px !important;
+                }
+
+                .h4-body {
+                    grid-template-columns: 1fr !important;
+                }
+
+                .h5-field-label {
+                    min-width: 74px !important;
+                }
+
+                .print-buttons {
+                    position: static !important;
+                    width: calc(100% - 16px) !important;
+                    max-width: none !important;
+                    margin: 0 auto 18px !important;
+                    transform: none !important;
+                    border-radius: 10px !important;
+                }
+
+                .print-buttons > * {
+                    flex: 1 1 140px;
+                    justify-content: center;
+                    max-width: 100%;
+                }
+
+                #paper {
+                    padding-bottom: 12px;
+                }
+            }
+
+            @media screen and (max-width: 400px) {
+                .question-row {
+                    min-width: 0;
+                }
+
+                .question-content,
+                .q-text,
+                .mcq-question,
+                .mcq-options {
+                    max-width: 100%;
+                    overflow-wrap: anywhere;
+                }
+
+                .print-buttons > * {
+                    flex-basis: 100%;
+                    width: 100%;
                 }
             }
 

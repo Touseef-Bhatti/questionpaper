@@ -5,14 +5,16 @@ include 'db_connect.php';
 $reviews = [];
 $totalReviews = 0;
 $avgRating = 0;
-$perPage = 12;
-$currentPage = max(1, intval($_GET['page'] ?? 1));
-$offset = ($currentPage - 1) * $perPage;
+$ratingCounts = array_fill(1, 5, 0);
 $tableExists = false;
 $isLoggedIn = isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0;
 $formError = '';
 $formSuccess = '';
-$selectedRating = intval($_POST['rating'] ?? 0);
+$selectedFormRating = intval($_POST['rating'] ?? 0);
+$ratingFilter = intval($_GET['rating'] ?? 0);
+if ($ratingFilter < 1 || $ratingFilter > 5) {
+    $ratingFilter = 0;
+}
 
 $tableCheck = $conn->query("SHOW TABLES LIKE 'user_reviews'");
 if ($tableCheck && $tableCheck->num_rows > 0) {
@@ -82,10 +84,28 @@ if ($tableExists) {
         $avgRating = floatval($meta['avg_rating'] ?? 0);
     }
 
+    $ratingCountResult = $conn->query("SELECT rating, COUNT(*) AS review_count FROM user_reviews WHERE is_approved = 1 GROUP BY rating");
+    if ($ratingCountResult) {
+        while ($ratingRow = $ratingCountResult->fetch_assoc()) {
+            $ratingValue = intval($ratingRow['rating'] ?? 0);
+            if ($ratingValue >= 1 && $ratingValue <= 5) {
+                $ratingCounts[$ratingValue] = intval($ratingRow['review_count'] ?? 0);
+            }
+        }
+    }
+
     $userVotes = [];
-    $stmt = $conn->prepare("SELECT id, reviewer_name, reviewer_email, rating, feedback, source_page, created_at, is_anonymous, likes_count, dislikes_count, is_pinned FROM user_reviews WHERE is_approved = 1 ORDER BY is_pinned DESC, created_at DESC LIMIT ? OFFSET ?");
+    $reviewSql = "SELECT id, reviewer_name, reviewer_email, rating, feedback, source_page, created_at, is_anonymous, likes_count, dislikes_count, is_pinned FROM user_reviews WHERE is_approved = 1";
+    if ($ratingFilter > 0) {
+        $reviewSql .= " AND rating = ?";
+    }
+    $reviewSql .= " ORDER BY is_pinned DESC, created_at DESC";
+
+    $stmt = $conn->prepare($reviewSql);
     if ($stmt) {
-        $stmt->bind_param('ii', $perPage, $offset);
+        if ($ratingFilter > 0) {
+            $stmt->bind_param('i', $ratingFilter);
+        }
         $stmt->execute();
         $result = $stmt->get_result();
         $reviewIds = [];
@@ -112,8 +132,6 @@ if ($tableExists) {
         }
     }
 }
-
-$totalPages = max(1, (int)ceil($totalReviews / $perPage));
 
 function renderStars(int $rating): string {
     $full = max(0, min(5, $rating));
@@ -189,7 +207,7 @@ function renderStars(int $rating): string {
         }
         .reviews-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(70%, 1fr));
+            grid-template-columns: 1fr;
             gap: 1.2rem;
             margin: auto;
         }
@@ -202,7 +220,12 @@ function renderStars(int $rating): string {
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
-            /* width: 70%; */
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .review-card:hover {
+            transform: translateY(-2px);
+            border-color: #c7d2fe;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.09);
         }
         .review-top {
             display: flex;
@@ -373,31 +396,264 @@ function renderStars(int $rating): string {
             text-align: center;
             color: #475569;
         }
-        .pagination-wrap {
-            margin-top: 1.6rem;
-            display: flex;
-            justify-content: center;
-            gap: 0.6rem;
-            flex-wrap: wrap;
+        .review-filter-section {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(145deg, #ffffff 0%, #f8faff 100%);
+            border: 1px solid #dbe3f0;
+            border-radius: 24px;
+            padding: 1.6rem;
+            margin-bottom: 1.4rem;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
         }
-        .page-link {
-            min-width: 42px;
-            height: 42px;
-            border-radius: 10px;
-            border: 1px solid #dbeafe;
-            background: #fff;
-            color: #1e3a8a;
-            text-decoration: none;
+        .review-filter-section::after {
+            content: '';
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            right: -75px;
+            top: -95px;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.08);
+            pointer-events: none;
+        }
+        .review-filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            position: relative;
+            z-index: 1;
+        }
+        .review-filter-heading {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+        .review-filter-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            padding: 0 0.8rem;
-        }
-        .page-link.active {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            border-color: transparent;
             color: #fff;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.25);
+            flex-shrink: 0;
+        }
+        .review-filter-title {
+            margin: 0;
+            color: #0f172a;
+            font-size: 1.25rem;
+            font-weight: 900;
+        }
+        .review-filter-description {
+            margin: 0.2rem 0 0;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        .review-filter-status {
+            color: #475569;
+            font-size: 0.88rem;
+            font-weight: 700;
+            text-align: right;
+            padding-top: 0.25rem;
+        }
+        .rating-summary-layout {
+            display: grid;
+            grid-template-columns: 190px minmax(0, 1fr);
+            gap: 1.25rem;
+            align-items: stretch;
+            position: relative;
+            z-index: 1;
+        }
+        .rating-average-card {
+            border-radius: 18px;
+            padding: 1.25rem;
+            color: #fff;
+            background: linear-gradient(145deg, #312e81, #6d28d9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-shadow: 0 12px 28px rgba(76, 29, 149, 0.2);
+        }
+        .rating-average-value {
+            font-size: 2.7rem;
+            line-height: 1;
+            font-weight: 900;
+        }
+        .rating-average-stars {
+            margin: 0.55rem 0 0.35rem;
+            color: #fbbf24;
+            letter-spacing: 0.1em;
+            font-size: 1rem;
+        }
+        .rating-average-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.82);
+        }
+        .review-filter-buttons {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(105px, 1fr));
+            gap: 0.7rem;
+        }
+        .review-filter-btn {
+            min-height: 92px;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            background: #fff;
+            color: #334155;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+            font-weight: 800;
+            box-shadow: 0 5px 14px rgba(15, 23, 42, 0.04);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+        }
+        .review-filter-btn:hover {
+            transform: translateY(-2px);
+            border-color: #fbbf24;
+            box-shadow: 0 10px 24px rgba(245, 158, 11, 0.14);
+        }
+        .review-filter-btn.active {
+            color: #fff;
+            border-color: transparent;
+            background: linear-gradient(145deg, #f59e0b, #ea580c);
+            box-shadow: 0 12px 24px rgba(234, 88, 12, 0.22);
+        }
+        .filter-rating {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 1.05rem;
+        }
+        .review-filter-btn .filter-star {
+            color: #f59e0b;
+            font-size: 1.1rem;
+        }
+        .review-filter-btn.active .filter-star {
+            color: #fff7cc;
+        }
+        .filter-review-count {
+            color: #64748b;
+            font-size: 0.76rem;
+            font-weight: 700;
+        }
+        .review-filter-btn.active .filter-review-count {
+            color: rgba(255, 255, 255, 0.86);
+        }
+        .filter-progress {
+            width: 70%;
+            height: 4px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #e2e8f0;
+            margin-top: 0.15rem;
+        }
+        .filter-progress-fill {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #fbbf24, #f97316);
+        }
+        .review-filter-btn.active .filter-progress {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .review-filter-btn.active .filter-progress-fill {
+            background: #fff;
+        }
+        .clear-filter-link {
+            color: #4f46e5;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        @media (max-width: 720px) {
+            .reviews-main {
+                padding: 68px 0.85rem 2.5rem;
+            }
+            .reviews-hero {
+                border-radius: 20px;
+                padding: 1.7rem 1.2rem;
+            }
+            .reviews-metrics {
+                grid-template-columns: 1fr;
+            }
+            .review-filter-section {
+                padding: 1.15rem;
+                border-radius: 20px;
+            }
+            .review-filter-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            .review-filter-status {
+                text-align: left;
+                padding: 0;
+            }
+            .rating-summary-layout {
+                grid-template-columns: 1fr;
+            }
+            .rating-average-card {
+                min-height: 150px;
+            }
+            .review-filter-buttons {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .review-filter-btn:last-child {
+                grid-column: 1 / -1;
+            }
+            .review-form-wrap,
+            .review-card {
+                padding: 1rem;
+                border-radius: 16px;
+            }
+            .review-stars-row {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            .star-input-row {
+                width: 100%;
+                justify-content: space-between;
+                gap: 0.35rem;
+            }
+            .star-input-btn {
+                flex: 1;
+                max-width: 52px;
+            }
+            .review-footer {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+            .review-actions {
+                width: 100%;
+            }
+            .vote-btn {
+                flex: 1;
+                justify-content: center;
+            }
+            .featured-badge {
+                right: 12px;
+            }
+        }
+        @media (max-width: 390px) {
+            .review-filter-buttons {
+                grid-template-columns: 1fr;
+            }
+            .review-filter-btn:last-child {
+                grid-column: auto;
+            }
+            .review-filter-heading {
+                align-items: flex-start;
+            }
         }
         .review-footer {
             display: flex;
@@ -489,6 +745,59 @@ function renderStars(int $rating): string {
     </section>
 
     <?php if ($tableExists): ?>
+        <section class="review-filter-section" aria-labelledby="review-filter-title">
+            <div class="review-filter-header">
+                <div class="review-filter-heading">
+                    <span class="review-filter-icon" aria-hidden="true"><i class="fas fa-sliders"></i></span>
+                    <div>
+                        <h2 class="review-filter-title" id="review-filter-title">Explore Reviews by Rating</h2>
+                        <p class="review-filter-description">Select a star rating to view feedback from that group.</p>
+                    </div>
+                </div>
+                <div class="review-filter-status">
+                    <?php if ($ratingFilter > 0): ?>
+                        Showing <?= number_format($ratingCounts[$ratingFilter]) ?> <?= $ratingFilter ?>-star <?= $ratingCounts[$ratingFilter] === 1 ? 'review' : 'reviews' ?>
+                        &nbsp;|&nbsp;
+                        <a class="clear-filter-link" href="reviews.php#reviews-list">Show all reviews</a>
+                    <?php else: ?>
+                        Showing all <?= number_format($totalReviews) ?> reviews
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="rating-summary-layout">
+                <div class="rating-average-card">
+                    <div class="rating-average-value"><?= $avgRating > 0 ? number_format($avgRating, 1) : '0.0' ?></div>
+                    <div class="rating-average-stars" aria-label="<?= htmlspecialchars(number_format($avgRating, 1)) ?> out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                    <div class="rating-average-label">Average from <?= number_format($totalReviews) ?> <?= $totalReviews === 1 ? 'review' : 'reviews' ?></div>
+                </div>
+                <div class="review-filter-buttons">
+                    <?php for ($filterStar = 1; $filterStar <= 5; $filterStar++): ?>
+                        <?php
+                            $filterCount = $ratingCounts[$filterStar];
+                            $filterPercent = $totalReviews > 0 ? round(($filterCount / $totalReviews) * 100) : 0;
+                        ?>
+                        <a
+                            class="review-filter-btn <?= $ratingFilter === $filterStar ? 'active' : '' ?>"
+                            href="<?= $ratingFilter === $filterStar ? 'reviews.php#reviews-list' : 'reviews.php?rating=' . $filterStar . '#reviews-list' ?>"
+                            aria-pressed="<?= $ratingFilter === $filterStar ? 'true' : 'false' ?>"
+                            aria-label="<?= $filterStar ?> stars, <?= $filterCount ?> <?= $filterCount === 1 ? 'review' : 'reviews' ?>"
+                        >
+                            <span class="filter-rating">
+                                <span><?= $filterStar ?></span>
+                                <span class="filter-star" aria-hidden="true">&#9733;</span>
+                            </span>
+                            <span class="filter-review-count"><?= number_format($filterCount) ?> <?= $filterCount === 1 ? 'review' : 'reviews' ?></span>
+                            <span class="filter-progress" aria-hidden="true">
+                                <span class="filter-progress-fill" style="width: <?= $filterPercent ?>%"></span>
+                            </span>
+                        </a>
+                    <?php endfor; ?>
+                </div>
+            </div>
+        </section>
+    <?php endif; ?>
+
+    <?php if ($tableExists): ?>
         <section class="review-form-wrap" id="write-review">
             <h2 class="review-form-title">Write a Review</h2>
             <p class="review-form-subtitle">Share your feedback about your learning experience.</p>
@@ -509,8 +818,8 @@ function renderStars(int $rating): string {
                         <button type="button" class="star-input-btn" data-rating="4" aria-label="4 stars">★</button>
                         <button type="button" class="star-input-btn" data-rating="5" aria-label="5 stars">★</button>
                     </div>
-                    <span class="rating-value" id="ratingValue"><?= $selectedRating > 0 ? $selectedRating . ' / 5' : 'Select stars' ?></span>
-                    <input type="number" min="1" max="5" class="rating-hidden" id="rating" name="rating" value="<?= $selectedRating > 0 ? $selectedRating : '' ?>" required>
+                    <span class="rating-value" id="ratingValue"><?= $selectedFormRating > 0 ? $selectedFormRating . ' / 5' : 'Select stars' ?></span>
+                    <input type="number" min="1" max="5" class="rating-hidden" id="rating" name="rating" value="<?= $selectedFormRating > 0 ? $selectedFormRating : '' ?>" required>
                 </div>
                 <textarea class="review-input review-textarea" name="feedback" maxlength="1000" placeholder="Write your review..."><?= htmlspecialchars((string)($_POST['feedback'] ?? '')) ?></textarea>
                 <label class="review-anon">
@@ -532,9 +841,15 @@ function renderStars(int $rating): string {
     <?php if (!$tableExists): ?>
         <div class="empty-state">Reviews table is not available yet. Please run <strong>install.php</strong> once, then revisit this page.</div>
     <?php elseif (empty($reviews)): ?>
-        <div class="empty-state">No reviews are available at the moment. Complete a quiz and submit feedback to be featured here.</div>
+        <div class="empty-state" id="reviews-list">
+            <?php if ($ratingFilter > 0): ?>
+                No <?= $ratingFilter ?>-star reviews are available. <a class="clear-filter-link" href="reviews.php#reviews-list">Show all reviews</a>.
+            <?php else: ?>
+                No reviews are available at the moment. Complete a quiz and submit feedback to be featured here.
+            <?php endif; ?>
+        </div>
     <?php else: ?>
-        <section class="reviews-grid">
+        <section class="reviews-grid" id="reviews-list">
             <?php foreach ($reviews as $review): ?>
                 <?php
                     $displayName = trim((string)($review['reviewer_name'] ?? ''));
@@ -574,14 +889,6 @@ function renderStars(int $rating): string {
                 </article>
             <?php endforeach; ?>
         </section>
-
-        <?php if ($totalPages > 1): ?>
-            <div class="pagination-wrap">
-                <?php for ($p = 1; $p <= $totalPages; $p++): ?>
-                    <a class="page-link <?= $p === $currentPage ? 'active' : '' ?>" href="reviews.php?page=<?= $p ?>"><?= $p ?></a>
-                <?php endfor; ?>
-            </div>
-        <?php endif; ?>
     <?php endif; ?>
 </main>
 

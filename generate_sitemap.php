@@ -86,7 +86,7 @@ $staticPages = [
     ['/quiz/quiz_setup.php', 'weekly', '0.8'],
     ['/quiz/mcqs_topic.php', 'weekly', '0.8'],
     ['/quiz/quiz.php', 'weekly', '0.7'],
-    ['/quiz/online_quiz_host_new.php', 'weekly', '0.6'],
+    ['/online_quiz_host_new', 'weekly', '0.8'],
     ['/quiz/online_quiz_dashboard.php', 'weekly', '0.6'],
     ['/quiz/online_quiz_join.php', 'weekly', '0.6'],
     ['/quiz/online_quiz_lobby.php', 'weekly', '0.6'],
@@ -165,6 +165,7 @@ foreach ($bookRows as $bookRow) {
     addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookNameUrl . '-chapterWise-test-series-with-solutions', 'weekly', '0.8', $today);
     if (in_array($classId, [9, 10, 11, 12], true)) {
         addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-chapter-wise-mcqs-with-explanations', 'weekly', '0.8', $today);
+        addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-mcqs-test-2026', 'weekly', '0.8', $today);
     }
 }
 
