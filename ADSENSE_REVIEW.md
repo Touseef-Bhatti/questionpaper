@@ -1,228 +1,161 @@
 # Google AdSense Readiness Review
 
 **Site:** https://ahmadlearninghub.com.pk/  
-**Audit date:** June 14, 2026  
-**Review scope:** Live homepage, About, Contact, question-paper generator, MCQs setup, study-material pages, and the current local PHP codebase.
+**Updated:** June 14, 2026
+**Current code status:** Major AdSense-readiness improvements completed.
 
-## Executive Verdict
+## Current Verdict
 
-**Current status: Not ready to apply yet.**
+**Estimated overall approval chance after deployment and successful live verification: 65-75%.**
 
-**Estimated approval chance if submitted now: 30-40%.**
+**Estimated chance of avoiding a low-value-content rejection: 65-75%.**
 
-**Estimated approval chance after completing all critical fixes: 70-85%.**
+This is a professional estimate, not a guarantee. Google does not publish an approval formula and may consider account history, content ownership, crawl quality, traffic quality, policy compliance, and pages outside this audit.
 
-This percentage is an informed estimate, not a guarantee. Google does not publish an approval formula, and a reviewer may consider account history, crawlability, traffic quality, content ownership, and pages not sampled in this audit.
+Do not submit the site for review until the current code is deployed and the production checks in this report pass.
 
-The site has real educational tools, substantial subject content, About/Contact/legal pages, HTTPS, mobile-oriented layouts, and a working navigation system. These are strong foundations. The main risks are the third-party rewarded ad gate, weak consent/privacy implementation, unsupported promotional claims, inconsistent identity/contact details, index-quality problems, intrusive popup load, and publicly deployable test/installation scripts.
+## Why the Estimate Improved
 
-## Readiness Score
+- Ahmad Learning Hub provides working educational tools, not only short articles.
+- The site contains question-paper generation, MCQs practice, theoretical questions, study resources, exam tests, and live quiz hosting.
+- About, Contact, Privacy Policy, Terms and Conditions, and cookie controls are publicly available.
+- Third-party Monetag include calls are commented out.
+- The separate rewarded-ad component has no active include or call site.
+- Test, debug, MailHog, and development JavaScript files were removed.
+- Server rules block direct public access to internal, setup, migration, storage, log, and maintenance paths.
+- Optional Google Analytics does not load before consent.
+- Visitors can accept or reject optional cookies and reopen Cookie settings.
+- Unsupported success-rate, worldwide audience, competitive-exam, board-coverage, and research-percentage claims were removed from audited pages.
+- Generic social-media links were removed.
+- Core canonical URLs, sitemap quality, robots rules, and private-page indexing controls were improved.
+- Search-engine-facing prose and unsupported claims about universal board alignment, guaranteed accuracy, complete coverage, and exam prediction were removed from key quiz pages.
+- Login-only subscription content and state-dependent paper-finalization routes were removed from the sitemap and marked `noindex`.
 
-| Area | Score | Assessment |
-|---|---:|---|
-| Original value and useful tools | 16/20 | Strong question-paper, quiz, notes, and test utilities |
-| Content quality and credibility | 10/20 | Good volume, but keyword-heavy copy and unsupported claims reduce trust |
-| Navigation and user experience | 10/15 | Main sections are reachable, but multiple modals and ad gates interrupt users |
-| Trust and transparency | 7/15 | Required pages exist, but business details and emails are inconsistent |
-| Policy and privacy readiness | 5/15 | Privacy page and cookie consent are incomplete for advertising use |
-| Technical and crawl readiness | 7/15 | HTTPS and sitemap exist, but duplicate/action URLs and exposed scripts are risks |
-| **Total** | **55/100** | **Fix critical issues before applying** |
+## Low-Quality Content Assessment
 
-## Critical Issues
+Google could still classify part of the site as low-value or scaled content. The risk is **moderate**, not because the site lacks functionality, but because it creates many similar URLs for classes, books, chapters, tests, and AI-generated material.
 
-### 1. Remove the third-party "Watch Ad" gate before applying
+### Strong Quality Signals
 
-`includes/quiz_ad_gate.php` asks users to watch an ad to unlock one hour of quiz access and opens:
+- The site offers working educational tools rather than pages created only to display ads.
+- Users can select chapters, generate papers, take quizzes, join live sessions, and review results.
+- The question library includes both MCQs and theoretical short and long questions.
+- Major landing pages include instructions, limitations, and practical educational guidance.
+- AI-generated material is now described as revision support that may require verification.
 
-`https://omg10.com/4/10866850`
+### Remaining Low-Value Risks
 
-This is the largest approval and long-term account risk. The implementation rewards an ad visit with access, attracts attention to the ad, and opens a separate advertising page. Standard AdSense policy prohibits encouraging or compensating users for viewing ordinary ads. Unwanted pop-ups, pop-unders, or redirects can also violate site-behavior requirements.
+1. The sitemap generates many class, subject, book, chapter, and exam URLs from database rows. If some URLs contain few questions or nearly identical text, Google may see them as scaled or doorway-style pages.
+2. The long question-paper guidance is subject-aware, but much of its structure is reused across every class and book. Each indexed page needs enough genuinely distinct questions, chapter information, and user value beyond substituted names.
+3. AI-generated questions can be duplicated, inaccurate, poorly worded, or too generic. A large database count does not compensate for weak question quality.
+4. Some functional pages are naturally short. Account, settings, transactional, quiz-state, and paper-finalization pages should remain `noindex` rather than being padded with artificial text.
+5. Database coverage could not be measured in this local review because the production database was unavailable. Indexable pages should be generated only when they meet a meaningful minimum content threshold.
 
-**Required action:** Disable this gate throughout the public site before requesting review. Do not replace its URL with an AdSense ad. Only use an official Google-supported rewarded product if the account and format explicitly permit it.
+### Recommended Content Thresholds
 
-### 2. Replace the current cookie banner with real consent controls
+- Index a chapter MCQ page only when it has at least 10 useful, reviewed questions.
+- Index a book-level MCQ or test page only when several chapters contain usable questions.
+- Do not index empty results, unavailable books, setup steps, or pages that redirect to login.
+- Add visible question counts and chapter coverage so users and crawlers can understand what is actually available.
+- Regularly review samples from `mcqs`, `AIGeneratedMCQs`, `questions`, `AIGeneratedShortQuestions`, and `AIGeneratedLongQuestions` for duplicates and factual errors.
+- Prefer a smaller set of complete pages over thousands of weak URL variations.
 
-The current banner has only an **Accept Cookies** button. Google Analytics is included before the user accepts. There is no Reject button, preference management, or prior blocking of non-essential cookies.
+## Database-Backed Public Statistics
 
-**Required action:**
+The About-page figures are now calculated from the production database instead of being hardcoded.
 
-- Add **Accept**, **Reject**, and **Manage preferences** choices.
-- Do not load analytics or personalized advertising before consent where consent is legally required.
-- Use a Google-certified consent management platform for AdSense traffic from the EEA, UK, and Switzerland.
-- Store and respect the user's choice.
-- Add a permanent "Cookie settings" link in the footer.
+### MCQs in Database
 
-### 3. Rewrite and expand the Privacy Policy
+The displayed total combines:
 
-The Privacy Policy is too general for an advertising-supported website. It does not clearly identify Google AdSense, advertising cookies, Google/third-party vendors, personalized advertising, consent controls, opt-out choices, retention periods, or children's data practices.
+- `mcqs`
+- `AIGeneratedMCQs`
 
-It also displays `Last Updated: current date`, which changes automatically every day even when the policy has not changed. This looks unreliable.
+For example, when the combined total is at least 50,000, the page displays a rounded and defensible value such as `50,000+`.
 
-**Required action:**
+### Short and Long Questions
 
-- Use a fixed, truthful last-revised date.
-- Name Google Analytics and Google AdSense separately.
-- Explain advertising cookies and personalized/non-personalized ads.
-- Link to Google's advertising/privacy controls.
-- Explain account data, quiz data, uploaded files, AI-provider processing, payment data, retention, deletion, security, and contact procedures.
-- Add a children's privacy section because the service targets school students.
+The displayed theoretical-question total combines:
 
-### 4. Remove or prove promotional statistics and broad coverage claims
+- `questions` rows where `question_type` is `short` or `long`
+- `AIGeneratedShortQuestions`
+- `AIGeneratedLongQuestions`
 
-The live site claims:
+### Quiz Sessions Today
 
-- `50,000+ MCQs`
-- `98% Success Rate`
-- `5,000+ Daily Quizzes`
-- `98% Accuracy`
-- "thousands of learners and educators worldwide"
-- coverage for CBSE, ICSE, NEET, MCAT, JEE, GRE, GMAT, SAT, IELTS, TOEFL, and other exams
+The daily figure uses today's records from:
 
-These claims should be supported by real analytics, database counts, methodology, and matching content. Broad claims that are not demonstrably true weaken publisher credibility and may look misleading or automatically generated for search traffic.
+- `quiz_rooms`
+- `quiz_participants`
 
-**Required action:** Replace unsupported numbers with verifiable dynamic counts or remove them. Narrow exam-board claims to subjects and boards that the database genuinely supports.
+The page displays the actual database-backed amount. It will show `500+` only when today's recorded count genuinely reaches that level. This is safer for AdSense than publishing an unsupported daily-traffic claim.
 
-### 5. Standardize publisher identity and contact information
+## Privacy and Cookies
 
-Different pages/code locations use:
+The Privacy Policy now reflects the site's real behavior:
 
-- Sheikhupura and Gujranwala
-- `admin@ahmadlearninghub.com.pk`
-- `support@ahmadlearninghub.com`
-- `touseef12345bhatt@gmail.com`
-- `zouraize@gmail.com`
-- different WhatsApp numbers
-
-Generic Facebook, Twitter, and LinkedIn homepage links are also shown as if they are official profiles.
-
-**Required action:** Use one official business name, founder/operator name, location, domain email, phone number, and support route everywhere. Remove empty/generic social links until real profiles exist.
-
-### 6. Block development, test, migration, and installation scripts
-
-The repository contains approximately 39 files with names such as:
-
-- `install.php`
-- `test_mailhog.php`
-- `tests/test.php`
-- `tests/debug_env.php`
-- `quiz/show_mcqs_table.php`
-- `quiz/setup_quiz_enhancements.php`
-- `payment/run_migration.php`
-- database fix/migration scripts
-
-The root `.htaccess` currently protects environment and archive files but does not broadly deny these utilities. Even if some scripts perform their own checks, their presence on production creates quality and security concerns.
-
-**Required action:** Remove them from production or deny public access at the server level. Return `404` or `403`, and keep admin/migration tools behind strong authentication.
-
-## High-Priority Weak Points
-
-### Content reads as keyword-targeted in several places
-
-Repeated phrases such as "Online question paper generator," "chapter wise question paper generator," and long lists of boards/exams make some pages sound written for search engines instead of students. Some grammar and spelling issues are visible, including "Quizez," "System-generat," spacing before punctuation, and inconsistent "9 th/9th" formatting.
-
-**Suggestion:** Edit every important landing page for natural language, factual accuracy, and clear educational usefulness. Prefer worked examples, syllabus details, teacher guidance, screenshots, author/reviewer attribution, and update notes over repeated keywords.
-
-### Some content is outdated
-
-The study-material page states academic year `2024-2025` while also saying the content is aligned with the latest curriculum. The current audit date is June 14, 2026.
-
-**Suggestion:** Audit all year and syllabus claims. Show a genuine content review date and identify the applicable board, textbook edition, and class.
-
-### Too many interruptions before users reach content
-
-Live pages can expose a study-level selector, login prompt, premium upgrade prompt, cookie banner, and on some flows an ad-unlock modal. Even when each component has a purpose, their combined effect can obscure the main content and reduce trust.
-
-**Suggestion:** During AdSense review, show the educational content immediately. Limit the experience to one necessary prompt at a time and avoid automatic promotional modals on About, Contact, Privacy, and Terms pages.
-
-### Sitemap includes weak or non-content URLs
-
-`generate_sitemap.php` includes duplicate `.php` and clean URLs, workflow/action pages, quiz lobby/take/dashboard pages, and AI generation endpoints. Some of these pages may require state, authentication, query parameters, or generated data and may be thin or unusable to a crawler.
-
-Examples include:
-
-- `/index.php` and `/`
-- `/generate_question_paper.php`
-- `/questionPaperFromTopic/generate_ai_paper.php`
-- `/quiz/online_quiz_dashboard.php`
-- `/quiz/online_quiz_lobby.php`
-- `/quiz/online_quiz_take.php`
-
-**Suggestion:** Include only canonical, public, indexable pages that return useful standalone content with HTTP 200. Remove action endpoints, private pages, duplicates, empty combinations, and session-dependent pages.
-
-### Canonical and indexing controls need a sitewide audit
-
-Canonical tags are not consistently visible across the PHP templates, while the same content may be available through `.php`, extensionless, rewritten, query-string, uppercase, and lowercase URLs.
-
-**Suggestion:** Add one self-referencing canonical URL to every indexable page. Redirect duplicate URL forms with 301 responses. Add `noindex,follow` to account, search, internal workflow, generated-preview, lobby, dashboard, and other low-value state pages.
-
-### Robots.txt is incomplete
-
-The file blocks several private folders, but it does not address the test, installation, migration, payment utility, cron, storage, email, and other sensitive paths. Robots rules do not provide security, but they help prevent crawl waste after server access is secured.
-
-**Suggestion:** First deny access with server/auth controls, then update `robots.txt` to exclude non-public application areas. Do not use robots.txt as the only protection.
-
-### ads.txt is not present in the repository
-
-This is not normally the main reason for initial site rejection, and the correct line cannot be created until Google gives the publisher ID.
-
-**Suggestion:** After the AdSense account provides the publisher ID, publish the exact Google-authorized line at:
-
-`https://ahmadlearninghub.com.pk/ads.txt`
-
-### Legal and support wording is inconsistent
-
-The Terms page uses `support@ahmadlearninghub.com`, while the public site domain is `.com.pk`. The refund statement says all payments are non-refundable unless stated otherwise, but there is no clear refund/cancellation policy linked near checkout.
-
-**Suggestion:** Add a clear refund/cancellation policy, subscription terms, AI-content disclaimer, copyright/takedown process, and consistent support contact.
-
-## Strengths
-
-- The website provides functional educational tools rather than only short articles.
-- Core navigation exposes Generate Paper, quizzes, notes, About, Contact, Privacy, and Terms.
-- HTTPS is active.
-- About and Contact pages identify a founder and educational purpose.
-- The site has substantial class, subject, chapter, quiz, and study-resource coverage.
-- Many pages contain useful explanatory text and FAQs.
-- The footer makes trust pages easy to reach.
-- Monetag in-page and vignette allowlists are currently empty in `includes/monetag_ads.php`, so those two placements are disabled by the local code.
-
-## Recommended Approval Plan
-
-### Phase 1: Must complete before application
-
-1. Remove the third-party Watch Ad gate and any pop-under, forced redirect, or rewarded ordinary ad.
-2. Replace unsupported statistics and broad exam claims.
-3. Standardize all contact, location, founder, phone, and email information.
-4. Upgrade the Privacy Policy and cookie consent system.
-5. Remove or server-block all installation, test, debug, migration, and maintenance scripts.
-6. Fix broken/generic social links and visible spelling/encoding errors.
-7. Ensure policy pages open without login, upgrade, role-selection, or ad prompts covering the content.
-
-### Phase 2: Improve crawl and content quality
-
-1. Clean the sitemap so it contains only canonical public content pages.
-2. Add canonical tags and 301 redirects for duplicate URL forms.
-3. Add `noindex` to thin, private, generated, and workflow pages.
-4. Refresh outdated curriculum/year references.
-5. Rewrite keyword-heavy landing-page copy with natural, evidence-based educational content.
-6. Add author/editor details and genuine review/update dates to major educational resources.
-7. Check every sitemap URL for HTTP 200, useful visible content, and no PHP warnings.
-
-### Phase 3: Final checks
-
-1. Test the site logged out in desktop and mobile views.
-2. Run Google Search Console URL Inspection on the homepage and key content pages.
-3. Confirm there are no manual actions or security issues.
-4. Confirm the AdSense crawler is not blocked by login, robots rules, firewall, or geolocation controls.
-5. Check Core Web Vitals and remove unnecessary third-party scripts.
-6. Apply only after the cleaned site has been live and crawlable long enough for Google to reprocess it.
-7. Add the correct `ads.txt` entry when AdSense supplies the publisher ID.
-
-## Final Assessment
-
-Ahmad Learning Hub has enough genuine functionality and educational subject matter to become an AdSense-quality site. The problem is not a simple lack of page count. The current risk comes from trust, policy implementation, aggressive monetization behavior, exaggerated claims, and crawl hygiene.
-
-Do **not** apply in the current state. Complete the Phase 1 fixes first, then clean the indexable URL set and content claims. With those changes, the site should move from a high-risk submission to a reasonably strong candidate, though final approval always remains Google's decision.
+- Public educational pages can be browsed without an account.
+- Email registration stores name, email, password hash, and verification information.
+- Google sign-in stores the account details required to identify the user.
+- Contact messages, reviews, saved work, live quiz participation, uploads, subscriptions, and payment references are stored only when those features are used.
+- Limited service counters, sessions, and security logs support login, subscription limits, fraud prevention, and troubleshooting.
+- Optional Google Analytics loads only after consent.
+- Third-party advertising scripts are currently disabled.
+- The site states that it does not sell personal information.
+- Users can reject optional cookies without losing access to public educational content.
+
+This wording is stronger than claiming that no information is stored, because that claim would conflict with the login, review, live quiz, subscription, and payment features.
+
+## Terms and Conditions
+
+The Terms page now covers:
+
+- Educational purpose and no guaranteed examination result
+- User accounts and account security
+- AI-generated and database questions
+- Live quiz host and participant responsibilities
+- User uploads and custom content
+- Acceptable use
+- Subscriptions and payments
+- Intellectual property
+- Service availability and liability
+- Student and children's use
+- Suspension and governing law
+
+The obsolete support address no longer appears in the project. Contact requests now direct users to the public Contact page.
+
+## Remaining Requirements Before Applying
+
+1. Deploy all current changes to the production server.
+2. Confirm the homepage, About, Contact, Privacy Policy, Terms, and major educational pages return HTTP 200.
+3. Confirm `/install.php`, `/includes/`, `/database/`, `/tests/`, migration scripts, and debug URLs return HTTP 403 or 404.
+4. Confirm no Monetag pop-up, pop-under, redirect, vignette, or rewarded-ad gate appears.
+5. Test cookie consent in a private browser window:
+   - Rejecting optional cookies must not load Google Analytics.
+   - Accepting optional cookies may load Google Analytics.
+   - Cookie settings must reopen from the footer.
+6. Verify the About-page database counts are non-zero and match reasonable database queries.
+7. Open the generated sitemap and confirm it contains only public canonical content pages.
+8. Submit the sitemap in Google Search Console and inspect the homepage plus several important content pages.
+9. Check Search Console for manual actions, security problems, duplicate pages, and blocked indexing.
+10. Add Google's exact `ads.txt` line only after AdSense provides the publisher ID.
+11. Allow Google time to recrawl the cleaned site before submitting the AdSense application.
+
+## Residual Risks
+
+- Google may reject a site for low-value or repetitive content even when technical requirements pass. Continue reviewing dynamically generated and long-form pages for natural, accurate, student-focused writing.
+- AI-generated questions and explanations require quality control. Incorrect or duplicated educational content can reduce trust.
+- The approval estimate assumes the production server matches this code and does not inject advertising or scripts outside the repository.
+- A large content count helps only when the questions are useful, original or properly licensed, accessible, and organized for users.
+- The current 65-75% estimate can reasonably move toward 80-90% only after production database checks confirm that indexed class, book, chapter, and exam pages have substantial distinct content and weak URLs are excluded from the sitemap.
+
+## Final Recommendation
+
+After the current changes are deployed and all production checks pass, Ahmad Learning Hub should be a stronger AdSense candidate. Its educational tools, database-backed question library, privacy controls, legal pages, and cleaner crawl structure support an estimated **65-75% approval chance today**.
+
+Do not describe the site as 80-90% ready until production data confirms that the many generated URLs have enough distinct, accurate content. With minimum-content sitemap rules, question-quality sampling, and removal of empty or repetitive pages, an **80-90% readiness target** becomes more defensible.
+
+Apply only after live verification. Final approval remains Google's decision.
 
 ## Official Google References
 
@@ -230,5 +163,5 @@ Do **not** apply in the current state. Complete the Phase 1 fixes first, then cl
 - [Make sure your site's pages are ready for AdSense](https://support.google.com/adsense/answer/7299563)
 - [AdSense Program policies](https://support.google.com/adsense/answer/48182)
 - [Google Publisher Policies](https://support.google.com/adsense/answer/10502938)
-- [Comply with the EU user consent policy](https://support.google.com/adsense/answer/7670013)
+- [EU user consent policy](https://support.google.com/adsense/answer/7670013)
 - [Ads.txt guide](https://support.google.com/adsense/answer/12171612)

@@ -11,6 +11,13 @@ Disallow: /admin/
 Disallow: /config/
 Disallow: /includes/
 Disallow: /middleware/
+Disallow: /database/
+Disallow: /migrations/
+Disallow: /cron/
+Disallow: /logs/
+Disallow: /storage/
+Disallow: /scratch/
+Disallow: /tests/
 
 # Disallow search results and private pages
 Disallow: /search.php
@@ -26,9 +33,10 @@ Disallow: /resend_verification_ajax.php
 Disallow: /*.sql
 Disallow: /*.txt
 Disallow: /db_connect.php
+Disallow: /install.php
+Disallow: /payment/run_migration.php
+Disallow: /payment/migrate_database.php
+Disallow: /quiz/show_mcqs_table.php
 
 # Sitemap location
 Sitemap: https://ahmadlearninghub.com.pk/generate_sitemap.php
-
-# Crawl delay (be respectful)
-Crawl-delay: 1

@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
-    <?php include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
+<?php // AdSense review: third-party ads disabled. include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
   <title>Join or Host an Online Live Quiz | Ahmad Learning Hub</title>
   <meta name="description" content="Join an Ahmad Learning Hub live quiz with a room code or host your own online MCQ quiz for students. Create rooms, select questions and share a join link.">
   <meta name="keywords" content="join online quiz with room code, host live quiz online, online MCQ quiz Pakistan, classroom quiz maker, quiz room for students, teacher live quiz host, Punjab Board MCQ quiz">
@@ -671,7 +671,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div style="padding: 15px; border-radius: 12px; background: #f8fafc;">
                 <h4 style="margin: 0; color: var(--primary); font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">📘 Syllabus Focused</h4>
-                <p style="font-size: 0.9rem; margin-top: 10px; color: #64748b;">All room questions are verified and mapped to the latest board paper patterns (Punjab, Federal, and more).</p>
+                <p style="font-size: 0.9rem; margin-top: 10px; color: #64748b;">Quiz hosts choose the questions used in each room. Students should confirm important answers with their teacher or course material.</p>
             </div>
         </div>
     </div>

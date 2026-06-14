@@ -8,7 +8,7 @@
     <div class="footer-container">
         <div class="footer-section footer-brand">
             <a href="<?= $assetBase ?? '' ?>index" class="footer-logo">Ahmad Learning Hub</a>
-            <p class="footer-tagline">Generate Fast Chapter Wise Question papers for All Classes , MCQs papers For class 9th and 10th , online tests papers for Punjab Board exam preparation.</p>
+            <p class="footer-tagline">Create chapter-wise question papers, practise MCQs, and prepare board-oriented tests using the classes and subjects available on the platform.</p>
         </div>
         <div class="footer-section footer-links-group">
             <h3>Quick Links</h3>
@@ -38,11 +38,7 @@
             <p><i class="fas fa-map-marker-alt"></i> Sheikhupura , Punjab</p>
             <p><a href="https://wa.me/923206472460" target="_blank" aria-label="Chat with us on WhatsApp" style="color: aliceblue;"><i class="fab fa-whatsapp" ></i> +92 3206472460</a></p>
             <p> <a href="mailto:touseef12345bhatt@gmail.com" target="_blank" aria-label="Email us" style="color: aliceblue;"><i class="fas fa-envelope"></i> touseef12345bhatt@gmail.com</a></p>
-            <div class="footer-social">
-                <a href="https://facebook.com/" target="_blank" aria-label="Follow us on Facebook"><i class="fab fa-facebook-f"></i></a>
-                <a href="https://twitter.com/" target="_blank" aria-label="Follow us on Twitter"><i class="fab fa-twitter"></i></a>
-                <a href="https://linkedin.com/" target="_blank" aria-label="Follow us on LinkedIn"><i class="fab fa-linkedin-in"></i></a>
-            </div>
+            <p><button type="button" class="cookie-settings-btn" onclick="window.ALHCookieConsent && window.ALHCookieConsent.open()">Cookie settings</button></p>
         </div>
     </div>
     <div class="footer-bottom">

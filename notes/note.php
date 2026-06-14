@@ -11,7 +11,7 @@ include '../db_connect.php';
 
     <!-- SEO Meta Tags -->
     <title>Free Study Materials for Class 9 & 10 Punjab Board – Notes, Textbooks, MCQs | Ahmad Learning Hub</title>
-    <meta name="description" content="Access free study materials for Punjab Board class 9 and 10. Download notes, read digital textbooks, and practice chapter-wise MCQs for Physics, Chemistry, Biology, Math, and Computer Science. Aligned with PCTB curriculum 2024-2025.">
+    <meta name="description" content="Access study materials for Punjab Board class 9 and 10, including notes, digital textbooks, and chapter-wise MCQs for major science subjects.">
     <meta name="keywords" content="Punjab Board notes, class 9 notes, class 10 notes, 9th class study material, 10th class study material, PCTB notes, Punjab Board textbooks, free notes class 9, free notes class 10, MCQs class 9, MCQs class 10, Physics notes 9th, Chemistry notes 10th, Biology notes, Math notes Punjab Board, Computer Science notes, board exam preparation, Ahmad Learning Hub">
     <meta name="author" content="Ahmad Learning Hub">
 
@@ -21,7 +21,7 @@ include '../db_connect.php';
     <meta property="og:type" content="website">
 
     <!-- Canonical -->
-    <link rel="canonical" href="https://ahmadlearninghub.com/study-material-for-board-exam-preparations">
+    <link rel="canonical" href="https://ahmadlearninghub.com.pk/study-material-for-board-exam-preparations">
 
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/notes.css">
@@ -189,7 +189,7 @@ include '../db_connect.php';
             <p>
                 Welcome to Ahmad Learning Hub's study materials hub – your one-stop destination for everything you need to prepare for Punjab Board exams.
                 Whether you are in <strong>class 9</strong> or <strong>class 10</strong>, our platform provides free, high-quality resources aligned with the
-                <strong>Punjab Curriculum and Textbook Board (PCTB)</strong> syllabus for the academic year 2024–2025.
+                <strong>Punjab Curriculum and Textbook Board (PCTB)</strong> resources represented in the current database. Students should confirm each resource against the latest official textbook and board notification.
             </p>
 
             <h3>Available Subjects</h3>
@@ -204,7 +204,7 @@ include '../db_connect.php';
             <h3>Why Students Choose Ahmad Learning Hub</h3>
             <ul>
                 <li>100% free – no sign-up required for notes and textbooks</li>
-                <li>Aligned with the latest Punjab Board curriculum</li>
+                <li>Organized around Punjab Board classes, subjects, and chapters</li>
                 <li>Chapter-wise MCQs with instant results</li>
                 <li>Mobile-friendly – study on any device</li>
                 <li>Updated regularly with new content</li>

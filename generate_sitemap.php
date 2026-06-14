@@ -70,29 +70,13 @@ function addUrl(array &$urls, string $baseUrl, string $relativePath, string $cha
 
 $staticPages = [
     ['', 'daily', '1.0'],
-    ['/index.php', 'daily', '0.9'],
-    ['/about.php', 'monthly', '0.8'],
-    ['/contact.php', 'monthly', '0.8'],
-    ['/reviews.php', 'weekly', '0.8'],
-    ['/privacy-policy.php', 'yearly', '0.5'],
-    ['/terms-and-conditions.php', 'yearly', '0.5'],
-    ['/subscription.php', 'weekly', '0.7'],
-    ['/select_class.php', 'weekly', '0.9'],
-    ['/select_topics.php', 'weekly', '0.7'],
-    ['/select_topics_by_book.php', 'weekly', '0.7'],
-    ['/generate_question_paper.php', 'weekly', '0.7'],
-    ['/questionPaperFromTopic/home.php', 'weekly', '0.8'],
-    ['/questionPaperFromTopic/generate_ai_paper.php', 'weekly', '0.7'],
-    ['/quiz/quiz_setup.php', 'weekly', '0.8'],
-    ['/quiz/mcqs_topic.php', 'weekly', '0.8'],
-    ['/quiz/quiz.php', 'weekly', '0.7'],
+    ['/about', 'monthly', '0.8'],
+    ['/contact', 'monthly', '0.8'],
+    ['/reviews', 'weekly', '0.8'],
+    ['/privacy-policy', 'yearly', '0.5'],
+    ['/terms-and-conditions', 'yearly', '0.5'],
     ['/online_quiz_host_new', 'weekly', '0.8'],
-    ['/quiz/online_quiz_dashboard.php', 'weekly', '0.6'],
-    ['/quiz/online_quiz_join.php', 'weekly', '0.6'],
-    ['/quiz/online_quiz_lobby.php', 'weekly', '0.6'],
-    ['/quiz/online_quiz_take.php', 'weekly', '0.6'],
-    ['/notes/textbooks.php', 'weekly', '0.8'],
-    ['/notes/mcqs.php', 'weekly', '0.8'],
+    ['/online_quiz_join', 'weekly', '0.7'],
 ];
 
 foreach ($staticPages as [$path, $changefreq, $priority]) {
@@ -106,11 +90,6 @@ addUrl($urls, $baseUrl, '/online-mcqs-test-for-9th-and-10th-board-exams', 'weekl
 addUrl($urls, $baseUrl, '/study-material-for-board-exam-preparations', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/topic-wise-mcqs-test', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/class-9-10-11-12-mcqs-for-board-exams', 'weekly', '0.9', $today);
-addUrl($urls, $baseUrl, '/online-mcqs-question-paper-generator', 'weekly', '0.7', $today);
-addUrl($urls, $baseUrl, '/online-short-question-paper-generator', 'weekly', '0.7', $today);
-addUrl($urls, $baseUrl, '/online-long-question-paper-generator', 'weekly', '0.7', $today);
-addUrl($urls, $baseUrl, '/online-mcqs-short-and-long-question-paper-generator', 'weekly', '0.7', $today);
-
 // Exam Preparation Entry Points
 addUrl($urls, $baseUrl, '/Class-9-10-pastPaper-&-Test-Papers', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/Class-11-12-pastPaper-&-Test-Papers', 'weekly', '0.9', $today);
@@ -212,7 +191,6 @@ echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 foreach ($urls as $url) {
     echo "  <url>\n";
     echo '    <loc>' . xmlEscape($url['loc']) . "</loc>\n";
-    echo '    <lastmod>' . $url['lastmod'] . "</lastmod>\n";
     echo '    <changefreq>' . $url['changefreq'] . "</changefreq>\n";
     echo '    <priority>' . $url['priority'] . "</priority>\n";
     echo "  </url>\n";

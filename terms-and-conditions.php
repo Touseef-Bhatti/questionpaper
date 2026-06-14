@@ -5,16 +5,13 @@
 <html lang="en">
 <head>
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
-    <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
-    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
-    <?php
-
-    $assetBase = "";
-    ?>
+    <?php // AdSense review: third-party ads disabled. include_once __DIR__ . '/includes/monetag_ads.php'; ?>
+    <?php $assetBase = ''; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Terms and Conditions for Ahmad Learning Hub. Read the rules and guidelines for using our AI-powered exam preparation platform.">
+    <meta name="description" content="Terms and Conditions for using Ahmad Learning Hub educational tools, accounts, quizzes, AI-generated content, subscriptions, and study resources.">
+    <link rel="canonical" href="https://ahmadlearninghub.com.pk/terms-and-conditions">
     <title>Terms and Conditions | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/legal.css">
@@ -27,46 +24,57 @@
         <header class="legal-header">
             <div class="container text-center">
                 <h1>Terms and Conditions</h1>
-                <p class="last-updated">Last Updated: <?php echo date('F d, Y'); ?></p>
+                <p class="last-updated">Last Updated: June 14, 2026</p>
             </div>
         </header>
 
         <section class="legal-section">
             <div class="legal-container">
                 <div class="legal-content">
-                    <p>Welcome to Ahmad Learning Hub. By accessing or using our website, you agree to comply with and be bound by the following terms and conditions of use. Please read them carefully.</p>
+                    <p>These Terms and Conditions apply when you use Ahmad Learning Hub, including its question-paper generator, MCQs practice, study resources, exam tests, accounts, subscriptions, and live quiz tools.</p>
 
-                    <h2>1. Acceptance of Terms</h2>
-                    <p>By using the Ahmad Learning Hub platform, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions. If you do not agree, please do not use our services.</p>
+                    <h2>1. Educational Purpose</h2>
+                    <p>The platform is provided for learning, revision, classroom support, and exam preparation. It is not an official education board, examination authority, textbook publisher, or guarantee of examination results.</p>
 
-                    <h2>2. Use of Services</h2>
-                    <p>Our services are provided for educational purposes only. You agree to use the platform in a manner consistent with all applicable laws and regulations in Pakistan.</p>
+                    <h2>2. Accounts</h2>
+                    <p>Users must provide accurate registration information and keep account credentials secure. You are responsible for activity performed through your account. Accounts must not be shared or used to access another person's private work without permission.</p>
+
+                    <h2>3. Questions and AI-Generated Content</h2>
+                    <p>Questions may come from the site's reviewed database, teacher-created content, user uploads, or AI-assisted generation. AI-generated questions, answers, explanations, and papers may contain mistakes or may not match the latest official syllabus, pairing scheme, or marking instructions. Users must review important material against their current textbook, board notification, and teacher guidance.</p>
+
+                    <h2>4. Live Quizzes</h2>
+                    <p>Quiz hosts are responsible for reviewing room questions, choosing appropriate content, managing participants, and sharing room codes safely. Participants must use appropriate names or assigned roll numbers and must not disrupt, manipulate, or attempt unauthorized access to a room.</p>
+
+                    <h2>5. User Content</h2>
+                    <p>Users may submit reviews, custom questions, prompts, documents, images, or other educational material. You must have permission to submit that content and must not upload unlawful, harmful, confidential, copyrighted, or personally sensitive material. You grant Ahmad Learning Hub permission to process submitted content only as needed to provide the requested feature and operate the service.</p>
+
+                    <h2>6. Acceptable Use</h2>
                     <ul>
-                        <li>Users are responsible for maintaining the confidentiality of their account credentials.</li>
-                        <li>The AI-generated content is for practice and preparation purposes; we do not guarantee exact exam matches.</li>
-                        <li>Any attempt to disrupt the service or access unauthorized data is strictly prohibited.</li>
+                        <li>Do not attack, scrape, overload, reverse engineer, or bypass platform security or usage limits.</li>
+                        <li>Do not submit malicious files, false payment information, abusive content, or another person's personal information without permission.</li>
+                        <li>Do not present generated material as an official board paper or guaranteed examination content.</li>
                     </ul>
 
-                    <h2>3. Intellectual Property</h2>
-                    <p>All content on Ahmad Learning Hub, including text, graphics, logos, question banks, and AI algorithms, is the property of Ahmad Learning Hub or its content suppliers and is protected by intellectual property laws. You may not reproduce, distribute, or create derivative works without explicit permission.</p>
+                    <h2>7. Subscriptions and Payments</h2>
+                    <p>Some features may require a paid subscription. The plan name, price, duration, included features, and any cancellation or refund conditions shown during checkout form part of these terms. Payment confirmation depends on the payment provider's verification. Future prices and plan features may change with reasonable notice.</p>
 
-                    <h2>4. User-Generated Content</h2>
-                    <p>If you upload notes, questions, or other content, you grant Ahmad Learning Hub a non-exclusive, royalty-free license to use, display, and distribute that content for educational purposes on the platform.</p>
+                    <h2>8. Intellectual Property</h2>
+                    <p>The Ahmad Learning Hub name, interface, original text, software, and platform-created materials are protected by applicable intellectual-property laws. Third-party textbooks, user submissions, and referenced educational materials remain the property of their respective owners.</p>
 
-                    <h2>5. Limitation of Liability</h2>
-                    <p>Ahmad Learning Hub provides services "as is" and "as available." We do not warrant that the service will be uninterrupted or error-free. To the maximum extent permitted by law, we are not liable for any direct or indirect damages arising from your use of the platform.</p>
+                    <h2>9. Availability and Liability</h2>
+                    <p>The service is provided on an "as is" and "as available" basis. We work to keep it reliable but do not guarantee uninterrupted access, error-free generated content, permanent storage, or a particular academic result. To the extent permitted by law, Ahmad Learning Hub is not responsible for indirect loss caused by reliance on unverified content or temporary service interruption.</p>
 
-                    <h2>6. Subscription and Payments</h2>
-                    <p>Certain features may require a paid subscription. All payments are non-refundable unless stated otherwise. We reserve the right to change our pricing or subscription models at any time with prior notice.</p>
+                    <h2>10. Children and Student Use</h2>
+                    <p>School-age users should use account, payment, upload, and AI features with suitable parent, guardian, school, or teacher supervision. Students should not enter unnecessary personal or sensitive information into quiz, review, prompt, or upload fields.</p>
 
-                    <h2>7. Termination</h2>
-                    <p>We reserve the right to terminate or suspend your account at our sole discretion, without notice, for conduct that we believe violates these Terms and Conditions or is harmful to other users or our business interests.</p>
+                    <h2>11. Suspension or Termination</h2>
+                    <p>Access may be limited or terminated when an account violates these terms, threatens the platform or other users, abuses payment or usage systems, or is required to be restricted by law.</p>
 
-                    <h2>8. Governing Law</h2>
-                    <p>These terms are governed by the laws of the Islamic Republic of Pakistan. Any disputes arising from these terms will be subject to the exclusive jurisdiction of the courts in Gujranwala/Punjab.</p>
+                    <h2>12. Governing Law</h2>
+                    <p>These terms are governed by the laws of the Islamic Republic of Pakistan. Disputes will be handled by the courts with applicable jurisdiction in Punjab, Pakistan.</p>
 
-                    <h2>9. Contact Information</h2>
-                    <p>If you have any questions about these Terms and Conditions, please contact us at support@ahmadlearninghub.com.</p>
+                    <h2>13. Contact</h2>
+                    <p>Questions about these terms can be submitted through the <a href="contact">Contact page</a>.</p>
                 </div>
             </div>
         </section>

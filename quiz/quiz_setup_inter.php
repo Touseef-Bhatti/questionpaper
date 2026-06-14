@@ -35,7 +35,7 @@ function createSlug($string) {
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://ahmadlearninghub.com.pk/class-11-and-12-online-mcqs-prepation-test">
     <meta property="og:title" content="Online MCQs Test For 11th and 12th (FSc, ICS) Board Exams - Ahmad Learning Hub">
-    <meta property="og:description" content="Prepare for FSc and Entry Tests (MDCAT/ECAT) with 100% accurate MCQs based on the latest 2026 syllabus using advanced AI.">
+    <meta property="og:description" content="Create chapter-wise MCQ practice for available Class 11 and 12 subjects. Check important answers against your current textbook and board syllabus.">
     <meta property="og:image" content="https://ahmadlearninghub.com.pk/assets/images/quiz-og-inter.jpg">
 
     <!-- JSON-LD Structured Data for SEO Rich Snippets -->

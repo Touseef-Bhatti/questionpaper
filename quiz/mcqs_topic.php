@@ -793,17 +793,17 @@ if (isset($_POST['start_quiz'])) {
         
         <div class="seo-card">
             <div class="seo-icon"><i class="fas fa-robot"></i></div>
-            <h3 class="seo-card-title">AI Generated MCQs for All Subjects</h3>
+            <h3 class="seo-card-title">AI-Generated Topic Practice</h3>
             <p class="seo-card-text">
-                Our AI generates high-quality MCQs for all subjects including Math, Physics, Chemistry, Biology, Computer Science, and General Knowledge. Practice unlimited online quizzes with accurate and exam-focused questions.
+                Generate practice MCQs for topics in Math, Physics, Chemistry, Biology, Computer Science, General Knowledge, and other subjects. Review each answer carefully and confirm important facts with your textbook or teacher.
             </p>
         </div>
         
         <div class="seo-card">
             <div class="seo-icon"><i class="fas fa-globe"></i></div>
-            <h3 class="seo-card-title">Global Exam Preparation</h3>
+            <h3 class="seo-card-title">Flexible Topic Revision</h3>
             <p class="seo-card-text">
-                Prepare for international exams like SAT, GRE, GMAT, GCSE, A-Level, AP Exams, and European entry tests. Also suitable for MDCAT, ECAT, NTS, CSS, and other competitive exams worldwide.
+                Use the topic generator for self-testing, classroom revision, and general concept practice. It is not an official resource for any examination board or testing organization.
             </p>
         </div>
         
@@ -811,7 +811,7 @@ if (isset($_POST['start_quiz'])) {
             <div class="seo-icon"><i class="fas fa-chart-line"></i></div>
             <h3 class="seo-card-title">Practice, Test & Improve</h3>
             <p class="seo-card-text">
-                Take unlimited online MCQs tests, improve your accuracy, and strengthen weak topics. Our AI-driven quiz system helps students from Pakistan, UK, USA, and Europe prepare smarter and faster.
+                Repeat quizzes to identify weak topics and compare your answers with reliable course material. Free-plan limits may apply to generated topics.
             </p>
         </div>
         
@@ -819,7 +819,7 @@ if (isset($_POST['start_quiz'])) {
     
     <div class="seo-footer">
         <p>
-            The ultimate <strong>AI MCQs Quiz Generator</strong> for students worldwide. Practice online tests for <strong>SAT, GRE, GCSE, A-Level, MDCAT, ECAT, NTS, CSS</strong> and more. Search any topic and start your quiz instantly.
+            Search for a topic, choose the suggested areas you want to practise, and create a focused MCQ quiz. AI-generated questions can contain mistakes, so use them as revision support rather than an official answer source.
         </p>
     </div>
 </article>
@@ -1132,7 +1132,7 @@ function submitSelectedTopicsQuiz(form) {
                     { label: 'Validating difficulty',   duration: 3500 },
                     { label: 'Finalizing paper',        duration: 3500 }
                 ],
-                'Our AI is synthesizing questions based on 2026 board standards...',
+                'Our AI is preparing questions for the selected topics...',
                 'Quiz Generation Engine',
                 null
             );

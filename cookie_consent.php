@@ -1,98 +1,90 @@
 <?php
-// cookie_consent.php
-if (!isset($_COOKIE['cookie_consent_accepted'])) {
+$cookieConsent = $_COOKIE['alh_cookie_consent'] ?? '';
 ?>
 <style>
     .cookie-consent-banner {
         position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background-color: rgba(30, 41, 59, 0.95);
-        color: #fff;
+        inset: auto 0 0;
+        z-index: 99999;
+        display: none;
         padding: 1rem;
-        z-index: 9999;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(5px);
-        transform: translateY(100%);
-        transition: transform 0.3s ease-out;
+        color: #fff;
+        background: rgba(15, 23, 42, 0.98);
+        box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.2);
     }
-    .cookie-consent-banner.show {
-        transform: translateY(0);
-    }
+    .cookie-consent-banner.show { display: block; }
     .cookie-content {
-        max-width: 1200px;
+        width: min(1100px, 100%);
+        margin: 0 auto;
         display: flex;
         align-items: center;
-        gap: 2rem;
-        flex-wrap: wrap;
-        justify-content: center;
+        justify-content: space-between;
+        gap: 1rem;
     }
-    .cookie-text {
-        font-size: 0.9rem;
-        line-height: 1.5;
-        margin: 0;
-    }
+    .cookie-text { margin: 0; max-width: 720px; font-size: 0.92rem; line-height: 1.55; }
+    .cookie-text a { color: #bfdbfe; }
+    .cookie-actions { display: flex; gap: 0.65rem; flex-wrap: wrap; }
     .cookie-btn {
-        background-color: #6366f1;
-        color: white;
-        border: none;
-        padding: 0.5rem 1.5rem;
-        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 7px;
+        padding: 0.65rem 1rem;
+        font: inherit;
+        font-weight: 700;
         cursor: pointer;
-        font-weight: 600;
-        transition: background-color 0.2s;
-        white-space: nowrap;
     }
-    .cookie-btn:hover {
-        background-color: #4f46e5;
+    .cookie-btn.accept { color: #fff; background: #4f46e5; border-color: #4f46e5; }
+    .cookie-btn.reject { color: #fff; background: transparent; }
+    .cookie-settings-btn {
+        border: 0;
+        padding: 0;
+        color: inherit;
+        background: none;
+        font: inherit;
+        text-decoration: underline;
+        cursor: pointer;
     }
-    @media (max-width: 768px) {
-        .cookie-content {
-            flex-direction: column;
-            gap: 1rem;
-            text-align: center;
-        }
+    @media (max-width: 760px) {
+        .cookie-content { align-items: stretch; flex-direction: column; }
+        .cookie-actions { width: 100%; }
+        .cookie-btn { flex: 1; }
     }
 </style>
 
-<div id="cookieConsentBanner" class="cookie-consent-banner">
+<div id="cookieConsentBanner" class="cookie-consent-banner" role="dialog" aria-modal="true" aria-labelledby="cookieConsentTitle">
     <div class="cookie-content">
         <p class="cookie-text">
-            We use cookies to enhance your experience, manage your session, and analyze traffic. 
-            By continuing to browse, you agree to our use of cookies.
+            <strong id="cookieConsentTitle">Your privacy choices</strong><br>
+            Essential cookies keep login, security, and requested site features working. Optional Google Analytics loads only if you accept it. Third-party advertising is currently disabled. You can accept or reject optional cookies and change this choice later. Read our <a href="<?= htmlspecialchars(($assetBase ?? '') . 'privacy-policy') ?>">Privacy Policy</a>.
         </p>
-        <button id="acceptCookiesBtn" class="cookie-btn">Accept Cookies</button>
+        <div class="cookie-actions">
+            <button type="button" id="rejectCookiesBtn" class="cookie-btn reject">Reject optional</button>
+            <button type="button" id="acceptCookiesBtn" class="cookie-btn accept">Accept optional</button>
+        </div>
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const banner = document.getElementById('cookieConsentBanner');
-    const btn = document.getElementById('acceptCookiesBtn');
-    
-    // Show banner after a small delay
-    setTimeout(() => {
-        banner.classList.add('show');
-    }, 1000);
+(function () {
+    var banner = document.getElementById('cookieConsentBanner');
+    var acceptButton = document.getElementById('acceptCookiesBtn');
+    var rejectButton = document.getElementById('rejectCookiesBtn');
+    var existingConsent = <?= json_encode(in_array($cookieConsent, ['accepted', 'rejected'], true)) ?>;
 
-    btn.addEventListener('click', function() {
-        // Set cookie for 1 year
-        document.cookie = "cookie_consent_accepted=true; path=/; max-age=" + (60*60*24*365) + "; SameSite=Lax";
-        
-        // Hide banner
+    function saveConsent(value) {
+        document.cookie = 'alh_cookie_consent=' + value + '; path=/; max-age=31536000; SameSite=Lax; Secure';
         banner.classList.remove('show');
-        
-        // Remove from DOM after animation
-        setTimeout(() => {
-            banner.remove();
-        }, 300);
-    });
-});
+        window.dispatchEvent(new CustomEvent('alh-consent-updated', { detail: value }));
+    }
+
+    window.ALHCookieConsent = {
+        open: function () { banner.classList.add('show'); }
+    };
+
+    acceptButton.addEventListener('click', function () { saveConsent('accepted'); });
+    rejectButton.addEventListener('click', function () { saveConsent('rejected'); });
+
+    if (!existingConsent) {
+        window.setTimeout(function () { banner.classList.add('show'); }, 400);
+    }
+})();
 </script>
-<?php
-}
-?>

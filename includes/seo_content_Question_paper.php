@@ -41,6 +41,84 @@ function qpSeoClassOrdinal(int $classId): string
     };
 }
 
+function qpSeoClassProfile(int $classId): array
+{
+    return match ($classId) {
+        9 => [
+            'stage' => 'Matric Part 1',
+            'teaching_context' => 'the first year of matric study, where students are building new subject vocabulary, formal methods and reliable written-work habits',
+            'paper_balance' => 'Give suitable space to definitions and basic applications, but include enough reasoning to show whether foundational ideas are understood.',
+            'student_need' => 'Students at this stage benefit from clear wording, familiar textbook contexts and a gradual movement from direct recall to application.',
+            'review_priority' => 'new terminology, core rules, symbols, basic diagrams and the steps used in standard examples',
+        ],
+        10 => [
+            'stage' => 'Matric Part 2',
+            'teaching_context' => 'the final matric year, where chapter mastery must be combined with cumulative revision and preparation for formal assessments',
+            'paper_balance' => 'Combine chapter-specific questions with earlier skills that students must retain, while keeping the paper realistic for the announced syllabus and time.',
+            'student_need' => 'Students need practice that reveals small factual errors as well as weaknesses in explanation, calculation and presentation.',
+            'review_priority' => 'textbook exceptions, diagrams, formulas, comparisons and links between the current chapter and earlier matric concepts',
+        ],
+        11 => [
+            'stage' => 'Intermediate Part 1',
+            'teaching_context' => 'the transition from matric to intermediate study, where concepts become more detailed and answers require more precise subject language',
+            'paper_balance' => 'Test essential recall alongside interpretation, multi-step reasoning and the ability to use new intermediate terminology correctly.',
+            'student_need' => 'Students often know a general idea but need practice expressing it with the depth, method and vocabulary expected at college level.',
+            'review_priority' => 'technical definitions, derivations or process stages, worked examples and distinctions between closely related concepts',
+        ],
+        12 => [
+            'stage' => 'Intermediate Part 2',
+            'teaching_context' => 'the concluding intermediate year, where advanced topics, board revision and preparation for further study often overlap',
+            'paper_balance' => 'Include questions that connect earlier intermediate knowledge with final-year applications without allowing one difficult chapter to dominate the assessment.',
+            'student_need' => 'Students benefit from timed practice, careful method checking and questions that reveal whether knowledge can be transferred to an unfamiliar example.',
+            'review_priority' => 'advanced applications, linked concepts, formulas or evidence, common exceptions and complete long-answer organization',
+        ],
+        default => [
+            'stage' => "Class {$classId}",
+            'teaching_context' => 'the current stage of the selected course and the chapters that have actually been taught',
+            'paper_balance' => 'Use a fair mix of recall, understanding and application that matches the available learning time.',
+            'student_need' => 'Students need questions that are clearly worded and directly connected with the intended learning material.',
+            'review_priority' => 'key terms, examples, applications and mistakes identified during earlier class work',
+        ],
+    };
+}
+
+function qpSeoClassSubjectFocus(int $classId, string $bookKey, string $subject): string
+{
+    $focus = [
+        9 => [
+            'mathematics' => 'For Class 9 Mathematics, a useful paper establishes whether learners can move from number and algebra rules into formal equations, geometry and introductory reasoning without losing essential working.',
+            'physics' => 'For Class 9 Physics, the paper should establish a foundation in measurement, motion, forces and other introductory physical ideas while checking units, symbols and interpretation.',
+            'chemistry' => 'For Class 9 Chemistry, the assessment should connect basic chemical language with atomic ideas, bonding, equations and observable properties rather than testing isolated facts only.',
+            'biology' => 'For Class 9 Biology, the paper should check accurate terminology and the relationship between biological structures, functions and ordered life processes.',
+            'computer science' => 'For Class 9 Computer Science, the assessment should distinguish basic system concepts and introduce logical problem solving through definitions, diagrams and short practical situations.',
+        ],
+        10 => [
+            'mathematics' => 'For Class 10 Mathematics, the paper should combine fluent use of formulas with algebraic, geometric and trigonometric reasoning, including enough working to diagnose method errors.',
+            'physics' => 'For Class 10 Physics, the assessment should connect laws and formulas with diagrams, circuits, waves or other physical situations and require consistent use of units.',
+            'chemistry' => 'For Class 10 Chemistry, the paper should test how students connect reactions, chemical families, laboratory observations and applications with the underlying concepts.',
+            'biology' => 'For Class 10 Biology, the assessment should check whether students can sequence life processes, compare systems and explain how structures support their biological functions.',
+            'computer science' => 'For Class 10 Computer Science, the paper should combine technical definitions with algorithmic thinking, data handling and careful interpretation of code or system behavior.',
+        ],
+        11 => [
+            'mathematics' => 'For Class 11 Mathematics, the paper should reflect the increased depth of intermediate algebra, functions, trigonometry and analytical methods while rewarding complete reasoning.',
+            'physics' => 'For Class 11 Physics, the assessment should require precise definitions, vector or numerical reasoning, graph interpretation and clear links between physical laws and observations.',
+            'chemistry' => 'For Class 11 Chemistry, the paper should connect atomic and molecular explanations with calculations, trends, bonding and the conditions that control chemical behavior.',
+            'biology' => 'For Class 11 Biology, the assessment should use correct scientific vocabulary and test processes, classification, cellular organization and evidence-based comparisons.',
+            'computer science' => 'For Class 11 Computer Science, the paper should test computing theory together with algorithms, data representation, logic and the ability to trace an ordered process.',
+        ],
+        12 => [
+            'mathematics' => 'For Class 12 Mathematics, the paper should test whether students can select and combine advanced methods, justify steps and check that a final result satisfies the original problem.',
+            'physics' => 'For Class 12 Physics, the assessment should combine advanced laws, numerical relationships, diagrams and applications while checking links with earlier intermediate concepts.',
+            'chemistry' => 'For Class 12 Chemistry, the paper should balance detailed chemical knowledge with equations, structures, reaction reasoning, calculations and practical applications.',
+            'biology' => 'For Class 12 Biology, the assessment should connect complex biological systems, regulation, inheritance or ecology with accurate terminology and organized explanation.',
+            'computer science' => 'For Class 12 Computer Science, the paper should assess advanced system knowledge, program logic, databases or networks through both conceptual and applied questions.',
+        ],
+    ];
+
+    return $focus[$classId][$bookKey]
+        ?? "For Class {$classId} {$subject}, the paper should reflect the depth of the selected chapters and require students to use subject knowledge rather than depend on memorized answer patterns.";
+}
+
 function qpSeoSubjectProfiles(): array
 {
     return [
@@ -166,6 +244,8 @@ function getQuestionPaperSeoContent(int $classId, string $bookName): array
     $subject = $profile['label'];
     $ordinal = qpSeoClassOrdinal($classId);
     $level = in_array($classId, [9, 10], true) ? 'Matric' : 'Intermediate';
+    $classProfile = qpSeoClassProfile($classId);
+    $classSubjectFocus = qpSeoClassSubjectFocus($classId, $bookKey, $subject);
     $paperTypes = 'MCQs, short questions and long questions';
 
     $faqs = [
@@ -179,7 +259,11 @@ function getQuestionPaperSeoContent(int $classId, string $bookName): array
         ],
         [
             'question' => "Can I make a chapter-wise {$subject} test?",
-            'answer' => "Yes. You can select one chapter, several chapters or the full available syllabus and distribute each question type across those chapters.",
+            'answer' => "Yes. You can select one chapter, several chapters or all chapters currently available in the question bank and distribute each question type across that selection.",
+        ],
+        [
+            'question' => "What should a Class {$classId} {$subject} paper emphasize?",
+            'answer' => "{$classProfile['paper_balance']} Teachers should adapt the final selection to the topics taught and the time available.",
         ],
         [
             'question' => 'Can the generated question paper be printed?',
@@ -207,21 +291,38 @@ function getQuestionPaperSeoContent(int $classId, string $bookName): array
         'description' => "Generate a chapter-wise {$ordinal} Class {$subject} question paper for Punjab Board preparation. Create printable MCQs, short and long questions online.",
         'keywords' => implode(', ', $keywords),
         'heading' => "{$ordinal} Class {$subject} Question Paper Generator",
-        'intro' => "Create a chapter-wise {$subject} paper for {$ordinal} Class {$level} preparation in Pakistan. Select the required chapters and generate a structured assessment with {$paperTypes} for classroom tests, homework, revision or exam practice.",
+        'intro' => "Create a chapter-wise {$subject} paper for {$ordinal} Class {$classProfile['stage']} preparation. Select the required chapters and generate a structured assessment with {$paperTypes} for classroom tests, homework, revision or exam practice.",
         'profile' => $profile,
-        'long_form_sections' => qpSeoLongFormSections($classId, $subject, $ordinal, $level, $profile),
+        'class_profile' => $classProfile,
+        'class_subject_focus' => $classSubjectFocus,
+        'long_form_sections' => qpSeoLongFormSections($classId, $subject, $ordinal, $level, $profile, $classProfile, $classSubjectFocus),
         'faqs' => $faqs,
     ];
 }
 
-function qpSeoLongFormSections(int $classId, string $subject, string $ordinal, string $level, array $profile): array
+function qpSeoLongFormSections(
+    int $classId,
+    string $subject,
+    string $ordinal,
+    string $level,
+    array $profile,
+    array $classProfile,
+    string $classSubjectFocus
+): array
 {
     return [
         [
-            'heading' => "A practical {$subject} paper generator for {$ordinal} Class",
+            'heading' => "{$subject} assessment at the {$classProfile['stage']} stage",
             'paragraphs' => [
-                "A useful {$ordinal} Class {$subject} question paper should do more than collect random questions. It should represent the chapters that have actually been taught, include an appropriate mix of question formats, and give students a fair opportunity to demonstrate what they understand. This online generator helps teachers, academy instructors, parents and students prepare a paper around those practical requirements. Instead of rewriting questions and formatting every test from the beginning, users can select the relevant chapters, review the available question distribution and continue to a prepared selection. The result can support weekly tests, monthly assessments, revision worksheets, homework checks, pre-board preparation and full-syllabus practice.",
-                "The content is designed for Class {$classId} {$level} learners in Pakistan, with particular relevance to schools and academies using Punjab curriculum books and BISE-style assessment formats. It supports {$profile['assessment']}, allowing a paper to test both quick recall and more developed understanding. Automatic selection provides a fast starting point, while manual controls remain available when a teacher wants to give more weight to a particular chapter. This combination makes the tool suitable for routine classroom work as well as focused exam preparation.",
+                "Class {$classId} is {$classProfile['teaching_context']}. A useful {$subject} paper should therefore do more than collect random questions. It should represent the chapters actually taught, use language appropriate to this stage and give students a fair opportunity to demonstrate both knowledge and method.",
+                "{$classSubjectFocus} The generator supports {$profile['assessment']}. Automatic selection provides a starting point, while manual controls let the paper setter change chapter weight and question quantities after reviewing what is available.",
+            ],
+        ],
+        [
+            'heading' => "A Class {$classId} paper balance for {$subject}",
+            'paragraphs' => [
+                "{$classProfile['paper_balance']} This makes the paper more diagnostic: a teacher can see whether a student needs to revise factual knowledge, practise a method or improve the organization of a longer response.",
+                "{$classProfile['student_need']} When reviewing an automatically prepared selection, check that the wording, depth and expected response are appropriate for {$classProfile['stage']} rather than borrowing expectations from a lower or higher class.",
             ],
         ],
         [
@@ -246,9 +347,9 @@ function qpSeoLongFormSections(int $classId, string $subject, string $ordinal, s
             ],
         ],
         [
-            'heading' => "Subject-specific preparation for {$subject}",
+            'heading' => "Class {$classId} preparation priorities for {$subject}",
             'paragraphs' => [
-                "Students preparing for {$subject} should give attention to {$profile['skills']}. These skills develop through active practice rather than reading alone. A generated paper can be used under timed conditions, as an open-book learning activity or as a guided classroom exercise. After completion, students should compare their responses with the expected method, identify missing steps and note topics that need revision. Teachers can use the same paper to discuss why an answer is correct, not only whether it is correct.",
+                "Students preparing for Class {$classId} {$subject} should review {$classProfile['review_priority']} and give attention to {$profile['skills']}. These skills develop through active practice rather than reading alone. A generated paper can be used under timed conditions, as an open-book learning activity or as a guided classroom exercise.",
                 "Common problems in {$subject} include {$profile['mistakes']}. A useful practice paper should expose these weaknesses early enough for students to correct them. For example, a learner may know the topic but lose marks because the response is incomplete, poorly organized or technically inaccurate. Repeated chapter-wise testing makes those patterns visible. The objective is not to produce more tests for their own sake; it is to create focused evidence that helps the teacher decide what should be retaught, practised or explained differently.",
             ],
         ],

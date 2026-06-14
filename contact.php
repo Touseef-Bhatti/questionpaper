@@ -8,11 +8,12 @@ if (session_status() === PHP_SESSION_NONE) session_start();
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
-    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
+    <?php // AdSense review: third-party ads disabled. include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Contact Ahmad Learning Hub. The best Online question paper generator, chapter wise question paper generator for 9 th class and 10th class. Get support for online MCQs test, online quiz hosting, and more. A project by M Arshad Bhatti.">
+    <meta name="description" content="Contact Ahmad Learning Hub for support with question-paper generation, online MCQs practice, accounts, subscriptions, and live quiz tools.">
+    <link rel="canonical" href="https://ahmadlearninghub.com.pk/contact">
     <meta name="keywords" content="contact Ahmad Learning Hub, Online question paper generator, 9 th class, 10th class question paper generator, chapter wise question paper generator, online MCQs test, online quiz hosting, question paper generating, M Arshad Bhatti">
     <title>Contact Us | Support for 9th & 10th Class AI Exam Prep | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">

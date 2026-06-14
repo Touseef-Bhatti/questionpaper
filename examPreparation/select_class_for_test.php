@@ -109,7 +109,7 @@ include '../header.php';
 
                 <h2 style="font-size: 2rem; color: #0f172a; margin-top: 50px; margin-bottom: 25px;">1. Strategic Planning for <?= $eduLevelTitle ?> Students</h2>
                 <p>
-                    Success for <strong><?= $eduType ?></strong> students starts with a solid plan. For <strong><?= $targetClasses ?></strong>, understanding the specific board patterns and pairing schemes is essential. Our <strong>board exam preparations</strong> resources are tailored to match the latest 2026 requirements for all major boards.
+                    Success for <strong><?= $eduType ?></strong> students starts with a solid plan. For <strong><?= $targetClasses ?></strong>, understanding the current syllabus and the pattern published by the relevant board is important. Use the available practice resources for revision, and confirm official requirements with your school or examination board.
                 </p>
                 <p>
                     If you are a <strong>matric</strong> student, your focus should be on building strong foundations. If you are an <strong>inter</strong> student, conceptual depth in <strong>college</strong> subjects is what will set you apart. Use our <strong>online exam preparation</strong> system to create a timetable that prioritizes your weakest areas.

@@ -25,7 +25,7 @@ $canonicalUrl = alh_mcqs_abs_url('class-9-10-11-12-mcqs-for-board-exams');
 <html lang="en">
 <head>
     <?php include_once dirname(__DIR__, 2) . '/includes/google_analytics.php'; ?>
-    <?php include_once dirname(__DIR__, 2) . '/includes/monetag_ads.php'; ?>
+<?php // AdSense review: third-party ads disabled. include_once dirname(__DIR__, 2) . '/includes/monetag_ads.php'; ?>
     <?php include_once dirname(__DIR__, 2) . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

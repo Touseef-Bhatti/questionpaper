@@ -2,6 +2,46 @@
 // about.php - Professional About page for Ahmad Learning Hub
 if (session_status() === PHP_SESSION_NONE) session_start();
 include 'db_connect.php';
+
+function alhPublicCount(mysqli $conn, string $sql): int
+{
+    try {
+        $result = $conn->query($sql);
+        if (!$result) {
+            return 0;
+        }
+        $row = $result->fetch_row();
+        return max(0, (int) ($row[0] ?? 0));
+    } catch (Throwable $e) {
+        error_log('About page statistic query failed: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+function alhFormatPublicCount(int $count): string
+{
+    if ($count >= 10000) {
+        return number_format((int) floor($count / 1000) * 1000) . '+';
+    }
+    if ($count >= 1000) {
+        return number_format((int) floor($count / 100) * 100) . '+';
+    }
+    if ($count >= 100) {
+        return number_format((int) floor($count / 10) * 10) . '+';
+    }
+    return number_format($count);
+}
+
+$totalMcqs =
+    alhPublicCount($conn, 'SELECT COUNT(*) FROM mcqs') +
+    alhPublicCount($conn, 'SELECT COUNT(*) FROM AIGeneratedMCQs');
+$totalTheoreticalQuestions =
+    alhPublicCount($conn, "SELECT COUNT(*) FROM questions WHERE question_type IN ('short', 'long')") +
+    alhPublicCount($conn, 'SELECT COUNT(*) FROM AIGeneratedShortQuestions') +
+    alhPublicCount($conn, 'SELECT COUNT(*) FROM AIGeneratedLongQuestions');
+$dailyQuizSessions =
+    alhPublicCount($conn, 'SELECT COUNT(*) FROM quiz_rooms WHERE created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY') +
+    alhPublicCount($conn, 'SELECT COUNT(*) FROM quiz_participants WHERE started_at >= CURDATE() AND started_at < CURDATE() + INTERVAL 1 DAY');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -9,11 +49,12 @@ include 'db_connect.php';
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
-    <?php include_once __DIR__ . '/includes/monetag_ads.php'; ?>
+    <?php // AdSense review: third-party ads disabled. include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Ahmad Learning Hub is a top-tier Online question paper generator and exam preparation platform. Host online quizzes, access online MCQs test, solved notes, chapter wise question paper generator for 9 th class and 10th class. A project by M Arshad Bhatti.">
+    <meta name="description" content="Learn about Ahmad Learning Hub, its founder, and its educational tools for question-paper generation, MCQs practice, notes, tests, and live quizzes.">
+    <link rel="canonical" href="https://ahmadlearninghub.com.pk/about">
     <meta name="keywords" content="Online question paper generator, 9 th class, 10th class question paper generator, chapter wise question paper generator, online MCQs test, online quiz hosting, question paper generating, Ahmad Learning Hub, M Arshad Bhatti, Sheikhupura academy">
     <title>About Us | AI-Powered 9th & 10th Class Exam Preparation | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
@@ -27,20 +68,20 @@ include 'db_connect.php';
         <!-- Hero Section -->
         <section class="hero-section">
             <div class="hero-content">
-                <h1 class="animate-zoom">Advanced Online Question Paper Generator & Learning Hub</h1>
-                <p class="hero-subtitle">The ultimate <strong>chapter wise question paper generator</strong> and <strong>online MCQs test</strong> platform for <strong>9 th class</strong> and <strong>10th class</strong> students. Prepare smarter with our seamless <strong>question paper generating</strong> tools.</p>
+                <h1 class="animate-zoom">Online Question Paper Generator & Learning Hub</h1>
+                <p class="hero-subtitle">Create chapter-wise question papers, practise MCQs, review theoretical questions, and host live quizzes using the classes and subjects available on Ahmad Learning Hub.</p>
                 <div class="hero-stats">
                     <div class="stat-item">
-                        <span class="stat-number">50,000+</span>
-                        <span class="stat-label">MCQs Bank</span>
+                        <span class="stat-number"><?= htmlspecialchars(alhFormatPublicCount($totalMcqs)) ?></span>
+                        <span class="stat-label">MCQs in Database</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">98%</span>
-                        <span class="stat-label">Success Rate</span>
+                        <span class="stat-number"><?= htmlspecialchars(alhFormatPublicCount($totalTheoreticalQuestions)) ?></span>
+                        <span class="stat-label">Short &amp; Long Questions</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">5,000+</span>
-                        <span class="stat-label">Daily Quizzes</span>
+                        <span class="stat-number"><?= htmlspecialchars(alhFormatPublicCount($dailyQuizSessions)) ?></span>
+                        <span class="stat-label">Quiz Sessions Today</span>
                     </div>
                 </div>
             </div>
@@ -82,7 +123,7 @@ include 'db_connect.php';
                             Ahmad Learning Hub is the visionary project of <strong>M Arshad Bhatti</strong>. Under his dedicated supervision, they successfully run a physical academy, <strong>Ahmad Learning Hub</strong>, located in <strong>Sheikhupura</strong>.
                         </p>
                         <p style="font-size: 1.15rem; line-height: 1.8; color: #555;">
-                            With a passion to revolutionize learning, this digital platform was built to expand the reach of quality education. By offering top-tier services like our robust <strong>Online question paper generator</strong>, our interactive <strong>online MCQs test</strong> portal, and seamless <strong>online quiz hosting</strong>, we aim to bridge the gap between traditional academy preparation and modern digital learning for <strong>9 th class</strong> and 10th class students everywhere.
+                            This digital platform was built to extend classroom and academy support through a question-paper generator, MCQs practice, theoretical questions, study resources, and live quiz hosting for the classes and subjects currently available.
                         </p>
                     </div>
                 </div>
@@ -98,7 +139,7 @@ include 'db_connect.php';
                     <a href="online-question-paper-generator" class="feature-card animate-on-scroll">
                         <div class="feature-icon"><i class="fas fa-robot"></i></div>
                         <h3>AI-Powered Questions</h3>
-                        <p>Leverage our robust <strong>Online question paper generator</strong> and advanced tools to prepare targeted materials covering every important <strong>9 th class</strong> and <strong>10th class</strong> topic for board exams.</p>
+                        <p>Use AI-assisted tools to create practice material from selected topics or uploaded educational content, then review the result before classroom or exam use.</p>
                         <div class="feature-link">Explore AI Tools <i class="fas fa-arrow-right"></i></div>
                     </a>
                     <a href="quiz/online_quiz_host_new.php" class="feature-card animate-on-scroll">
@@ -110,19 +151,19 @@ include 'db_connect.php';
                     <a href="topic-wise-mcqs-test" class="feature-card animate-on-scroll">
                         <div class="feature-icon"><i class="fas fa-bolt"></i></div>
                         <h3>Online MCQs Test</h3>
-                        <p>Prepare with our comprehensive <strong>online MCQs test</strong> series, designed to mirror the actual exam patterns of Punjab and Federal Boards.</p>
+                        <p>Practise MCQs from the available class, book, chapter, and topic collections with instant results.</p>
                         <div class="feature-link">Take a Test <i class="fas fa-arrow-right"></i></div>
                     </a>
                     <a href="notes/uploaded_notes.php" class="feature-card animate-on-scroll">
                         <div class="feature-icon"><i class="fas fa-file-alt"></i></div>
                         <h3>Solved Notes</h3>
-                        <p>Access high-quality solved notes alongside your <strong>10th class question paper generator</strong> and <strong>9 th class</strong> resources, meticulously curated by expert educators for the best learning experience.</p>
+                        <p>Access uploaded notes and study resources organized by the classes, books, and chapters available on the platform.</p>
                         <div class="feature-link">View Notes <i class="fas fa-arrow-right"></i></div>
                     </a>
                     <a href="select_class.php" class="feature-card animate-on-scroll">
                         <div class="feature-icon"><i class="fas fa-brain"></i></div>
                         <h3>Smart Paper Generation</h3>
-                        <p>Use our highly customizable <strong>chapter wise question paper generator</strong> to create professional and accurate tests in seconds. Perfect for schools and academies needing reliable testing solutions.</p>
+                        <p>Select chapters and question types to create a printable practice paper for school, academy, or independent revision.</p>
                         <div class="feature-link">Generate Paper <i class="fas fa-arrow-right"></i></div>
                     </a>
                     <a href="profile.php" class="feature-card animate-on-scroll">
@@ -139,7 +180,7 @@ include 'db_connect.php';
             <div class="container text-center">
                 <h2 class="section-title">Why Choose Ahmad Learning Hub?</h2>
                 <p class="mission-text">
-                    Ahmad Learning Hub is an advanced <strong>Online question paper generator</strong> and integrated exam preparation platform designed to meet the rigorous demands of modern education. We offer an unparalleled <strong>chapter wise question paper generator</strong> for comprehensive learning. Whether you are seeking a reliable <strong>10th class question paper generator</strong> or focused <strong>9 th class</strong> practice, our platform provides tools that help students master every subject with precision. Our key functionalities include seamless <strong>question paper generating</strong>, interactive <strong>online MCQs test</strong> practice, and flexible <strong>online quiz hosting</strong>.
+                    Ahmad Learning Hub brings question-paper creation, theoretical questions, MCQs practice, study resources, exam tests, and live quiz hosting into one educational platform. Students and teachers can choose available classes, books, chapters, or topics and should compare generated material with the latest official textbook and instructions.
                 </p>
             </div>
         </section>
@@ -177,7 +218,7 @@ include 'db_connect.php';
             <div class="container text-center">
                 <div class="cta-content">
                     <h2>Ready to Ace Your Exams?</h2>
-                    <p>Join the thousands of students and teachers already using the most reliable <strong>Online question paper generator</strong>, thriving <strong>online MCQs test</strong> community, and top-tier <strong>online quiz hosting</strong> platform in Pakistan.</p>
+                    <p>Create board-oriented question papers, practise chapter-wise MCQs, and host live educational quizzes from one platform. Always verify generated material against the current official syllabus.</p>
                     <div class="cta-buttons">
                         <a href="quiz/online_quiz_join.php" class="btn btn-primary">Join a Live Quiz</a>
                         <a href="auth/register.php" class="btn btn-secondary">Create Free Account</a>

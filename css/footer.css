@@ -90,28 +90,6 @@
     margin-right: 10px;
 }
 
-.footer-social {
-    margin-top: 15px;
-}
-
-.footer-social a {
-    display: inline-block;
-    margin-right: 12px;
-    color: #cbd5e1;
-    background: #1e293b;
-    border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    line-height: 36px;
-    text-align: center;
-    transition: all 0.3s ease;
-}
-
-.footer-social a:hover {
-    background: #38bdf8;
-    color: #0f172a;
-}
-
 /* ========== Bottom Section ========== */
 .footer-bottom {
     text-align: center;
@@ -160,10 +138,6 @@
         background: rgba(255, 255, 255, 0.05); /* Subtle button background */
         border-radius: 50px; /* Pill shape */
         border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .footer-social {
-        margin-top: 20px;
     }
 
     .footer-bottom {

@@ -1,57 +1,274 @@
 <?php
+
+function alh_mcqs_normalize_key(string $value): string
+{
+    $key = strtolower(trim($value));
+    $key = preg_replace('/[^a-z0-9]+/', ' ', $key);
+    return trim((string) preg_replace('/\s+/', ' ', (string) $key));
+}
+
+function alh_mcqs_class_profile(string $className): array
+{
+    if (preg_match('/\b12\b|second\s*year|part\s*2/i', $className)) {
+        return [
+            'stage' => 'Intermediate Part 2',
+            'purpose' => 'consolidating advanced concepts while balancing board revision, college assessments and admission preparation',
+            'routine' => 'Use mixed recall and application questions, then revisit the chapters where formulas, processes or closely related terms are confused.',
+            'check' => 'Pay special attention to links between earlier intermediate concepts and the more advanced applications introduced in the final year.',
+        ];
+    }
+
+    if (preg_match('/\b11\b|first\s*year|part\s*1/i', $className)) {
+        return [
+            'stage' => 'Intermediate Part 1',
+            'purpose' => 'adjusting from matric recall to deeper definitions, multi-step reasoning and subject-specific terminology',
+            'routine' => 'Start with one chapter at a time and explain the reason for each answer before increasing the size of the practice set.',
+            'check' => 'Check whether an error came from unfamiliar terminology, an incomplete concept or applying a familiar rule in the wrong situation.',
+        ];
+    }
+
+    if (preg_match('/\b10\b|matric\s*part\s*2/i', $className)) {
+        return [
+            'stage' => 'Matric Part 2',
+            'purpose' => 'strengthening final-year matric concepts and preparing for cumulative school and board assessments',
+            'routine' => 'Alternate chapter revision with short mixed tests so that older material remains active while new chapters are completed.',
+            'check' => 'Review textbook exceptions, diagrams, units and similar-looking statements because these often cause avoidable objective-question errors.',
+        ];
+    }
+
+    if (preg_match('/\b9\b|matric\s*part\s*1/i', $className)) {
+        return [
+            'stage' => 'Matric Part 1',
+            'purpose' => 'building the definitions, symbols, rules and study habits needed for later matric work',
+            'routine' => 'Read a small textbook section, answer a focused set of MCQs and correct the underlying idea before starting the next section.',
+            'check' => 'Separate new terms that look similar and connect every formula, rule or definition with at least one textbook example.',
+        ];
+    }
+
+    return [
+        'stage' => $className,
+        'purpose' => 'developing reliable recall and understanding through focused objective-question practice',
+        'routine' => 'Work through one manageable topic at a time and review the reason for every incorrect answer.',
+        'check' => 'Compare uncertain answers with the current textbook or guidance provided by the relevant teacher.',
+    ];
+}
+
+function alh_mcqs_subject_profile(string $bookName): array
+{
+    $key = alh_mcqs_normalize_key($bookName);
+    $profiles = [
+        'physics' => [
+            'label' => 'Physics',
+            'question_sources' => 'definitions, physical quantities, SI units, laws, graphs, diagrams, formulas and the interpretation of numerical situations',
+            'method' => 'write the known quantities and units before choosing a formula, and distinguish a law from the example used to demonstrate it',
+            'common_errors' => 'mixing scalar and vector quantities, overlooking units, reversing cause and effect, or choosing a familiar formula without checking its conditions',
+            'review' => 'definitions, symbols, unit conversions, graph shapes, diagram labels and the meaning of each term in a formula',
+        ],
+        'chemistry' => [
+            'label' => 'Chemistry',
+            'question_sources' => 'chemical symbols, atomic structure, periodic trends, bonding, equations, reaction conditions, laboratory observations and calculations',
+            'method' => 'connect each chemical fact with a particle-level explanation and check symbols, charges, valencies and equation balance carefully',
+            'common_errors' => 'confusing related trends, using an incorrect chemical symbol, missing a reaction condition or treating similar compounds as identical',
+            'review' => 'definitions, equations, periodic relationships, structures, reaction conditions, examples and exceptions stated in the textbook',
+        ],
+        'biology' => [
+            'label' => 'Biology',
+            'question_sources' => 'biological terminology, structures, functions, process sequences, classifications, examples, comparisons and labelled diagrams',
+            'method' => 'link each structure with its function and arrange multi-stage processes in the correct biological sequence',
+            'common_errors' => 'interchanging similar terms, skipping a process step, assigning a function to the wrong structure or relying on a diagram without reading its labels',
+            'review' => 'key terms, process stages, structure-function relationships, classifications, examples, differences and diagram labels',
+        ],
+        'mathematics' => [
+            'label' => 'Mathematics',
+            'question_sources' => 'definitions, formulas, identities, properties, signs, graphs, theorem statements and short calculations',
+            'method' => 'identify the rule being tested, perform the essential working separately and check signs, restrictions and units before selecting an option',
+            'common_errors' => 'sign mistakes, using a formula outside its conditions, confusing similar properties or selecting an answer from mental arithmetic without verification',
+            'review' => 'formulas, identities, definitions, graph behavior, theorem conditions and representative solved examples',
+        ],
+        'computer science' => [
+            'label' => 'Computer Science',
+            'question_sources' => 'hardware and software concepts, data representation, networks, algorithms, programming syntax, logic, databases and digital responsibility',
+            'method' => 'trace instructions in order, distinguish related technical terms and test small code or logic examples step by step',
+            'common_errors' => 'confusing hardware with software roles, ignoring syntax, skipping an algorithm step or predicting output without tracing variable changes',
+            'review' => 'technical definitions, comparisons, diagrams, algorithm stages, code traces, database terms and practical examples',
+        ],
+        'english' => [
+            'label' => 'English',
+            'question_sources' => 'vocabulary, grammar, sentence structure, comprehension, literary terms, textbook details and the meaning of words in context',
+            'method' => 'read the complete sentence or passage before deciding, because context can change the correct meaning or grammatical form',
+            'common_errors' => 'choosing a familiar word without checking context, overlooking tense agreement, confusing parts of speech or recalling a text detail imprecisely',
+            'review' => 'vocabulary in context, grammar rules, sentence correction, lesson themes, characters, references and comprehension evidence',
+        ],
+        'urdu' => [
+            'label' => 'Urdu',
+            'question_sources' => 'prose and poetry details, vocabulary, grammar, central ideas, authors, references, meanings and literary forms',
+            'method' => 'connect each answer with the relevant passage, verse, grammar rule or textbook context instead of memorising isolated options',
+            'common_errors' => 'mixing authors or lessons, selecting a near-synonym with the wrong context, overlooking grammar details or confusing a central idea with a minor detail',
+            'review' => 'lesson summaries, poetic references, vocabulary, grammar, authors, important lines and central themes',
+        ],
+        'islamiat' => [
+            'label' => 'Islamiat',
+            'question_sources' => 'Quranic teachings, Hadith, beliefs, worship, Seerah, Islamic history, ethics, personalities and important events',
+            'method' => 'place teachings and events in their correct context and verify references, names and sequences carefully',
+            'common_errors' => 'mixing historical events, confusing personalities, recalling an incomplete teaching or selecting a statement that lacks the required context',
+            'review' => 'key teachings, translations, references, events, personalities, ethical applications and differences between related concepts',
+        ],
+        'pakistan studies' => [
+            'label' => 'Pakistan Studies',
+            'question_sources' => 'historical events, dates, personalities, constitutional developments, geography, resources, culture and national institutions',
+            'method' => 'build timelines for history and connect geographical facts with maps, locations, resources and their effects',
+            'common_errors' => 'confusing dates or personalities, placing events in the wrong sequence, mixing constitutional milestones or assigning a resource to the wrong region',
+            'review' => 'timelines, maps, key personalities, constitutional milestones, definitions, locations and cause-and-effect relationships',
+        ],
+    ];
+
+    $aliases = [
+        'math' => 'mathematics',
+        'maths' => 'mathematics',
+        'computer' => 'computer science',
+        'computer studies' => 'computer science',
+        'pak studies' => 'pakistan studies',
+        'islamic studies' => 'islamiat',
+        'islamiyat' => 'islamiat',
+    ];
+    $key = $aliases[$key] ?? $key;
+
+    return $profiles[$key] ?? [
+        'label' => trim($bookName) !== '' ? trim($bookName) : 'the selected subject',
+        'question_sources' => 'definitions, terminology, examples, comparisons, textbook details and applications from the available chapters',
+        'method' => 'identify the exact concept being tested and connect the selected option with evidence from the relevant lesson',
+        'common_errors' => 'confusing related terms, overlooking an exception, recalling only part of a definition or answering without checking the question wording',
+        'review' => 'chapter summaries, key terms, examples, diagrams, comparisons and mistakes from previous practice',
+    ];
+}
+
+function alh_mcqs_chapter_profile(string $chapterName, array $subject): array
+{
+    if ($chapterName === '') {
+        return [
+            'heading' => "Planning chapter-wise {$subject['label']} revision",
+            'focus' => "The chapter list lets learners divide {$subject['label']} into smaller units instead of mixing the entire book in one session.",
+            'activity' => "Choose a chapter that has already been studied, complete its available questions, and record which parts of {$subject['review']} need another reading.",
+        ];
+    }
+
+    $key = alh_mcqs_normalize_key($chapterName);
+    $rules = [
+        '/motion|force|dynamics|kinematics|work|energy|power/' => [
+            'focus' => 'relationships between physical quantities, direction, units, laws, graphs and the conditions under which an equation applies',
+            'activity' => 'Sketch a simple situation or graph for difficult questions and check whether the selected option agrees with both the formula and the physical meaning.',
+        ],
+        '/wave|sound|light|optic|electro|current|magnet/' => [
+            'focus' => 'definitions, diagrams, measurable quantities, component behavior and relationships between changing physical conditions',
+            'activity' => 'Label the relevant diagram or circuit and explain what changes, what remains constant and why before selecting an answer.',
+        ],
+        '/atom|bond|periodic|reaction|acid|base|organic|hydrocarbon/' => [
+            'focus' => 'particles, structures, symbols, trends, equations, reaction conditions and the reasons substances behave differently',
+            'activity' => 'Write the relevant symbol, structure or balanced equation and compare each option with the rule demonstrated by it.',
+        ],
+        '/cell|tissue|enzyme|nutrition|transport|respiration|reproduction|genetic|ecology/' => [
+            'focus' => 'biological structures, their functions, process order, terminology, examples and cause-and-effect relationships',
+            'activity' => 'Create a short sequence or structure-function table and use it to eliminate options that belong to a different stage or organ.',
+        ],
+        '/set|number|algebra|equation|matrix|quadratic|geometry|trigon|probability|statistic/' => [
+            'focus' => 'definitions, notation, properties, formulas, restrictions and the logical steps needed to reach a valid result',
+            'activity' => 'Complete the smallest useful calculation on paper and test whether the answer satisfies the original condition.',
+        ],
+        '/program|algorithm|data|database|network|computer|logic|software|hardware/' => [
+            'focus' => 'technical vocabulary, system roles, ordered procedures, data handling, logic and the output of instructions',
+            'activity' => 'Trace the process one step at a time and write how the input, stored value or output changes at each stage.',
+        ],
+        '/grammar|sentence|tense|voice|narration|comprehension|poem|poetry|prose/' => [
+            'focus' => 'meaning in context, grammar rules, textual evidence, vocabulary and the distinction between closely related language choices',
+            'activity' => 'Read the complete sentence or passage, identify the rule or evidence, and then compare the effect of each possible answer.',
+        ],
+    ];
+
+    foreach ($rules as $pattern => $profile) {
+        if (preg_match($pattern, $key)) {
+            return [
+                'heading' => "{$chapterName}: what to focus on",
+                'focus' => ucfirst($profile['focus']) . '.',
+                'activity' => $profile['activity'],
+            ];
+        }
+    }
+
+    return [
+        'heading' => "{$chapterName}: focused MCQ revision",
+        'focus' => "This chapter should be reviewed through its main definitions, examples, diagrams, comparisons and links with earlier {$subject['label']} concepts.",
+        'activity' => 'Write a one-sentence reason for each corrected answer and note the textbook heading where the concept is explained.',
+    ];
+}
+
 function alh_mcqs_seo_content(string $className = 'Class 9, 10, 11 and 12', string $bookName = 'all subjects', string $chapterName = ''): void
 {
-    $classText = htmlspecialchars($className);
-    $bookText = htmlspecialchars($bookName);
-    $chapterText = htmlspecialchars($chapterName);
-    $chapterPhrase = $chapterName !== '' ? " for <strong>{$chapterText}</strong>" : '';
+    $class = alh_mcqs_class_profile($className);
+    $subject = alh_mcqs_subject_profile($bookName);
+    $chapter = alh_mcqs_chapter_profile($chapterName, $subject);
+    $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
+    $classText = $e($className);
+    $subjectText = $e($subject['label']);
+    $chapterText = $e($chapterName);
     ?>
     <article class="alh-mcq-section alh-seo-content">
-        <h2>Pakistan Board MCQs Preparation Guide<?= $chapterName !== '' ? ': ' . $chapterText : '' ?></h2>
+        <h2><?= $classText ?> <?= $subjectText ?> MCQ Preparation<?= $chapterName !== '' ? ': ' . $chapterText : '' ?></h2>
         <p>
-            Ahmad Learning Hub is built for Pakistani students who want a clean, fast and reliable way to prepare objective questions for board exams. This page focuses on <strong><?= $classText ?> <?= $bookText ?> MCQs</strong><?= $chapterPhrase ?> with explanations, instant answer checking and chapter-wise practice. Students from Punjab Board, Federal Board, Lahore Board, Gujranwala Board, Multan Board, Faisalabad Board, Rawalpindi Board, Sahiwal Board, Sargodha Board, Bahawalpur Board and other BISE boards often search for <strong>mcqs online test</strong>, <strong>online mcqs test</strong>, <strong>chapter wise mcqs</strong>, <strong>solved mcqs</strong>, <strong>mcqs practice online</strong>, <strong>board exam mcqs</strong>, <strong>free mcqs test online</strong> and <strong>quiz mcqs online</strong>. This section gives those students a focused place to revise objective questions in the same order they study their textbook.
+            This page supports <strong><?= $e($class['stage']) ?></strong> practice in <strong><?= $subjectText ?></strong>.
+            At this stage, the main purpose is <?= $e($class['purpose']) ?>. The questions available here should be
+            used with the current textbook and the instructions issued by the learner's school or examination board.
         </p>
+
+        <h3>What <?= $subjectText ?> MCQs can test</h3>
         <p>
-            The objective portion of Pakistani board papers rewards accuracy, speed and memory of small textbook details. A student may understand a long question but still lose marks in MCQs because a definition, unit, formula, diagram label or exception was missed. That is why <strong>chapter wise MCQs</strong> are so useful. Instead of mixing everything at once, a learner can open a class, select a subject, choose a chapter, attempt the options and immediately see whether the selected answer is correct. The green and red checking system helps students learn from mistakes without waiting for a teacher. The explanation button supports deeper revision because it turns a simple answer into a concept note.
+            In <?= $subjectText ?>, objective questions commonly draw on <?= $e($subject['question_sources']) ?>.
+            A useful answer is based on the exact wording and concept, not simply on recognising a familiar option.
+            For this subject, learners should <?= $e($subject['method']) ?>.
         </p>
+
+        <h3><?= $e($chapter['heading']) ?></h3>
+        <p><?= $e($chapter['focus']) ?></p>
+        <p><?= $e($chapter['activity']) ?></p>
+
+        <h3>Common mistakes for <?= $classText ?> learners</h3>
         <p>
-            For <strong>Class 9</strong>, students usually need searches such as <strong>class 9 physics mcqs chapter wise</strong>, <strong>class 9 chemistry mcqs online test</strong>, <strong>class 9 biology mcqs with answers</strong>, <strong>class 9 maths mcqs practice</strong>, <strong>class 9 computer mcqs</strong> and <strong>class 9 english mcqs online test</strong>. Many students also search <strong>class 9 mcqs test online free</strong>, <strong>class 9 board exam preparation mcqs</strong>, <strong>class 9 all subjects mcqs</strong> and <strong>matric part 1 mcqs online test</strong>. These keywords show the real intent: students do not only want a list of questions; they want a complete practice path for Matric Part 1. They need to revise each chapter, test themselves, check answers and return to weak areas before school tests and annual board exams.
+            In this subject, frequent errors include <?= $e($subject['common_errors']) ?>.
+            <?= $e($class['check']) ?> When the page marks an answer as incorrect, the next step should be to identify
+            the mistaken idea and verify it, rather than memorising the displayed answer letter.
         </p>
+
+        <h3>A practical revision routine</h3>
         <p>
-            For <strong>Class 10</strong>, MCQs become even more important because Matric Part 2 is a high-traffic exam stage in Pakistan. Students search for <strong>class 10 physics mcqs chapter wise test</strong>, <strong>class 10 chemistry mcqs online test</strong>, <strong>class 10 biology mcqs solved mcqs</strong>, <strong>class 10 maths mcqs practice</strong>, <strong>class 10 computer mcqs</strong>, <strong>class 10 board exam mcqs</strong>, <strong>matric class 10 mcqs online test</strong>, <strong>class 10 past papers mcqs</strong>, <strong>class 10 guess paper mcqs</strong>, <strong>class 10 important mcqs for exams</strong> and <strong>class 10 all subjects mcqs test</strong>. A strong Class 10 student should practice every chapter in short sessions, especially the chapters that repeatedly appear in past papers and school assessments.
+            <?= $e($class['routine']) ?> Before attempting the MCQs, review <?= $e($subject['review']) ?>.
+            Complete a manageable set without notes, check the result, and divide errors into missing knowledge,
+            misunderstood concepts and careless reading. Revise the appropriate section before repeating the chapter.
         </p>
+
+        <?php if ($chapterName !== ''): ?>
+            <h3>How to review <?= $chapterText ?> after the quiz</h3>
+            <p>
+                List the questions you missed from <strong><?= $chapterText ?></strong> and write the textbook heading
+                connected with each one. Explain the correct idea in your own words, then return later and answer a
+                fresh set. This gives the chapter page a clear purpose: finding specific weaknesses in
+                <?= $subjectText ?> rather than only collecting a score.
+            </p>
+        <?php else: ?>
+            <h3>Choosing the next <?= $subjectText ?> chapter</h3>
+            <p>
+                Start with a chapter recently completed in class or one that caused difficulty in homework. The
+                chapter cards show the material currently available in the database. Work through the chapters in
+                the order that matches your course instead of assuming that every listed unit belongs to the latest
+                syllabus for every board.
+            </p>
+        <?php endif; ?>
+
+        <h3>Accuracy and responsible use</h3>
         <p>
-            For <strong>Class 11</strong>, the shift from matric to FSc, ICS, FA or ICom can feel heavy because concepts become longer and more analytical. Students search <strong>class 11 physics mcqs chapter wise</strong>, <strong>class 11 chemistry mcqs online test</strong>, <strong>class 11 biology mcqs with answers</strong>, <strong>class 11 maths mcqs practice</strong>, <strong>class 11 computer science mcqs</strong>, <strong>class 11 entry test mcqs</strong>, <strong>fsc part 1 mcqs online test</strong>, <strong>class 11 mcqs practice for college exams</strong> and <strong>class 11 important mcqs</strong>. These MCQs are useful not only for board exams but also for entry test foundations because objective practice builds fast recall, formula recognition and conceptual confidence.
-        </p>
-        <p>
-            For <strong>Class 12</strong>, students are usually preparing for board exams, college finals and entry tests at the same time. High-value searches include <strong>class 12 physics mcqs chapter wise test</strong>, <strong>class 12 chemistry mcqs online test</strong>, <strong>class 12 biology mcqs solved mcqs</strong>, <strong>class 12 maths mcqs practice</strong>, <strong>class 12 computer mcqs</strong>, <strong>class 12 board exam mcqs</strong>, <strong>fsc part 2 mcqs online test</strong>, <strong>class 12 past papers mcqs</strong>, <strong>class 12 important mcqs for exams</strong> and <strong>class 12 guess paper mcqs</strong>. Because FSc Part 2 marks matter for admissions, chapter-wise objective preparation should be consistent, timed and repeated.
-        </p>
-        <p>
-            Long-tail searches are also important because they match exactly what students type when they are studying a single chapter. Examples include <strong>chapter 1 physics mcqs class 10</strong>, <strong>electrostatics mcqs class 12 test</strong>, <strong>biology digestion mcqs class 9</strong>, <strong>chemical bonding mcqs class 11 test</strong>, <strong>motion mcqs class 9 online test</strong> and <strong>thermodynamics mcqs class 12</strong>. Pages like this are designed around those long-tail needs. When a student opens a specific chapter, the page becomes more useful than a generic MCQ list because the title, headings, canonical URL and content all match the student’s study intent.
-        </p>
-        <p>
-            A practical routine is simple. First, read the textbook chapter carefully and underline definitions, laws, formulas, important examples and boxed points. Second, attempt the MCQs on this page without looking at the explanation. Third, when an option turns red, pause and read the correct option plus the explanation. Fourth, write the missed concept in a notebook. Fifth, repeat the same chapter after one day and again after one week. This spaced revision method improves memory and makes board exam MCQs easier because the brain sees the same concept in different sessions.
-        </p>
-        <p>
-            Students should also use these pages for quick daily revision. Ten to fifteen MCQs before school, after tuition or before sleeping can improve retention. For science subjects, focus on numerical terms, units, laws, diagrams, reactions and definitions. For Mathematics, practice formulas, identities, theorem statements and conceptual properties. For Computer Science, revise terminology, output-based logic, programming basics and definitions. For English, focus on grammar, vocabulary, comprehension and textbook-based objective questions. The same pattern works for both matric and intermediate students.
-        </p>
-        <p>
-            GEO-friendly learning content means the page should answer the student’s real question clearly: where can I practice MCQs online, how do I know the correct answer, and how can I understand the reason behind it? This is why the page includes direct MCQs, instant color feedback, explanation buttons and board-focused guidance. Search engines and AI answer systems can understand that this resource is about <strong>mcqs online test</strong>, <strong>online mcqs test</strong>, <strong>chapter wise mcqs</strong>, <strong>mcqs with answers pdf</strong>, <strong>solved mcqs</strong>, <strong>mcqs practice online</strong>, <strong>board exam mcqs</strong>, <strong>entry test mcqs</strong>, <strong>free mcqs test online</strong> and <strong>quiz mcqs online</strong>, while students get a page that is actually useful for preparation.
-        </p>
-        <p>
-            For the best result, do not only memorize the highlighted correct option. Read the explanation, connect it with the textbook line, and then ask why the other options are wrong. This turns MCQ practice into concept building. Pakistani board exams often repeat concepts in slightly changed wording, so understanding the explanation is safer than memorizing a single phrase. Whether you are preparing Class 9 all subjects MCQs, Class 10 important MCQs for exams, Class 11 entry test MCQs or Class 12 board exam MCQs, the winning habit is the same: practice chapter-wise, check instantly, revise mistakes and repeat before the exam.
-        </p>
-        <p>
-            Another useful technique is to divide MCQs into three groups: easy recall questions, concept questions and tricky exception questions. Easy recall questions include definitions, dates, units, terminology, formulas and direct textbook statements. Concept questions require understanding, such as why an object moves, why a reaction happens, why a biological process works or why a computer instruction gives a certain output. Tricky exception questions are the ones students usually miss because two options look similar. When using this page, try to identify which group each question belongs to. If you make mistakes mostly in easy recall, revise textbook lines. If you make mistakes in concepts, read the explanation carefully. If you miss tricky exceptions, compare the wrong option with the correct option and write the difference in your own words.
-        </p>
-        <p>
-            Teachers and parents can also use these MCQs for quick assessment. A teacher can ask students to open one chapter, attempt twenty questions and note which concepts create confusion. Parents can help a student revise by asking them to explain why an option is correct after the page marks it green. This makes the MCQ page useful beyond simple memorization. It becomes a mini diagnostic test for class work, tuition revision, board exam preparation, entry test basics and last-week review. For Pakistani students who have limited time, a chapter-based MCQ page with explanations is often more practical than a long unsorted PDF.
-        </p>
-        <p>
-            If you are targeting high marks, combine this resource with past papers and textbook reading. Past papers show the board pattern, textbook reading builds the base, and online MCQs test practice improves speed. Students often search for <strong>mcqs with answers pdf</strong> because PDFs are familiar, but interactive practice gives an extra advantage: the system responds immediately. You select one option, the page marks the correct answer in green, marks a wrong selection in red, and lets you open the explanation. That feedback loop is what helps a student remember the point during the real paper.
-        </p>
-        <p>
-            Keep this page bookmarked during your revision season. Start from Class 9 or Class 10 if you are in matric, and move subject by subject. Use Class 11 and Class 12 pages if you are preparing FSc Part 1, FSc Part 2, ICS or college exams. For science students, prioritize Physics, Chemistry and Biology chapters that appear in both board exams and entry test preparation. For computer students, revise Computer Science MCQs regularly because definitions, logic and output questions can be scoring when practiced repeatedly. For mathematics students, use MCQs to strengthen formulas, identities and chapter properties before attempting longer exercises.
+            Explanations are provided where they exist in the question bank, but educational databases can contain
+            incomplete or mistaken material. Confirm disputed answers with an authoritative textbook or teacher.
+            Ahmad Learning Hub provides a practice resource and does not claim that a question will appear in an
+            examination or that every available item represents an official board question.
         </p>
     </article>
     <?php

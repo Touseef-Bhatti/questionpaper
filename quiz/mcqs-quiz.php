@@ -287,72 +287,57 @@ $pageDesc = "Free {$class_name} {$book_name} chapter wise MCQs online test with 
                     </ul>
                 </div>
 
-                <h2>Why <?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?> MCQs Matter for Board Exams</h2>
+                <h2>Why <?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?> MCQ Practice Matters</h2>
                 <p>
-                    In the 2026 exam pattern adopted by all major boards in Pakistan — including <strong>Punjab Board</strong>, <strong>Federal Board (FBISE)</strong> and <strong>Sindh Board</strong> — the objective section (Section A) typically carries 12–17 marks and consists entirely of multiple-choice questions. These marks are often called the "easiest" marks in the paper, yet many students lose 3–5 marks simply because they did not practise enough MCQs before the exam. Similarly, <strong>CBSE</strong> students in India face competency-based MCQs in their board papers that require conceptual clarity rather than memorisation.
+                    Many school and board assessments include an objective section, so regular MCQ practice can help students check recall, interpretation, and application of textbook concepts. The exact format, marks, syllabus, and question style depend on the relevant board and examination year.
                 </p>
                 <p>
-                    The key to securing full marks in the objective section is <strong>chapter wise practice</strong>. Board examiners draw questions from every chapter, so skipping even one unit can cost you marks. Our <strong><?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?> online test</strong> covers the complete syllabus — from the first chapter to the last — ensuring zero gaps in your preparation. Every MCQ is aligned with the official textbook and follows the SLO (Student Learning Outcomes) framework mandated by the education ministry.
-                </p>
-
-                <h3>Chapter Wise Approach: The Most Effective Revision Strategy</h3>
-                <p>
-                    Research in educational psychology consistently shows that <strong>spaced, topic-focused practice</strong> outperforms bulk revision. Instead of attempting 100 random MCQs from the entire book, select a single chapter, attempt 20–30 MCQs, review the explanations, and then move to the next chapter. This mirrors how board papers are designed — examiners pick 1–2 MCQs per chapter — and ensures you cover every topic with depth.
-                </p>
-                <p>
-                    On this page, you can <strong>multi-select specific chapters</strong> from <?= htmlspecialchars($book_name) ?> and generate a focused quiz. Attempted Chapter 1 yesterday? Today pick Chapter 2. By the end of the week, you will have covered the entire book with genuine understanding — not surface-level memorisation.
+                    <strong>Chapter-wise practice</strong> makes weak areas easier to identify. The chapters shown here represent content currently available in the question bank; they do not guarantee complete syllabus or official board coverage. Check your current textbook and board instructions before relying on a practice set.
                 </p>
 
-                <h2>How to Use This <?= htmlspecialchars($book_name) ?> MCQs Page</h2>
+                <h3>A Practical Chapter-Wise Revision Routine</h3>
+                <p>
+                    Select one chapter, attempt a manageable number of questions, and review every mistake before moving on. Return to the relevant textbook section when an answer or explanation is unclear.
+                </p>
+
+                <h2>How to Use This <?= htmlspecialchars($book_name) ?> MCQ Page</h2>
                 <ol>
-                    <li><strong>Set the number of MCQs</strong> — enter a value between 1 and 100 in the input field above. We recommend 20–50 for a balanced session that is thorough but not exhausting.</li>
-                    <li><strong>Select chapters (optional)</strong> — tick the chapters you want to focus on, or leave all unselected to include every chapter in the book.</li>
-                    <li><strong>Start the quiz</strong> — click "Start Quiz" and answer each MCQ carefully. The system records your answers and times the session.</li>
-                    <li><strong>Review your results</strong> — after submission, you will see your score, the correct answers and brief explanations for each question.</li>
-                    <li><strong>Repeat weaker chapters</strong> — go back, select the chapters where you scored below 80 %, and retake the quiz until you reach full marks.</li>
+                    <li><strong>Choose a quiz length</strong> that you can complete and review carefully.</li>
+                    <li><strong>Select chapters</strong> that match what you have studied, or use the available full-book selection.</li>
+                    <li><strong>Complete the quiz</strong> without checking notes when you want a realistic self-assessment.</li>
+                    <li><strong>Review the result</strong> and verify uncertain answers with a textbook or teacher.</li>
+                    <li><strong>Repeat weak chapters</strong> after revising the concepts you missed.</li>
                 </ol>
 
-                <h2>Important MCQs & Guess MCQs for <?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?></h2>
+                <h2>Important MCQs for <?= htmlspecialchars($class_name) ?> <?= htmlspecialchars($book_name) ?></h2>
                 <p>
-                    Every year, students across Pakistan search for <strong><?= htmlspecialchars(strtolower($class_name)) ?> <?= htmlspecialchars(strtolower($book_name)) ?> important MCQs</strong> and <strong>guess MCQs</strong> in the hope of predicting board questions. While no one can guarantee which exact MCQs will appear, analysis of the last five years' board papers reveals clear patterns: certain concepts are repeated almost every year. Our quiz bank flags these high-frequency questions, giving you a data-driven edge over students who rely on rumour-based guessing.
-                </p>
-                <p>
-                    For example, in <strong>Physics</strong>, MCQs on SI units, Newton's laws and Ohm's law appear in nearly every board paper. In <strong>Chemistry</strong>, the periodic table, chemical bonding and organic chemistry functional groups are perennial favourites. In <strong>Biology</strong>, cell structure, genetics and ecosystem-related MCQs dominate. Our system prioritises these topics when generating quizzes, so your revision time is invested where it matters most.
+                    No practice website can reliably predict the questions that will appear in an examination. Use this question bank to test concepts from the available chapters, and use official past papers when you want to study recurring examination patterns.
                 </p>
 
-                <h2>Solved MCQs with Explanations — Learn, Don't Just Memorise</h2>
+                <h2>Review Answers, Not Only Scores</h2>
                 <p>
-                    Many students treat MCQs as a "tick the right answer" exercise. On Ahmad Learning Hub, every MCQ includes a brief explanation that tells you <em>why</em> an answer is correct. This transforms passive answering into active learning. The next time a similar concept appears in a different form — as boards often rephrase questions year to year — you will recognise the underlying principle and answer correctly, even if the exact wording has changed.
+                    Do not treat an MCQ as only a choice of letters. Where an explanation is available, use it to understand the underlying idea. Some stored or AI-generated questions may not include a complete explanation, so confirm uncertain answers with reliable course material.
                 </p>
 
-                <div class="blog-quote">
-                    "The goal is not to memorise 500 answers — it is to understand 50 concepts so deeply that you can answer 500 different questions."
-                </div>
-
-                <h2>How Funny Mode Improves Your Scores — And Helps in SEO</h2>
+                <h2>Using Funny Mode Responsibly</h2>
                 <p>
-                    Ahmad Learning Hub offers a one-of-a-kind <strong>funny mode</strong> that rewrites answer explanations with humour, real-life analogies and pop-culture references. Why does this matter? A landmark study in the <em>Journal of Experimental Psychology</em> found that information delivered with humour is retained 20 % better than the same information presented in a dry, textbook style. Laughter triggers dopamine release in the hippocampus — the part of the brain responsible for forming long-term memories. So when you read an explanation like "Think of covalent bonding as two friends sharing their last packet of chips — neither wants to give theirs away, so they hold it together", that image sticks in your mind far longer than "covalent bonding involves the sharing of electron pairs between atoms".
-                </p>
-                <p>
-                    From an <strong>SEO and website ranking perspective</strong>, funny mode creates measurable benefits. Students who enjoy the quiz stay on the page longer (increasing <strong>dwell time</strong>), attempt more quizzes per visit (reducing <strong>bounce rate</strong>) and share funny explanations on WhatsApp, Facebook and Instagram (generating <strong>natural backlinks and social signals</strong>). Google's helpful-content system rewards pages that genuinely satisfy user intent, and a quiz that makes students laugh <em>and</em> learn clearly outperforms a static PDF of MCQs. Furthermore, the humorous text is unique content that no competitor website offers, giving Ahmad Learning Hub a distinct advantage in <strong>topical authority</strong> for keywords like <strong><?= htmlspecialchars(strtolower($class_name)) ?> <?= htmlspecialchars(strtolower($book_name)) ?> MCQs</strong>, <strong>chapter wise online MCQs test</strong> and <strong>online MCQs Pakistan</strong>.
+                    Funny mode presents some explanations with simple humour or familiar analogies. It can make revision less repetitive, but the standard explanation and your textbook should remain the main reference. If a humorous explanation is unclear, switch back to the standard version and verify the concept.
                 </p>
 
                 <h2>Who Is This Page For?</h2>
                 <ul>
-                    <li><strong>Matric & FSc Students (Pakistan)</strong> — preparing for <strong>Punjab Board</strong>, <strong>Federal Board (FBISE)</strong>, <strong>Sindh Board</strong> or <strong>KPK Board</strong> exams. Whether you need <strong>matric part 1 MCQs</strong>, <strong>matric part 2 MCQs</strong>, <strong>FSc part 1 MCQs</strong> or <strong>FSc part 2 MCQs</strong>, this page has you covered.</li>
-                    <li><strong>CBSE Students (India)</strong> — looking for <strong>class 9 science MCQs</strong>, <strong>class 10 science online test</strong>, <strong>cbse class 11 physics MCQs</strong>, <strong>cbse class 12 MCQs</strong> or <strong>class 12 board exam MCQs</strong>.</li>
-                    <li><strong>MDCAT / ECAT / NEET Aspirants</strong> — our chapter wise MCQs for class 11 and 12 align closely with the entrance test syllabi, making this a dual-purpose revision tool.</li>
-                    <li><strong>Teachers & Tutors</strong> — use our quizzes as ready-made class tests or homework assignments with instant grading.</li>
+                    <li><strong>Class 9-12 students</strong> practising subjects and chapters available in the question bank.</li>
+                    <li><strong>Independent learners</strong> using short quizzes for self-checking after studying a topic.</li>
+                    <li><strong>Teachers and tutors</strong> using the quiz as an informal activity after reviewing the selected questions.</li>
                 </ul>
 
-                <h2>Tips to Maximise Your Score with This MCQs Test</h2>
+                <h2>Tips for Better MCQ Practice</h2>
                 <ol>
-                    <li><strong>Read the textbook chapter first</strong> — focus on "Do You Know?" boxes, summary tables and key definitions before attempting MCQs.</li>
-                    <li><strong>Start with 20 MCQs per chapter</strong> — this is enough to cover the key concepts without causing fatigue.</li>
-                    <li><strong>Use funny mode for difficult chapters</strong> — the humorous explanations make hard topics feel approachable and memorable.</li>
-                    <li><strong>Retake until you score 90 %+</strong> — our questions are randomised each time, so every attempt is a fresh challenge.</li>
-                    <li><strong>Track your weak areas</strong> — if you consistently score low on a specific chapter, revisit the textbook and then retake the quiz.</li>
-                    <li><strong>Simulate exam timing</strong> — board exams give roughly 1 minute per MCQ; set a personal timer accordingly.</li>
+                    <li>Read the relevant textbook chapter before attempting a quiz.</li>
+                    <li>Use smaller sets when you need time to review every answer.</li>
+                    <li>Record topics you repeatedly answer incorrectly.</li>
+                    <li>Return after revision and compare your new result.</li>
+                    <li>Use official board material to confirm the current syllabus and exam format.</li>
                 </ol>
 
                 <h2>Frequently Asked Questions</h2>
