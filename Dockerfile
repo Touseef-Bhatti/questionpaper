@@ -18,6 +18,9 @@ RUN apt-get update \
         libicu-dev \
         default-mysql-client \
         libssl-dev \
+        poppler-utils \
+        tesseract-ocr \
+        tesseract-ocr-eng \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j"$(nproc)" gd pdo pdo_mysql mysqli mbstring intl xml zip opcache bcmath \
     && pecl install redis \

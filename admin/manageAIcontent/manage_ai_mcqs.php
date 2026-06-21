@@ -606,6 +606,73 @@ $csrfToken = generateCSRFToken();
         .btn-check-ai.loading .spinner-sm {
             display: inline-block;
         }
+
+        @media (max-width: 768px) {
+            .ai-mcqs-container {
+                padding: 1rem;
+            }
+
+            .ai-mcqs-header,
+            .topic-rename-form,
+            .filter-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .ai-mcqs-header h1 {
+                font-size: 1.6rem;
+                line-height: 1.2;
+            }
+
+            .ai-summary {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+
+            .topic-search-bar input,
+            .topic-rename-form input,
+            .filter-form select,
+            .filter-form input,
+            .filter-form button,
+            .btn {
+                width: 100%;
+            }
+
+            .topic-table-wrapper {
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .topic-table,
+            .mcq-table {
+                display: block;
+                max-width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .mcq-table th,
+            .mcq-table td {
+                padding: 0.65rem;
+                font-size: 0.85rem;
+            }
+
+            .ai-actions {
+                flex-direction: column;
+            }
+
+            .ai-actions form {
+                width: 100%;
+            }
+
+            .edit-row form {
+                grid-template-columns: 1fr;
+            }
+
+            .ai-loader-box {
+                padding: 1.25rem;
+            }
+        }
     </style>
 
 

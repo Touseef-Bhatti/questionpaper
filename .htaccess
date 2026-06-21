@@ -1,6 +1,15 @@
 # Force PHP 8.1 for this subdomain
 AddHandler application/x-httpd-ea-php81 .php
 
+<IfModule php_module>
+    php_value upload_max_filesize 128M
+    php_value post_max_size 140M
+    php_value memory_limit 512M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_flag display_errors Off
+</IfModule>
+
 # Default index file
 DirectoryIndex index.php
 
@@ -18,7 +27,7 @@ Options -Indexes
 </FilesMatch>
 
 # Block maintenance and development scripts from public requests.
-<FilesMatch "^(install|test_mailhog|show_mcqs_table|setup_.*|debug_.*|test_.*|fix_.*|migrate.*|run_migration|add_column)\.(php|js)$">
+<FilesMatch "^(test_mailhog|show_mcqs_table|setup_.*|debug_.*|test_.*|fix_.*|migrate.*|run_migration|add_column)\.(php|js)$">
     Require all denied
 </FilesMatch>
 
@@ -27,6 +36,9 @@ Options -Indexes
     RewriteEngine On
     RewriteBase /
     Options -MultiViews
+
+    # Keep the admin book-question generator endpoints addressable by their exact PHP paths.
+    RewriteRule ^admin/manageBookQuestions/(?:generate_from_book|api)\.php$ - [L,NC]
 
     # Application internals are not public content.
     RewriteRule ^(?:tests?|database|migrations|cron|logs|storage|scratch|config|includes|middleware|repositories|services)(?:/|$) - [F,L,NC]
@@ -154,7 +166,7 @@ Options -Indexes
     RewriteRule ^class-?([0-9]+)-all-subjects-mcqs-with-answers/?$ /class-$1-all-subjects-mcqs-with-explanations [R=301,L]
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapter-wise-mcqs-with-explanations/?$ notes/Mcqs/chapters.php?class_id=$1&book_name=$2 [QSA,NC,L]
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapter-wise-mcqs-with-answers/?$ /class-$1-$2-chapter-wise-mcqs-with-explanations [R=301,L]
-    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-(.+)-mcqs-with-explanations/?$ notes/Mcqs/chapters.php?class_id=$1&book_name=$2&chapter_slug=$3 [QSA,NC,L]
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-(.+)-mcqs-with-explanations/?$ notes/Mcqs/chapter.php?class_id=$1&book_name=$2&chapter_slug=$3 [QSA,NC,L]
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-(.+)-mcqs-with-answers/?$ /class-$1-$2-$3-mcqs-with-explanations [R=301,L]
     RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ /class-$1-$2-chapter-wise-mcqs-with-explanations [R=301,L]
 

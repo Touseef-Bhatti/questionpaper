@@ -134,6 +134,18 @@ include_once __DIR__ . '/header.php';
     .edit-submit { background: #16a34a; color: #fff; }
     .empty { padding: 40px 24px; text-align: center; color: #64748b; font-weight: 600; }
     @media (max-width: 900px) { .feedback { max-width: 260px; } }
+    @media (max-width: 768px) {
+        .admin-container { padding: 12px; }
+        .top-row { flex-direction: column; align-items: stretch; }
+        .top-row h1 { font-size: 1.6rem; line-height: 1.2; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: max-content; min-width: 100%; max-width: none; table-layout: auto; }
+        th, td { padding: 10px; font-size: 0.9rem; white-space: nowrap; overflow-wrap: normal; }
+        .feedback { max-width: 280px; }
+        .actions { flex-direction: column; }
+        .actions form, .actions button, .actions .btn { width: 100%; }
+        .edit-grid { grid-template-columns: 1fr; }
+    }
 </style>
 
 <div class="admin-container">

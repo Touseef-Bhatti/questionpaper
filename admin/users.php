@@ -45,6 +45,24 @@ include_once __DIR__ . '/header.php';
         .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
         .badge-success { background: #d4edda; color: #155724; }
         .badge-warning { background: #fff3cd; color: #856404; }
+        @media (max-width: 768px) {
+            .admin-container { padding: 12px; }
+            .admin-container h1 { font-size: 1.6rem; line-height: 1.2; }
+            table {
+                display: block;
+                max-width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            th, td {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+            button {
+                width: 100%;
+                margin: 0 0 6px 0;
+            }
+        }
     </style>
     
 

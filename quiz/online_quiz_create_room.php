@@ -74,8 +74,25 @@ $custom_mcqs = array_filter($custom_mcqs, function($mcq) {
 });
 
 $selected_mcq_ids = [];
+$selected_book_mcq_ids = [];
 if (!empty($selected_mcq_ids_str)) {
-    $selected_mcq_ids = array_filter(array_map('intval', explode(',', $selected_mcq_ids_str)));
+    foreach (explode(',', $selected_mcq_ids_str) as $rawId) {
+        $rawId = trim((string)$rawId);
+        if ($rawId === '') {
+            continue;
+        }
+        if (strpos($rawId, 'book_') === 0) {
+            $bookMcqId = intval(substr($rawId, 5));
+            if ($bookMcqId > 0) {
+                $selected_book_mcq_ids[] = $bookMcqId;
+            }
+        } elseif (is_numeric($rawId)) {
+            $mcqId = intval($rawId);
+            if ($mcqId > 0) {
+                $selected_mcq_ids[] = $mcqId;
+            }
+        }
+    }
 }
 
 $hasAnyCustom = false;
@@ -93,13 +110,13 @@ foreach ($custom_mcqs as $mcq) {
 }
 
 // Validation rules
-if ($mcq_count <= 0 && !$hasAnyCustom && empty($topics) && empty($selected_mcq_ids)) {
+if ($mcq_count <= 0 && !$hasAnyCustom && empty($topics) && empty($selected_mcq_ids) && empty($selected_book_mcq_ids)) {
     respond_error('Please select at least 1 Random MCQ, add at least 1 Custom MCQ, or select specific questions.');
 }
 
 // Calculate if we need to generate random questions
 $custom_count = count($custom_mcqs);
-$selected_count = count($selected_mcq_ids);
+$selected_count = count($selected_mcq_ids) + count($selected_book_mcq_ids);
 $actual_manual_count = $custom_count + $selected_count;
 
 // We only REQUIRE Class/Book if the user hasn't provided enough custom/selected questions to meet their target mcq_count
@@ -170,12 +187,30 @@ if (!empty($selected_mcq_ids)) {
     $stmt->close();
 }
 
+if (!empty($selected_book_mcq_ids)) {
+    $placeholders = str_repeat('?,', count($selected_book_mcq_ids) - 1) . '?';
+    $types = str_repeat('i', count($selected_book_mcq_ids));
+
+    $stmt = $conn->prepare("SELECT CONCAT('book_', mcq_id) AS mcq_id, question, option_a, option_b, option_c, option_d, correct_option, '' AS explanation FROM mcqs_from_book WHERE mcq_id IN ($placeholders)");
+    if ($stmt) {
+        $stmt->bind_param($types, ...$selected_book_mcq_ids);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $selectedQuestions[] = $row;
+        }
+        $stmt->close();
+    }
+}
+
 // 2. Fill remainder if needed (exact target count)
 $remaining_needed = $mcq_count - count($selectedQuestions) - count($custom_mcqs);
 
 if ($remaining_needed > 0) {
     // Exclude already selected IDs
-    $exclude_ids = $selected_mcq_ids; 
+    $exclude_ids = array_merge($selected_mcq_ids, array_map(function($id) {
+        return 'book_' . $id;
+    }, $selected_book_mcq_ids));
     
     if (!empty($topics)) {
         // Normalize topics
@@ -222,6 +257,58 @@ if ($remaining_needed > 0) {
                 $stmt->close();
             }
         } catch (Exception $e) {}
+
+        // 1b. Also fetch matching MCQs generated from uploaded books.
+        $still_needed_from_book = $mcq_count - count($selectedQuestions) - count($custom_mcqs);
+        if ($still_needed_from_book > 0) {
+            $bookTopicParts = [];
+            $bookTypes = '';
+            $bookParams = [];
+            foreach ($normalizedTopics as $topicName) {
+                $bookTopicParts[] = "(m.question LIKE ? OR c.chapter_name LIKE ?)";
+                $like = '%' . trim((string)$topicName) . '%';
+                $bookParams[] = $like;
+                $bookParams[] = $like;
+                $bookTypes .= 'ss';
+            }
+
+            $bookExcludeIds = [];
+            foreach ($exclude_ids as $eid) {
+                if (strpos((string)$eid, 'book_') === 0) {
+                    $bookExcludeIds[] = intval(substr((string)$eid, 5));
+                }
+            }
+            $bookExcludeClause = "";
+            if (!empty($bookExcludeIds)) {
+                $bookExPlaceholders = str_repeat('?,', count($bookExcludeIds) - 1) . '?';
+                $bookExcludeClause = " AND m.mcq_id NOT IN ($bookExPlaceholders) ";
+                $bookTypes .= str_repeat('i', count($bookExcludeIds));
+                $bookParams = array_merge($bookParams, $bookExcludeIds);
+            }
+
+            $bookSql = "SELECT CONCAT('book_', m.mcq_id) AS mcq_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d,
+                               m.correct_option, '' AS explanation
+                        FROM mcqs_from_book m
+                        LEFT JOIN chapter c ON c.chapter_id = m.chapter_id
+                        WHERE (" . implode(' OR ', $bookTopicParts) . ") $bookExcludeClause
+                        ORDER BY RAND() LIMIT ?";
+            $bookParams[] = $still_needed_from_book;
+            $bookTypes .= 'i';
+
+            try {
+                $stmt = $conn->prepare($bookSql);
+                if ($stmt) {
+                    $stmt->bind_param($bookTypes, ...$bookParams);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    while ($row = $result->fetch_assoc()) {
+                        $selectedQuestions[] = $row;
+                        $exclude_ids[] = $row['mcq_id'];
+                    }
+                    $stmt->close();
+                }
+            } catch (Exception $e) {}
+        }
 
         // 1b. If still needed, fetch from AIGeneratedMCQs table
         $still_needed_from_db = $mcq_count - count($selectedQuestions) - count($custom_mcqs);

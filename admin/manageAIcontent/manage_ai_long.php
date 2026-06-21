@@ -259,6 +259,17 @@ $csrfToken = generateCSRFToken();
         .pagination { margin: 1rem 0; text-align: center; }
         .pagination a { display: inline-block; margin: 0 3px; padding: 0.3rem 0.6rem; border: 1px solid #007bff; color: #007bff; text-decoration: none; border-radius: 4px; }
         .pagination a.active, .pagination a:hover { background: #007bff; color: #fff; }
+        @media (max-width: 768px) {
+            .ai-container { padding: 1rem; }
+            .ai-header { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+            .ai-header h1 { font-size: 1.6rem; line-height: 1.2; }
+            .ai-summary { grid-template-columns: 1fr; }
+            .btn { width: 100%; text-align: center; margin-bottom: 0.35rem; }
+            .data-table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .data-table th, .data-table td { padding: 0.65rem; font-size: 0.85rem; }
+            form[method="GET"] { flex-direction: column !important; align-items: stretch !important; }
+            form[method="GET"] input, form[method="GET"] select, form[method="GET"] button { width: 100%; }
+        }
     </style>
 </head>
 <body>

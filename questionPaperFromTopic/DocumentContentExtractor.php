@@ -142,6 +142,151 @@ class DocumentContentExtractor
         return trim($text);
     }
 
+    private static function commandExists(string $command): bool
+    {
+        $command = trim($command);
+        if ($command === '') {
+            return false;
+        }
+        $check = (stripos(PHP_OS_FAMILY, 'Windows') === 0)
+            ? ('where ' . escapeshellarg($command) . ' 2>NUL')
+            : ('command -v ' . escapeshellarg($command) . ' 2>/dev/null');
+        $out = @shell_exec($check);
+        return is_string($out) && trim($out) !== '';
+    }
+
+    private static function stderrToNull(): string
+    {
+        return (stripos(PHP_OS_FAMILY, 'Windows') === 0) ? ' 2>NUL' : ' 2>/dev/null';
+    }
+
+    /**
+     * @return array{ok:bool,error?:string,page_count?:int}
+     */
+    public static function getPdfPageCount(string $path): array
+    {
+        if (!is_readable($path)) {
+            return ['ok' => false, 'error' => 'PDF file is not readable.'];
+        }
+        if (!self::commandExists('pdfinfo')) {
+            return ['ok' => false, 'error' => 'Local PDF tool pdfinfo is not installed on the server. Install poppler-utils, then try again.'];
+        }
+
+        $cmd = 'pdfinfo ' . escapeshellarg($path) . ' 2>&1';
+        $out = @shell_exec($cmd);
+        if (!is_string($out) || trim($out) === '') {
+            return ['ok' => false, 'error' => 'Could not read PDF page count with pdfinfo.'];
+        }
+        if (preg_match('/^Pages:\s*(\d+)\s*$/mi', $out, $m)) {
+            $pages = (int) $m[1];
+            if ($pages > 0) {
+                return ['ok' => true, 'page_count' => $pages];
+            }
+        }
+
+        return ['ok' => false, 'error' => 'Could not parse PDF page count from pdfinfo output.'];
+    }
+
+    /**
+     * Extract text from a PDF, optionally limited to a 1-based page range.
+     */
+    public static function extractPdfText(string $path, ?int $startPage = null, ?int $endPage = null): string
+    {
+        if (!is_readable($path)) {
+            return '';
+        }
+
+        if (self::commandExists('pdftotext')) {
+            $parts = ['pdftotext', '-layout', '-enc', 'UTF-8'];
+            if ($startPage !== null && $endPage !== null) {
+                $parts[] = '-f';
+                $parts[] = (string) max(1, $startPage);
+                $parts[] = '-l';
+                $parts[] = (string) max(max(1, $startPage), $endPage);
+            }
+            $parts[] = $path;
+            $parts[] = '-';
+
+            $escaped = array_map(static function (string $part): string {
+                return escapeshellarg($part);
+            }, $parts);
+            $cmd = implode(' ', $escaped) . self::stderrToNull();
+            $text = @shell_exec($cmd);
+            if (is_string($text)) {
+                $text = str_replace("\r\n", "\n", $text);
+                $text = preg_replace("/[\x00-\x08\x0B\x0C\x0E-\x1F]/u", '', $text);
+                $text = preg_replace("/[ \t]+\n/", "\n", $text);
+                $text = preg_replace("/\n{4,}/", "\n\n\n", $text);
+                $text = trim((string) $text);
+                if (mb_strlen($text) >= self::MIN_TEXT_CHARS) {
+                    return $text;
+                }
+            }
+        }
+
+        return self::ocrPdfText($path, $startPage, $endPage);
+    }
+
+    /**
+     * OCR image-based PDF pages locally with Poppler + Tesseract.
+     */
+    private static function ocrPdfText(string $path, ?int $startPage = null, ?int $endPage = null): string
+    {
+        if (!self::commandExists('pdftoppm') || !self::commandExists('tesseract')) {
+            return '';
+        }
+
+        $start = max(1, (int) ($startPage ?? 1));
+        $end = max($start, (int) ($endPage ?? $start));
+        $tmpBase = sys_get_temp_dir() . '/pdfocr_' . bin2hex(random_bytes(6));
+        $prefix = $tmpBase . '/page';
+        if (!@mkdir($tmpBase, 0700, true)) {
+            return '';
+        }
+
+        $cmdParts = [
+            'pdftoppm',
+            '-f',
+            (string) $start,
+            '-l',
+            (string) $end,
+            '-r',
+            '180',
+            '-png',
+            $path,
+            $prefix,
+        ];
+        $cmd = implode(' ', array_map(static function (string $part): string {
+            return escapeshellarg($part);
+        }, $cmdParts)) . self::stderrToNull();
+        @shell_exec($cmd);
+
+        $images = glob($prefix . '-*.png');
+        if (!is_array($images) || $images === []) {
+            @rmdir($tmpBase);
+            return '';
+        }
+        sort($images, SORT_NATURAL);
+
+        $chunks = [];
+        foreach ($images as $image) {
+            $ocrCmd = 'tesseract ' . escapeshellarg($image) . ' stdout -l eng --psm 6' . self::stderrToNull();
+            $chunk = @shell_exec($ocrCmd);
+            if (is_string($chunk) && trim($chunk) !== '') {
+                $chunks[] = trim($chunk);
+            }
+            @unlink($image);
+        }
+        @rmdir($tmpBase);
+
+        $text = implode("\n\n", $chunks);
+        $text = str_replace("\r\n", "\n", $text);
+        $text = preg_replace("/[\x00-\x08\x0B\x0C\x0E-\x1F]/u", '', $text);
+        $text = preg_replace("/[ \t]+\n/", "\n", (string) $text);
+        $text = preg_replace("/\n{4,}/", "\n\n\n", (string) $text);
+        return trim((string) $text);
+    }
+
     /**
      * @return array{mode:string,text?:string,mime?:string,path?:string,ext?:string}
      */
@@ -153,6 +298,17 @@ class DocumentContentExtractor
         // TXT — direct text read
         if ($ext === 'txt') {
             $text = self::extractTxtText($localPath);
+            if (mb_strlen($text) < self::MIN_TEXT_CHARS) {
+                return ['mode' => 'binary', 'mime' => $mime, 'path' => $localPath, 'ext' => $ext];
+            }
+            if (mb_strlen($text) > self::MAX_TEXT_FOR_PROMPT) {
+                $text = mb_substr($text, 0, self::MAX_TEXT_FOR_PROMPT) . "\n\n[... content truncated ...]";
+            }
+            return ['mode' => 'text', 'text' => $text, 'ext' => $ext];
+        }
+
+        if ($ext === 'pdf') {
+            $text = self::extractPdfText($localPath);
             if (mb_strlen($text) < self::MIN_TEXT_CHARS) {
                 return ['mode' => 'binary', 'mime' => $mime, 'path' => $localPath, 'ext' => $ext];
             }

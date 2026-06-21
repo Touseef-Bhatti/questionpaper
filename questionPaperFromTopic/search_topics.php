@@ -72,6 +72,23 @@ if (in_array('mcqs', $types) || in_array('all', $types)) {
         }
         $stmt->close();
     }
+
+    $stmt = $conn->prepare("
+        SELECT DISTINCT c.chapter_name
+        FROM mcqs_from_book m
+        LEFT JOIN chapter c ON c.chapter_id = m.chapter_id
+        WHERE c.chapter_name LIKE ? OR m.question LIKE ?
+        LIMIT 50
+    ");
+    if ($stmt) {
+        $stmt->bind_param('ss', $term, $term);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $topics[] = $row['chapter_name'];
+        }
+        $stmt->close();
+    }
 }
 
 $otherTypes = array_filter($types, function ($t) {
@@ -86,6 +103,17 @@ if (!empty($otherTypes)) {
         $stmt = $conn->prepare("SELECT DISTINCT topic FROM questions WHERE question_type = ? AND topic LIKE ? LIMIT 50");
         if ($stmt) {
             $stmt->bind_param('ss', $ot, $term);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $topics[] = $row['topic'];
+            }
+            $stmt->close();
+        }
+
+        $stmt = $conn->prepare("SELECT DISTINCT topic FROM questions_from_book WHERE question_type = ? AND (topic LIKE ? OR question_text LIKE ?) LIMIT 50");
+        if ($stmt) {
+            $stmt->bind_param('sss', $ot, $term, $term);
             $stmt->execute();
             $result = $stmt->get_result();
             while ($row = $result->fetch_assoc()) {

@@ -237,6 +237,39 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS `mcqs` (
     PRIMARY KEY (`mcq_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: mcqs");
 
+// Book-upload generated MCQs (same schema as mcqs)
+runQuery($conn, "CREATE TABLE IF NOT EXISTS `mcqs_from_book` (
+    `mcq_id` int(11) NOT NULL AUTO_INCREMENT,
+    `class_id` int(11) NOT NULL,
+    `book_id` int(11) NOT NULL,
+    `chapter_id` int(11) NOT NULL,
+    `question` text NOT NULL,
+    `option_a` text NOT NULL,
+    `option_b` text NOT NULL,
+    `option_c` text NOT NULL,
+    `option_d` text NOT NULL,
+    `correct_option` enum('A','B','C','D') NOT NULL,
+    `difficulty_level` enum('Easy','Medium','Hard') DEFAULT 'Medium',
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`mcq_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: mcqs_from_book");
+
+// Book-upload generated short/long questions (same schema as questions)
+runQuery($conn, "CREATE TABLE IF NOT EXISTS questions_from_book (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    class_id INT NOT NULL,
+    book_id INT NOT NULL,
+    chapter_id INT NOT NULL,
+    question_type ENUM('short', 'long', 'mcq') NOT NULL DEFAULT 'short',
+    question_text TEXT NOT NULL,
+    topic VARCHAR(255) DEFAULT NULL,
+    book_name VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES class(class_id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES book(book_id) ON DELETE CASCADE,
+    FOREIGN KEY (chapter_id) REFERENCES chapter(chapter_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: questions_from_book");
+
 // 8.0 AI Questions Topic (Normalized Topic Storage) - MUST be before AIGeneratedMCQs
 runQuery($conn, "CREATE TABLE IF NOT EXISTS AIQuestionsTopic (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -719,6 +752,19 @@ createIndexIfNotExists($conn, "mcqs", "idx_mcqs_chapter", "chapter_id");
 createIndexIfNotExists($conn, "mcqs", "idx_mcqs_book", "book_id");
 createIndexIfNotExists($conn, "mcqs", "idx_mcqs_class", "class_id");
 createIndexIfNotExists($conn, "mcqs", "idx_mcqs_class_book_chapter", "class_id, book_id, chapter_id");
+
+// mcqs_from_book Indexes
+createIndexIfNotExists($conn, "mcqs_from_book", "idx_mcqs_from_book_chapter", "chapter_id");
+createIndexIfNotExists($conn, "mcqs_from_book", "idx_mcqs_from_book_book", "book_id");
+createIndexIfNotExists($conn, "mcqs_from_book", "idx_mcqs_from_book_class", "class_id");
+createIndexIfNotExists($conn, "mcqs_from_book", "idx_mcqs_from_book_class_book_chapter", "class_id, book_id, chapter_id");
+
+// questions_from_book Indexes
+createIndexIfNotExists($conn, "questions_from_book", "idx_questions_from_book_chapter", "chapter_id");
+createIndexIfNotExists($conn, "questions_from_book", "idx_questions_from_book_book", "book_id");
+createIndexIfNotExists($conn, "questions_from_book", "idx_questions_from_book_class", "class_id");
+createIndexIfNotExists($conn, "questions_from_book", "idx_questions_from_book_type_chapter", "question_type, chapter_id");
+createIndexIfNotExists($conn, "questions_from_book", "idx_questions_from_book_class_book_chapter", "class_id, book_id, chapter_id, question_type");
 
 // Question Papers Indexes
 createIndexIfNotExists($conn, "question_papers", "idx_papers_user", "user_id");

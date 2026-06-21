@@ -257,6 +257,27 @@ include_once __DIR__ . '/header.php';
         .btn-small.btn-delete:hover { background: #c82333; }
         
         .empty-state { text-align: center; padding: 40px; color: #6b7280; }
+        @media (max-width: 768px) {
+            .admin-container { padding: 12px; }
+            .admin-container h1 { font-size: 1.6rem; line-height: 1.2; }
+            .form-section { padding: 18px; }
+            .form-row { grid-template-columns: 1fr; }
+            table {
+                display: block;
+                max-width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            th, td {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+            .btn-small,
+            button[type="submit"] {
+                width: 100%;
+                margin-bottom: 6px;
+            }
+        }
     </style>
 
     <div class="admin-container">

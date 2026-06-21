@@ -186,6 +186,93 @@ function adminPageHeader($title, $requiredRole = 'admin') {
                 font-size: 0.75rem;
                 padding: 0.25rem 0.5rem;
             }
+            .admin-header .row {
+                gap: 1rem;
+            }
+            .admin-header .col-auto {
+                display: flex;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+            .admin-nav .nav {
+                gap: 0.35rem;
+                flex-wrap: wrap;
+            }
+            .admin-nav .nav-link {
+                border-radius: 999px;
+            }
+            .container,
+            .container-fluid {
+                max-width: 100%;
+            }
+            table {
+                overflow-wrap: anywhere;
+            }
+            @media (max-width: 768px) {
+                body {
+                    overflow-x: hidden;
+                }
+                .admin-header {
+                    padding: 0.85rem 0;
+                    margin-bottom: 1rem;
+                }
+                .admin-header h1 {
+                    font-size: 1.35rem;
+                    line-height: 1.25;
+                }
+                .admin-header .row {
+                    flex-direction: column;
+                    align-items: flex-start !important;
+                }
+                .admin-header .col-auto {
+                    width: 100%;
+                    justify-content: flex-start;
+                }
+                .admin-header .btn {
+                    flex: 1 1 140px;
+                }
+                .admin-nav {
+                    margin-bottom: 1rem;
+                }
+                .admin-nav .nav {
+                    flex-wrap: nowrap;
+                    overflow-x: auto;
+                    padding-bottom: 0.35rem;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .admin-nav .nav-link {
+                    flex: 0 0 auto;
+                    white-space: nowrap;
+                }
+                .container,
+                .container-fluid {
+                    padding-left: 0.75rem;
+                    padding-right: 0.75rem;
+                }
+                .card,
+                .modal-content {
+                    border-radius: 0.75rem;
+                }
+                .table-responsive {
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .table-responsive > table {
+                    width: max-content;
+                    min-width: 100%;
+                    max-width: none;
+                    white-space: nowrap;
+                }
+                table {
+                    table-layout: auto;
+                }
+                th,
+                td {
+                    white-space: nowrap;
+                    overflow-wrap: normal;
+                }
+            }
         </style>
     </head>
     <body>

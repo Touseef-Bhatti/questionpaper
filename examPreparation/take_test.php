@@ -1,6 +1,7 @@
 <?php
 session_start();
 include '../db_connect.php';
+require_once '../services/QuestionService.php';
 
 // --- POST Action Handlers ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -11,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_answer') {
         header('Content-Type: application/json');
         $type = $jsonInput['type'] ?? '';
-        $id = intval($jsonInput['id'] ?? 0);
+        $id = preg_replace('/[^A-Za-z0-9_:-]/', '', (string)($jsonInput['id'] ?? ''));
         $answer = $jsonInput['answer'] ?? '';
 
         if (!isset($_SESSION['test_answers'])) {
@@ -26,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save_mcq_result') {
         header('Content-Type: application/json');
-        $id = intval($jsonInput['id'] ?? 0);
+        $id = preg_replace('/[^A-Za-z0-9_:-]/', '', (string)($jsonInput['id'] ?? ''));
         $isCorrect = $jsonInput['isCorrect'] ?? false;
         $selected = $jsonInput['selected'] ?? '';
 
@@ -55,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Save subjective answers
         foreach ($answers as $a) {
             $type = $a['type'] ?? '';
-            $id = intval($a['id'] ?? 0);
+            $id = preg_replace('/[^A-Za-z0-9_:-]/', '', (string)($a['id'] ?? ''));
             $val = $a['answer'] ?? '';
             if ($type && $id) {
                 $_SESSION['test_answers'][$type][$id] = $val;
@@ -64,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Save MCQ results
         foreach ($mcqResults as $mcq) {
-            $id = intval($mcq['id'] ?? 0);
+            $id = preg_replace('/[^A-Za-z0-9_:-]/', '', (string)($mcq['id'] ?? ''));
             if ($id) {
                 $_SESSION['test_answers']['mcqs'][$id] = [
                     'isCorrect' => $mcq['isCorrect'] ?? false,
@@ -187,20 +188,59 @@ if ($cachedData && is_array($cachedData)) {
 function fetchRandomQuestions($class_id, $book_id, $chapter_ids, $mcq_c, $short_c, $long_c) {
     global $conn;
     $data = ['mcqs' => [], 'short' => [], 'long' => []];
-    $where_chapters = $chapter_ids ? "AND chapter_id IN ($chapter_ids)" : "";
 
-    if ($mcq_c > 0) {
-        $res = $conn->query("SELECT * FROM mcqs WHERE class_id=$class_id AND book_id=$book_id $where_chapters ORDER BY RAND() LIMIT $mcq_c");
-        while ($r = $res->fetch_assoc()) $data['mcqs'][] = $r;
+    $bookName = '';
+    $bookStmt = $conn->prepare("SELECT book_name FROM book WHERE book_id = ? LIMIT 1");
+    if ($bookStmt) {
+        $bookStmt->bind_param('i', $book_id);
+        $bookStmt->execute();
+        $bookRow = $bookStmt->get_result()->fetch_assoc();
+        $bookName = $bookRow['book_name'] ?? '';
+        $bookStmt->close();
     }
-    if ($short_c > 0) {
-        $res = $conn->query("SELECT * FROM questions WHERE class_id=$class_id AND book_id=$book_id AND question_type='short' $where_chapters ORDER BY RAND() LIMIT $short_c");
-        while ($r = $res->fetch_assoc()) $data['short'][] = $r;
+
+    $chapterIds = array_values(array_filter(array_map('intval', explode(',', (string)$chapter_ids))));
+    if (empty($chapterIds)) {
+        $chapterStmt = $conn->prepare("SELECT chapter_id FROM chapter WHERE class_id = ? AND book_id = ?");
+        if ($chapterStmt) {
+            $chapterStmt->bind_param('ii', $class_id, $book_id);
+            $chapterStmt->execute();
+            $chapterResult = $chapterStmt->get_result();
+            while ($row = $chapterResult->fetch_assoc()) {
+                $chapterIds[] = intval($row['chapter_id']);
+            }
+            $chapterStmt->close();
+        }
     }
-    if ($long_c > 0) {
-        $res = $conn->query("SELECT * FROM questions WHERE class_id=$class_id AND book_id=$book_id AND question_type='long' $where_chapters ORDER BY RAND() LIMIT $long_c");
-        while ($r = $res->fetch_assoc()) $data['long'][] = $r;
+
+    if (empty($chapterIds)) {
+        return $data;
     }
+
+    $questionService = new QuestionService($conn);
+    $targets = [
+        'mcqs' => ['count' => intval($mcq_c), 'type' => null],
+        'short' => ['count' => intval($short_c), 'type' => 'short'],
+        'long' => ['count' => intval($long_c), 'type' => 'long'],
+    ];
+
+    foreach ($targets as $bucket => $config) {
+        $targetCount = max(0, (int)$config['count']);
+        if ($targetCount <= 0) {
+            continue;
+        }
+        $perChapter = max(1, (int)ceil($targetCount / count($chapterIds)));
+        foreach ($chapterIds as $chapterId) {
+            if ($bucket === 'mcqs') {
+                $data[$bucket] = array_merge($data[$bucket], $questionService->getRandomMCQs($chapterId, $perChapter, $class_id, $bookName));
+            } else {
+                $data[$bucket] = array_merge($data[$bucket], $questionService->getRandomQuestions($chapterId, $config['type'], $perChapter, $class_id, $bookName));
+            }
+        }
+        shuffle($data[$bucket]);
+        $data[$bucket] = array_slice($data[$bucket], 0, $targetCount);
+    }
+
     return $data;
 }
 
@@ -636,7 +676,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 <span>Click on any option to check your answer instantly!</span>
             </div>
             <?php foreach ($questions_data['mcqs'] as $index => $m): ?>
-                <div class="question-item" data-db-id="<?= $m['mcq_id'] ?>">
+                <div class="question-item" data-db-id="<?= htmlspecialchars((string)$m['mcq_id']) ?>">
                     <p style="font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 20px;">
                         Q<?= $index + 1 ?>. <?= htmlspecialchars($m['question']) ?>
                     </p>
@@ -664,13 +704,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         <?php if (!empty($questions_data['short'])): ?>
             <div class="section-title">Section B: Short Answer Questions</div>
             <?php foreach ($questions_data['short'] as $index => $q): ?>
-                <div class="question-item" data-id="<?= $q['id'] ?>" data-type="short">
+                <div class="question-item" data-id="<?= htmlspecialchars((string)$q['id']) ?>" data-type="short">
                     <p style="font-size: 1.1rem; font-weight: 600; color: #1e293b;">
                         Q<?= $index + 1 ?>. <?= htmlspecialchars($q['question_text']) ?>
                     </p>
-                    <textarea class="answer-box no-print" placeholder="Write your answer here for practice..." id="answer_short_<?= $q['id'] ?>"><?= htmlspecialchars($_SESSION['test_answers']['short'][$q['id']] ?? '') ?></textarea>
+                    <textarea class="answer-box no-print" placeholder="Write your answer here for practice..." id="answer_short_<?= htmlspecialchars((string)$q['id']) ?>"><?= htmlspecialchars($_SESSION['test_answers']['short'][$q['id']] ?? '') ?></textarea>
                     <div class="text-end mt-2 no-print">
-                        <button class="btn btn-sm btn-outline-primary" onclick="saveAnswer('short', <?= $q['id'] ?>)">
+                        <button class="btn btn-sm btn-outline-primary" onclick="saveAnswer('short', <?= json_encode((string)$q['id']) ?>)">
                             <i class="fas fa-save me-1"></i> Submit
                         </button>
                     </div>
@@ -683,13 +723,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         <?php if (!empty($questions_data['long'])): ?>
             <div class="section-title">Section C: Descriptive / Long Questions</div>
             <?php foreach ($questions_data['long'] as $index => $q): ?>
-                <div class="question-item" data-id="<?= $q['id'] ?>" data-type="long">
+                <div class="question-item" data-id="<?= htmlspecialchars((string)$q['id']) ?>" data-type="long">
                     <p style="font-size: 1.1rem; font-weight: 600; color: #1e293b;">
                         Q<?= $index + 1 ?>. <?= htmlspecialchars($q['question_text']) ?>
                     </p>
-                    <textarea class="answer-box no-print" placeholder="Write a detailed answer here..." id="answer_long_<?= $q['id'] ?>"><?= htmlspecialchars($_SESSION['test_answers']['long'][$q['id']] ?? '') ?></textarea>
+                    <textarea class="answer-box no-print" placeholder="Write a detailed answer here..." id="answer_long_<?= htmlspecialchars((string)$q['id']) ?>"><?= htmlspecialchars($_SESSION['test_answers']['long'][$q['id']] ?? '') ?></textarea>
                     <div class="text-end mt-2 no-print">
-                        <button class="btn btn-sm btn-outline-primary" onclick="saveAnswer('long', <?= $q['id'] ?>)">
+                        <button class="btn btn-sm btn-outline-primary" onclick="saveAnswer('long', <?= json_encode((string)$q['id']) ?>)">
                             <i class="fas fa-save me-1"></i> Submit
                         </button>
                     </div>

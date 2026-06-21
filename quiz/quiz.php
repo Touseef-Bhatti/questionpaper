@@ -542,6 +542,105 @@ try {
     die('<h2 style="color:red;">Database error: Unable to fetch quiz questions.</h2>');
 }
 
+// Also include MCQs generated from uploaded books.
+if (count($questions) < ($mcq_count * 2)) {
+    try {
+        $bookTableCheck = $conn->query("SHOW TABLES LIKE 'mcqs_from_book'");
+        if ($bookTableCheck && $bookTableCheck->num_rows > 0) {
+            $bookWhere = ['m.correct_option IS NOT NULL', 'm.correct_option != ""'];
+            $bookParams = [];
+            $bookTypes = '';
+
+            if ($class_id > 0) {
+                $bookWhere[] = 'm.class_id = ?';
+                $bookParams[] = $class_id;
+                $bookTypes .= 'i';
+            }
+
+            if ($book_id > 0) {
+                $bookWhere[] = 'm.book_id = ?';
+                $bookParams[] = $book_id;
+                $bookTypes .= 'i';
+            }
+
+            if (!empty($chapterIdsArray) && !empty($topicsArray)) {
+                $chPlaceholders = str_repeat('?,', count($chapterIdsArray) - 1) . '?';
+                $topicParts = [];
+                foreach ($topicsArray as $topicItem) {
+                    $topicParts[] = '(m.question LIKE ? OR c.chapter_name LIKE ?)';
+                }
+                $bookWhere[] = "(m.chapter_id IN ($chPlaceholders) OR " . implode(' OR ', $topicParts) . ")";
+                $bookParams = array_merge($bookParams, $chapterIdsArray);
+                $bookTypes .= str_repeat('i', count($chapterIdsArray));
+                foreach ($topicsArray as $topicItem) {
+                    $like = '%' . trim((string)$topicItem) . '%';
+                    $bookParams[] = $like;
+                    $bookParams[] = $like;
+                    $bookTypes .= 'ss';
+                }
+            } else {
+                if (!empty($chapterIdsArray)) {
+                    $placeholders = str_repeat('?,', count($chapterIdsArray) - 1) . '?';
+                    $bookWhere[] = "m.chapter_id IN ($placeholders)";
+                    $bookParams = array_merge($bookParams, $chapterIdsArray);
+                    $bookTypes .= str_repeat('i', count($chapterIdsArray));
+                }
+
+                if (!empty($topicsArray)) {
+                    $topicParts = [];
+                    foreach ($topicsArray as $topicItem) {
+                        $topicParts[] = '(m.question LIKE ? OR c.chapter_name LIKE ?)';
+                        $like = '%' . trim((string)$topicItem) . '%';
+                        $bookParams[] = $like;
+                        $bookParams[] = $like;
+                        $bookTypes .= 'ss';
+                    }
+                    $bookWhere[] = '(' . implode(' OR ', $topicParts) . ')';
+                }
+            }
+
+            $bookSeenIds = [];
+            foreach ($seenIds as $sid) {
+                if (strpos((string)$sid, 'book_') === 0) {
+                    $idVal = substr((string)$sid, 5);
+                    if (is_numeric($idVal)) {
+                        $bookSeenIds[] = intval($idVal);
+                    }
+                }
+            }
+            if (!empty($bookSeenIds)) {
+                $seenPlaceholders = implode(',', array_fill(0, count($bookSeenIds), '?'));
+                $bookWhere[] = "m.mcq_id NOT IN ($seenPlaceholders)";
+                $bookParams = array_merge($bookParams, $bookSeenIds);
+                $bookTypes .= str_repeat('i', count($bookSeenIds));
+            }
+
+            $bookSql = "SELECT CONCAT('book_', m.mcq_id) AS mcq_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d,
+                               m.correct_option, '' AS explanation
+                        FROM mcqs_from_book m
+                        LEFT JOIN chapter c ON c.chapter_id = m.chapter_id
+                        WHERE " . implode(' AND ', $bookWhere) . "
+                        ORDER BY RAND()
+                        LIMIT ?";
+            $bookParams[] = $mcq_count;
+            $bookTypes .= 'i';
+
+            $bookStmt = $conn->prepare($bookSql);
+            if ($bookStmt) {
+                $bookStmt->bind_param($bookTypes, ...$bookParams);
+                $bookStmt->execute();
+                $bookResult = $bookStmt->get_result();
+                while ($row = $bookResult->fetch_assoc()) {
+                    $questions[] = $row;
+                }
+                $bookStmt->close();
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error fetching from mcqs_from_book: " . $e->getMessage());
+    }
+}
+
 // If we don't have enough questions, check AIGeneratedMCQs table
 if (count($questions) < $mcq_count && !empty($topicsArray)) {
     $needed = $mcq_count - count($questions);
@@ -2816,7 +2915,7 @@ async function triggerBackgroundVerification(ids) {
             
             // Update the 'questions' array with corrected answers and explanations
             data.explanations.forEach(upd => {
-                const fullId = (upd.source === 'ai' ? 'ai_' : '') + upd.id;
+                const fullId = (upd.source === 'ai' ? 'ai_' : (upd.source === 'book' ? 'book_' : '')) + upd.id;
                 const qIdx = questions.findIndex(q => q.mcq_id === fullId || q.mcq_id == fullId);
                 if (qIdx !== -1) {
                     // Update ALL fields in case they were corrected

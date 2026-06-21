@@ -15,18 +15,24 @@ function toSlug(string $value): string
     return trim((string) $slug, '-');
 }
 
-function toOrdinal(int $number): string
-{
+function toOrdinal($number) {
+    $number = (int)$number;
     $mod100 = $number % 100;
     if ($mod100 >= 11 && $mod100 <= 13) {
         return $number . 'th';
     }
-    $suffix = match ($number % 10) {
-        1 => 'st',
-        2 => 'nd',
-        3 => 'rd',
-        default => 'th'
-    };
+    $suffix = 'th';
+    switch ($number % 10) {
+        case 1:
+            $suffix = 'st';
+            break;
+        case 2:
+            $suffix = 'nd';
+            break;
+        case 3:
+            $suffix = 'rd';
+            break;
+    }
     return $number . $suffix;
 }
 

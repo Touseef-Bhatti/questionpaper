@@ -69,3 +69,69 @@
 .shadow-sm {
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }
+
+@media (max-width: 768px) {
+    .container,
+    .container-fluid {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .card {
+        border-radius: 12px;
+    }
+
+    .card:hover {
+        transform: none;
+    }
+
+    .card-header,
+    .card-body,
+    .card-footer {
+        padding: 1rem;
+    }
+
+    .row {
+        row-gap: 1rem;
+    }
+
+    .d-flex {
+        flex-wrap: wrap;
+    }
+
+    .btn,
+    .form-control,
+    .form-select {
+        width: 100%;
+    }
+
+    .feature-row {
+        gap: 0.5rem;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-responsive > table {
+        width: max-content;
+        min-width: 100%;
+        max-width: none;
+        table-layout: auto;
+        white-space: nowrap;
+    }
+
+    .table-responsive th,
+    .table-responsive td {
+        white-space: nowrap;
+        overflow-wrap: normal;
+    }
+
+    .pagination {
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 0.35rem;
+        flex-wrap: nowrap;
+    }
+}

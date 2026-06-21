@@ -24,11 +24,14 @@ if (empty($mcqIds)) {
 // Separate IDs by source
 $aiMcqIds = [];
 $manualMcqIds = [];
+$bookMcqIds = [];
 
 foreach ($mcqIds as $id) {
     $idStr = (string)$id;
     if (strpos($idStr, 'ai_') === 0) {
         $aiMcqIds[] = intval(substr($idStr, 3));
+    } elseif (strpos($idStr, 'book_') === 0) {
+        $bookMcqIds[] = intval(substr($idStr, 5));
     } else {
         $manualMcqIds[] = intval($idStr);
     }
@@ -62,6 +65,24 @@ if (!empty($aiMcqIds)) {
                                  WHERE m.id IN ($idsStr)");
             while ($row = $res->fetch_assoc()) {
                 $row['source'] = 'ai';
+                $results['explanations'][] = $row;
+            }
+        }
+    }
+}
+
+// Book-generated MCQs are already saved from the textbook extraction flow.
+// Return their current data so the quiz UI can keep the prefixed IDs intact.
+if (!empty($bookMcqIds)) {
+    $chunks = array_chunk($bookMcqIds, $chunkSize);
+    foreach ($chunks as $chunk) {
+        $idsStr = implode(',', array_map('intval', $chunk));
+        $res = $conn->query("SELECT mcq_id as id, question, option_a, option_b, option_c, option_d, correct_option, '' as explanation
+                             FROM mcqs_from_book
+                             WHERE mcq_id IN ($idsStr)");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $row['source'] = 'book';
                 $results['explanations'][] = $row;
             }
         }

@@ -168,6 +168,43 @@ $recentPayments = $paymentService->getPaymentStatistics(7); // Last 7 days
             text-decoration: none;
             font-weight: bold;
         }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+                overflow-x: hidden;
+            }
+
+            .container {
+                width: 100%;
+                padding: 18px;
+                border-radius: 10px;
+            }
+
+            .header h1 {
+                font-size: 1.6rem;
+                line-height: 1.2;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .stat-value {
+                font-size: 1.6rem;
+            }
+
+            .verify-form {
+                padding: 18px;
+            }
+
+            .btn {
+                width: 100%;
+                text-align: center;
+                margin: 0 0 8px 0;
+            }
+        }
     </style>
 </head>
 <body>

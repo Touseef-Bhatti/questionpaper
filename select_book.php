@@ -11,20 +11,28 @@ if (!isset($_GET['class_id']) || empty($_GET['class_id']) || !is_numeric($_GET['
 
 $classId = intval($_GET['class_id']);
 
-function getClassOrdinal(int $classId): string
-{
+function getClassOrdinal($classId) {
+    $classId = (int)$classId;
     $lastTwoDigits = $classId % 100;
 
     if ($lastTwoDigits >= 11 && $lastTwoDigits <= 13) {
         return $classId . 'th';
     }
 
-    return $classId . match ($classId % 10) {
-        1 => 'st',
-        2 => 'nd',
-        3 => 'rd',
-        default => 'th',
-    };
+    $suffix = 'th';
+    switch ($classId % 10) {
+        case 1:
+            $suffix = 'st';
+            break;
+        case 2:
+            $suffix = 'nd';
+            break;
+        case 3:
+            $suffix = 'rd';
+            break;
+    }
+
+    return $classId . $suffix;
 }
 
 $classOrdinal = getClassOrdinal($classId);

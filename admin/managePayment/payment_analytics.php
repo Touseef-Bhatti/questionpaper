@@ -53,6 +53,10 @@ $stats = $paymentService->getPaymentStatistics($period);
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
+
+        .filters form {
+            width: 100%;
+        }
         
         .filters input, .filters select {
             padding: 10px;
@@ -170,16 +174,64 @@ $stats = $paymentService->getPaymentStatistics($period);
         .trend-neutral { color: #6c757d; }
         
         @media (max-width: 768px) {
+            .container {
+                width: 100%;
+                padding: 0 12px;
+            }
+
+            .header,
+            .card {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.6rem;
+                line-height: 1.2;
+            }
+
             .dashboard-grid {
                 grid-template-columns: 1fr;
             }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
             
-            .filters {
+            .filters,
+            .filters form {
                 flex-direction: column;
+                gap: 10px;
             }
             
             .filters input, .filters select, .filters button {
                 width: 100%;
+            }
+
+            .stat-value {
+                font-size: 1.6rem;
+            }
+
+            .chart-container {
+                height: 240px;
+            }
+
+            th,
+            td {
+                padding: 10px;
+                font-size: 0.9rem;
+                white-space: nowrap;
+            }
+
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .table-container table {
+                width: max-content;
+                min-width: 100%;
+                max-width: none;
+                table-layout: auto;
             }
         }
     </style>

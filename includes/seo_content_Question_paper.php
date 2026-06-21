@@ -27,23 +27,31 @@ function qpSeoNormalizeBook(string $bookName): string
     return $aliases[$key] ?? $key;
 }
 
-function qpSeoClassOrdinal(int $classId): string
-{
+function qpSeoClassOrdinal($classId) {
+    $classId = (int)$classId;
     if ($classId % 100 >= 11 && $classId % 100 <= 13) {
         return $classId . 'th';
     }
 
-    return $classId . match ($classId % 10) {
-        1 => 'st',
-        2 => 'nd',
-        3 => 'rd',
-        default => 'th',
-    };
+    $suffix = 'th';
+    switch ($classId % 10) {
+        case 1:
+            $suffix = 'st';
+            break;
+        case 2:
+            $suffix = 'nd';
+            break;
+        case 3:
+            $suffix = 'rd';
+            break;
+    }
+
+    return $classId . $suffix;
 }
 
-function qpSeoClassProfile(int $classId): array
-{
-    return match ($classId) {
+function qpSeoClassProfile($classId) {
+    $classId = (int)$classId;
+    $profiles = [
         9 => [
             'stage' => 'Matric Part 1',
             'teaching_context' => 'the first year of matric study, where students are building new subject vocabulary, formal methods and reliable written-work habits',
@@ -72,14 +80,19 @@ function qpSeoClassProfile(int $classId): array
             'student_need' => 'Students benefit from timed practice, careful method checking and questions that reveal whether knowledge can be transferred to an unfamiliar example.',
             'review_priority' => 'advanced applications, linked concepts, formulas or evidence, common exceptions and complete long-answer organization',
         ],
-        default => [
-            'stage' => "Class {$classId}",
-            'teaching_context' => 'the current stage of the selected course and the chapters that have actually been taught',
-            'paper_balance' => 'Use a fair mix of recall, understanding and application that matches the available learning time.',
-            'student_need' => 'Students need questions that are clearly worded and directly connected with the intended learning material.',
-            'review_priority' => 'key terms, examples, applications and mistakes identified during earlier class work',
-        ],
-    };
+    ];
+
+    if (isset($profiles[$classId])) {
+        return $profiles[$classId];
+    }
+
+    return [
+        'stage' => "Class {$classId}",
+        'teaching_context' => 'the current stage of the selected course and the chapters that have actually been taught',
+        'paper_balance' => 'Use a fair mix of recall, understanding and application that matches the available learning time.',
+        'student_need' => 'Students need questions that are clearly worded and directly connected with the intended learning material.',
+        'review_priority' => 'key terms, examples, applications and mistakes identified during earlier class work',
+    ];
 }
 
 function qpSeoClassSubjectFocus(int $classId, string $bookKey, string $subject): string

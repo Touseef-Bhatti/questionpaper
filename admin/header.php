@@ -67,6 +67,7 @@ $adminUrl = $baseUrl . 'admin/';
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_books.php">📖 Books</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_chapters.php">📝 Chapters</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_questions.php">❓ Questions</a></li>
+                        <li><a href="<?= $adminUrl ?>manageBookQuestions/generate_from_book.php">📘 Book Questions</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_notes.php">📚 Notes</a></li>
                         <li><a href="<?= $adminUrl ?>manageExam/index.php">🎓 Exam Preparation</a></li>
                     </ul>
@@ -147,8 +148,13 @@ $adminUrl = $baseUrl . 'admin/';
     
     // Close on menu link click (mobile)
     adminNavMenu.querySelectorAll('a').forEach(link => {
-        link.addEventListener('click', function() {
-            if (window.innerWidth <= 768) closeAdminMenu();
+        link.addEventListener('click', function(e) {
+            if (window.innerWidth > 1024) return;
+            if (link.classList.contains('nav-link-dropdown')) {
+                e.preventDefault();
+                return;
+            }
+            closeAdminMenu();
         });
     });
     
@@ -467,7 +473,7 @@ $adminUrl = $baseUrl . 'admin/';
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .admin-navbar-container {
         flex-direction: row;
         align-items: center;
@@ -477,9 +483,9 @@ $adminUrl = $baseUrl . 'admin/';
     .admin-nav-menu {
         position: fixed;
         top: 0;
-        right: -300px;
+        right: -100%;
         height: 100vh;
-        width: 280px;
+        width: min(320px, calc(100vw - 40px));
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         flex-direction: column;
         gap: 0;
@@ -533,13 +539,15 @@ $adminUrl = $baseUrl . 'admin/';
         display: block;
     }
     
-    .dropdown-menu a {
+    .dropdown-menu a,
+    .admin-dropdown-menu a {
         color: rgba(255,255,255,0.8);
         padding: 12px 25px;
         font-size: 0.85rem;
     }
     
-    .dropdown-menu a:hover {
+    .dropdown-menu a:hover,
+    .admin-dropdown-menu a:hover {
         background: rgba(255,255,255,0.1);
         color: #ffd700;
     }
@@ -563,6 +571,29 @@ $adminUrl = $baseUrl . 'admin/';
         text-align: center;
         background: rgba(220, 53, 69, 0.3);
         border: 1px solid rgba(220, 53, 69, 0.5);
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-navbar-container {
+        padding: 0 10px;
+    }
+
+    .admin-nav-brand {
+        font-size: 1rem;
+        letter-spacing: 0;
+    }
+
+    .admin-nav-logo {
+        padding: 8px 6px;
+    }
+
+    .admin-nav-divider {
+        display: none;
+    }
+
+    .admin-nav-menu {
+        width: min(300px, calc(100vw - 24px));
     }
 }
 

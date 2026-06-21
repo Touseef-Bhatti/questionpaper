@@ -8,32 +8,98 @@ require_once '../includes/admin_auth.php';
 require_once '../email/phpmailer_mailer.php';
 require_once 'security.php';
 
+function superAdminUserStatusFromPlanName($planName) {
+    $planName = strtolower((string)$planName);
+    $statusMap = [
+        'free' => 'free',
+        'premium' => 'premium',
+        'pro' => 'pro',
+        'yearly_premium' => 'premium',
+        'yearly_pro' => 'pro'
+    ];
+
+    if (isset($statusMap[$planName])) {
+        return $statusMap[$planName];
+    }
+
+    if (strpos($planName, 'pro') !== false) {
+        return 'pro';
+    }
+
+    if (strpos($planName, 'premium') !== false) {
+        return 'premium';
+    }
+
+    return 'free';
+}
+
+function superAdminTableHasColumn($conn, $table, $column) {
+    $sql = "SHOW COLUMNS FROM `$table` LIKE ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $column);
+    $stmt->execute();
+    return $stmt->get_result()->num_rows > 0;
+}
+
+function superAdminTrySubscriptionEmail($email, $name, $planDisplayName, $expiresAt = null) {
+    if (!function_exists('sendSubscriptionUpdateEmail')) {
+        error_log('Subscription update email skipped: sendSubscriptionUpdateEmail() is not defined.');
+        return false;
+    }
+
+    try {
+        return (bool)sendSubscriptionUpdateEmail($email, $name, $planDisplayName, $expiresAt);
+    } catch (Throwable $e) {
+        error_log('Subscription update email failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
 // Handle AJAX actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
+    $ajaxBufferLevel = ob_get_level();
+    ob_start();
     header('Content-Type: application/json');
+
+    $sendJson = function($payload, $statusCode = 200) use ($ajaxBufferLevel) {
+        while (ob_get_level() > $ajaxBufferLevel) {
+            ob_end_clean();
+        }
+
+        http_response_code($statusCode);
+        echo json_encode($payload);
+        exit;
+    };
+
+    set_error_handler(function($severity, $message, $file, $line) {
+        if (!(error_reporting() & $severity)) {
+            return false;
+        }
+
+        throw new ErrorException($message, 0, $severity, $file, $line);
+    });
+    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
     
     $action = $_GET['action'];
     $userId = intval($_POST['user_id'] ?? 0);
     
     if ($userId <= 0) {
-        echo json_encode(['error' => 'Invalid user ID']);
-        exit;
+        $sendJson(['error' => 'Invalid user ID'], 400);
     }
-    
-    switch ($action) {
+
+    try {
+        switch ($action) {
         case 'change_role':
             $newRole = $_POST['new_role'] ?? '';
             $validRoles = ['user', 'admin', 'super_admin'];
             
             if (!in_array($newRole, $validRoles)) {
-                echo json_encode(['error' => 'Invalid role']);
-                exit;
+                $sendJson(['error' => 'Invalid role'], 400);
             }
             
             // Prevent users from downgrading themselves
             if ($userId == $_SESSION['user_id'] && $newRole !== 'super_admin') {
-                echo json_encode(['error' => 'Cannot change your own role']);
-                exit;
+                $sendJson(['error' => 'Cannot change your own role'], 400);
             }
             
             $sql = "UPDATE users SET role = ? WHERE id = ?";
@@ -41,11 +107,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
             $stmt->bind_param("si", $newRole, $userId);
             
             if ($stmt->execute()) {
-                echo json_encode(['success' => true, 'message' => 'User role updated successfully']);
+                $sendJson(['success' => true, 'message' => 'User role updated successfully']);
             } else {
-                echo json_encode(['error' => 'Failed to update user role']);
+                $sendJson(['error' => 'Failed to update user role'], 500);
             }
-            exit;
             
         case 'toggle_verification':
             $sql = "UPDATE users SET verified = NOT verified WHERE id = ?";
@@ -53,11 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
             $stmt->bind_param("i", $userId);
             
             if ($stmt->execute()) {
-                echo json_encode(['success' => true, 'message' => 'User verification status updated']);
+                $sendJson(['success' => true, 'message' => 'User verification status updated']);
             } else {
-                echo json_encode(['error' => 'Failed to update verification status']);
+                $sendJson(['error' => 'Failed to update verification status'], 500);
             }
-            exit;
             
         case 'reset_password':
             $newPassword = bin2hex(random_bytes(4)); // Generate 8-character password
@@ -68,27 +132,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
             $stmt->bind_param("si", $hashedPassword, $userId);
             
             if ($stmt->execute()) {
-                echo json_encode([
+                $sendJson([
                     'success' => true, 
                     'message' => 'Password reset successfully',
                     'new_password' => $newPassword
                 ]);
             } else {
-                echo json_encode(['error' => 'Failed to reset password']);
+                $sendJson(['error' => 'Failed to reset password'], 500);
             }
-            exit;
  
          case 'change_subscription':
              $newPlanId = intval($_POST['plan_id'] ?? 0);
              $days = intval($_POST['days'] ?? 30);
              
              if ($newPlanId < 0) {
-                 echo json_encode(['error' => 'Invalid plan']);
-                 exit;
+                 $sendJson(['error' => 'Invalid plan'], 400);
+             }
+
+             if ($newPlanId > 0 && ($days < 1 || $days > 3650)) {
+                 $sendJson(['error' => 'Duration must be between 1 and 3650 days'], 400);
              }
              
              // Start transaction
+            $transactionStarted = false;
             $conn->begin_transaction();
+            $transactionStarted = true;
             
             try {
                 // Get user details for email
@@ -102,6 +170,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
                     throw new Exception("User not found");
                 }
 
+                $planData = null;
+                $expiresAt = null;
+                $planDisplayName = 'Free Plan';
+                $userSubscriptionStatus = 'free';
+
+                if ($newPlanId > 0) {
+                    $planSql = "SELECT name, display_name FROM subscription_plans WHERE id = ?";
+                    $pStmt = $conn->prepare($planSql);
+                    $pStmt->bind_param("i", $newPlanId);
+                    $pStmt->execute();
+                    $planData = $pStmt->get_result()->fetch_assoc();
+
+                    if (!$planData) {
+                        throw new Exception("Selected subscription plan was not found");
+                    }
+
+                    $expiresAt = date('Y-m-d H:i:s', strtotime("+$days days"));
+                    $planDisplayName = $planData['display_name'] ?? 'Premium';
+                    $userSubscriptionStatus = superAdminUserStatusFromPlanName($planData['name'] ?? '');
+                }
+
                 // 1. Deactivate current active subscriptions
                 $sql = "UPDATE user_subscriptions SET status = 'expired' WHERE user_id = ? AND status = 'active'";
                 $stmt = $conn->prepare($sql);
@@ -111,51 +200,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
                 if ($newPlanId > 0) {
                     // 2. Insert new subscription
                     $startedAt = date('Y-m-d H:i:s');
-                    $expiresAt = date('Y-m-d H:i:s', strtotime("+$days days"));
-                    
-                    $sql = "INSERT INTO user_subscriptions (user_id, plan_id, status, started_at, expires_at) VALUES (?, ?, 'active', ?, ?)";
+
+                    $columns = ['user_id', 'plan_id', 'status'];
+                    $placeholders = ['?', '?', "'active'"];
+                    $bindTypes = 'ii';
+                    $bindValues = [$userId, $newPlanId];
+
+                    if (superAdminTableHasColumn($conn, 'user_subscriptions', 'started_at')) {
+                        $columns[] = 'started_at';
+                        $placeholders[] = '?';
+                        $bindTypes .= 's';
+                        $bindValues[] = $startedAt;
+                    }
+
+                    if (superAdminTableHasColumn($conn, 'user_subscriptions', 'expires_at')) {
+                        $columns[] = 'expires_at';
+                        $placeholders[] = '?';
+                        $bindTypes .= 's';
+                        $bindValues[] = $expiresAt;
+                    }
+
+                    if (superAdminTableHasColumn($conn, 'user_subscriptions', 'auto_renew')) {
+                        $columns[] = 'auto_renew';
+                        $placeholders[] = '0';
+                    }
+
+                    $sql = "INSERT INTO user_subscriptions (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
                     $stmt = $conn->prepare($sql);
-                    $stmt->bind_param("iiss", $userId, $newPlanId, $startedAt, $expiresAt);
+                    $stmt->bind_param($bindTypes, ...$bindValues);
                     $stmt->execute();
                     
                     // 3. Update users table status
-                    $planSql = "SELECT name, display_name FROM subscription_plans WHERE id = ?";
-                    $pStmt = $conn->prepare($planSql);
-                    $pStmt->bind_param("i", $newPlanId);
-                    $pStmt->execute();
-                    $planData = $pStmt->get_result()->fetch_assoc();
-                    $planName = $planData['name'] ?? 'premium';
-                    $planDisplayName = $planData['display_name'] ?? 'Premium';
-                    
-                    $sql = "UPDATE users SET subscription_status = ? WHERE id = ?";
-                    $stmt = $conn->prepare($sql);
-                    $stmt->bind_param("si", $planName, $userId);
+                    if (superAdminTableHasColumn($conn, 'users', 'subscription_expires_at')) {
+                        $sql = "UPDATE users SET subscription_status = ?, subscription_expires_at = ? WHERE id = ?";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bind_param("ssi", $userSubscriptionStatus, $expiresAt, $userId);
+                    } else {
+                        $sql = "UPDATE users SET subscription_status = ? WHERE id = ?";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bind_param("si", $userSubscriptionStatus, $userId);
+                    }
                     $stmt->execute();
-
-                    // Send activation email
-                    sendSubscriptionUpdateEmail($userData['email'], $userData['name'], $planDisplayName, $expiresAt);
                 } else {
                     // Reset to free
-                    $sql = "UPDATE users SET subscription_status = 'free' WHERE id = ?";
-                    $stmt = $conn->prepare($sql);
-                    $stmt->bind_param("i", $userId);
+                    if (superAdminTableHasColumn($conn, 'users', 'subscription_expires_at')) {
+                        $sql = "UPDATE users SET subscription_status = 'free', subscription_expires_at = NULL WHERE id = ?";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bind_param("i", $userId);
+                    } else {
+                        $sql = "UPDATE users SET subscription_status = 'free' WHERE id = ?";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bind_param("i", $userId);
+                    }
                     $stmt->execute();
-
-                    // Send expiration email
-                    sendSubscriptionUpdateEmail($userData['email'], $userData['name'], 'Free Plan');
                 }
                 
                 $conn->commit();
-                echo json_encode(['success' => true, 'message' => 'Subscription updated successfully']);
-            } catch (Exception $e) {
-                 $conn->rollback();
-                 echo json_encode(['error' => 'Failed to update subscription: ' . $e->getMessage()]);
+                $transactionStarted = false;
+
+                superAdminTrySubscriptionEmail($userData['email'], $userData['name'], $planDisplayName, $expiresAt);
+                $message = 'Subscription updated successfully';
+
+                $sendJson(['success' => true, 'message' => $message]);
+            } catch (Throwable $e) {
+                 if ($transactionStarted) {
+                     $conn->rollback();
+                 }
+
+                 error_log('Super admin subscription update failed: ' . $e->getMessage());
+                 $sendJson(['error' => 'Failed to update subscription: ' . $e->getMessage()], 500);
              }
-             exit;
     }
     
-    echo json_encode(['error' => 'Unknown action']);
-    exit;
+        $sendJson(['error' => 'Unknown action'], 400);
+    } catch (Throwable $e) {
+        error_log('Super admin user action failed: ' . $e->getMessage());
+        $sendJson(['error' => 'Action failed: ' . $e->getMessage()], 500);
+    }
 }
 
 // Require super admin access
@@ -285,6 +406,79 @@ $availablePlans = $plansResult->fetch_all(MYSQLI_ASSOC);
         .table thead th { background-color: #343a40; color: #fff; border: none; font-weight: 500; }
         .badge { font-weight: 500; padding: 6px 10px; border-radius: 6px; }
         .btn-group .btn { margin: 0 2px; }
+        .user-action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-width: 260px;
+        }
+        .user-action-buttons .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            margin: 0;
+            border-radius: 6px !important;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            body { overflow-x: hidden; }
+            .welcome-header { padding: 16px 0; margin-bottom: 18px; }
+            .welcome-header .d-flex {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 12px;
+            }
+            .welcome-header h1 {
+                font-size: 20px;
+                line-height: 1.2;
+            }
+            .welcome-header .btn {
+                width: 100%;
+                margin: 0 0 8px 0 !important;
+            }
+            .container-fluid {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+            .card-header .row,
+            .card-body .row {
+                row-gap: 12px;
+            }
+            .card-header .d-flex,
+            .card-footer .d-flex {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 10px;
+            }
+            .btn-group,
+            .user-action-buttons {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 6px;
+                width: 100%;
+            }
+            .btn-group .btn,
+            .user-action-buttons .btn {
+                margin: 0;
+            }
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .table-responsive > table {
+                width: max-content;
+                min-width: 100%;
+                max-width: none;
+                table-layout: auto;
+                white-space: nowrap;
+            }
+            .table-responsive th,
+            .table-responsive td {
+                white-space: nowrap;
+                overflow-wrap: normal;
+            }
+        }
     </style>
 </head>
 <body>
@@ -499,36 +693,36 @@ $availablePlans = $plansResult->fetch_all(MYSQLI_ASSOC);
                                 <small class="text-muted"><?= date('H:i', strtotime($userRecord['created_at'])) ?></small>
                             </td>
                             <td>
-                                <div class="btn-group" role="group">
+                                <div class="user-action-buttons" role="group" aria-label="User actions for <?= htmlspecialchars($userRecord['email']) ?>">
                                     <button type="button" class="btn btn-sm btn-outline-primary" 
                                             onclick="showUserDetails(<?= $userRecord['id'] ?>)"
                                             title="View User Details">
-                                        <i class="fas fa-eye"></i>
+                                        <i class="fas fa-eye"></i><span>View</span>
                                     </button>
                                     
                                     <?php if ($userRecord['id'] != $_SESSION['user_id']): ?>
                                     <button type="button" class="btn btn-sm btn-outline-warning"
                                             onclick="changeUserRole(<?= $userRecord['id'] ?>, '<?= $userRecord['role'] ?>')"
                                             title="Change User Role">
-                                        <i class="fas fa-user-tag"></i>
+                                        <i class="fas fa-user-tag"></i><span>Role</span>
                                     </button>
                                     
                                     <button type="button" class="btn btn-sm btn-outline-success"
                                             onclick="changeSubscription(<?= $userRecord['id'] ?>, <?= $userRecord['plan_id'] ?? 0 ?>)"
                                             title="Manage Subscription">
-                                        <i class="fas fa-crown"></i>
+                                        <i class="fas fa-crown"></i><span>Plan</span>
                                     </button>
                                     
                                     <button type="button" class="btn btn-sm btn-outline-info"
                                             onclick="toggleVerification(<?= $userRecord['id'] ?>, <?= $userRecord['verified'] ? 'true' : 'false' ?>)"
                                             title="<?= $userRecord['verified'] ? 'Unverify User' : 'Verify User' ?>">
-                                        <i class="fas fa-<?= $userRecord['verified'] ? 'times' : 'check' ?>"></i>
+                                        <i class="fas fa-<?= $userRecord['verified'] ? 'times' : 'check' ?>"></i><span><?= $userRecord['verified'] ? 'Unverify' : 'Verify' ?></span>
                                     </button>
                                     
                                     <button type="button" class="btn btn-sm btn-outline-danger"
                                             onclick="resetUserPassword(<?= $userRecord['id'] ?>)"
                                             title="Reset Password">
-                                        <i class="fas fa-key"></i>
+                                        <i class="fas fa-key"></i><span>Reset</span>
                                     </button>
                                     <?php endif; ?>
                                 </div>
@@ -611,14 +805,26 @@ $availablePlans = $plansResult->fetch_all(MYSQLI_ASSOC);
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 let currentAction = null;
+const actionModalElement = document.getElementById('actionModal');
+const confirmActionBtn = document.getElementById('confirmActionBtn');
+
+function getActionModal() {
+    return bootstrap.Modal.getOrCreateInstance(actionModalElement);
+}
+
+function resetConfirmButton() {
+    confirmActionBtn.disabled = false;
+    confirmActionBtn.innerHTML = 'Confirm';
+}
 
 function showUserDetails(userId) {
     document.getElementById('userDetailsContent').innerHTML = 
         '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
     
-    const modal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('userDetailsModal'));
     modal.show();
     
     fetch(`get_user_details.php?id=${userId}`)
@@ -655,8 +861,8 @@ function changeUserRole(userId, currentRole) {
              <i class="fas fa-exclamation-triangle"></i> This will immediately change user permissions.
          </div>`;
     
-    const modal = new bootstrap.Modal(document.getElementById('actionModal'));
-    modal.show();
+    resetConfirmButton();
+    getActionModal().show();
 }
 
 function changeSubscription(userId, currentPlanId) {
@@ -686,8 +892,8 @@ function changeSubscription(userId, currentPlanId) {
              <i class="fas fa-info-circle"></i> This will deactivate current active subscriptions and create a new one.
          </div>`;
     
-    const modal = new bootstrap.Modal(document.getElementById('actionModal'));
-    modal.show();
+    resetConfirmButton();
+    getActionModal().show();
 }
 
 function toggleVerification(userId, currentVerified) {
@@ -701,8 +907,8 @@ function toggleVerification(userId, currentVerified) {
              <i class="fas fa-info-circle"></i> This will ${currentVerified ? 'remove' : 'grant'} verification status.
          </div>`;
     
-    const modal = new bootstrap.Modal(document.getElementById('actionModal'));
-    modal.show();
+    resetConfirmButton();
+    getActionModal().show();
 }
 
 function resetUserPassword(userId) {
@@ -715,11 +921,11 @@ function resetUserPassword(userId) {
              <i class="fas fa-exclamation-triangle"></i> A new temporary password will be generated. Make sure to share it with the user securely.
          </div>`;
     
-    const modal = new bootstrap.Modal(document.getElementById('actionModal'));
-    modal.show();
+    resetConfirmButton();
+    getActionModal().show();
 }
 
-document.getElementById('confirmActionBtn').addEventListener('click', function() {
+confirmActionBtn.addEventListener('click', function() {
     if (!currentAction) return;
     
     const btn = this;
@@ -753,7 +959,21 @@ document.getElementById('confirmActionBtn').addEventListener('click', function()
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => response.text().then(text => {
+        try {
+            const data = JSON.parse(text);
+            if (!response.ok && !data.error) {
+                data.error = 'Request failed with status ' + response.status;
+            }
+            return data;
+        } catch (error) {
+            const plainText = text
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            throw new Error(plainText || 'Server returned an invalid response');
+        }
+    }))
     .then(data => {
         btn.disabled = false;
         btn.innerHTML = 'Confirm';
@@ -761,6 +981,8 @@ document.getElementById('confirmActionBtn').addEventListener('click', function()
         if (data.success) {
             if (currentAction.type === 'reset_password' && data.new_password) {
                 alert('Password reset successfully!\nNew password: ' + data.new_password + '\n\nPlease share this with the user securely.');
+            } else if (currentAction.type === 'change_subscription' && data.message) {
+                alert(data.message);
             }
             location.reload();
         } else {
@@ -773,7 +995,7 @@ document.getElementById('confirmActionBtn').addEventListener('click', function()
         alert('Action failed: ' + error.message);
     });
     
-    bootstrap.Modal.getInstance(document.getElementById('actionModal')).hide();
+    getActionModal().hide();
 });
 </script>
 

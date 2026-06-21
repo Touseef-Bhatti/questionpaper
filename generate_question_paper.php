@@ -638,19 +638,19 @@ $patternQCount = max($patternQCount, $maxNewQNumGenerated);
 $onlineTestMcqIds = [];
 foreach ($mcqByChapter as $cid => $qs) {
     foreach ($qs as $q) {
-        if (isset($q['mcq_id'])) $onlineTestMcqIds[] = intval($q['mcq_id']);
+        if (isset($q['mcq_id'])) $onlineTestMcqIds[] = (string)$q['mcq_id'];
     }
 }
 $onlineTestShortIds = [];
 foreach ($shortQuestions as $cid => $qs) {
     foreach ($qs as $q) {
-        if (isset($q['id'])) $onlineTestShortIds[] = intval($q['id']);
+        if (isset($q['id'])) $onlineTestShortIds[] = (string)$q['id'];
     }
 }
 $onlineTestLongIds = [];
 foreach ($longQuestions as $cid => $qs) {
     foreach ($qs as $q) {
-        if (isset($q['id'])) $onlineTestLongIds[] = intval($q['id']);
+        if (isset($q['id'])) $onlineTestLongIds[] = (string)$q['id'];
     }
 }
 $hasOnlineTestQuestions = !empty($onlineTestMcqIds) || !empty($onlineTestShortIds) || !empty($onlineTestLongIds);

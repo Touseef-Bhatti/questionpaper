@@ -482,6 +482,81 @@ include_once __DIR__ . '/../header.php';
             font-size: 1.5rem;
             cursor: pointer;
         }
+
+        @media (max-width: 768px) {
+            .notes-container {
+                padding: 1rem;
+            }
+
+            .notes-container h1 {
+                font-size: 1.6rem;
+                line-height: 1.2;
+            }
+
+            .upload-form {
+                padding: 1.25rem;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                overflow-x: auto;
+                gap: 0.5rem;
+                padding-bottom: 0.35rem;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .tab {
+                flex: 0 0 auto;
+                padding: 0.65rem 1rem;
+            }
+
+            .notes-table {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .notes-table h2 {
+                padding: 1rem;
+                font-size: 1.25rem;
+            }
+
+            table {
+                width: max-content;
+                min-width: 100%;
+                max-width: none;
+                table-layout: auto;
+            }
+
+            th,
+            td {
+                padding: 0.75rem;
+                font-size: 0.9rem;
+                white-space: nowrap;
+                overflow-wrap: normal;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .actions button,
+            .btn {
+                width: 100%;
+            }
+
+            .modal {
+                padding: 12px;
+            }
+
+            .modal-content {
+                width: 100%;
+                padding: 1.25rem;
+                max-height: 86vh;
+            }
+        }
     </style>
     
     <div class="notes-container">

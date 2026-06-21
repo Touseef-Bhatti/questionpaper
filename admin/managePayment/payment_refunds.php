@@ -213,6 +213,63 @@ $refundStats = $conn->query($sql)->fetch_assoc();
             text-decoration: none;
             font-weight: bold;
         }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+                overflow-x: hidden;
+            }
+
+            .container {
+                width: 100%;
+            }
+
+            .header,
+            .refund-form,
+            .refunds-table {
+                padding: 18px;
+                border-radius: 10px;
+            }
+
+            .header h1 {
+                font-size: 1.6rem;
+                line-height: 1.2;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .stat-value {
+                font-size: 1.6rem;
+            }
+
+            .btn {
+                width: 100%;
+                text-align: center;
+                margin-bottom: 8px;
+            }
+
+            .refunds-table {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table {
+                width: max-content;
+                min-width: 100%;
+                max-width: none;
+                table-layout: auto;
+            }
+
+            th,
+            td {
+                padding: 10px;
+                font-size: 0.9rem;
+                white-space: nowrap;
+            }
+        }
     </style>
 </head>
 <body>

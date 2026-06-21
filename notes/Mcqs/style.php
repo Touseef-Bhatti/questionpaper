@@ -32,6 +32,13 @@
     .alh-crumbs { margin: 18px 0 0; color: rgba(255,255,255,.9); font-weight: 700; }
     .alh-crumbs a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
     .alh-empty { padding: 24px; border-radius: 14px; background: #f8fafc; border: 1px dashed #94a3b8; color: #475569; }
+    .alh-chapter-summary { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr); gap: 22px; align-items: center; }
+    .alh-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .alh-summary-grid div { padding: 16px 12px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; text-align: center; }
+    .alh-summary-grid strong { display: block; color: #0f766e; font-size: 1.8rem; font-weight: 800; line-height: 1; }
+    .alh-summary-grid span { display: block; margin-top: 8px; color: #64748b; font-weight: 700; font-size: .86rem; }
+    .alh-topic-line { grid-column: 1 / -1; margin: 0; padding-top: 4px; }
+    .alh-next-chapters .alh-mcq-grid { margin-top: 18px; }
     .mcqs-featured-card {
         display: flex;
         align-items: center;
@@ -107,6 +114,8 @@
         transform: scale(1.05);
     }
     @media (max-width: 768px) {
+        .alh-chapter-summary { grid-template-columns: 1fr; }
+        .alh-summary-grid { grid-template-columns: 1fr; }
         .mcqs-featured-card {
             flex-direction: column;
             text-align: center;

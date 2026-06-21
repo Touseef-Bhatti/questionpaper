@@ -9,10 +9,249 @@ class QuestionService
 {
     private $conn;
     private $cache;
+    private $tableExistsCache = [];
 
     private function isMathBookName($bookName)
     {
         return in_array(strtolower(trim((string)$bookName)), ['math', 'maths', 'mathematics'], true);
+    }
+
+    private function tableExists($tableName)
+    {
+        if (isset($this->tableExistsCache[$tableName])) {
+            return $this->tableExistsCache[$tableName];
+        }
+
+        $stmt = $this->conn->prepare("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? LIMIT 1");
+        if (!$stmt) {
+            $this->tableExistsCache[$tableName] = false;
+            return false;
+        }
+
+        $stmt->bind_param('s', $tableName);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $exists = $result && $result->num_rows > 0;
+        $stmt->close();
+
+        $this->tableExistsCache[$tableName] = $exists;
+        return $exists;
+    }
+
+    private function defaultMarksForType($questionType)
+    {
+        return $questionType === 'long' ? 5 : 2;
+    }
+
+    private function limitShuffled(array $rows, $limit)
+    {
+        $limit = max(0, (int)$limit);
+        if ($limit <= 0 || empty($rows)) {
+            return [];
+        }
+
+        shuffle($rows);
+        return array_slice($rows, 0, $limit);
+    }
+
+    private function appendBookNameFilter(&$query, &$params, &$types, $columnExpression, $bookName)
+    {
+        if (!$bookName) {
+            return;
+        }
+
+        if ($this->isMathBookName($bookName)) {
+            $query .= " AND LOWER(TRIM({$columnExpression})) IN ('math', 'maths', 'mathematics')";
+            return;
+        }
+
+        $query .= " AND {$columnExpression} = ?";
+        $params[] = $bookName;
+        $types .= "s";
+    }
+
+    private function fetchQuestionsFromQuestionsTable($chapterId, $questionType, $limit, $classId = null, $bookName = null)
+    {
+        $limit = max(0, (int)$limit);
+        if ($limit <= 0) {
+            return [];
+        }
+
+        $query = "SELECT id, question_text, COALESCE(marks, ?) AS marks, topic, 'questions' AS source
+                 FROM questions
+                 WHERE chapter_id = ? AND question_type = ?";
+        $params = [$this->defaultMarksForType($questionType), (int)$chapterId, $questionType];
+        $types = "iis";
+
+        if ($classId) {
+            $query .= " AND class_id = ?";
+            $params[] = (int)$classId;
+            $types .= "i";
+        }
+
+        $this->appendBookNameFilter($query, $params, $types, 'book_name', $bookName);
+
+        $query .= " ORDER BY RAND() LIMIT ?";
+        $params[] = $limit;
+        $types .= "i";
+
+        $stmt = $this->conn->prepare($query);
+        if (!$stmt) {
+            return [];
+        }
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        $stmt->close();
+
+        return $rows;
+    }
+
+    private function fetchQuestionsFromBookTable($chapterId, $questionType, $limit, $classId = null, $bookName = null)
+    {
+        $limit = max(0, (int)$limit);
+        if ($limit <= 0 || !$this->tableExists('questions_from_book')) {
+            return [];
+        }
+
+        $query = "SELECT CONCAT('bookq_', id) AS id, question_text, ? AS marks, topic, 'questions_from_book' AS source
+                 FROM questions_from_book
+                 WHERE chapter_id = ? AND question_type = ?";
+        $params = [$this->defaultMarksForType($questionType), (int)$chapterId, $questionType];
+        $types = "iis";
+
+        if ($classId) {
+            $query .= " AND class_id = ?";
+            $params[] = (int)$classId;
+            $types .= "i";
+        }
+
+        $this->appendBookNameFilter($query, $params, $types, 'book_name', $bookName);
+
+        $query .= " ORDER BY RAND() LIMIT ?";
+        $params[] = $limit;
+        $types .= "i";
+
+        $stmt = $this->conn->prepare($query);
+        if (!$stmt) {
+            return [];
+        }
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        $stmt->close();
+
+        return $rows;
+    }
+
+    private function fetchMcqsFromMcqsTable($chapterId, $limit, $classId = null, $bookName = null)
+    {
+        $limit = max(0, (int)$limit);
+        if ($limit <= 0) {
+            return [];
+        }
+
+        $query = "SELECT m.mcq_id, m.chapter_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option,
+                        v.explanation AS explanation, 'mcqs' AS source
+                 FROM mcqs m
+                 LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id";
+        $params = [(int)$chapterId];
+        $types = "i";
+
+        if ($bookName) {
+            $query .= " JOIN book b ON m.book_id = b.book_id WHERE m.chapter_id = ?";
+            $this->appendBookNameFilter($query, $params, $types, 'b.book_name', $bookName);
+        } else {
+            $query .= " WHERE m.chapter_id = ?";
+        }
+
+        if ($classId) {
+            $query .= " AND m.class_id = ?";
+            $params[] = (int)$classId;
+            $types .= "i";
+        }
+
+        $query .= " AND m.correct_option IS NOT NULL AND m.correct_option != '' ORDER BY RAND() LIMIT ?";
+        $params[] = $limit;
+        $types .= "i";
+
+        $stmt = $this->conn->prepare($query);
+        if (!$stmt) {
+            return [];
+        }
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        $stmt->close();
+
+        return $rows;
+    }
+
+    private function fetchMcqsFromBookTable($chapterId, $limit, $classId = null, $bookName = null)
+    {
+        $limit = max(0, (int)$limit);
+        if ($limit <= 0 || !$this->tableExists('mcqs_from_book')) {
+            return [];
+        }
+
+        $query = "SELECT CONCAT('book_', mcq_id) AS mcq_id, chapter_id, question, option_a, option_b, option_c, option_d,
+                        correct_option, '' AS explanation, 'mcqs_from_book' AS source
+                 FROM mcqs_from_book
+                 WHERE chapter_id = ? AND correct_option IS NOT NULL AND correct_option != ''";
+        $params = [(int)$chapterId];
+        $types = "i";
+
+        if ($classId) {
+            $query .= " AND class_id = ?";
+            $params[] = (int)$classId;
+            $types .= "i";
+        }
+
+        if ($bookName) {
+            $query .= " AND book_id IN (SELECT book_id FROM book WHERE ";
+            if ($this->isMathBookName($bookName)) {
+                $query .= "LOWER(TRIM(book_name)) IN ('math', 'maths', 'mathematics'))";
+            } else {
+                $query .= "book_name = ?)";
+                $params[] = $bookName;
+                $types .= "s";
+            }
+        }
+
+        $query .= " ORDER BY RAND() LIMIT ?";
+        $params[] = $limit;
+        $types .= "i";
+
+        $stmt = $this->conn->prepare($query);
+        if (!$stmt) {
+            return [];
+        }
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        $stmt->close();
+
+        return $rows;
     }
     
     public function __construct($connection, $cache = null)
@@ -30,11 +269,26 @@ class QuestionService
         $cacheKey = "questions_ch_{$chapterId}_{$questionType}_{$limit}";
         if ($classId) $cacheKey .= "_cl_{$classId}";
         if ($bookName) $cacheKey .= "_bk_" . md5($bookName);
+        $cacheKey .= "_with_book_tables_v1";
         
         // Try cache first
         if ($this->cache && $cached = $this->cache->get($cacheKey)) {
             return json_decode($cached, true);
         }
+
+        $fetchLimit = max((int)$limit, 1);
+        $questions = array_merge(
+            $this->fetchQuestionsFromQuestionsTable($chapterId, $questionType, $fetchLimit, $classId, $bookName),
+            $this->fetchQuestionsFromBookTable($chapterId, $questionType, $fetchLimit, $classId, $bookName)
+        );
+
+        $questions = $this->limitShuffled($questions, $limit);
+
+        if ($this->cache) {
+            $this->cache->setex($cacheKey, 1800, json_encode($questions));
+        }
+
+        return $questions;
         
         // Get total count for this chapter and type
         $countQuery = "SELECT COUNT(*) as total, MIN(id) as min_id, MAX(id) as max_id 
@@ -188,10 +442,25 @@ class QuestionService
         $cacheKey = "mcqs_ch_{$chapterId}_{$limit}";
         if ($classId) $cacheKey .= "_cl_{$classId}";
         if ($bookName) $cacheKey .= "_bk_" . md5($bookName);
+        $cacheKey .= "_with_book_tables_v1";
         
         if ($this->cache && $cached = $this->cache->get($cacheKey)) {
             return json_decode($cached, true);
         }
+
+        $fetchLimit = max((int)$limit, 1);
+        $mcqs = array_merge(
+            $this->fetchMcqsFromMcqsTable($chapterId, $fetchLimit, $classId, $bookName),
+            $this->fetchMcqsFromBookTable($chapterId, $fetchLimit, $classId, $bookName)
+        );
+
+        $mcqs = $this->limitShuffled($mcqs, $limit);
+
+        if ($this->cache) {
+            $this->cache->setex($cacheKey, 1800, json_encode($mcqs));
+        }
+
+        return $mcqs;
         
         // Get total count and ID range
         $countQuery = "SELECT COUNT(*) as total, MIN(mcq_id) as min_id, MAX(mcq_id) as max_id 
@@ -531,6 +800,7 @@ class QuestionService
     {
         if (empty($topics)) return [];
         $limit = intval($limit);
+        if ($limit <= 0) return [];
         
         // Clean topics array
         $topics = array_values(array_unique(array_filter(array_map('trim', $topics))));
@@ -554,7 +824,7 @@ class QuestionService
         // For simplicity and correctness with LIKE, we'll stick to basic RAND() but limit the scan if possible.
         // A better approach if dataset is huge: Fetch IDs first, shuffle in PHP, then fetch details.
         
-        $query = "SELECT m.mcq_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation 
+        $query = "SELECT m.mcq_id, m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, v.explanation, 'mcqs' AS source
                  FROM mcqs m
                  LEFT JOIN MCQsVerification v ON m.mcq_id = v.mcq_id
                  WHERE ({$whereClause}) 
@@ -575,8 +845,43 @@ class QuestionService
         while ($row = $result->fetch_assoc()) {
             $mcqs[] = $row;
         }
-        
-        return $mcqs;
+        $stmt->close();
+
+        if ($this->tableExists('mcqs_from_book')) {
+            $bookConditions = [];
+            $bookParams = [];
+            $bookTypes = "";
+            foreach ($topics as $t) {
+                $bookConditions[] = "(q.question LIKE ? OR c.chapter_name LIKE ?)";
+                $like = "%{$t}%";
+                $bookParams[] = $like;
+                $bookParams[] = $like;
+                $bookTypes .= "ss";
+            }
+
+            $bookQuery = "SELECT CONCAT('book_', q.mcq_id) AS mcq_id, q.question, q.option_a, q.option_b, q.option_c, q.option_d,
+                                q.correct_option, '' AS explanation, 'mcqs_from_book' AS source
+                         FROM mcqs_from_book q
+                         LEFT JOIN chapter c ON c.chapter_id = q.chapter_id
+                         WHERE (" . implode(" OR ", $bookConditions) . ")
+                         ORDER BY RAND()
+                         LIMIT ?";
+            $bookParams[] = $limit;
+            $bookTypes .= "i";
+
+            $bookStmt = $this->conn->prepare($bookQuery);
+            if ($bookStmt) {
+                $bookStmt->bind_param($bookTypes, ...$bookParams);
+                $bookStmt->execute();
+                $bookResult = $bookStmt->get_result();
+                while ($row = $bookResult->fetch_assoc()) {
+                    $mcqs[] = $row;
+                }
+                $bookStmt->close();
+            }
+        }
+
+        return $this->limitShuffled($mcqs, $limit);
     }
     /**
      * Get random Questions (Short/Long) by Topics
@@ -604,7 +909,7 @@ class QuestionService
         
         $whereClause = implode(" OR ", $conditions);
         
-        $query = "SELECT id, question_text, marks, topic 
+        $query = "SELECT id, question_text, COALESCE(marks, ?) AS marks, topic, 'questions' AS source
                  FROM questions 
                  WHERE question_type = ? AND ({$whereClause}) 
                  ORDER BY RAND() 
@@ -613,8 +918,8 @@ class QuestionService
         $stmt = $this->conn->prepare($query);
         
         // Add type and limit to params
-        $queryParams = array_merge([$questionType], $params, [$limit]);
-        $types = "s" . $types . "i";
+        $queryParams = array_merge([$this->defaultMarksForType($questionType), $questionType], $params, [$limit]);
+        $types = "is" . $types . "i";
         
         $stmt->bind_param($types, ...$queryParams);
         $stmt->execute();
@@ -624,8 +929,41 @@ class QuestionService
         while ($row = $result->fetch_assoc()) {
             $questions[] = $row;
         }
-        
-        return $questions;
+        $stmt->close();
+
+        if ($this->tableExists('questions_from_book')) {
+            $bookConditions = [];
+            $bookParams = [];
+            $bookTypes = "";
+            foreach ($topics as $t) {
+                $bookConditions[] = "(topic LIKE ? OR question_text LIKE ?)";
+                $like = "%{$t}%";
+                $bookParams[] = $like;
+                $bookParams[] = $like;
+                $bookTypes .= "ss";
+            }
+
+            $bookQuery = "SELECT CONCAT('bookq_', id) AS id, question_text, ? AS marks, topic, 'questions_from_book' AS source
+                         FROM questions_from_book
+                         WHERE question_type = ? AND (" . implode(" OR ", $bookConditions) . ")
+                         ORDER BY RAND()
+                         LIMIT ?";
+            $bookQueryParams = array_merge([$this->defaultMarksForType($questionType), $questionType], $bookParams, [$limit]);
+            $bookTypes = "is" . $bookTypes . "i";
+
+            $bookStmt = $this->conn->prepare($bookQuery);
+            if ($bookStmt) {
+                $bookStmt->bind_param($bookTypes, ...$bookQueryParams);
+                $bookStmt->execute();
+                $bookResult = $bookStmt->get_result();
+                while ($row = $bookResult->fetch_assoc()) {
+                    $questions[] = $row;
+                }
+                $bookStmt->close();
+            }
+        }
+
+        return $this->limitShuffled($questions, $limit);
     }
 }
 ?>

@@ -54,6 +54,12 @@ yarn-error.log*
 !/uploads/.gitkeep
 /logs/*
 !/logs/.gitkeep
+/storage/ai_uploads/*
+!/storage/ai_uploads/.gitkeep
+/storage/book_uploads/*
+!/storage/book_uploads/.gitkeep
+/storage/book_generation/*
+!/storage/book_generation/.gitkeep
 
 # 🧰 Miscellaneous
 ads.php

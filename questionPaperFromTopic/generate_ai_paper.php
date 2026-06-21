@@ -274,6 +274,32 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
                 }
                 $stmt->close();
             }
+
+            $bookLikes = [];
+            $bookParams = [];
+            $bookTypesStr = "";
+            foreach ($topics as $t) {
+                $bookLikes[] = "(m.question LIKE ? OR c.chapter_name LIKE ?)";
+                $like = "%" . trim($t) . "%";
+                $bookParams[] = $like;
+                $bookParams[] = $like;
+                $bookTypesStr .= "ss";
+            }
+            $bookSql = "SELECT m.question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option
+                        FROM mcqs_from_book m
+                        LEFT JOIN chapter c ON c.chapter_id = m.chapter_id
+                        WHERE " . implode(" OR ", $bookLikes) . "
+                        ORDER BY RAND() LIMIT " . ($count * 2);
+            $stmt = $conn->prepare($bookSql);
+            if ($stmt) {
+                $stmt->bind_param($bookTypesStr, ...$bookParams);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $existingQuestions[md5($row['question'])] = $row;
+                }
+                $stmt->close();
+            }
         }
     }
 
@@ -315,6 +341,35 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
                 while ($row = $qRes->fetch_assoc()) {
                     $existingQuestions[md5($row['question'])] = $row;
                 }
+            }
+        }
+
+        if ($type === 'short' || $type === 'long') {
+            $bookLikes = [];
+            $bookParams = [];
+            $bookTypesStr = "";
+            foreach ($topics as $t) {
+                $bookLikes[] = "(topic LIKE ? OR question_text LIKE ?)";
+                $like = "%" . trim($t) . "%";
+                $bookParams[] = $like;
+                $bookParams[] = $like;
+                $bookTypesStr .= "ss";
+            }
+
+            $bookSql = "SELECT question_text AS question, '' AS typical_answer
+                        FROM questions_from_book
+                        WHERE question_type = ? AND (" . implode(" OR ", $bookLikes) . ")
+                        ORDER BY RAND() LIMIT " . ($count * 2);
+            $stmt = $conn->prepare($bookSql);
+            if ($stmt) {
+                $bookQueryParams = array_merge([$type], $bookParams);
+                $stmt->bind_param("s" . $bookTypesStr, ...$bookQueryParams);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $existingQuestions[md5($row['question'])] = $row;
+                }
+                $stmt->close();
             }
         }
     }
