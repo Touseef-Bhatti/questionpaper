@@ -31,14 +31,25 @@ Options -Indexes
     Require all denied
 </FilesMatch>
 
+# Allow this filename through the generic test-file deny rule. The relocated
+# MCQ diagnostics page enforces admin authentication in PHP.
+<Files "test_mcq_generation.php">
+    Require all granted
+</Files>
+<Files "test_nvidia_direct.php">
+    Require all granted
+</Files>
+
 # SEO-Optimized URL Rewriting
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
     Options -MultiViews
 
-    # Keep the admin book-question generator endpoints addressable by their exact PHP paths.
+    # Keep specific generator endpoints addressable by their exact PHP paths.
     RewriteRule ^admin/manageBookQuestions/(?:generate_from_book|api)\.php$ - [L,NC]
+    RewriteRule ^admin/manageAIcontent/test_mcq_generation\.php$ - [L,NC]
+    RewriteRule ^quiz/test_nvidia_direct\.php$ - [L,NC]
 
     # Application internals are not public content.
     RewriteRule ^(?:tests?|database|migrations|cron|logs|storage|scratch|config|includes|middleware|repositories|services)(?:/|$) - [F,L,NC]

@@ -1,12 +1,11 @@
 <?php
 /**
- * Background verification for file-upload generation: uses GEMINIAPIKEYFORRECHECK
- * (or GEMINIAPIKEY) with the stored document to add MCQ explanations and refine
- * short/long typical answers against the source file.
+ * Background verification for file-upload generation. Every recheck request
+ * uses only RECHECK_API_KEY and RECHECK_MODEL.
  */
 require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../quiz/mcq_generator.php';
 require_once __DIR__ . '/DocumentContentExtractor.php';
-require_once __DIR__ . '/GeminiClient.php';
 require_once __DIR__ . '/GeminiJsonExtractor.php';
 
 /**
@@ -28,20 +27,13 @@ function runAiUploadRecheck($conn, int $uploadId): void
         return;
     }
 
-    $recheckKey = trim((string) EnvLoader::get('GEMINIAPIKEYFORRECHECK', ''));
-    if ($recheckKey === '') {
-        $recheckKey = trim((string) EnvLoader::get('GEMINIAPIKEY', ''));
-    }
-    if ($recheckKey === '') {
+    $recheckKey = getRecheckApiKey();
+    $model = getRecheckModel();
+    if ($recheckKey === '' || $model === '') {
         if (in_array((string) ($row['recheck_status'] ?? ''), ['pending', 'processing', 'failed'], true)) {
-            aiUploadMarkFailed($conn, $uploadId, 'No Gemini key for recheck (set GEMINIAPIKEYFORRECHECK or GEMINIAPIKEY).');
+            aiUploadMarkFailed($conn, $uploadId, 'Missing RECHECK_API_KEY or RECHECK_MODEL.');
         }
         return;
-    }
-
-    $model = trim((string) EnvLoader::get('GEMINIRECHECKMODEL', ''));
-    if ($model === '') {
-        $model = trim((string) EnvLoader::get('GEMINIMODEL', 'gemini-2.5-flash'));
     }
 
     $projectRoot = dirname(__DIR__);
@@ -85,7 +77,10 @@ function runAiUploadRecheck($conn, int $uploadId): void
         $batchSize = 8;
         for ($i = 0; $i < count($mcqRows); $i += $batchSize) {
             $chunk = array_slice($mcqRows, $i, $batchSize);
-            aiUploadRecheckMcqBatch($recheckKey, $model, $conn, $prepared, $absPath, $ext, $chunk);
+            $verified = verifyMcqsWithRecheckApi($conn, $chunk, 'AIGeneratedMCQs');
+            if (empty($verified['success'])) {
+                throw new RuntimeException($verified['message'] ?? 'MCQ recheck failed');
+            }
         }
 
         if ($shortRows !== [] || $longRows !== []) {
@@ -279,11 +274,15 @@ function aiUploadRecheckMcqBatch(
         . "Explanation must be grounded in the document only.\n\n"
         . "MCQs to verify:\n" . implode("\n", $lines);
 
-    $gen = aiUploadGeminiJsonCall($apiKey, $model, $prepared, $absPath, $ext, $instr, 8192, 240);
-    if (empty($gen['ok'])) {
-        throw new RuntimeException($gen['error'] ?? 'Gemini recheck (MCQ) failed');
+    if (($prepared['mode'] ?? '') === 'text' && !empty($prepared['text'])) {
+        $instr .= "\n\nSOURCE TEXT:\n" . substr((string) $prepared['text'], 0, 80000);
     }
-    $parsed = GeminiJsonExtractor::parseObject((string) ($gen['text'] ?? ''));
+
+    list($responseText, $httpCode) = callRecheckAi($apiKey, $model, $instr, 8192, 240);
+    if ($httpCode !== 200 || !$responseText) {
+        throw new RuntimeException('Configured recheck API failed for upload MCQs with HTTP code ' . $httpCode);
+    }
+    $parsed = GeminiJsonExtractor::parseObject((string) $responseText);
     if (!is_array($parsed) || empty($parsed['mcqs']) || !is_array($parsed['mcqs'])) {
         throw new RuntimeException('Recheck response missing mcqs JSON');
     }
@@ -353,11 +352,15 @@ function aiUploadRecheckShortLong(
         . "Include only keys for types you were given; use empty arrays if none.\n\n"
         . implode("\n\n", $parts);
 
-    $gen = aiUploadGeminiJsonCall($apiKey, $model, $prepared, $absPath, $ext, $instr, 12288, 300);
-    if (empty($gen['ok'])) {
-        throw new RuntimeException($gen['error'] ?? 'Gemini recheck (short/long) failed');
+    if (($prepared['mode'] ?? '') === 'text' && !empty($prepared['text'])) {
+        $instr .= "\n\nSOURCE TEXT:\n" . substr((string) $prepared['text'], 0, 80000);
     }
-    $parsed = GeminiJsonExtractor::parseObject((string) ($gen['text'] ?? ''));
+
+    list($responseText, $httpCode) = callRecheckAi($apiKey, $model, $instr, 12288, 300);
+    if ($httpCode !== 200 || !$responseText) {
+        throw new RuntimeException('Configured recheck API failed for upload answers with HTTP code ' . $httpCode);
+    }
+    $parsed = GeminiJsonExtractor::parseObject((string) $responseText);
     if (!is_array($parsed)) {
         throw new RuntimeException('Recheck short/long JSON parse failed');
     }
@@ -399,64 +402,6 @@ function aiUploadRecheckShortLong(
             $u->close();
         }
     }
-}
-
-/**
- * @param array<string,mixed> $prepared
- * @return array{ok?:bool,error?:string,text?:string}
- */
-function aiUploadGeminiJsonCall(
-    string $apiKey,
-    string $model,
-    array $prepared,
-    string $absPath,
-    string $ext,
-    string $instructionText,
-    int $maxTokens,
-    int $timeoutSeconds
-): array {
-    if (($prepared['mode'] ?? '') === 'text') {
-        $userText = (string) ($prepared['text'] ?? '');
-        $full = $instructionText . "\n\n=== SOURCE TEXT (from uploaded file) ===\n" . $userText . "\n=== END ===\n";
-        $parts = [['text' => $full]];
-        $gen = GeminiClient::callGenerateContent($apiKey, $model, $parts, $maxTokens, $timeoutSeconds, true);
-        if (empty($gen['ok']) && aiUploadGeminiShouldRetryNoJson($gen)) {
-            $gen = GeminiClient::callGenerateContent($apiKey, $model, $parts, $maxTokens, $timeoutSeconds, false);
-        }
-        return $gen;
-    }
-
-    $mime = (string) ($prepared['mime'] ?? 'application/octet-stream');
-    $built = GeminiClient::buildMultimodalParts($apiKey, $instructionText, $absPath, $mime);
-    if (!empty($built['error'])) {
-        return ['ok' => false, 'error' => $built['error']];
-    }
-    $parts = $built['parts'];
-    $cleanup = $built['fileNameForCleanup'] ?? null;
-    $gen = GeminiClient::callGenerateContent($apiKey, $model, $parts, $maxTokens, $timeoutSeconds, true);
-    if (empty($gen['ok']) && aiUploadGeminiShouldRetryNoJson($gen)) {
-        $gen = GeminiClient::callGenerateContent($apiKey, $model, $parts, $maxTokens, $timeoutSeconds, false);
-    }
-    if (!empty($cleanup)) {
-        GeminiClient::deleteFile($apiKey, $cleanup);
-    }
-    return $gen;
-}
-
-/**
- * @param array<string,mixed> $gen
- */
-function aiUploadGeminiShouldRetryNoJson(array $gen): bool
-{
-    if (($gen['http'] ?? 0) !== 400) {
-        return false;
-    }
-    $m = strtolower((string) ($gen['error'] ?? ''));
-    return strpos($m, 'json') !== false
-        || strpos($m, 'mimetype') !== false
-        || strpos($m, 'mime type') !== false
-        || strpos($m, 'responsemimetype') !== false
-        || strpos($m, 'invalid argument') !== false;
 }
 
 if (PHP_SAPI === 'cli' && isset($argv[1]) && (int) $argv[1] > 0) {

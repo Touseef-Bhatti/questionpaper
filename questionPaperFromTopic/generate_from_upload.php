@@ -846,7 +846,9 @@ if (in_array('mcqs', $typesRequested, true) && !empty($parsed['mcqs'])) {
     }
     unset($q);
 
-    $savedMcqs = saveGeneratedMcqs($conn, $mcqsForSave, $detectedTopic, null, null, true);
+    // The upload pipeline dispatches its own combined MCQ/subjective recheck
+    // worker below, so avoid launching the general MCQ worker twice.
+    $savedMcqs = saveGeneratedMcqs($conn, $mcqsForSave, $detectedTopic, null, null, true, false);
 
     if (!empty($savedMcqs)) {
         $countStmt = $conn->prepare('INSERT INTO TopicQuestionCounts (topic_name, question_count) VALUES (?, ?) ON DUPLICATE KEY UPDATE question_count = question_count + ?');
@@ -1005,9 +1007,11 @@ if (!empty($result['long']) && is_array($result['long'])) {
     }
 }
 
-$recheckKeyForBg = trim((string) EnvLoader::get('GEMINIAPIKEYFORRECHECK', ''));
-$recheckStatusInsert = ($recheckKeyForBg !== '') ? 'pending' : 'skipped';
-$recheckFinishedInsert = ($recheckKeyForBg !== '') ? null : date('Y-m-d H:i:s');
+$recheckKeyForBg = trim((string) EnvLoader::get('RECHECK_API_KEY', ''));
+$recheckModelForBg = trim((string) EnvLoader::get('RECHECK_MODEL', ''));
+$hasRecheckConfig = ($recheckKeyForBg !== '' && $recheckModelForBg !== '');
+$recheckStatusInsert = $hasRecheckConfig ? 'pending' : 'skipped';
+$recheckFinishedInsert = $hasRecheckConfig ? null : date('Y-m-d H:i:s');
 $uploadRecordId = insertUploadRecord(
     $conn,
     $uidForUpload,
@@ -1032,7 +1036,12 @@ $result['ai_upload_id'] = $uploadRecordId;
 $result['recheck_status'] = $recheckStatusInsert;
 
 echo json_encode($result);
-exit;
+
+// Release the session before detaching the long-running recheck. Otherwise a
+// user who immediately starts the quiz can be blocked behind this request.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
 
 if (function_exists('fastcgi_finish_request')) {
     fastcgi_finish_request();
@@ -1043,7 +1052,7 @@ if (function_exists('fastcgi_finish_request')) {
     @flush();
 }
 
-if ($uploadRecordId > 0 && $recheckKeyForBg !== '') {
+if ($uploadRecordId > 0 && $hasRecheckConfig) {
     // Detach background worker so user flow (quiz/paper start) never waits.
     $phpBin = defined('PHP_BINARY') ? (string) PHP_BINARY : 'php';
     $script = __DIR__ . '/ai_upload_recheck_run.php';

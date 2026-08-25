@@ -2,13 +2,120 @@
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../../config/env.php';
 require_once __DIR__ . '/../../quiz/mcq_generator.php';
+require_once __DIR__ . '/../../includes/ai_mcq_recommendations.php';
 require_once __DIR__ . '/../security.php';
 requireAdminAuth();
 
-include_once __DIR__ . '/../header.php';
-
 if (isset($conn) && function_exists('ensureMcqVerificationTable')) {
     ensureMcqVerificationTable($conn);
+}
+$recommendationsReady = isset($conn) && ensureAiTopicRecommendationsTable($conn);
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'recommendations') {
+    header('Content-Type: application/json; charset=utf-8');
+    $response = ['success' => false];
+
+    try {
+        if (!$recommendationsReady) {
+            throw new RuntimeException('Recommendation storage is not available.');
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
+                http_response_code(403);
+                throw new RuntimeException('Security token invalid. Please refresh the page.');
+            }
+
+            if (($_POST['action'] ?? '') !== 'remove_recommended_topic') {
+                http_response_code(400);
+                throw new RuntimeException('Invalid recommendation action.');
+            }
+
+            $topicToRemove = trim((string)($_POST['topic'] ?? ''));
+            if ($topicToRemove === '') {
+                http_response_code(422);
+                throw new RuntimeException('A topic is required.');
+            }
+
+            $removeStmt = $conn->prepare('DELETE FROM AIRecommendedTopics WHERE topic_name = ?');
+            if (!$removeStmt) {
+                throw new RuntimeException('Unable to prepare the removal request.');
+            }
+            $removeStmt->bind_param('s', $topicToRemove);
+            $removeStmt->execute();
+            $removed = $removeStmt->affected_rows > 0;
+            $removeStmt->close();
+
+            if ($removed) {
+                logAdminAction('remove_ai_topic_recommendation', "Topic: '$topicToRemove'");
+            }
+
+            $response = [
+                'success' => true,
+                'removed' => $removed,
+                'message' => $removed ? 'Topic removed from recommendations.' : 'Topic was already removed.'
+            ];
+        } else {
+            $selectedTopic = trim((string)($_GET['topic'] ?? ''));
+
+            if ($selectedTopic !== '') {
+                $selectedStmt = $conn->prepare(
+                    'SELECT topic_name FROM AIRecommendedTopics WHERE topic_name = ? LIMIT 1'
+                );
+                $selectedStmt->bind_param('s', $selectedTopic);
+                $selectedStmt->execute();
+                $isSelected = $selectedStmt->get_result()->num_rows > 0;
+                $selectedStmt->close();
+
+                if (!$isSelected) {
+                    http_response_code(404);
+                    throw new RuntimeException('This topic is not in the recommendation pool.');
+                }
+
+                $detailsStmt = $conn->prepare(
+                    'SELECT id, question_text AS question, option_a, option_b, option_c, option_d,
+                            correct_option, explanation, generated_at
+                     FROM AIGeneratedMCQs
+                     WHERE topic = ?
+                     ORDER BY generated_at DESC, id DESC'
+                );
+                $detailsStmt->bind_param('s', $selectedTopic);
+                $detailsStmt->execute();
+                $detailsResult = $detailsStmt->get_result();
+                $mcqDetails = [];
+                while ($detail = $detailsResult->fetch_assoc()) {
+                    $mcqDetails[] = $detail;
+                }
+                $detailsStmt->close();
+
+                $response = [
+                    'success' => true,
+                    'topic' => $selectedTopic,
+                    'mcqs' => $mcqDetails
+                ];
+            } else {
+                $selectedResult = $conn->query(
+                    "SELECT r.topic_name, r.selected_at, r.selected_by, COUNT(m.id) AS mcq_count
+                     FROM AIRecommendedTopics r
+                     LEFT JOIN AIGeneratedMCQs m ON BINARY m.topic = BINARY r.topic_name
+                     GROUP BY r.topic_name, r.selected_at, r.selected_by
+                     ORDER BY r.selected_at DESC, r.topic_name ASC"
+                );
+                $selectedTopics = [];
+                while ($selectedResult && ($selected = $selectedResult->fetch_assoc())) {
+                    $selected['mcq_count'] = (int)$selected['mcq_count'];
+                    $selectedTopics[] = $selected;
+                }
+
+                $response = ['success' => true, 'topics' => $selectedTopics];
+            }
+        }
+    } catch (Throwable $e) {
+        $response['message'] = $e->getMessage();
+    }
+
+    echo json_encode($response);
+    exit;
 }
 
 $message = '';
@@ -20,7 +127,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $action = $_POST['action'] ?? '';
 
-        if ($action === 'update') {
+        if ($action === 'save_topic_recommendations') {
+            if (!$recommendationsReady) {
+                $error = 'Recommendation storage is not available. Please check the database setup.';
+            } else {
+                $postedTopics = is_array($_POST['recommended_topics'] ?? null)
+                    ? $_POST['recommended_topics']
+                    : [];
+                $postedTopics = array_values(array_unique(array_filter(array_map(
+                    static function ($topic) {
+                        return mb_substr(trim((string)$topic), 0, 255);
+                    },
+                    $postedTopics
+                ), static function ($topic) { return $topic !== ''; })));
+
+                $availableTopics = [];
+                $availableResult = $conn->query(
+                    "SELECT DISTINCT topic FROM AIGeneratedMCQs
+                     WHERE topic IS NOT NULL AND TRIM(topic) != ''"
+                );
+                while ($availableResult && ($available = $availableResult->fetch_assoc())) {
+                    $availableTopics[$available['topic']] = true;
+                }
+                $selectedTopics = array_values(array_filter(
+                    $postedTopics,
+                    static function ($topic) use ($availableTopics) {
+                        return isset($availableTopics[$topic]);
+                    }
+                ));
+
+                $adminId = isset($_SESSION['admin_id']) ? (int)$_SESSION['admin_id'] : null;
+                $insertRecommendation = $conn->prepare(
+                    'INSERT INTO AIRecommendedTopics (topic_name, selected_by) VALUES (?, ?)'
+                );
+
+                if (!$insertRecommendation) {
+                    $error = 'Failed to prepare recommendation update.';
+                } else {
+                    try {
+                        $conn->begin_transaction();
+                        if (!$conn->query('DELETE FROM AIRecommendedTopics')) {
+                            throw new RuntimeException('Unable to clear the previous recommendation pool.');
+                        }
+
+                        foreach ($selectedTopics as $selectedTopic) {
+                            $insertRecommendation->bind_param('si', $selectedTopic, $adminId);
+                            if (!$insertRecommendation->execute()) {
+                                throw new RuntimeException('Unable to save a selected topic.');
+                            }
+                        }
+
+                        $conn->commit();
+                        $message = count($selectedTopics) . ' recommended topic(s) saved.';
+                        logAdminAction(
+                            'save_ai_topic_recommendations',
+                            'Selected topics: ' . count($selectedTopics)
+                        );
+                    } catch (Throwable $e) {
+                        $conn->rollback();
+                        $error = 'Database error while saving topic recommendations.';
+                    }
+                    $insertRecommendation->close();
+                }
+            }
+        } elseif ($action === 'update') {
             $id = intval($_POST['id'] ?? 0);
             if ($id > 0) {
                 $topic = sanitizeInput($_POST['topic'] ?? '');
@@ -128,6 +298,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($stmt->execute()) {
                         $affected = $stmt->affected_rows;
                         if ($affected > 0) {
+                            if ($recommendationsReady) {
+                                $copyRecommendation = $conn->prepare(
+                                    'INSERT IGNORE INTO AIRecommendedTopics (topic_name, selected_by, selected_at)
+                                     SELECT ?, selected_by, selected_at
+                                     FROM AIRecommendedTopics WHERE topic_name = ?'
+                                );
+                                if ($copyRecommendation) {
+                                    $copyRecommendation->bind_param('ss', $newTopic, $oldTopic);
+                                    $copyRecommendation->execute();
+                                    $copyRecommendation->close();
+                                }
+                                $removeOldRecommendation = $conn->prepare(
+                                    'DELETE FROM AIRecommendedTopics WHERE topic_name = ?'
+                                );
+                                if ($removeOldRecommendation) {
+                                    $removeOldRecommendation->bind_param('s', $oldTopic);
+                                    $removeOldRecommendation->execute();
+                                    $removeOldRecommendation->close();
+                                }
+                            }
                             $message = "Topic name updated in $affected AI MCQs.";
                             logAdminAction('rename_ai_topic', "From '$oldTopic' to '$newTopic' ($affected rows)");
                         } else {
@@ -148,13 +338,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $topicFilter = trim($_GET['topic'] ?? '');
 
 $topicCounts = [];
-$topicCountsResult = $conn->query(
-    "SELECT topic, COUNT(*) AS total 
-     FROM AIGeneratedMCQs 
-     WHERE topic IS NOT NULL AND topic <> '' 
-     GROUP BY topic 
-     ORDER BY total DESC, topic ASC"
-);
+$topicCountsSql = $recommendationsReady
+    ? "SELECT m.topic, COUNT(*) AS total,
+              CASE WHEN r.topic_name IS NULL THEN 0 ELSE 1 END AS is_recommended
+       FROM AIGeneratedMCQs m
+       LEFT JOIN AIRecommendedTopics r ON BINARY r.topic_name = BINARY m.topic
+       WHERE m.topic IS NOT NULL AND m.topic <> ''
+       GROUP BY m.topic, r.topic_name
+       ORDER BY total DESC, m.topic ASC"
+    : "SELECT topic, COUNT(*) AS total, 0 AS is_recommended
+       FROM AIGeneratedMCQs
+       WHERE topic IS NOT NULL AND topic <> ''
+       GROUP BY topic
+       ORDER BY total DESC, topic ASC";
+$topicCountsResult = $conn->query($topicCountsSql);
 if ($topicCountsResult) {
     while ($row = $topicCountsResult->fetch_assoc()) {
         $topicCounts[] = $row;
@@ -165,6 +362,14 @@ $overallTotal = 0;
 $totalRes = $conn->query("SELECT COUNT(*) AS cnt FROM AIGeneratedMCQs");
 if ($totalRes && ($row = $totalRes->fetch_assoc())) {
     $overallTotal = (int)$row['cnt'];
+}
+
+$recommendedTotal = 0;
+if ($recommendationsReady) {
+    $recommendedTotalRes = $conn->query("SELECT COUNT(*) AS cnt FROM AIRecommendedTopics");
+    if ($recommendedTotalRes && ($row = $recommendedTotalRes->fetch_assoc())) {
+        $recommendedTotal = (int)$row['cnt'];
+    }
 }
 
 $whereSql = '';
@@ -225,7 +430,7 @@ $limitSql = $viewAll ? '' : " LIMIT $offset, $perPage";
 
 $mcqs = [];
 if ($whereSql === '') {
-    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.explanation, m.generated_at, v.verification_status, v.last_checked_at 
+    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.explanation, m.generated_at, v.verification_status, v.last_checked_at
             FROM AIGeneratedMCQs m
             LEFT JOIN MCQVerification v ON v.source = 'AIGeneratedMCQs' AND v.mcq_id = m.id
             ORDER BY m.generated_at DESC" . $limitSql;
@@ -236,7 +441,7 @@ if ($whereSql === '') {
         }
     }
 } else {
-    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.explanation, m.generated_at, v.verification_status, v.last_checked_at 
+    $sql = "SELECT m.id, m.topic, m.question_text AS question, m.option_a, m.option_b, m.option_c, m.option_d, m.correct_option, m.explanation, m.generated_at, v.verification_status, v.last_checked_at
             FROM AIGeneratedMCQs m
             LEFT JOIN MCQVerification v ON v.source = 'AIGeneratedMCQs' AND v.mcq_id = m.id
             $whereSql 
@@ -258,6 +463,7 @@ if ($whereSql === '') {
 }
 
 $csrfToken = generateCSRFToken();
+include_once __DIR__ . '/../header.php';
 ?>
 <style>
         .ai-mcqs-container {
@@ -334,6 +540,14 @@ $csrfToken = generateCSRFToken();
             border-radius: 8px;
             border: 1px solid #e0e0e0;
             padding: 0.5rem 0.75rem;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .topic-item.is-recommended {
+            border-color: #e0a800;
+            background: #fffdf2;
+        }
+        .topic-item-header {
+            min-height: 48px;
         }
         .topic-item-name {
             font-weight: 600;
@@ -342,6 +556,18 @@ $csrfToken = generateCSRFToken();
         .topic-item-count {
             font-size: 0.85rem;
             color: #555;
+        }
+        .topic-recommendation-option {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            margin-top: 0.55rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #ececec;
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: #5f4b00;
+            cursor: pointer;
         }
         .topic-search-bar {
             margin-bottom: 0.5rem;
@@ -441,6 +667,150 @@ $csrfToken = generateCSRFToken();
             border-radius: 4px;
             border: 1px solid #ced4da;
             font-size: 0.9rem;
+        }
+        .recommendation-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0 0 1rem;
+            padding: 0.75rem 1rem;
+            background: #fff8e1;
+            border: 1px solid #ffe08a;
+            border-radius: 8px;
+        }
+        .recommendation-toolbar p {
+            flex: 1 1 360px;
+            margin: 0;
+            color: #5f4b00;
+            font-size: 0.9rem;
+        }
+        .recommendation-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #e0a800;
+        }
+        .btn-recommendation {
+            background: #e0a800;
+            color: #212529;
+            font-weight: 600;
+        }
+        .recommendation-manager {
+            position: fixed;
+            inset: 0;
+            z-index: 11000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.68);
+        }
+        .recommendation-manager.is-open {
+            display: flex;
+        }
+        .recommendation-manager-dialog {
+            width: min(1100px, 96vw);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 24px 70px rgba(0,0,0,0.28);
+            overflow: hidden;
+        }
+        .recommendation-manager-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .recommendation-manager-header h2 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+        .recommendation-manager-body {
+            padding: 1rem 1.25rem 1.25rem;
+            overflow-y: auto;
+        }
+        .recommendation-manager-close {
+            border: 0;
+            background: transparent;
+            font-size: 1.75rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #4b5563;
+        }
+        .selected-topic-card {
+            border: 1px solid #dfe3e8;
+            border-radius: 10px;
+            margin-bottom: 0.8rem;
+            overflow: hidden;
+        }
+        .selected-topic-summary {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.8rem 1rem;
+            background: #f8fafc;
+        }
+        .selected-topic-info {
+            flex: 1 1 300px;
+        }
+        .selected-topic-name {
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .selected-topic-meta {
+            margin-top: 0.2rem;
+            font-size: 0.82rem;
+            color: #6b7280;
+        }
+        .selected-topic-details {
+            display: none;
+            padding: 0.85rem 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        .selected-topic-details.is-open {
+            display: block;
+        }
+        .recommendation-mcq {
+            margin-bottom: 0.8rem;
+            padding: 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .recommendation-mcq:last-child {
+            margin-bottom: 0;
+        }
+        .recommendation-mcq-question {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .recommendation-mcq-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.3rem 1rem;
+            font-size: 0.86rem;
+        }
+        .recommendation-mcq-answer,
+        .recommendation-mcq-explanation {
+            margin-top: 0.5rem;
+            font-size: 0.86rem;
+        }
+        .recommendation-empty,
+        .recommendation-loading,
+        .recommendation-error {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #6b7280;
+        }
+        .recommendation-error {
+            color: #b91c1c;
         }
         .pagination {
             margin: 1rem 0;
@@ -638,6 +1008,14 @@ $csrfToken = generateCSRFToken();
                 width: 100%;
             }
 
+            .recommendation-toolbar {
+                align-items: stretch;
+            }
+
+            .recommendation-mcq-options {
+                grid-template-columns: 1fr;
+            }
+
             .topic-table-wrapper {
                 overflow: auto;
                 -webkit-overflow-scrolling: touch;
@@ -698,6 +1076,7 @@ $csrfToken = generateCSRFToken();
                 <h3>AI Generated MCQs</h3>
                 <p><strong>Total:</strong> <?= (int)$overallTotal ?></p>
                 <p><strong>Topics:</strong> <?= count($topicCounts) ?></p>
+                <p><strong>Recommended pool:</strong> <?= (int)$recommendedTotal ?></p>
             </div>
             <?php if ($topicFilter !== ''): ?>
             <div class="ai-card">
@@ -756,39 +1135,73 @@ $csrfToken = generateCSRFToken();
         <?php if (empty($topicCounts)): ?>
             <p>No AI generated MCQs found.</p>
         <?php else: ?>
-            <div class="topic-search-bar">
-                <input type="text" id="topicSearchInput" placeholder="Search topics...">
-            </div>
-            <div class="topic-table-wrapper">
-                <table class="topic-table" id="topicTable">
-                    <tbody>
-                        <?php
-                            $colsPerRow = 3;
-                            $totalTopics = count($topicCounts);
-                            for ($i = 0; $i < $totalTopics; $i += $colsPerRow):
-                        ?>
-                            <tr>
-                                <?php for ($j = 0; $j < $colsPerRow; $j++):
-                                    $index = $i + $j;
-                                ?>
-                                    <td>
-                                        <?php if ($index < $totalTopics):
-                                            $row = $topicCounts[$index];
-                                        ?>
-                                            <div class="topic-item">
-                                                <a class="topic-link" href="?<?= http_build_query(array_merge($_GET, ['topic' => $row['topic'], 'page' => 1])) ?>">
-                                                    <div class="topic-item-name"><?= htmlspecialchars($row['topic']) ?></div>
-                                                </a>
-                                                <div class="topic-item-count">MCQs: <?= (int)$row['total'] ?></div>
-                                            </div>
-                                        <?php endif; ?>
-                                    </td>
-                                <?php endfor; ?>
-                            </tr>
-                        <?php endfor; ?>
-                    </tbody>
-                </table>
-            </div>
+            <form method="POST" id="topicRecommendationsForm">
+                <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                <input type="hidden" name="action" value="save_topic_recommendations">
+
+                <div class="recommendation-toolbar">
+                    <p>
+                        Choose any topics for the public recommendation pool. Three are selected
+                        randomly whenever the topic-wise MCQs page loads.
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="setTopicRecommendations(true)">Select all</button>
+                    <button type="button" class="btn btn-secondary" onclick="setTopicRecommendations(false)">Clear all</button>
+                    <button type="submit" class="btn btn-recommendation">Save recommendations</button>
+                    <button type="button" class="btn btn-primary" onclick="openRecommendationManager()">
+                        View selected (<span id="recommendedTopicCount"><?= (int)$recommendedTotal ?></span>)
+                    </button>
+                </div>
+
+                <div class="topic-search-bar">
+                    <input type="text" id="topicSearchInput" placeholder="Search topics...">
+                </div>
+                <div class="topic-table-wrapper">
+                    <table class="topic-table" id="topicTable">
+                        <tbody>
+                            <?php
+                                $colsPerRow = 3;
+                                $totalTopics = count($topicCounts);
+                                for ($i = 0; $i < $totalTopics; $i += $colsPerRow):
+                            ?>
+                                <tr>
+                                    <?php for ($j = 0; $j < $colsPerRow; $j++):
+                                        $index = $i + $j;
+                                    ?>
+                                        <td>
+                                            <?php if ($index < $totalTopics):
+                                                $row = $topicCounts[$index];
+                                            ?>
+                                                <div class="topic-item <?= !empty($row['is_recommended']) ? 'is-recommended' : '' ?>">
+                                                    <div class="topic-item-header">
+                                                        <a class="topic-link" href="?<?= http_build_query(array_merge($_GET, ['topic' => $row['topic'], 'page' => 1])) ?>">
+                                                            <div class="topic-item-name"><?= htmlspecialchars($row['topic']) ?></div>
+                                                        </a>
+                                                        <div class="topic-item-count">MCQs: <?= (int)$row['total'] ?></div>
+                                                    </div>
+                                                    <label class="topic-recommendation-option">
+                                                        <input
+                                                            type="checkbox"
+                                                            class="recommendation-checkbox"
+                                                            name="recommended_topics[]"
+                                                            value="<?= htmlspecialchars($row['topic']) ?>"
+                                                            <?= !empty($row['is_recommended']) ? 'checked' : '' ?>
+                                                            <?= !$recommendationsReady ? 'disabled' : '' ?>
+                                                        >
+                                                        Add to recommendations
+                                                    </label>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endfor; ?>
+                                </tr>
+                            <?php endfor; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+            <?php if (!$recommendationsReady): ?>
+                <div class="alert alert-error">Recommendation selection is unavailable because its database table could not be initialized.</div>
+            <?php endif; ?>
         <?php endif; ?>
 
         <h2>AI MCQs List</h2>
@@ -997,6 +1410,28 @@ $csrfToken = generateCSRFToken();
         <?php endif; ?>
     </div>
 
+    <div
+        class="recommendation-manager"
+        id="recommendationManager"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="recommendationManagerTitle"
+        aria-hidden="true"
+    >
+        <div class="recommendation-manager-dialog">
+            <div class="recommendation-manager-header">
+                <div>
+                    <h2 id="recommendationManagerTitle">Selected recommendation topics</h2>
+                    <div class="selected-topic-meta">View topic details or remove topics from the public recommendation pool.</div>
+                </div>
+                <button type="button" class="recommendation-manager-close" onclick="closeRecommendationManager()" aria-label="Close">&times;</button>
+            </div>
+            <div class="recommendation-manager-body" id="recommendationManagerBody">
+                <div class="recommendation-loading">Loading selected topics...</div>
+            </div>
+        </div>
+    </div>
+
     <div class="ai-loader-overlay" id="aiLoader">
         <div class="ai-loader-box">
             <div class="ai-loader-spinner"></div>
@@ -1038,20 +1473,219 @@ $csrfToken = generateCSRFToken();
                 var rows = document.querySelectorAll('#topicTable tbody tr');
                 for (var i = 0; i < rows.length; i++) {
                     var row = rows[i];
-                    var names = row.querySelectorAll('.topic-item-name');
-                    var match = false;
-                    for (var j = 0; j < names.length; j++) {
-                        var text = names[j].textContent || names[j].innerText || '';
-                        if (text.toLowerCase().indexOf(q) !== -1) {
-                            match = true;
-                            break;
+                    var cells = row.querySelectorAll('td');
+                    var visibleCells = 0;
+                    for (var j = 0; j < cells.length; j++) {
+                        var name = cells[j].querySelector('.topic-item-name');
+                        if (!name) {
+                            cells[j].style.display = q === '' ? '' : 'none';
+                            continue;
                         }
+                        var text = name.textContent || name.innerText || '';
+                        var matches = q === '' || text.toLowerCase().indexOf(q) !== -1;
+                        cells[j].style.display = matches ? '' : 'none';
+                        if (matches) visibleCells++;
                     }
-                    row.style.display = (q === '' || match) ? '' : 'none';
+                    row.style.display = visibleCells > 0 ? '' : 'none';
                 }
             });
         }
+
+        var recommendationCheckboxes = document.querySelectorAll('.recommendation-checkbox');
+        for (var i = 0; i < recommendationCheckboxes.length; i++) {
+            recommendationCheckboxes[i].addEventListener('change', function() {
+                var item = this.closest('.topic-item');
+                if (item) item.classList.toggle('is-recommended', this.checked);
+            });
+        }
+
+        var manager = document.getElementById('recommendationManager');
+        if (manager) {
+            manager.addEventListener('click', function(event) {
+                if (event.target === manager) closeRecommendationManager();
+            });
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') closeRecommendationManager();
+        });
     })();
+
+    const recommendationEndpoint = 'manage_ai_mcqs.php?ajax=recommendations';
+    const recommendationCsrfToken = <?= json_encode($csrfToken) ?>;
+
+    function escapeRecommendationHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function setTopicRecommendations(checked) {
+        var checkboxes = document.querySelectorAll('.recommendation-checkbox:not(:disabled)');
+        for (var i = 0; i < checkboxes.length; i++) {
+            checkboxes[i].checked = checked;
+            var item = checkboxes[i].closest('.topic-item');
+            if (item) item.classList.toggle('is-recommended', checked);
+        }
+    }
+
+    function openRecommendationManager() {
+        var manager = document.getElementById('recommendationManager');
+        if (!manager) return;
+        manager.classList.add('is-open');
+        manager.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        loadSelectedRecommendations();
+    }
+
+    function closeRecommendationManager() {
+        var manager = document.getElementById('recommendationManager');
+        if (!manager || !manager.classList.contains('is-open')) return;
+        manager.classList.remove('is-open');
+        manager.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+
+    async function requestRecommendationData(url, options) {
+        var response = await fetch(url, options || {});
+        var data;
+        try {
+            data = await response.json();
+        } catch (error) {
+            throw new Error('The server returned an invalid response.');
+        }
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Unable to load recommendation data.');
+        }
+        return data;
+    }
+
+    async function loadSelectedRecommendations() {
+        var body = document.getElementById('recommendationManagerBody');
+        if (!body) return;
+        body.innerHTML = '<div class="recommendation-loading">Loading selected topics...</div>';
+
+        try {
+            var data = await requestRecommendationData(recommendationEndpoint);
+            renderSelectedRecommendations(data.topics || []);
+        } catch (error) {
+            body.innerHTML = '<div class="recommendation-error">' + escapeRecommendationHtml(error.message) + '</div>';
+        }
+    }
+
+    function renderSelectedRecommendations(topics) {
+        var body = document.getElementById('recommendationManagerBody');
+        var count = document.getElementById('recommendedTopicCount');
+        if (count) count.textContent = topics.length;
+
+        if (!topics.length) {
+            body.innerHTML = '<div class="recommendation-empty">No topics are currently selected for recommendation.</div>';
+            return;
+        }
+
+        body.innerHTML = topics.map(function(topic, index) {
+            var topicName = escapeRecommendationHtml(topic.topic_name);
+            var selectedAt = topic.selected_at ? 'Selected ' + escapeRecommendationHtml(topic.selected_at) : 'Selection date unavailable';
+            var selectedBy = topic.selected_by ? ' &bull; Admin #' + Number(topic.selected_by) : '';
+            return '<div class="selected-topic-card">' +
+                '<div class="selected-topic-summary">' +
+                    '<div class="selected-topic-info">' +
+                        '<div class="selected-topic-name">' + topicName + '</div>' +
+                        '<div class="selected-topic-meta">' + Number(topic.mcq_count || 0) + ' MCQs &bull; ' + selectedAt + selectedBy + '</div>' +
+                    '</div>' +
+                    '<button type="button" class="btn btn-primary view-recommendation-details" data-topic="' + topicName + '" data-target="recommendationDetails' + index + '">View MCQ details</button>' +
+                    '<button type="button" class="btn btn-delete remove-recommended-topic" data-topic="' + topicName + '">Remove</button>' +
+                '</div>' +
+                '<div class="selected-topic-details" id="recommendationDetails' + index + '"></div>' +
+            '</div>';
+        }).join('');
+
+        body.querySelectorAll('.view-recommendation-details').forEach(function(button) {
+            button.addEventListener('click', function() {
+                loadRecommendedTopicDetails(this.dataset.topic, this.dataset.target, this);
+            });
+        });
+        body.querySelectorAll('.remove-recommended-topic').forEach(function(button) {
+            button.addEventListener('click', function() {
+                removeRecommendedTopic(this.dataset.topic, this);
+            });
+        });
+    }
+
+    async function loadRecommendedTopicDetails(topic, targetId, button) {
+        var details = document.getElementById(targetId);
+        if (!details) return;
+
+        if (button.dataset.loaded === 'true') {
+            details.classList.toggle('is-open');
+            button.textContent = details.classList.contains('is-open') ? 'Hide MCQ details' : 'View MCQ details';
+            return;
+        }
+
+        details.classList.add('is-open');
+        details.innerHTML = '<div class="recommendation-loading">Loading MCQ details...</div>';
+        button.disabled = true;
+
+        try {
+            var data = await requestRecommendationData(recommendationEndpoint + '&topic=' + encodeURIComponent(topic));
+            var mcqs = data.mcqs || [];
+            if (!mcqs.length) {
+                details.innerHTML = '<div class="recommendation-empty">No AI MCQs currently use this topic.</div>';
+            } else {
+                details.innerHTML = mcqs.map(function(mcq) {
+                    return '<div class="recommendation-mcq">' +
+                        '<div class="recommendation-mcq-question">#' + Number(mcq.id) + ' &mdash; ' + escapeRecommendationHtml(mcq.question) + '</div>' +
+                        '<div class="recommendation-mcq-options">' +
+                            '<div><strong>A:</strong> ' + escapeRecommendationHtml(mcq.option_a) + '</div>' +
+                            '<div><strong>B:</strong> ' + escapeRecommendationHtml(mcq.option_b) + '</div>' +
+                            '<div><strong>C:</strong> ' + escapeRecommendationHtml(mcq.option_c) + '</div>' +
+                            '<div><strong>D:</strong> ' + escapeRecommendationHtml(mcq.option_d) + '</div>' +
+                        '</div>' +
+                        '<div class="recommendation-mcq-answer"><strong>Correct:</strong> ' + escapeRecommendationHtml(mcq.correct_option || 'Not set') + '</div>' +
+                        '<div class="recommendation-mcq-explanation"><strong>Explanation:</strong> ' + escapeRecommendationHtml(mcq.explanation || 'Not provided') + '</div>' +
+                        '<div class="selected-topic-meta">Generated: ' + escapeRecommendationHtml(mcq.generated_at || '-') + '</div>' +
+                    '</div>';
+                }).join('');
+            }
+            button.dataset.loaded = 'true';
+            button.textContent = 'Hide MCQ details';
+        } catch (error) {
+            details.innerHTML = '<div class="recommendation-error">' + escapeRecommendationHtml(error.message) + '</div>';
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function removeRecommendedTopic(topic, button) {
+        if (!confirm('Remove "' + topic + '" from recommendations?')) return;
+
+        button.disabled = true;
+        var formData = new FormData();
+        formData.append('action', 'remove_recommended_topic');
+        formData.append('topic', topic);
+        formData.append('csrf_token', recommendationCsrfToken);
+
+        try {
+            await requestRecommendationData(recommendationEndpoint, {
+                method: 'POST',
+                body: formData
+            });
+            document.querySelectorAll('.recommendation-checkbox').forEach(function(checkbox) {
+                if (checkbox.value === topic) {
+                    checkbox.checked = false;
+                    var item = checkbox.closest('.topic-item');
+                    if (item) item.classList.remove('is-recommended');
+                }
+            });
+            await loadSelectedRecommendations();
+        } catch (error) {
+            alert(error.message);
+            button.disabled = false;
+        }
+    }
 
     function checkSingleMCQ(id, btn) {
         if (!confirm('Run AI check for this MCQ?')) return;

@@ -150,10 +150,10 @@ foreach (['short', 'long'] as $type) {
 
 if (!empty($ai_items_to_process)) {
     try {
-        $apiKey = EnvLoader::get('RECHECK_API_KEY');
-        $model = EnvLoader::get('RECHECK_MODEL', 'qwen/qwen3-next-80b-a3b-instruct');
+        $apiKey = trim((string) EnvLoader::get('RECHECK_API_KEY', ''));
+        $model = trim((string) EnvLoader::get('RECHECK_MODEL', ''));
 
-        if (!empty($apiKey)) {
+        if ($apiKey !== '' && $model !== '') {
             $prompt = "You are a kind, encouraging Pakistani school teacher evaluating a student's exam. 
 You MUST be LENIENT and GENEROUS with marks. Focus on CONCEPTUAL understanding, NOT exact wording.
 

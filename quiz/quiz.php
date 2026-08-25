@@ -808,10 +808,10 @@ if (count($topicsArray) > 1) {
     $cacheKeyForFinal = '';
 }
 
-// Trigger background verification/correction for all MCQs in the quiz
+// Trigger background verification/correction only for MCQs that still need it.
 $missingExplanationIds = [];
 foreach ($questions as $q) {
-    if (isset($q['mcq_id'])) {
+    if (isset($q['mcq_id']) && trim((string) ($q['explanation'] ?? '')) === '') {
         $missingExplanationIds[] = $q['mcq_id'];
     }
 }
@@ -2141,6 +2141,8 @@ FunnyAudioManager.setBasePath('<?= $assetBase ?>');
 const questions = <?= json_encode($questions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
     const finalCacheKey = <?= json_encode($cacheKeyForFinal) ?>;
 const missingExplanationIds = <?= json_encode($missingExplanationIds) ?>;
+const backgroundVerificationUrl = <?= json_encode($assetBase . 'quiz/ajax_verify_background.php') ?>;
+const backgroundVerificationStatusUrl = <?= json_encode($assetBase . 'quiz/ajax_verification_status.php') ?>;
 const hasAlreadyReviewedServer = <?= json_encode($hasAlreadyReviewed) ?>;
 const isLoggedIn = <?= json_encode($isLoggedIn) ?>;
 const quizApiUrl = <?= json_encode($quizApiPath, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
@@ -2886,114 +2888,169 @@ function startQuizActual() {
 // Trigger initialization
 initQuiz();
 
-// Trigger background verification for MCQs missing explanations after a short delay
+// Trigger background verification as soon as the quiz UI is ready. Textbook
+// book MCQs use a separate trusted flow and are intentionally excluded here.
 if (missingExplanationIds.length > 0) {
     setTimeout(() => {
-        // Only verify MCQs that actually MISS explanations in the 'questions' array
-        const reallyMissingIds = questions
-            .filter(q => !q.explanation || q.explanation.trim() === '')
-            .map(q => q.mcq_id);
-            
-        if (reallyMissingIds.length > 0) {
-            triggerBackgroundVerification(reallyMissingIds);
-        }
-    }, 3000); // 3 seconds delay to ensure quiz UI is interactive
+        const ids = questions
+            .filter(q => !q.explanation || String(q.explanation).trim() === '')
+            .map(q => String(q.mcq_id || ''))
+            .filter(id => id && !id.startsWith('book_'));
+        if (ids.length > 0) triggerBackgroundVerification(ids, 0);
+    }, 250);
 }
 
-async function triggerBackgroundVerification(ids) {
+function verificationHtml(value) {
+    return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function applyBackgroundVerificationUpdates(updates) {
+    if (!Array.isArray(updates)) return;
+
+    updates.forEach(upd => {
+        const fullId = (upd.source === 'ai' ? 'ai_' : '') + upd.id;
+        const qIdx = questions.findIndex(q => String(q.mcq_id) === String(fullId));
+        if (qIdx === -1) return;
+
+        const question = questions[qIdx];
+        question.explanation = upd.explanation || question.explanation || '';
+        if (upd.question || upd.question_text) question.question = upd.question || upd.question_text;
+        if (upd.option_a) question.option_a = upd.option_a;
+        if (upd.option_b) question.option_b = upd.option_b;
+        if (upd.option_c) question.option_c = upd.option_c;
+        if (upd.option_d) question.option_d = upd.option_d;
+        if (upd.correct_option) question.correct_option = upd.correct_option;
+
+        if (currentQuestion === qIdx && !answers[qIdx]) renderQuestion();
+
+        if (answers[qIdx]) {
+            const answer = answers[qIdx];
+            const wasCorrect = Boolean(answer.isCorrect);
+            const newCorrectLetter = getCorrectLetter(question);
+            const isNowCorrect = Boolean(answer.selected && answer.selected === newCorrectLetter);
+
+            answer.explanation = question.explanation || '';
+            answer.question = question.question;
+            answer.options = {
+                A: question.option_a,
+                B: question.option_b,
+                C: question.option_c,
+                D: question.option_d
+            };
+            answer.correct = newCorrectLetter;
+            answer.correctText = question['option_' + (newCorrectLetter || 'a').toLowerCase()];
+            answer.isCorrect = isNowCorrect;
+
+            // Keep the final score consistent if verification corrected an answer
+            // after the student had already selected an option.
+            if (wasCorrect !== isNowCorrect) score += isNowCorrect ? 1 : -1;
+        }
+
+        if (quizCompleted && question.explanation) {
+            const item = document.querySelectorAll('.review-item')[qIdx];
+            const grid = item?.querySelector('.review-options-grid');
+            if (!grid) return;
+            const existingText = item.querySelector('.explanation-text');
+            if (existingText) {
+                existingText.textContent = question.explanation;
+            } else {
+                grid.insertAdjacentHTML('beforeend', `
+                    <button class="btn-explanation" onclick="toggleExplanation(${qIdx})">
+                        <i class="fas fa-lightbulb"></i> View Explanation
+                    </button>
+                    <div class="explanation-container" id="explanation-${qIdx}">
+                        <div class="explanation-title"><i class="fas fa-info-circle"></i> Explanation</div>
+                        <div class="explanation-text">${verificationHtml(question.explanation)}</div>
+                    </div>
+                `);
+            }
+        }
+    });
+}
+
+async function pollBackgroundVerification(ids) {
+    let pendingIds = [...new Set(ids.map(String))];
+    const deadline = Date.now() + 150000;
+    let recoveryAttempts = 0;
+    let nextRecoveryAt = Date.now() + 10000;
+    let pollDelay = 700;
+
+    while (pendingIds.length > 0 && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, pollDelay));
+        pollDelay = Math.min(2500, pollDelay + 300);
+        try {
+            const response = await fetch(backgroundVerificationStatusUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+                body: JSON.stringify({ mcq_ids: pendingIds })
+            });
+            if (!response.ok) throw new Error(`status HTTP ${response.status}`);
+            const data = await response.json();
+            if (!data.success) throw new Error(data.message || 'status check failed');
+
+            applyBackgroundVerificationUpdates(
+                (data.explanations || []).filter(row => row.verification_status !== 'pending')
+            );
+            pendingIds = Array.isArray(data.pending_ids) ? data.pending_ids.map(String) : [];
+            if (data.complete) return;
+
+            // A detached process can be terminated by restrictive hosting or a
+            // transient provider failure. Requeue only rows still marked
+            // pending; database locks prevent overlap with healthy workers.
+            if (pendingIds.length > 0 && recoveryAttempts < 3 && Date.now() >= nextRecoveryAt) {
+                recoveryAttempts++;
+                nextRecoveryAt = Date.now() + 30000;
+                void triggerBackgroundVerification(pendingIds, 2);
+            }
+        } catch (error) {
+            console.warn('MCQ verification status check failed:', error);
+        }
+    }
+}
+
+async function triggerBackgroundVerification(ids, attempt = 0) {
+    const uniqueIds = [...new Set(ids.map(String).filter(id => id && !id.startsWith('book_')))];
+    if (uniqueIds.length === 0) return;
+    if (attempt === 0) {
+        void pollBackgroundVerification(uniqueIds);
+        // The save hook already launched the optimized detached worker. Give it
+        // first claim; this HTTP path remains a fallback for restricted hosts.
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
     try {
-        const response = await fetch('ajax_verify_background.php', {
+        const response = await fetch(backgroundVerificationUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                mcq_ids: ids
-            })
+            credentials: 'same-origin',
+            cache: 'no-store',
+            body: JSON.stringify({ mcq_ids: uniqueIds })
         });
+        if (!response.ok) throw new Error(`verification HTTP ${response.status}`);
         const data = await response.json();
-        if (data.success && data.explanations) {
-            console.log('Background verification completed:', data.stats);
-            
-            // Update the 'questions' array with corrected answers and explanations
-            data.explanations.forEach(upd => {
-                const fullId = (upd.source === 'ai' ? 'ai_' : (upd.source === 'book' ? 'book_' : '')) + upd.id;
-                const qIdx = questions.findIndex(q => q.mcq_id === fullId || q.mcq_id == fullId);
-                if (qIdx !== -1) {
-                    // Update ALL fields in case they were corrected
-                    questions[qIdx].explanation = upd.explanation || '';
-                    if (upd.question || upd.question_text) {
-                        questions[qIdx].question = upd.question || upd.question_text;
-                    }
-                    if (upd.option_a) questions[qIdx].option_a = upd.option_a;
-                    if (upd.option_b) questions[qIdx].option_b = upd.option_b;
-                    if (upd.option_c) questions[qIdx].option_c = upd.option_c;
-                    if (upd.option_d) questions[qIdx].option_d = upd.option_d;
-                    
-                    if (upd.correct_option) {
-                        questions[qIdx].correct_option = upd.correct_option;
-                    }
-                    
-                    // Update UI if we are currently viewing this question AND user hasn't selected an option yet
-                    if (currentQuestion === qIdx && !answers[qIdx]) {
-                        renderQuestion();
-                    }
-                    
-                    // If the question was already answered or skipped, update its entry in 'answers'
-                    // so the results screen shows the newly fetched explanation and corrected options
-                    if (answers[qIdx]) {
-                        answers[qIdx].explanation = upd.explanation || '';
-                        answers[qIdx].question = questions[qIdx].question;
-                        answers[qIdx].options = {
-                            A: questions[qIdx].option_a,
-                            B: questions[qIdx].option_b,
-                            C: questions[qIdx].option_c,
-                            D: questions[qIdx].option_d
-                        };
-                        
-                        // If it was corrected, update correct info for results (doesn't affect past UI feedback)
-                        if (upd.correct_option) {
-                            const newCorrectLetter = getCorrectLetter(questions[qIdx]);
-                            answers[qIdx].correct = newCorrectLetter;
-                            answers[qIdx].correctText = questions[qIdx]['option_' + (newCorrectLetter || 'a').toLowerCase()];
-                        }
-                    }
-
-                    // CRITICAL: Update the DOM if we are already on the results screen
-                    if (quizCompleted) {
-                        const reviewItems = document.querySelectorAll('.review-item');
-                        if (reviewItems && reviewItems[qIdx]) {
-                            const item = reviewItems[qIdx];
-                            const grid = item.querySelector('.review-options-grid');
-                            
-                            if (grid && upd.explanation) {
-                                // If the button already exists, just update the hidden text
-                                const existingBtn = item.querySelector('.btn-explanation');
-                                const existingText = item.querySelector('.explanation-text');
-                                
-                                if (existingBtn && existingText) {
-                                    existingText.innerHTML = upd.explanation;
-                                } else {
-                                    // Otherwise, inject the whole container
-                                    const expHtml = `
-                                        <button class="btn-explanation" onclick="toggleExplanation(${qIdx})">
-                                            <i class="fas fa-lightbulb"></i> View Explanation
-                                        </button>
-                                        <div class="explanation-container" id="explanation-${qIdx}">
-                                            <div class="explanation-title">
-                                                <i class="fas fa-info-circle"></i> Explanation
-                                            </div>
-                                            <div class="explanation-text">${upd.explanation}</div>
-                                        </div>
-                                    `;
-                                    grid.insertAdjacentHTML('beforeend', expHtml);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+        applyBackgroundVerificationUpdates(data.explanations || []);
+        if (!data.success) {
+            throw new Error(Array.isArray(data.errors) && data.errors.length
+                ? data.errors.join('; ')
+                : (data.message || 'Background verification did not complete'));
+        }
+        if (data.queued) {
+            console.log('Background MCQ verification queued.');
+        } else {
+            console.log('Background MCQ verification completed:', data.stats);
         }
     } catch (error) {
-        console.error('Background verification failed:', error);
+        console.error('Background MCQ verification failed:', error);
+        if (attempt < 1) {
+            setTimeout(() => triggerBackgroundVerification(uniqueIds, attempt + 1), 5000);
+        }
     }
 }
 </script>

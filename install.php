@@ -293,6 +293,13 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS AIGeneratedMCQs (
     FOREIGN KEY (topic_id) REFERENCES AIQuestionsTopic(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: AIGeneratedMCQs");
 
+runQuery($conn, "CREATE TABLE IF NOT EXISTS AIRecommendedTopics (
+    topic_name VARCHAR(255) NOT NULL PRIMARY KEY,
+    selected_by INT NULL,
+    selected_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_ai_recommended_topic_selected_at (selected_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;", "Table: AIRecommendedTopics");
+
 runQuery($conn, "CREATE TABLE IF NOT EXISTS AIDocumentUploads (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NULL,

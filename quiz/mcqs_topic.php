@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 
 include_once '../db_connect.php';
 require_once 'mcq_generator.php';
+require_once '../includes/ai_mcq_recommendations.php';
 // require_once 'MongoSearchLogger.php';
 require_once '../services/SubscriptionService.php';
 
@@ -157,15 +158,45 @@ $showResults = false;
 $studyLevel = $_POST['study_level'] ?? 'medium';
 
 try {
-    $suggestStmt = $conn->prepare("
-        SELECT topic_name, question_count
-        FROM TopicQuestionCounts
-        WHERE question_count >= 10
-          AND topic_name IS NOT NULL
-          AND TRIM(topic_name) != ''
-        ORDER BY RAND()
-        LIMIT 3
-    ");
+    $suggestStmt = null;
+
+    if (ensureAiTopicRecommendationsTable($conn)) {
+        $recommendedCountResult = $conn->query("
+            SELECT COUNT(*) AS total
+            FROM AIRecommendedTopics r
+            WHERE EXISTS (
+                SELECT 1 FROM AIGeneratedMCQs m WHERE BINARY m.topic = BINARY r.topic_name
+            )
+        ");
+        $hasAdminRecommendations = $recommendedCountResult
+            && ($recommendedCountRow = $recommendedCountResult->fetch_assoc())
+            && (int)$recommendedCountRow['total'] > 0;
+
+        if ($hasAdminRecommendations) {
+            $suggestStmt = $conn->prepare("
+                SELECT r.topic_name, COUNT(m.id) AS question_count
+                FROM AIRecommendedTopics r
+                INNER JOIN AIGeneratedMCQs m ON BINARY m.topic = BINARY r.topic_name
+                GROUP BY r.topic_name
+                ORDER BY RAND()
+                LIMIT 3
+            ");
+        }
+    }
+
+    // Preserve the existing suggestions until an admin creates a curated pool.
+    if (!$suggestStmt) {
+        $suggestStmt = $conn->prepare("
+            SELECT topic_name, question_count
+            FROM TopicQuestionCounts
+            WHERE question_count >= 10
+              AND topic_name IS NOT NULL
+              AND TRIM(topic_name) != ''
+            ORDER BY RAND()
+            LIMIT 3
+        ");
+    }
+
     if ($suggestStmt) {
         $suggestStmt->execute();
         $suggestRes = $suggestStmt->get_result();

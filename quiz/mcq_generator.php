@@ -76,7 +76,8 @@ function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 2048, $timeout = 
  * True if the key is an NVIDIA API key (same family as GENERATING_KEYWORDS_KEY).
  */
 function isNvidiaApiKey($key) {
-    return is_string($key) && strncmp($key, 'nvapi-', 6) === 0;
+    $k = is_string($key) ? trim($key) : '';
+    return (bool) preg_match('/^nvapi-/i', $k);
 }
 
 /**
@@ -84,52 +85,79 @@ function isNvidiaApiKey($key) {
  * Returns [response_text|null, http_code].
  */
 function callNvidiaChatCompletions($apiKey, $model, $prompt, $maxTokens = 4096, $timeout = 120) {
-    $url = 'https://integrate.api.nvidia.com/v1/chat/completions';
-    
-    // Fallback if model name looks like an OpenRouter name but we are calling NVIDIA
-    if (strpos($model, '/') !== false && strpos($model, 'nvidia/') !== 0 && strpos($model, 'meta/') !== 0 && strpos($model, 'mistralai/') !== 0) {
-        // Many OpenRouter model names don't work on NVIDIA endpoint.
-        // If it has a slash but isn't a known prefix, try a safe default first or let it fail and then retry.
+    $apiKey = trim((string) $apiKey);
+    $model = trim((string) $model);
+    if ($apiKey === '' || $model === '') {
+        return [null, 0];
     }
 
+    $url = 'https://integrate.api.nvidia.com/v1/chat/completions';
+
     $payload = [
+        // Rechecking must use the exact model configured in RECHECK_MODEL.
         'model' => $model,
         'messages' => [['role' => 'user', 'content' => $prompt]],
-        'temperature' => 0.3,
-        'top_p' => 0.7,
+        // Verification is deterministic; lower sampling reduces rambling and
+        // gets the compact JSON response back sooner.
+        'temperature' => 0.15,
+        'top_p' => 0.8,
         'max_tokens' => $maxTokens,
         'stream' => false,
     ];
 
-    $ch = curl_init($url);
+    $headers = [
+        'Content-Type: application/json',
+        'Accept: application/json',
+        'Authorization: Bearer ' . $apiKey,
+        'User-Agent: AhmadLearningHub/1.0',
+    ];
+
+    // Reuse the cURL handle within a worker so subsequent large-quiz batches
+    // can reuse DNS/TLS connections instead of opening a new connection each
+    // time. PHP releases it automatically when the worker exits.
+    static $recheckCurl = null;
+    if ($recheckCurl === null) {
+        $recheckCurl = curl_init();
+    } else {
+        curl_reset($recheckCurl);
+    }
+    $ch = $recheckCurl;
     curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $apiKey,
-        ],
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_CONNECTTIMEOUT => 15,
         CURLOPT_TIMEOUT => $timeout,
-        CURLOPT_SSL_VERIFYPEER => false, // NVIDIA sometimes has cert issues on shared hosts
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_TCP_KEEPALIVE => 1,
     ]);
 
     $resp = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    $curlErr = curl_error($ch);
 
     if ($code === 200 && $resp) {
         $dec = json_decode($resp, true);
-        if (isset($dec['choices'][0]['message']['content'])) {
-            return [$dec['choices'][0]['message']['content'], $code];
+        if (isset($dec['choices'][0]['message'])) {
+            $msg = $dec['choices'][0]['message'];
+            $content = $msg['content'] ?? '';
+            $reasoning = $msg['reasoning_content'] ?? '';
+            $text = !empty($content) ? $content : $reasoning;
+            if (!empty($text)) {
+                return [$text, $code];
+            }
         }
     }
     
-    // If it failed with 404 or 400, it might be the model name. Try a safe fallback.
-    if (($code === 404 || $code === 400) && $model !== 'nvidia/llama-3.1-405b-instruct') {
-        return callNvidiaChatCompletions($apiKey, 'nvidia/llama-3.1-405b-instruct', $prompt, $maxTokens, $timeout);
+    $errBody = $resp ? substr((string) $resp, 0, 600) : ($curlErr ?: 'empty response');
+    error_log('callNvidiaChatCompletions HTTP ' . $code . ' model=' . $model . ' body=' . $errBody);
+
+    if ($code === 0 && $curlErr) {
+        return [null, 0, $curlErr];
     }
-    
+
     return [null, $code];
 }
 
@@ -139,10 +167,23 @@ function callNvidiaChatCompletions($apiKey, $model, $prompt, $maxTokens = 4096, 
 function callRecheckAi($apiKey, $model, $prompt, $maxTokens = 12000, $timeout = 120) {
     if (isNvidiaApiKey($apiKey)) {
         $cap = min((int) $maxTokens, 8192);
-        return callNvidiaChatCompletions($apiKey, $model, $prompt, $cap, $timeout);
+        $result = callNvidiaChatCompletions($apiKey, $model, $prompt, $cap, $timeout);
+        $code = (int) ($result[1] ?? 0);
+        if (in_array($code, [0, 429, 500, 502, 503, 504], true)) {
+            usleep(250000);
+            // Retry once with the same configured key and model. Never switch.
+            return callNvidiaChatCompletions($apiKey, $model, $prompt, $cap, $timeout);
+        }
+        return $result;
     }
-    
-    return callOpenRouter($apiKey, $model, $prompt, $maxTokens, $timeout, 0.1, 0.8);
+
+    $result = callOpenRouter($apiKey, $model, $prompt, $maxTokens, $timeout, 0.1, 0.8);
+    $code = (int) ($result[1] ?? 0);
+    if (in_array($code, [0, 429, 500, 502, 503, 504], true)) {
+        usleep(250000);
+        return callOpenRouter($apiKey, $model, $prompt, $maxTokens, $timeout, 0.1, 0.8);
+    }
+    return $result;
 }
 
 /**
@@ -335,17 +376,14 @@ function getRecheckApiKey() {
 }
 
 /**
- * Model for recheck: RECHECK_MODEL if set; else AI_DEFAULT_MODEL.
+ * Model used only for recheck. No fallback is allowed: the exact
+ * RECHECK_MODEL value must be used with RECHECK_API_KEY.
  */
 function getRecheckModel() {
     $m = EnvLoader::get('RECHECK_MODEL', '');
     $m = is_string($m) ? trim($m) : '';
     
-    if ($m !== '') {
-        return $m;
-    }
-
-    return EnvLoader::get('AI_DEFAULT_MODEL', '');
+    return $m;
 }
 
 /** AI MCQs use unified MCQVerification; manual mcqs table uses MCQsVerification (never dropped by migrate). */
@@ -503,7 +541,101 @@ function ensureMcqExplanationColumns($conn) {
  * @param array $mcqs Rows from DB (or synthetic rows for freshly inserted AI MCQs)
  * @return array { success, message?, stats }
  */
-function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGeneratedMCQs') {
+function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGeneratedMCQs', $retryMissing = true) {
+    if (empty($mcqs)) {
+        return ['success' => true, 'stats' => ['checked' => 0, 'verified' => 0, 'corrected' => 0, 'flagged' => 0, 'processed_ids' => []]];
+    }
+
+    $pk = ($sourceTable === 'mcqs') ? 'mcq_id' : 'id';
+    $lockPrefix = ($sourceTable === 'mcqs') ? 'manual' : 'ai';
+    $lockedNames = [];
+    $availableRows = [];
+    $busyIds = [];
+    $lockingSupported = true;
+
+    // Every entry point (save worker, quiz AJAX, upload worker and diagnostics)
+    // shares these locks. A slow API request can therefore never cause the same
+    // MCQ to be submitted twice concurrently.
+    foreach ($mcqs as $row) {
+        $id = intval($row[$pk] ?? 0);
+        if ($id <= 0) {
+            continue;
+        }
+        $lockName = 'alh_mcq_' . $lockPrefix . '_' . $id;
+        $lockState = null;
+        $lockStmt = $conn->prepare('SELECT GET_LOCK(?, 0)');
+        if (!$lockStmt) {
+            $lockingSupported = false;
+            break;
+        }
+        $lockStmt->bind_param('s', $lockName);
+        if (!$lockStmt->execute()) {
+            $lockStmt->close();
+            $lockingSupported = false;
+            break;
+        }
+        $lockStmt->bind_result($lockState);
+        $lockStmt->fetch();
+        $lockStmt->close();
+
+        if ($lockState === null) {
+            $lockingSupported = false;
+            break;
+        }
+        if ((int) $lockState === 1) {
+            $lockedNames[] = $lockName;
+            $availableRows[] = $row;
+        } else {
+            $busyIds[] = $id;
+        }
+    }
+
+    if (!$lockingSupported) {
+        foreach ($lockedNames as $lockName) {
+            $releaseStmt = $conn->prepare('SELECT RELEASE_LOCK(?)');
+            if ($releaseStmt) {
+                $releaseStmt->bind_param('s', $lockName);
+                $releaseStmt->execute();
+                $releaseStmt->close();
+            }
+        }
+        return verifyMcqsWithRecheckApiUnlocked($conn, $mcqs, $sourceTable, $retryMissing);
+    }
+
+    if (empty($availableRows)) {
+        return [
+            'success' => true,
+            'queued' => true,
+            'already_running' => true,
+            'busy_ids' => $busyIds,
+            'stats' => ['checked' => 0, 'verified' => 0, 'corrected' => 0, 'flagged' => 0, 'processed_ids' => []],
+        ];
+    }
+
+    try {
+        $result = verifyMcqsWithRecheckApiUnlocked($conn, $availableRows, $sourceTable, $retryMissing);
+        if (!empty($busyIds)) {
+            $result['queued'] = true;
+            $result['already_running'] = true;
+            $result['busy_ids'] = $busyIds;
+        }
+        return $result;
+    } finally {
+        foreach ($lockedNames as $lockName) {
+            $releaseStmt = $conn->prepare('SELECT RELEASE_LOCK(?)');
+            if ($releaseStmt) {
+                $releaseStmt->bind_param('s', $lockName);
+                $releaseStmt->execute();
+                $releaseStmt->close();
+            }
+        }
+    }
+}
+
+/**
+ * Execute a recheck after the public wrapper has claimed the per-MCQ locks.
+ */
+function verifyMcqsWithRecheckApiUnlocked($conn, array $mcqs, $sourceTable = 'AIGeneratedMCQs', $retryMissing = true) {
     ensureMcqExplanationColumns($conn);
 
     $apiKey = getRecheckApiKey();
@@ -526,16 +658,19 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
     $verifySource = mcqVerificationSourceValue($sourceTable);
 
     $model = getRecheckModel();
+    if ($model === '') {
+        return ['success' => false, 'message' => 'No recheck model: set RECHECK_MODEL in config/.env.'];
+    }
 
     $prompt = "You are an expert educator and examiner. Verify each MCQ for factual accuracy.\n"
         . "For each item, determine if the marked correct answer is accurate.\n"
         . "- If correct: status \"verified\".\n"
         . "- If another option (A, B, C, or D) is correct: status \"corrected\". Identify the correct letter.\n"
         . "- If the question or any options are incorrect, misleading, or poorly phrased: status \"corrected\". You MUST rewrite the question text and ANY or ALL options (option_a, option_b, option_c, option_d) to ensure the entire MCQ is factually accurate and high quality. Ensure exactly ONE option is correct.\n"
-        . "Explanation: Write only 2-3 lines explaining ONLY why the correct option is right. Do NOT explain why others are wrong.\n"
-        . "Return ONLY a JSON array. If status is \"corrected\", return the correct letter, the question text, and the texts for ALL options (option_a, option_b, option_c, option_d).\n"
+        . "Explanation: Write 1-2 concise sentences explaining ONLY why the correct option is right.\n"
+        . "Return ONLY a compact JSON array with no analysis or markdown. For verified/flagged items return only id, status, correct_option and explanation. Only corrected items must also return question and all four option fields.\n"
         . "CRITICAL: You MUST provide a JSON entry for EVERY SINGLE ID provided below. Do not skip any MCQ.\n"
-        . "Format: [{\"id\": <number>, \"status\": \"verified\"|\"corrected\"|\"flagged\", \"correct_option\": \"A\"|\"B\"|\"C\"|\"D\", \"question\": \"...\", \"option_a\": \"...\", \"option_b\": \"...\", \"option_c\": \"...\", \"option_d\": \"...\", \"explanation\": \"<2-3 lines explanation>\"}]\n\n"
+        . "Format: [{\"id\":1,\"status\":\"verified\",\"correct_option\":\"A\",\"explanation\":\"...\"}]\n\n"
         . "MCQs to verify:\n";
 
     foreach ($mcqs as $m) {
@@ -566,27 +701,43 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
         $prompt .= "ID: {$m[$pk]}, Topic: {$topic}, Q: {$m[$qCol]}, A: {$m['option_a']}, B: {$m['option_b']}, C: {$m['option_c']}, D: {$m['option_d']}, Marked correct: {$correctText}\n";
     }
 
-    list($resp, $code) = callRecheckAi($apiKey, $model, $prompt, 12000, 120);
+    // Avoid reserving 8K output tokens for a small batch. The old fixed budget
+    // encouraged long reasoning responses and made verification noticeably
+    // slower. Corrected items still have enough room for all rewritten fields.
+    $maxOutputTokens = min(7000, max(1200, 600 + (count($mcqs) * 450)));
+    $apiResult = callRecheckAi($apiKey, $model, $prompt, $maxOutputTokens, 120);
+    $resp = $apiResult[0] ?? null;
+    $code = (int) ($apiResult[1] ?? 0);
+    $transportError = trim((string) ($apiResult[2] ?? ''));
 
     if ($code !== 200 || !$resp) {
         $hint = ($code === 401 && isNvidiaApiKey($apiKey))
             ? ' (check NVIDIA key and RECHECK_MODEL; nvapi keys use integrate.api.nvidia.com, not OpenRouter)'
             : '';
-        return ['success' => false, 'message' => 'Recheck API call failed with HTTP code ' . $code . $hint];
+        $detail = ($code === 0 && $transportError !== '') ? ': ' . $transportError : '';
+        return ['success' => false, 'message' => 'Recheck API call failed with HTTP code ' . $code . $detail . $hint];
     }
 
     $results = parseMcqJson($resp);
-    if (!is_array($results)) {
+    if (!is_array($results) || empty($results)) {
         return ['success' => false, 'message' => 'Failed to parse recheck API response'];
     }
 
     $stats = ['checked' => 0, 'verified' => 0, 'corrected' => 0, 'flagged' => 0, 'processed_ids' => []];
     $now = date('Y-m-d H:i:s');
+    $originalById = [];
+    foreach ($mcqs as $row) {
+        $rowId = intval($row[$pk] ?? 0);
+        if ($rowId > 0) $originalById[$rowId] = $row;
+    }
 
     foreach ($results as $res) {
         $id = intval($res['id'] ?? 0);
-        $status = $res['status'] ?? 'pending';
-        $correctOptionLetter = $res['correct_option'] ?? '';
+        $status = strtolower(trim((string) ($res['status'] ?? 'pending')));
+        if (!in_array($status, ['verified', 'corrected', 'flagged'], true)) {
+            $status = 'flagged';
+        }
+        $correctOptionLetter = strtoupper(trim((string) ($res['correct_option'] ?? '')));
         $notes = $res['notes'] ?? '';
         $explanation = $res['explanation'] ?? '';
 
@@ -603,13 +754,7 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
             continue;
         }
 
-        $original = null;
-        foreach ($mcqs as $row) {
-            if (intval($row[$pk]) === $id) {
-                $original = $row;
-                break;
-            }
-        }
+        $original = $originalById[$id] ?? null;
         if (!$original) {
             continue;
         }
@@ -732,6 +877,44 @@ function verifyMcqsWithRecheckApi($conn, array $mcqs, $sourceTable = 'AIGenerate
         }
     }
 
+    $expectedIds = [];
+    foreach ($mcqs as $row) {
+        $expectedId = intval($row[$pk] ?? 0);
+        if ($expectedId > 0) {
+            $expectedIds[] = $expectedId;
+        }
+    }
+    $expectedIds = array_values(array_unique($expectedIds));
+    $processedIds = array_values(array_unique(array_map('intval', $stats['processed_ids'])));
+    $missingIds = array_values(array_diff($expectedIds, $processedIds));
+    if (!empty($missingIds)) {
+        if ($retryMissing) {
+            $missingLookup = array_fill_keys(array_map('intval', $missingIds), true);
+            $retryRows = array_values(array_filter($mcqs, static function ($row) use ($pk, $missingLookup) {
+                return isset($missingLookup[intval($row[$pk] ?? 0)]);
+            }));
+            if (!empty($retryRows)) {
+                // The wrapper already owns the locks for these rows.
+                $retryResult = verifyMcqsWithRecheckApiUnlocked($conn, $retryRows, $sourceTable, false);
+                if (!empty($retryResult['success'])) {
+                    foreach (['checked', 'verified', 'corrected', 'flagged'] as $key) {
+                        $stats[$key] += (int) ($retryResult['stats'][$key] ?? 0);
+                    }
+                    $stats['processed_ids'] = array_values(array_unique(array_merge(
+                        $stats['processed_ids'],
+                        $retryResult['stats']['processed_ids'] ?? []
+                    )));
+                    return ['success' => true, 'stats' => $stats];
+                }
+            }
+        }
+        return [
+            'success' => false,
+            'message' => 'Recheck response omitted MCQ IDs: ' . implode(',', $missingIds),
+            'stats' => $stats,
+        ];
+    }
+
     return ['success' => true, 'stats' => $stats];
 }
 
@@ -782,6 +965,121 @@ function verifyInsertedAIGeneratedMcqs($conn, array $insertedRows) {
         }
     }
     return $merged;
+}
+
+/**
+ * Dispatch verification immediately after new AI MCQs are committed.
+ *
+ * The detached CLI process is the primary path. PHP-FPM shutdown processing is
+ * a fallback when process spawning is unavailable. The quiz AJAX trigger is a
+ * final safety net for hosts that disable both mechanisms.
+ */
+function dispatchInsertedMcqsForBackgroundVerification(array $insertedRows) {
+    $ids = [];
+    foreach ($insertedRows as $row) {
+        $id = intval($row['id'] ?? 0);
+        if ($id > 0) $ids[$id] = $id;
+    }
+    $ids = array_values($ids);
+    if (empty($ids)) return false;
+
+    $worker = __DIR__ . '/mcq_verify_worker.php';
+    $idArgument = implode(',', $ids);
+    $spawned = false;
+
+    // PHP_BINARY can point at php-fpm/php-cgi on hosted servers. Prefer a real
+    // CLI executable beside it (or in PHP_BINDIR), while retaining PHP_BINARY
+    // itself when it is already the CLI binary.
+    $binaryCandidates = [];
+    $currentBinary = defined('PHP_BINARY') ? trim((string) PHP_BINARY) : '';
+    $cliFilename = DIRECTORY_SEPARATOR === '\\' ? 'php.exe' : 'php';
+    if ($currentBinary !== '') {
+        $currentName = strtolower(basename($currentBinary));
+        if (strpos($currentName, 'fpm') === false && strpos($currentName, 'cgi') === false) {
+            $binaryCandidates[] = $currentBinary;
+        }
+        $binaryCandidates[] = dirname($currentBinary) . DIRECTORY_SEPARATOR . $cliFilename;
+    }
+    if (defined('PHP_BINDIR')) {
+        $binaryCandidates[] = rtrim((string) PHP_BINDIR, '/\\') . DIRECTORY_SEPARATOR . $cliFilename;
+    }
+    if (DIRECTORY_SEPARATOR !== '\\') {
+        $binaryCandidates[] = '/usr/bin/php';
+        $binaryCandidates[] = '/usr/local/bin/php';
+    }
+    $phpBinary = '';
+    foreach (array_values(array_unique($binaryCandidates)) as $candidate) {
+        if (is_file($candidate) && (DIRECTORY_SEPARATOR === '\\' || is_executable($candidate))) {
+            $phpBinary = $candidate;
+            break;
+        }
+    }
+
+    if ($phpBinary !== '' && is_file($worker) && function_exists('popen') && function_exists('pclose')) {
+        // Use at most two workers. A single worker is fastest for a normal quiz;
+        // two lanes substantially reduce large-quiz latency without flooding the
+        // configured provider with concurrent requests.
+        $workerGroups = [$ids];
+        if (count($ids) > 12) {
+            $workerGroups = [[], []];
+            foreach ($ids as $index => $id) {
+                $workerGroups[$index % 2][] = $id;
+            }
+        }
+        $startedWorkers = 0;
+        foreach ($workerGroups as $workerIds) {
+            if (empty($workerIds)) continue;
+            $workerArgument = implode(',', $workerIds);
+            if (DIRECTORY_SEPARATOR === '\\') {
+                $command = 'start /B "" ' . escapeshellarg($phpBinary) . ' ' . escapeshellarg($worker) . ' ' . escapeshellarg($workerArgument) . ' >NUL 2>&1';
+            } else {
+                $command = 'nohup ' . escapeshellarg($phpBinary) . ' ' . escapeshellarg($worker) . ' ' . escapeshellarg($workerArgument) . ' >/dev/null 2>&1 &';
+            }
+            $handle = @popen($command, 'r');
+            if (is_resource($handle)) {
+                @pclose($handle);
+                $startedWorkers++;
+            }
+        }
+        $spawned = ($startedWorkers === count($workerGroups));
+    }
+
+    if (!function_exists('fastcgi_finish_request')) {
+        if (!$spawned) {
+            error_log('MCQ background verification: process spawning and FastCGI continuation are unavailable; quiz AJAX fallback will handle IDs ' . $idArgument);
+        }
+        return $spawned;
+    }
+
+    // Accumulate rows when multiple generation calls happen in one response.
+    if (!isset($GLOBALS['alh_deferred_mcq_verification'])) {
+        $GLOBALS['alh_deferred_mcq_verification'] = [];
+    }
+    foreach ($insertedRows as $row) {
+        $id = intval($row['id'] ?? 0);
+        if ($id > 0) $GLOBALS['alh_deferred_mcq_verification'][$id] = $row;
+    }
+
+    static $shutdownRegistered = false;
+    if (!$shutdownRegistered) {
+        $shutdownRegistered = true;
+        register_shutdown_function(static function () {
+            $rows = array_values($GLOBALS['alh_deferred_mcq_verification'] ?? []);
+            if (empty($rows)) return;
+            if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+            @fastcgi_finish_request();
+            // Give detached workers a brief head start. If any failed to launch,
+            // this fallback claims only their still-unlocked rows.
+            usleep(350000);
+            global $conn;
+            if (!isset($conn) || !($conn instanceof mysqli)) return;
+            $result = verifyInsertedAIGeneratedMcqs($conn, $rows);
+            if (empty($result['success'])) {
+                error_log('Deferred MCQ verification failed: ' . ($result['message'] ?? 'unknown error'));
+            }
+        });
+    }
+    return true;
 }
 
 /**
@@ -854,12 +1152,16 @@ function getAiKeyAndModel($cacheManager) {
 /**
  * Shared helper to save generated MCQs to DB
  */
-function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $cacheKey = null, $skipVerify = true) {
+function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $cacheKey = null, $skipVerify = true, $dispatchBackground = true) {
     if (empty($mcqs)) return [];
 
+    // Register every newly generated MCQ as pending before any asynchronous
+    // worker starts. This makes the background state durable and observable.
+    ensureMcqVerificationTable($conn);
     $now = date('Y-m-d H:i:s');
     $stmt = $conn->prepare('INSERT INTO AIGeneratedMCQs (topic_id, topic, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     if (!$stmt) return [];
+    $pendingStmt = $conn->prepare("INSERT IGNORE INTO MCQVerification (source, mcq_id, verification_status, original_correct_option) VALUES ('AIGeneratedMCQs', ?, 'pending', ?)");
 
     $inserted = [];
     foreach ($mcqs as $mcq) {
@@ -877,8 +1179,13 @@ function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $c
         
         $stmt->bind_param('issssssss', $topicId, $topicVal, $q, $optA, $optB, $optC, $optD, $corr, $now);
         if ($stmt->execute()) {
+            $insertedId = (int) $stmt->insert_id;
+            if ($pendingStmt) {
+                $pendingStmt->bind_param('is', $insertedId, $corr);
+                $pendingStmt->execute();
+            }
             $inserted[] = [
-                'id' => $stmt->insert_id,
+                'id' => $insertedId,
                 'topic_id' => $topicId,
                 'topic' => $topicVal,
                 'question' => $q,
@@ -891,6 +1198,7 @@ function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $c
         }
     }
     $stmt->close();
+    if ($pendingStmt) $pendingStmt->close();
 
     if (!empty($inserted) && !$skipVerify) {
         $recheck = verifyInsertedAIGeneratedMcqs($conn, $inserted);
@@ -922,6 +1230,10 @@ function saveGeneratedMcqs($conn, $mcqs, $defaultTopic, $cacheManager = null, $c
             unset($insRow);
             $ref->close();
         }
+    }
+
+    if (!empty($inserted) && $skipVerify && $dispatchBackground) {
+        dispatchInsertedMcqsForBackgroundVerification($inserted);
     }
 
     return $inserted;
@@ -1260,9 +1572,11 @@ function checkMCQsWithAI($limit = 50, $startId = null, $endId = null, $sourceTab
 
     if ($specificIds !== null && is_array($specificIds) && !empty($specificIds)) {
         $placeholders = implode(',', array_fill(0, count($specificIds), '?'));
-        // When specific IDs are provided (like from a quiz), we force re-verification 
-        // if they miss an explanation, regardless of status.
+        // Quiz requests may contain stale cached rows. Only call the AI when
+        // database verification is still pending or no explanation was saved.
         $where[] = "m.$pk IN ($placeholders)";
+        $where[] = "(v.verification_status IS NULL OR v.verification_status = 'pending'
+                     OR COALESCE(NULLIF(TRIM(v.explanation), ''), NULLIF(TRIM(m.explanation), '')) IS NULL)";
         foreach ($specificIds as $id) {
             $idVal = $id;
             // Handle 'ai_' prefix if it was passed accidentally
