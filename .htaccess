@@ -148,7 +148,9 @@ Options -Indexes
     RewriteRule ^class-9th-and-10th-online-question-paper-generator/?$ select_class.php [NC,L]
 
     # Specific SEO rule for select_class_11-12.php
-    RewriteRule ^Class-11-and-12-Online-Question-Paper-generator/?$ select_class_11-12.php [NC,L]
+    RewriteCond %{THE_REQUEST} \s/+Class-11-and-12-Online-Question-Paper-generator[\s?/]
+    RewriteRule ^Class-11-and-12-Online-Question-Paper-generator/?$ /class-11-and-12-online-question-paper-generator [R=301,L]
+    RewriteRule ^class-11-and-12-online-question-paper-generator/?$ select_class_11-12.php [NC,L]
 
     # Specific SEO rule for select_book.php (per class)
     RewriteRule ^class-([0-9]+)-online-question-paper-generator/?$ select_book.php?class_id=$1 [QSA,NC,L]
@@ -191,9 +193,12 @@ Options -Indexes
     RewriteRule ^online-test-papers-preparation/?$ /class-9-10-11-12-test-series-for-board-exams [R=301,L]
 
     # Level-specific SEO entry points
-    RewriteRule ^Class-9-10-pastPaper-&-Test-Papers/?$ examPreparation/select_class_for_test.php?level=School [NC,L]
-    RewriteRule ^Class-11-12-pastPaper-&-Test-Papers/?$ examPreparation/select_class_for_test.php?level=College [NC,L]
-    RewriteRule ^University-pastPaper-&-Test-Papers/?$ examPreparation/select_class_for_test.php?level=University [NC,L]
+    RewriteRule ^Class-9-10-pastPaper-&-Test-Papers/?$ /class-9-10-pastpaper-and-test-papers [R=301,L,NE]
+    RewriteRule ^Class-11-12-pastPaper-&-Test-Papers/?$ /class-11-12-pastpaper-and-test-papers [R=301,L,NE]
+    RewriteRule ^University-pastPaper-&-Test-Papers/?$ /university-pastpaper-and-test-papers [R=301,L,NE]
+    RewriteRule ^class-9-10-pastpaper-and-test-papers/?$ examPreparation/select_class_for_test.php?level=School [NC,L]
+    RewriteRule ^class-11-12-pastpaper-and-test-papers/?$ examPreparation/select_class_for_test.php?level=College [NC,L]
+    RewriteRule ^university-pastpaper-and-test-papers/?$ examPreparation/select_class_for_test.php?level=University [NC,L]
     
     # Matches /past-papers or /online-test-papers (General fallback)
     RewriteRule ^class-9-10-11-12-test-series-for-board-exams/?$ examPreparation/select_class_for_test.php [NC,L]
@@ -203,9 +208,10 @@ Options -Indexes
     RewriteRule ^class-?([0-9]+)-all-subjects-test-series-with-solutions/?$ examPreparation/select_book_for_test.php?class_id=$1 [QSA,NC,L]
     RewriteRule ^class-?([0-9]+)-chapterWise-test-series/?$ /class-$1-all-subjects-test-series-with-solutions [R=301,L]
 
-    # Matches /class-10-Physics-chapterWise-test-series-with-solutions (Chapter Selection)
-    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series-with-solutions/?$ examPreparation/select_chapters_for_test.php?class_id=$1&book_name=$2 [QSA,NC,L]
-    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series/?$ /class-$1-$2-chapterWise-test-series-with-solutions [R=301,L]
+    # Matches /class-10-physics-chapterwise-test-series-with-solutions (Chapter Selection)
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series-with-solutions/?$ /class-$1-$2-chapterwise-test-series-with-solutions [R=301,L]
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterwise-test-series-with-solutions/?$ examPreparation/select_chapters_for_test.php?class_id=$1&book_name=$2 [QSA,NC,L]
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series/?$ /class-$1-$2-chapterwise-test-series-with-solutions [R=301,L]
 
     # Matches /class-9-Physics-chapterWise-test-series (legacy Subject Selection)
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapterWise-test-series/?$ examPreparation/select_chapters_for_test.php?class_id=$1&book_name=$2 [QSA,NC,L]

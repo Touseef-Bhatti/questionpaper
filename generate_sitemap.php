@@ -81,8 +81,6 @@ $staticPages = [
     ['/reviews', 'weekly', '0.8'],
     ['/privacy-policy', 'yearly', '0.5'],
     ['/terms-and-conditions', 'yearly', '0.5'],
-    ['/online_quiz_host_new', 'weekly', '0.8'],
-    ['/online_quiz_join', 'weekly', '0.7'],
 ];
 
 foreach ($staticPages as [$path, $changefreq, $priority]) {
@@ -90,16 +88,16 @@ foreach ($staticPages as [$path, $changefreq, $priority]) {
 }
 
 addUrl($urls, $baseUrl, '/class-9th-and-10th-online-question-paper-generator', 'weekly', '0.9', $today);
-addUrl($urls, $baseUrl, '/Class-11-and-12-Online-Question-Paper-generator', 'weekly', '0.9', $today);
+addUrl($urls, $baseUrl, '/class-11-and-12-online-question-paper-generator', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/online-question-paper-generator', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/online-mcqs-test-for-9th-and-10th-board-exams', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/study-material-for-board-exam-preparations', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/topic-wise-mcqs-test', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/class-9-10-11-12-mcqs-for-board-exams', 'weekly', '0.9', $today);
 // Exam Preparation Entry Points
-addUrl($urls, $baseUrl, '/Class-9-10-pastPaper-&-Test-Papers', 'weekly', '0.9', $today);
-addUrl($urls, $baseUrl, '/Class-11-12-pastPaper-&-Test-Papers', 'weekly', '0.9', $today);
-addUrl($urls, $baseUrl, '/University-pastPaper-&-Test-Papers', 'weekly', '0.8', $today);
+addUrl($urls, $baseUrl, '/class-9-10-pastpaper-and-test-papers', 'weekly', '0.9', $today);
+addUrl($urls, $baseUrl, '/class-11-12-pastpaper-and-test-papers', 'weekly', '0.9', $today);
+addUrl($urls, $baseUrl, '/university-pastpaper-and-test-papers', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/class-9-10-11-12-test-series-for-board-exams', 'weekly', '0.9', $today);
 
 $classRows = [];
@@ -146,8 +144,7 @@ foreach ($bookRows as $bookRow) {
 
     $ordinalClass = toOrdinal($classId);
     addUrl($urls, $baseUrl, '/' . $ordinalClass . '-class-' . $bookSlug . '-question-paper-generator', 'weekly', '0.8', $today);
-    $bookNameUrl = urlencode(str_replace(' ', '-', $bookName));
-    addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookNameUrl . '-chapterWise-test-series-with-solutions', 'weekly', '0.8', $today);
+    addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-chapterwise-test-series-with-solutions', 'weekly', '0.8', $today);
     if (in_array($classId, [9, 10, 11, 12], true)) {
         addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-chapter-wise-mcqs-with-explanations', 'weekly', '0.8', $today);
         addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-mcqs-test-2026', 'weekly', '0.8', $today);
@@ -165,7 +162,12 @@ if ($chapterQuery) {
         if (!in_array($classId, [9, 10, 11, 12], true) || $bookName === '' || $chapterName === '') {
             continue;
         }
-        $chapterPart = $chapterNo > 0 ? 'chapter-' . $chapterNo . '-' . $chapterName : $chapterName;
+        // Clean chapterName to avoid redundancy in slug
+        $cleanedChapterName = $chapterName;
+        // Remove "Chapter X" or "Xth Chapter" patterns
+        $cleanedChapterName = preg_replace('/(?:Chapter\s*)?' . preg_quote((string)$chapterNo, '/') . '(?:st|nd|rd|th)?\s*[-–]?\s*/i', '', $cleanedChapterName, 1);
+        $cleanedChapterName = trim($cleanedChapterName, ' -');
+        $chapterPart = $chapterNo > 0 ? 'chapter-' . $chapterNo . '-' . $cleanedChapterName : $cleanedChapterName;
         addUrl($urls, $baseUrl, '/class-' . $classId . '-' . toSlug($bookName) . '-' . toSlug($chapterPart) . '-mcqs-with-explanations', 'weekly', '0.7', $today);
     }
 }
@@ -181,11 +183,23 @@ if ($examQuery) {
         if ($classId <= 0 || $bookName === '' || $examTitle === '' || $examId <= 0) {
             continue;
         }
+
+        $bookSlug = toSlug($bookName);
+        if ($bookSlug === '') {
+            continue;
+        }
+
+        // Remove redundant class and book name from examTitle before slugifying
+        $cleanedExamTitle = $examTitle;
+        // Remove "Class X"
+        $cleanedExamTitle = preg_replace('/(?:Class\s*)?' . preg_quote((string)$classId, '/') . '\s*/i', '', $cleanedExamTitle, 1);
+        // Remove "Book Name"
+        $cleanedExamTitle = preg_replace('/' . preg_quote($bookName, '/') . '\s*/i', '', $cleanedExamTitle, 1);
+        $cleanedExamTitle = trim($cleanedExamTitle, ' -');
         
-        $bookNameUrl = urlencode(str_replace(' ', '-', $bookName));
-        $examTitleSlug = toSlug($examTitle);
+        $examTitleSlug = toSlug($cleanedExamTitle);
         if ($examTitleSlug !== '') {
-            addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookNameUrl . '-' . $examTitleSlug . '-with-solutions', 'weekly', '0.7', $today);
+            addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-' . $examTitleSlug . '-with-solutions', 'weekly', '0.7', $today);
         }
     }
 }
@@ -197,6 +211,7 @@ echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 foreach ($urls as $url) {
     echo "  <url>\n";
     echo '    <loc>' . xmlEscape($url['loc']) . "</loc>\n";
+    echo '    <lastmod>' . xmlEscape($url['lastmod']) . "</lastmod>\n";
     echo '    <changefreq>' . $url['changefreq'] . "</changefreq>\n";
     echo '    <priority>' . $url['priority'] . "</priority>\n";
     echo "  </url>\n";
