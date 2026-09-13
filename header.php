@@ -698,12 +698,15 @@ body { padding-top:var(--ah, 66px); }
 
       <!-- Notes dropdown -->
       <li class="ALH_drop" id="ALH_notesdrop">
-        <button class="ALH_dbtn <?= is_active('notes/')||is_active('examPreparation/')?'alh-active':'' ?>" type="button" id="ALH_notesbtn">
+        <button class="ALH_dbtn <?= is_active('notes/')||is_active('examPreparation/')||is_active('uploadingNotesForClasses/')?'alh-active':'' ?>" type="button" id="ALH_notesbtn">
           <i class="fas fa-book-open"></i> Notes <i class="fas fa-caret-down ALH_caret"></i>
         </button>
         <div class="ALH_panel" id="ALH_notespanel">
+          <a href="<?= $assetBase ?>class-notes" class="ALH_ditem <?= is_active('uploadingNotesForClasses/') ?>">
+            <span class="ALH_dico"><i class="fas fa-file-alt"></i></span>Class Notes
+          </a>
           <a href="<?= $assetBase ?>study-material-for-board-exam-preparations" class="ALH_ditem <?= is_active('note.php') ?>">
-            <span class="ALH_dico"><i class="fas fa-book"></i></span>Notes
+            <span class="ALH_dico"><i class="fas fa-book"></i></span>Study Materials
           </a>
           <a href="<?= $assetBase ?>class-9-10-11-12-mcqs-for-board-exams" class="ALH_ditem <?= is_active('notes/Mcqs/') ?>">
             <span class="ALH_dico"><i class="fas fa-tasks"></i></span>Board MCQs

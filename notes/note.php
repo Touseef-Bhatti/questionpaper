@@ -87,6 +87,47 @@ include '../db_connect.php';
 
     <div class="study-materials-container">
 
+        <!-- Class Notes Section -->
+        <h2 class="materials-section-title"><i class="fas fa-book-reader"></i> Class Notes</h2>
+        <div class="class-notes-grid">
+            <a href="<?= $assetBase ?>class-notes?class=9" class="class-note-card class-9">
+                <div class="class-note-glow"></div>
+                <div class="class-note-icon"><i class="fas fa-book-open"></i></div>
+                <div class="class-note-content">
+                    <h3>Class 9 Notes</h3>
+                    <p>Complete study notes for all 9th class subjects — Physics, Chemistry, Biology, Math & more</p>
+                </div>
+                <div class="class-note-arrow"><i class="fas fa-arrow-right"></i></div>
+            </a>
+            <a href="<?= $assetBase ?>class-notes?class=10" class="class-note-card class-10">
+                <div class="class-note-glow"></div>
+                <div class="class-note-icon"><i class="fas fa-book-open"></i></div>
+                <div class="class-note-content">
+                    <h3>Class 10 Notes</h3>
+                    <p>Matric-level notes for board exam preparation — all subjects covered chapter-wise</p>
+                </div>
+                <div class="class-note-arrow"><i class="fas fa-arrow-right"></i></div>
+            </a>
+            <a href="<?= $assetBase ?>class-notes?class=11" class="class-note-card class-11">
+                <div class="class-note-glow"></div>
+                <div class="class-note-icon"><i class="fas fa-graduation-cap"></i></div>
+                <div class="class-note-content">
+                    <h3>Class 11 Notes</h3>
+                    <p>Intermediate Part 1 — detailed notes for FSc, ICS, ICom & FA subjects</p>
+                </div>
+                <div class="class-note-arrow"><i class="fas fa-arrow-right"></i></div>
+            </a>
+            <a href="<?= $assetBase ?>class-notes?class=12" class="class-note-card class-12">
+                <div class="class-note-glow"></div>
+                <div class="class-note-icon"><i class="fas fa-graduation-cap"></i></div>
+                <div class="class-note-content">
+                    <h3>Class 12 Notes</h3>
+                    <p>Intermediate Part 2 — comprehensive notes and solved exercises for board exams</p>
+                </div>
+                <div class="class-note-arrow"><i class="fas fa-arrow-right"></i></div>
+            </a>
+        </div>
+
         <!-- Test Series & Guess Papers -->
         <h2 class="materials-section-title"><i class="fas fa-star"></i> Exam Prep Tools</h2>
         <div class="materials-grid">
@@ -229,7 +270,7 @@ include '../db_connect.php';
         </div>
 
         <div class="go-back-section">
-            <a href="../index.php" class="go-back-btn"><i class="fas fa-arrow-left"></i> Back to Home</a>
+            <a href="<?= $assetBase ?>index.php" class="go-back-btn"><i class="fas fa-arrow-left"></i> Back to Home</a>
         </div>
     </div>
 
@@ -238,14 +279,15 @@ include '../db_connect.php';
     <script>
         function navigateToMaterial(type) {
             const routes = {
-                'textbook': 'textbooks.php',
-                'notes': 'uploaded_notes.php',
-                'mcqs': '../class-9-10-11-12-mcqs-for-board-exams',
-                'practice-test': '../class-9-10-11-12-test-series-for-board-exams',
-                'test-series': '../class-9-10-11-12-test-series-for-board-exams',
-                'guess-papers': 'uploaded_notes.php',
-                'book-mcqs': '<?= $assetBase ?>notes/Mcqs/index.php',
-                'question-paper': '../select_class.php'
+                'class-notes': '<?= $assetBase ?>class-notes',
+                'textbook': '<?= $assetBase ?>notes/textbooks.php',
+                'notes': '<?= $assetBase ?>class-notes',
+                'mcqs': '<?= $assetBase ?>class-9-10-11-12-mcqs-for-board-exams',
+                'practice-test': '<?= $assetBase ?>class-9-10-11-12-test-series-for-board-exams',
+                'test-series': '<?= $assetBase ?>class-9-10-11-12-test-series-for-board-exams',
+                'guess-papers': '<?= $assetBase ?>class-notes',
+                'book-mcqs': '<?= $assetBase ?>class-9-10-11-12-mcqs-for-board-exams',
+                'question-paper': '<?= $assetBase ?>select_class.php'
             };
             const url = routes[type] || '#';
             if (url !== '#') {

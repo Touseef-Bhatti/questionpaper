@@ -130,6 +130,50 @@ body {
     word-break: break-word; /* Handle long emails */
 }
 
+.profile-edit-form {
+    margin: 0 auto 30px;
+    max-width: 600px;
+}
+
+.profile-edit-form label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--heading-color);
+    font-weight: 700;
+}
+
+.profile-edit-controls {
+    display: flex;
+    gap: 12px;
+}
+
+.profile-edit-controls input {
+    min-width: 0;
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-color);
+    font: inherit;
+}
+
+.profile-message {
+    max-width: 600px;
+    margin: 0 auto 16px;
+    padding: 10px 14px;
+    border-radius: var(--border-radius-sm);
+}
+
+.profile-message-success {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.profile-message-error {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
 /* Buttons */
 a, button {
     font-family: inherit;
@@ -211,6 +255,10 @@ a, button {
         background-color: transparent;
         border: 1px solid var(--primary-color); /* Add border to distinguish */
         margin-top: 5px;
+    }
+
+    .profile-edit-controls {
+        flex-direction: column;
     }
 }
 

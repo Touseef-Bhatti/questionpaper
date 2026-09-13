@@ -130,6 +130,67 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS uploaded_notes (
     FOREIGN KEY (chapter_id) REFERENCES chapter(chapter_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: uploaded_notes");
 
+// Class Notes - Google Drive backed notes with approval workflow
+runQuery($conn, "CREATE TABLE IF NOT EXISTS class_notes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    subject VARCHAR(100),
+    class ENUM('9','10','11','12') NOT NULL,
+    chapter VARCHAR(255),
+    drive_file_id VARCHAR(255) NOT NULL,
+    drive_url VARCHAR(500) NOT NULL,
+    original_filename VARCHAR(255),
+    mime_type VARCHAR(100) NOT NULL,
+    file_size BIGINT DEFAULT 0,
+    status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    uploaded_by INT DEFAULT NULL,
+    uploader_name VARCHAR(255),
+    uploader_email VARCHAR(255) DEFAULT NULL,
+    uploader_type ENUM('admin','user') DEFAULT 'user',
+    rejection_reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    approved_at DATETIME DEFAULT NULL,
+    approved_by INT DEFAULT NULL,
+    FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_class (class),
+    INDEX idx_status (status),
+    INDEX idx_subject (subject),
+    INDEX idx_class_status (class, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: class_notes");
+
+$result = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'uploader_email'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE class_notes ADD COLUMN uploader_email VARCHAR(255) DEFAULT NULL AFTER uploader_name", "Column: class_notes.uploader_email");
+}
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS class_note_likes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    note_id INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (note_id) REFERENCES class_notes(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_note_like (note_id, user_id),
+    INDEX idx_note_likes_note (note_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: class_note_likes");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS class_note_comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    note_id INT NOT NULL,
+    user_id INT NOT NULL,
+    parent_id INT DEFAULT NULL,
+    comment_text TEXT NOT NULL,
+    is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT NULL,
+    FOREIGN KEY (note_id) REFERENCES class_notes(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES class_note_comments(id) ON DELETE CASCADE,
+    INDEX idx_note_comments_note (note_id, created_at),
+    INDEX idx_note_comments_parent (parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: class_note_comments");
+
 // 1. Core Tables from db_connect.php
 runQuery($conn, "CREATE TABLE IF NOT EXISTS question_papers (
     id INT AUTO_INCREMENT PRIMARY KEY,

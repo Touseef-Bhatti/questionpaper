@@ -115,7 +115,26 @@ Options -Indexes
     # Specific SEO rule for study materials page
     RewriteCond %{THE_REQUEST} \s/+(notes/note\.php|note)(?:[\s?/]|\s) [NC]
     RewriteRule ^(?:notes/note\.php|note)/?$ /study-material-for-board-exam-preparations [R=301,L]
+    RewriteCond %{THE_REQUEST} \s/+study-material-for-board-exam-preparations/+\s [NC]
+    RewriteRule ^study-material-for-board-exam-preparations/+$ /study-material-for-board-exam-preparations [R=301,L]
     RewriteRule ^study-material-for-board-exam-preparations/?$ notes/note.php [NC,L]
+
+    # Specific SEO rules for Class Notes (uploadingNotesForClasses)
+    RewriteCond %{THE_REQUEST} \s/+uploadingNotesForClasses(?:/(?:index\.php)?)?(?:[\s?/]|\s) [NC]
+    RewriteRule ^uploadingNotesForClasses(?:/(?:index\.php)?)?$ /class-notes [R=301,L]
+    RewriteCond %{THE_REQUEST} \s/+uploadingNotesForClasses/upload_note\.php(?:[\s?/]|\s) [NC]
+    RewriteRule ^uploadingNotesForClasses/upload_note\.php$ /upload-notes [R=301,L]
+    RewriteCond %{THE_REQUEST} \s/+uploadingNotesForClasses/download_note\.php(?:[\s?/]|\s) [NC]
+    RewriteRule ^uploadingNotesForClasses/download_note\.php$ /download-note [R=301,L]
+
+    RewriteRule ^class-notes/view/([0-9]+)/?$ uploadingNotesForClasses/view_note.php?id=$1 [QSA,NC,L]
+    RewriteRule ^class-notes/class-([0-9]+)-([^/]+)-(.+)-([0-9]+)/?$ uploadingNotesForClasses/view_note.php?id=$4&seo=1 [QSA,NC,L]
+    RewriteRule ^class-notes/class-([0-9]+)-notes/?$ uploadingNotesForClasses/index.php?class=$1 [QSA,NC,L]
+    RewriteRule ^class-notes/class-([0-9]+)-(.+)-notes/?$ uploadingNotesForClasses/index.php?class=$1&subject_slug=$2 [QSA,NC,L]
+    RewriteRule ^class-notes/?$ uploadingNotesForClasses/index.php [QSA,NC,L]
+    RewriteRule ^class-notes/([0-9]+)/?$ uploadingNotesForClasses/index.php?class=$1 [QSA,NC,L]
+    RewriteRule ^upload-notes/?$ uploadingNotesForClasses/upload_note.php [QSA,NC,L]
+    RewriteRule ^download-note/?$ uploadingNotesForClasses/download_note.php [QSA,NC,L]
 
     # 3. Map root-level requests to 'notes/' folder
     RewriteCond %{REQUEST_FILENAME} !-f
@@ -239,7 +258,7 @@ Options -Indexes
     SetEnvIf Request_URI "^/(?:auth|admin|payment|email|oauth|profile|settings|subscription)(?:/|\.php|$)" alh_noindex
     SetEnvIf Request_URI "^/(?:questionPaperFromTopic/finalize_paper\.php|online-(?:mcqs|short|long|mcqs-short-and-long)-question-paper-generator)(?:/|$)" alh_noindex
     SetEnvIf Request_URI "^/quiz/(?:online_quiz_(?:dashboard|lobby|take|participant|room_questions|create_room|save_answer|submit|start)|ajax_)" alh_noindex
-    SetEnvIf Request_URI "^/(?:generate_question_paper|download_docx?|contact_handler|newsletter-signup|review_vote)\.php" alh_noindex
+    SetEnvIf Request_URI "^/(?:generate_question_paper|google_drive_callback|download_docx?|contact_handler|newsletter-signup|review_vote)\.php" alh_noindex
     Header always set X-Robots-Tag "noindex, nofollow, noarchive" env=alh_noindex
     Header always set X-Content-Type-Options "nosniff"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"

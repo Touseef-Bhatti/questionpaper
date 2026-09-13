@@ -8,6 +8,33 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = intval($_SESSION['user_id']);
+$message = '';
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_name'])) {
+  $new_name = trim($_POST['name'] ?? '');
+
+  if ($new_name === '') {
+    $error = 'Name cannot be empty.';
+  } elseif (strlen($new_name) > 100) {
+    $error = 'Name must be 100 characters or fewer.';
+  } else {
+    $stmt = $conn->prepare('UPDATE users SET name = ? WHERE id = ?');
+    if ($stmt) {
+      $stmt->bind_param('si', $new_name, $user_id);
+      if ($stmt->execute()) {
+        $_SESSION['name'] = $new_name;
+        $message = 'Your name was updated successfully.';
+      } else {
+        $error = 'Unable to update your name. Please try again.';
+      }
+      $stmt->close();
+    } else {
+      $error = 'Unable to update your name. Please try again.';
+    }
+  }
+}
+
 $sql = "SELECT name, email, created_at FROM users WHERE id = $user_id";
 $result = $conn->query($sql);
 $profile = $result ? $result->fetch_assoc() : null;
@@ -122,6 +149,21 @@ $profile = $result ? $result->fetch_assoc() : null;
           <span class="value"><?= date('F j, Y', strtotime($profile['created_at'])) ?></span>
         </div>
       </div>
+
+      <?php if ($message): ?>
+        <div class="profile-message profile-message-success"><?= htmlspecialchars($message) ?></div>
+      <?php endif; ?>
+      <?php if ($error): ?>
+        <div class="profile-message profile-message-error"><?= htmlspecialchars($error) ?></div>
+      <?php endif; ?>
+
+      <form method="POST" class="profile-edit-form">
+        <label for="profile-name">Edit name</label>
+        <div class="profile-edit-controls">
+          <input type="text" id="profile-name" name="name" value="<?= htmlspecialchars($profile['name']) ?>" maxlength="100" required>
+          <button type="submit" name="update_name" class="quiz-dashboard-btn">Save name</button>
+        </div>
+      </form>
 
       <!-- Subscription & Usage Section -->
       <?php
