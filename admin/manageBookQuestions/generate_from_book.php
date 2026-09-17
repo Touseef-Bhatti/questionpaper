@@ -3,16 +3,16 @@ require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../security.php';
 requireAdminAuth();
 
-$classes = $conn->query('SELECT class_id, class_name FROM class ORDER BY class_id ASC');
-$books = $conn->query('SELECT book_id, book_name, class_id FROM book ORDER BY book_name ASC');
-$chapters = $conn->query('SELECT chapter_id, chapter_no, chapter_name, class_id, book_id FROM chapter ORDER BY chapter_no ASC');
-$bookMap = [];
-$chapterMap = [];
-while ($books && ($row = $books->fetch_assoc())) {
-    $bookMap[] = $row;
+$classes = [];
+$res = $conn->query('SELECT class_id, class_name FROM class ORDER BY class_id ASC');
+while ($res && ($row = $res->fetch_assoc())) {
+    $classes[] = $row;
 }
-while ($chapters && ($row = $chapters->fetch_assoc())) {
-    $chapterMap[] = $row;
+
+$books = [];
+$res = $conn->query('SELECT book_id, book_name, class_id FROM book ORDER BY class_id ASC, book_name ASC');
+while ($res && ($row = $res->fetch_assoc())) {
+    $books[] = $row;
 }
 
 $apiKeyConfigured = trim((string) EnvLoader::get('GEMINIAPIKEYFORBOOKQUESTIONS', '')) !== '';
@@ -40,751 +40,882 @@ $uploadLimitBytes = min(
     bookQuestionsIniBytes((string) ini_get('post_max_size'))
 );
 $uploadLimitMb = $uploadLimitBytes > 0 ? round($uploadLimitBytes / 1024 / 1024) : 0;
+$csrfToken = generateCSRFToken();
 
 include_once __DIR__ . '/../header.php';
 ?>
 
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <div>
-            <h1 class="h3 mb-1">Generate Questions from Textbook</h1>
-            <p class="text-muted mb-0">Upload a complete PDF, enter chapter page ranges, and generate MCQs, short questions, and long questions chapter by chapter.</p>
-        </div>
-        <a href="../dashboard.php" class="btn btn-outline-secondary">← Dashboard</a>
-    </div>
+<style>
+/* Scoped responsive styles for Textbook Question Generator */
+.generator-container {
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 1rem 0.75rem 2.5rem;
+}
 
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">How to Use This Page</div>
-        <div class="card-body">
-            <ol>
-                <li><strong>Select Class and Book:</strong> First, choose the class and book you want to generate questions for.</li>
-                <li><strong>Upload PDF:</strong> Upload the complete textbook PDF file.</li>
-                <li><strong>Set Page Offset:</strong> If the printed page numbers don't match the PDF page numbers, set an offset (e.g., if printed page 1 is PDF page 7, enter 6).</li>
-                <li><strong>Add Chapters:</strong> 
-                    <ul>
-                        <li>Click <strong>"Add All Chapters"</strong> to automatically populate chapters from the selected book, or</li>
-                        <li>Click <strong>"+ Add chapter row"</strong> to add chapters manually.</li>
-                    </ul>
-                </li>
-                <li><strong>Fill Chapter Details:</strong> For each chapter, enter the start and end printed page numbers, and the number of MCQs, short questions, and long questions you want to generate.</li>
-                <li><strong>Calculate PDF Pages:</strong> Click <strong>"Calculate PDF pages"</strong> to verify that the page ranges map correctly to the PDF pages.</li>
-                <li><strong>Generate Questions:</strong> Click <strong>"Start generation"</strong> to begin generating questions.</li>
-            </ol>
+@media (min-width: 768px) {
+    .generator-container {
+        padding: 1.5rem 1.25rem 3rem;
+    }
+}
+
+/* Reset admin.css 24px padding on bootstrap cards */
+.generator-container .card {
+    padding: 0 !important;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.generator-container .card::before {
+    display: none !important;
+}
+
+.generator-container .card-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.85rem 1.15rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.generator-container .card-body {
+    padding: 1rem 1.15rem;
+}
+
+@media (min-width: 768px) {
+    .generator-container .card-header {
+        padding: 1rem 1.35rem;
+    }
+    .generator-container .card-body {
+        padding: 1.25rem 1.35rem;
+    }
+}
+
+/* Header & Banner */
+.generator-hero {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    border-radius: 12px;
+    color: #ffffff;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 15px rgba(30, 60, 114, 0.15);
+}
+
+.generator-hero h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: #ffffff;
+}
+
+@media (min-width: 768px) {
+    .generator-hero h1 {
+        font-size: 1.65rem;
+    }
+}
+
+.generator-hero p {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 0;
+}
+
+/* Saved Drafts List */
+.draft-job-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.draft-job-card:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+/* Range table responsive card styling for mobile */
+@media (max-width: 767.98px) {
+    .ranges-table-wrapper {
+        border: none;
+    }
+    .ranges-table-wrapper table,
+    .ranges-table-wrapper thead,
+    .ranges-table-wrapper tbody,
+    .ranges-table-wrapper tr,
+    .ranges-table-wrapper td,
+    .ranges-table-wrapper th {
+        display: block;
+        width: 100% !important;
+    }
+    .ranges-table-wrapper thead {
+        display: none;
+    }
+    .ranges-table-wrapper tr {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.85rem;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .ranges-table-wrapper td {
+        padding: 0.35rem 0 !important;
+        border: none !important;
+    }
+    .ranges-table-wrapper .mobile-row-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        margin-top: 0.4rem;
+    }
+    .ranges-table-wrapper .mobile-pdf-info {
+        margin-top: 0.4rem;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+}
+
+/* Generation stats grid */
+.stat-pill {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.stat-pill .stat-val {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #1e293b;
+    display: block;
+}
+
+.stat-pill .stat-lbl {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+}
+
+/* Touch targets and form controls */
+.form-control, .form-select, .btn {
+    min-height: 40px;
+    border-radius: 7px;
+}
+
+@media (max-width: 575.98px) {
+    .btn-mobile-full {
+        width: 100% !important;
+    }
+}
+</style>
+
+<div class="generator-container">
+    <!-- Hero Banner with responsive actions -->
+    <div class="generator-hero d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <h1><i class="fa-solid fa-book-bookmark me-2"></i>Textbook Question Generator</h1>
+                <?php if ($apiKeyConfigured): ?>
+                    <span class="badge bg-success text-white py-1 px-2" style="font-size: 0.75rem;"><i class="fa-solid fa-check-circle me-1"></i>AI Key Active</span>
+                <?php else: ?>
+                    <span class="badge bg-warning text-dark py-1 px-2" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i>AI Key Missing</span>
+                <?php endif; ?>
+            </div>
+            <p>Store textbooks in Google Drive, map chapter page ranges, and generate AI questions for instant review.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-info text-white" id="testDriveBtn" title="Test Google Drive connection">
+                <i class="fa-brands fa-google-drive me-1"></i>Test Drive
+            </button>
+            <a href="../dashboard.php" class="btn btn-light" title="Return to Admin Dashboard">
+                <i class="fa-solid fa-arrow-left me-1"></i>Dashboard
+            </a>
         </div>
     </div>
 
     <?php if (!$apiKeyConfigured): ?>
-        <div class="alert alert-warning">Gemini API key for book questions is not configured. Add <code>GEMINIAPIKEYFORBOOKQUESTIONS</code> to your <code>.env</code> file.</div>
+        <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+            <i class="fa-solid fa-triangle-exclamation fs-5 flex-shrink-0"></i>
+            <div>
+                <strong>Gemini API Key Required:</strong> Add <code>GEMINIAPIKEYFORBOOKQUESTIONS</code> to your environment file to enable question generation.
+            </div>
+        </div>
     <?php endif; ?>
 
-    <div id="alertBox" class="alert d-none" role="alert"></div>
+    <div id="alertBox" class="alert d-none mb-3" role="alert"></div>
 
-    <form id="bookGenForm" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" id="csrfToken" value="<?= htmlspecialchars(generateCSRFToken()) ?>">
-
-        <div class="card mb-4">
-            <div class="card-header fw-semibold">Book Selection</div>
-            <div class="card-body row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Class</label>
-                    <select class="form-select" id="classSelect" name="class_id" required>
-                        <option value="">Select class</option>
-                        <?php if ($classes) while ($c = $classes->fetch_assoc()): ?>
-                            <option value="<?= (int) $c['class_id'] ?>"><?= htmlspecialchars($c['class_name']) ?></option>
-                        <?php endwhile; ?>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Book</label>
-                    <select class="form-select" id="bookSelect" name="book_id" required disabled>
-                        <option value="">Select book</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Complete Textbook (PDF)</label>
-                    <input type="file" class="form-control" id="bookFile" name="book_file" accept=".pdf,application/pdf" required>
-                    <div class="form-text" id="pdfPageInfo">PDF recommended for exact chapter page extraction. Current upload limit: <?= (int) $uploadLimitMb ?> MB.</div>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Page offset</label>
-                    <input type="number" class="form-control" id="pageOffset" name="page_offset" value="0">
-                    <div class="form-text">Example: if printed page 1 is PDF page 7, enter offset 6.</div>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Generation mode</label>
-                    <select class="form-select" id="genMode" name="mode">
-                        <option value="one">One chapter</option>
-                        <option value="all">All chapters</option>
-                    </select>
-                </div>
-            </div>
+    <!-- Saved Draft Reviews Section -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Saved Draft Reviews</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadReviewJobs()" title="Refresh draft list">
+                <i class="fa-solid fa-rotate me-1"></i>Refresh
+            </button>
         </div>
-
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span class="fw-semibold">Chapters</span>
-                <div>
-                    <button type="button" class="btn btn-sm btn-outline-success me-2" id="addAllChaptersBtn">Add All Chapters</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="addChapterRow">+ Add chapter row</button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle" id="chaptersTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Chapter</th>
-                                <th>Start page</th>
-                                <th>End page</th>
-                                <th>PDF pages</th>
-                                <th>MCQs</th>
-                                <th>Short</th>
-                                <th>Long</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="chapterRows"></tbody>
-                    </table>
-                </div>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="calcPagesBtn">Calculate PDF pages</button>
-            </div>
-        </div>
-
-        <div class="d-flex flex-wrap gap-2 mb-4">
-            <button type="button" class="btn btn-primary" id="startBtn" <?= $apiKeyConfigured ? '' : 'disabled' ?>>Start generation</button>
-            <button type="button" class="btn btn-outline-danger d-none" id="cancelBtn">Cancel generation</button>
-            <button type="button" class="btn btn-outline-warning d-none" id="retryBtn">Retry failed batch</button>
-            <button type="button" class="btn btn-outline-secondary d-none" id="continueBtn">Continue generation</button>
-            <button type="button" class="btn btn-outline-info d-none" id="viewTextBtn">View extracted chapter text</button>
-            <button type="button" class="btn btn-outline-success d-none" id="viewSavedBtn">View saved questions</button>
-        </div>
-    </form>
-
-    <div class="card d-none" id="progressCard">
-        <div class="card-header fw-semibold">Progress</div>
         <div class="card-body">
-            <div id="progressText" class="mb-2"></div>
-            <div id="statusSteps" class="d-flex flex-wrap gap-2 mb-3">
-                <span class="badge bg-secondary" id="stepUpload">1. Upload</span>
-                <span class="badge bg-secondary" id="stepJob">2. Create job</span>
-                <span class="badge bg-secondary" id="stepExtract">3. Extract text</span>
-                <span class="badge bg-secondary" id="stepGenerate">4. Generate</span>
-                <span class="badge bg-secondary" id="stepSave">5. Save</span>
-                <span class="badge bg-secondary" id="stepFinish">6. Finish</span>
-            </div>
-            <div class="progress mb-2" style="height: 22px;">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" style="width: 0%">0%</div>
-            </div>
-            <pre class="bg-light p-3 rounded small mb-0" id="progressDetails" style="min-height: 120px; white-space: pre-wrap; overflow-x: hidden;"></pre>
-            <div class="mt-3">
-                <div class="fw-semibold mb-2">Generation log</div>
-                <div id="progressLog" class="bg-dark text-white p-3 rounded small" style="min-height: 120px; max-height: 280px; overflow-y: auto; white-space: pre-wrap;"></div>
+            <div id="savedDraftJobs" class="d-flex flex-column gap-2">
+                <div class="text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading saved drafts...</div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="previewModalTitle">Preview</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- Two-column responsive layout: Left = Upload, Right = Manage & Generate -->
+    <div class="row g-3 g-xl-4">
+        <!-- Step 1: Upload Book -->
+        <div class="col-12 col-xl-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fa-solid fa-cloud-arrow-up me-2 text-primary"></i>1. Store Book PDF
+                </div>
+                <div class="card-body">
+                    <form id="uploadBookForm" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <input type="hidden" name="action" value="upload_book">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-secondary" for="uploadClass">Class</label>
+                            <select class="form-select" id="uploadClass" name="class_id" required>
+                                <option value="">Select class</option>
+                                <?php foreach ($classes as $class): ?>
+                                    <option value="<?= (int) $class['class_id'] ?>"><?= htmlspecialchars($class['class_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-secondary" for="uploadBook">Book</label>
+                            <select class="form-select" id="uploadBook" name="book_id" required disabled>
+                                <option value="">Select class first</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-secondary" for="bookFile">Textbook PDF</label>
+                            <input type="file" class="form-control" id="bookFile" name="book_file" accept=".pdf,application/pdf" required>
+                            <div class="form-text small d-flex justify-content-between align-items-center mt-1">
+                                <span>Drive + local storage</span>
+                                <span class="badge bg-light text-dark border">Limit: <?= (int) $uploadLimitMb ?> MB</span>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary w-100 mt-2" type="submit" id="uploadSubmitBtn">
+                            <i class="fa-solid fa-upload me-1"></i>Upload &amp; Store Book
+                        </button>
+                    </form>
+                </div>
             </div>
-            <div class="modal-body"><pre id="previewModalBody" class="mb-0" style="white-space: pre-wrap;"></pre></div>
+        </div>
+
+        <!-- Right Column: Step 2, 3, 4 -->
+        <div class="col-12 col-xl-8 d-flex flex-column gap-3 gap-xl-4">
+            <!-- Step 2: Uploaded Books Selection -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fa-solid fa-folder-open me-2 text-primary"></i>2. Uploaded Books
+                </div>
+                <div class="card-body">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label fw-semibold small text-secondary" for="storedBookSelect">Select Stored Book</label>
+                            <select class="form-select" id="storedBookSelect">
+                                <option value="">Select an uploaded book</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4 align-self-end mt-2 mt-md-0">
+                            <a href="#" target="_blank" class="btn btn-outline-primary w-100 disabled" id="driveLink">
+                                <i class="fa-brands fa-google-drive me-1"></i>Open in Drive
+                            </a>
+                        </div>
+                    </div>
+                    <div class="mt-2" id="storedBookMeta"></div>
+                </div>
+            </div>
+
+            <!-- Step 3: Chapter Page Ranges -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span><i class="fa-solid fa-list-ol me-2 text-primary"></i>3. Chapter Page Ranges</span>
+                        <span class="badge bg-light text-secondary border d-none d-sm-inline" id="chapterCountBadge">0 chapters</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-success" id="saveRangesBtn">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Save Page Ranges
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+                        <div class="text-muted small">
+                            <i class="fa-solid fa-circle-info text-info me-1"></i>Enter printed textbook pages. PDF page offsets are calculated automatically.
+                        </div>
+                        <div class="w-100 w-sm-auto" style="min-width: 200px; max-width: 320px;">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                                <input type="text" class="form-control" id="chapterFilterInput" placeholder="Filter chapters...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive ranges-table-wrapper">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col">Chapter</th>
+                                    <th scope="col" style="width: 140px;">Printed Start</th>
+                                    <th scope="col" style="width: 140px;">Printed End</th>
+                                    <th scope="col" style="width: 150px;">PDF Pages</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rangeRows">
+                                <tr><td colspan="4" class="text-muted text-center py-4">Select an uploaded book to view and configure chapters.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Generate One Chapter for Review -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fa-solid fa-wand-magic-sparkles me-2 text-primary"></i>4. Generate One Chapter for Review
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Chapter Selector -->
+                        <div class="col-12 col-lg-5">
+                            <label class="form-label fw-semibold small text-secondary" for="generateChapter">Chapter to Generate</label>
+                            <select class="form-select" id="generateChapter">
+                                <option value="">Save chapter ranges first</option>
+                            </select>
+                        </div>
+
+                        <!-- Target Counts: MCQs, Short, Long in 3 neat columns on all screens -->
+                        <div class="col-12 col-lg-4">
+                            <label class="form-label fw-semibold small text-secondary d-block">Question Targets</label>
+                            <div class="row g-2">
+                                <div class="col-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text px-1 px-sm-2 small" title="Multiple Choice Questions">MCQ</span>
+                                        <input type="number" class="form-control text-center px-1" id="mcqCount" min="0" max="200" value="10">
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text px-1 px-sm-2 small" title="Short Questions">Short</span>
+                                        <input type="number" class="form-control text-center px-1" id="shortCount" min="0" max="100" value="5">
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text px-1 px-sm-2 small" title="Long Questions">Long</span>
+                                        <input type="number" class="form-control text-center px-1" id="longCount" min="0" max="50" value="3">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <div class="col-12 col-lg-3 d-flex align-items-end">
+                            <button type="button" class="btn btn-primary w-100" id="startGenerateBtn" <?= $apiKeyConfigured ? '' : 'disabled' ?>>
+                                <i class="fa-solid fa-play me-1"></i>Start Generation
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Progress Section -->
+                    <div class="progress mt-3 d-none" id="progressWrap" style="height: 24px; border-radius: 6px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary fw-bold" id="progressBar" role="progressbar" style="width: 0%">0%</div>
+                    </div>
+
+                    <!-- Stats Grid for Progress -->
+                    <div class="row g-2 mt-2 d-none" id="progressStatsGrid">
+                        <div class="col-6 col-sm-3">
+                            <div class="stat-pill">
+                                <span class="stat-val text-primary" id="statMcqs">0 / 0</span>
+                                <span class="stat-lbl">MCQs</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="stat-pill">
+                                <span class="stat-val text-info" id="statShort">0 / 0</span>
+                                <span class="stat-lbl">Short</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="stat-pill">
+                                <span class="stat-val text-warning" id="statLong">0 / 0</span>
+                                <span class="stat-lbl">Long</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="stat-pill">
+                                <span class="stat-val text-secondary" id="statSkipped">0</span>
+                                <span class="stat-lbl">Skipped</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <pre class="bg-light p-3 rounded small mt-3 mb-0 d-none" id="progressDetails" style="white-space: pre-wrap; max-height: 180px; overflow-y: auto;"></pre>
+
+                    <!-- Review Actions -->
+                    <div class="mt-3 d-none d-flex gap-2 flex-wrap align-items-center" id="reviewLinkWrap">
+                        <a href="#" class="btn btn-success" id="reviewLink">
+                            <i class="fa-solid fa-clipboard-check me-1"></i>Review Generated Questions
+                        </a>
+                        <button type="button" class="btn btn-outline-danger d-none" id="stopGenerateBtn">
+                            <i class="fa-solid fa-stop me-1"></i>Stop Generation
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-const bookData = <?= json_encode($bookMap) ?>;
-const chapterData = <?= json_encode($chapterMap) ?>;
-const canGenerateBookQuestions = <?= $apiKeyConfigured ? 'true' : 'false' ?>;
-const maxUploadBytes = <?= (int) $uploadLimitBytes ?>;
-const maxUploadMb = <?= (int) $uploadLimitMb ?>;
+const csrfToken = <?= json_encode($csrfToken) ?>;
 const apiUrl = 'api.php';
+const bookData = <?= json_encode($books, JSON_UNESCAPED_UNICODE) ?>;
+const maxUploadBytes = <?= (int) $uploadLimitBytes ?>;
+let uploads = [];
+let currentUpload = null;
+let currentChapters = [];
+let currentRanges = {};
 let currentJobId = '';
-let pdfPageCount = 0;
 let generationRunning = false;
-let currentChapterIndex = 0;
-let currentBookId = null;
-const renderedServerLogs = new Set();
-
-function progressCard() {
-    const card = document.getElementById('progressCard');
-    card.classList.remove('d-none');
-    return card;
-}
 
 function showAlert(message, type = 'danger') {
     const box = document.getElementById('alertBox');
-    box.className = 'alert alert-' + type;
-    box.textContent = message;
+    const icons = {
+        success: 'fa-check-circle',
+        warning: 'fa-triangle-exclamation',
+        danger: 'fa-circle-xmark',
+        info: 'fa-circle-info'
+    };
+    const icon = icons[type] || 'fa-circle-info';
+    box.className = `alert alert-${type} d-flex align-items-center gap-2`;
+    box.innerHTML = `<i class="fa-solid ${icon} fs-5 flex-shrink-0"></i><div>${escapeHtml(message)}</div>`;
     box.classList.remove('d-none');
-    logProgress(message, type === 'danger' ? 'error' : (type === 'warning' ? 'warn' : 'info'));
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function hideAlert() {
-    document.getElementById('alertBox').classList.add('d-none');
+    const box = document.getElementById('alertBox');
+    box.classList.add('d-none');
+    box.innerHTML = '';
 }
 
-function logProgress(message, level = 'info') {
-    progressCard();
-    const panel = document.getElementById('progressLog');
-    if (!panel) return;
-    const prefix = level === 'error' ? '[ERROR]' : level === 'warn' ? '[WARN]' : '[INFO]';
-    panel.textContent += prefix + ' ' + message + '\n';
-    panel.scrollTop = panel.scrollHeight;
-}
-
-function setProgressText(message) {
-    progressCard();
-    document.getElementById('progressText').textContent = message;
-}
-
-function markStep(id, state) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const classes = {
-        waiting: 'bg-secondary',
-        active: 'bg-primary',
-        success: 'bg-success',
-        warn: 'bg-warning text-dark',
-        error: 'bg-danger'
-    };
-    el.className = 'badge ' + (classes[state] || classes.waiting);
-}
-
-function resetSteps() {
-    ['stepUpload', 'stepJob', 'stepExtract', 'stepGenerate', 'stepSave', 'stepFinish'].forEach(id => markStep(id, 'waiting'));
-}
-
-function syncButtons() {
-    document.getElementById('startBtn').disabled = generationRunning || !canGenerateBookQuestions;
-    document.getElementById('cancelBtn').classList.toggle('d-none', !currentJobId || !generationRunning);
-    document.getElementById('retryBtn').classList.toggle('d-none', !currentJobId);
-    document.getElementById('continueBtn').classList.toggle('d-none', !currentJobId || generationRunning);
-    document.getElementById('viewTextBtn').classList.toggle('d-none', !currentJobId);
-    document.getElementById('viewSavedBtn').classList.toggle('d-none', !currentJobId);
-}
-
-async function fetchJson(formData) {
+async function postForm(fd) {
+    fd.append('csrf_token', csrfToken);
     try {
-        const res = await fetch(apiUrl, { method: 'POST', body: formData });
+        const res = await fetch(apiUrl, { method: 'POST', body: fd });
         const text = await res.text();
         let data;
         try {
             data = JSON.parse(text);
-        } catch (parseError) {
-            const errorMessage = 'Invalid JSON response from server.';
-            logProgress(errorMessage + ' Response: ' + text.slice(0, 1024), 'error');
-            showAlert(errorMessage, 'danger');
+        } catch (e) {
+            showAlert('Invalid JSON response: ' + text.slice(0, 500), 'danger');
             return null;
         }
-        if (!res.ok && data.ok !== false) {
-            data.ok = false;
-            data.error = data.error || ('Server returned HTTP ' + res.status + '.');
-        }
-        if (!data.ok) {
-            const error = data.error || 'Unknown server error.';
-            if (data.stored_pdf) {
-                logProgress('Uploaded PDF kept as storage/book_uploads/' + data.stored_pdf, 'warn');
-            }
-            if (data.stored_pdf_note) {
-                logProgress(data.stored_pdf_note, 'warn');
-            }
-            logProgress(error, 'error');
-            showAlert(error, 'danger');
+        if (!data.ok && !data.success) {
+            showAlert(data.error || 'Request failed.', 'danger');
         }
         return data;
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Network error';
-        logProgress(message, 'error');
-        showAlert('Network error: ' + message, 'danger');
+    } catch (err) {
+        showAlert('Network error: ' + err.message, 'danger');
         return null;
     }
 }
 
-function getChaptersForBook(bookId) {
-    if (!bookId) return [];
-    return chapterData.filter(ch => parseInt(ch.book_id, 10) === parseInt(bookId, 10)).sort((a, b) => parseInt(a.chapter_no, 10) - parseInt(b.chapter_no, 10));
-}
-
-function updateBookOptions() {
-    const classId = parseInt(document.getElementById('classSelect').value, 10);
-    const bookSelect = document.getElementById('bookSelect');
+function populateBooks(classSelect, bookSelect) {
+    const classId = parseInt(classSelect.value, 10);
     bookSelect.innerHTML = '<option value="">Select book</option>';
     if (!classId) {
         bookSelect.disabled = true;
-        currentBookId = null;
         return;
     }
-    bookData.filter(b => parseInt(b.class_id, 10) === classId).forEach(book => {
+    const filtered = bookData.filter(b => parseInt(b.class_id, 10) === classId);
+    filtered.forEach(book => {
         const opt = document.createElement('option');
         opt.value = book.book_id;
         opt.textContent = book.book_name;
         bookSelect.appendChild(opt);
     });
-    bookSelect.disabled = false;
-    currentBookId = null;
+    bookSelect.disabled = filtered.length === 0;
 }
 
-function chapterRowTemplate(data = {}) {
-    const chapters = getChaptersForBook(currentBookId);
-    let chapterOptions = '<option value="">Select chapter</option>';
-    chapters.forEach(ch => {
-        const selected = (data.chapter_no == ch.chapter_no && data.chapter_name == ch.chapter_name) ? 'selected' : '';
-        chapterOptions += `<option value="${encodeURIComponent(JSON.stringify({ chapter_no: ch.chapter_no, chapter_name: ch.chapter_name }))}" ${selected}>${ch.chapter_no}: ${ch.chapter_name}</option>`;
+function renderUploads() {
+    const select = document.getElementById('storedBookSelect');
+    const selected = select.value;
+    select.innerHTML = '<option value="">Select uploaded book</option>';
+    uploads.forEach(upload => {
+        const opt = document.createElement('option');
+        opt.value = upload.id;
+        opt.textContent = `${upload.class_name} - ${upload.book_name} (${upload.mapped_chapters || 0} mapped, ${upload.pdf_page_count} pages)`;
+        select.appendChild(opt);
     });
+    if (selected) select.value = selected;
+}
+
+async function refreshData() {
+    const fd = new FormData();
+    fd.append('action', 'list_data');
+    const data = await postForm(fd);
+    if (data?.ok) {
+        uploads = data.uploads || [];
+        renderUploads();
+    }
+    await loadReviewJobs();
+}
+
+function renderReviewJobs(jobs) {
+    const container = document.getElementById('savedDraftJobs');
+    if (!jobs.length) {
+        container.innerHTML = '<div class="text-muted small py-2"><i class="fa-solid fa-info-circle me-1"></i>No pending draft jobs found.</div>';
+        return;
+    }
+    container.innerHTML = jobs.map(job => `
+        <div class="draft-job-card d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+            <div>
+                <div class="fw-semibold text-dark">
+                    <span class="badge bg-primary me-1">${escapeHtml(job.class_name)}</span>
+                    ${escapeHtml(job.book_name)} &bull; Ch ${escapeHtml(job.chapter_no)}: ${escapeHtml(job.chapter_name)}
+                </div>
+                <div class="small text-muted mt-1">
+                    <span class="badge bg-warning text-dark me-1"><i class="fa-solid fa-hourglass-half me-1"></i>${escapeHtml(job.pending_count)} pending</span>
+                    <span>${escapeHtml(job.last_created)}</span>
+                </div>
+            </div>
+            <div class="mt-2 mt-sm-0">
+                <a class="btn btn-sm btn-outline-success w-100" href="review.php?job_id=${encodeURIComponent(job.job_id)}">
+                    <i class="fa-solid fa-arrow-right me-1"></i>Continue Review
+                </a>
+            </div>
+        </div>`).join('');
+}
+
+async function loadReviewJobs() {
+    const fd = new FormData();
+    fd.append('action', 'list_review_jobs');
+    const data = await postForm(fd);
+    if (data?.ok) {
+        renderReviewJobs(data.jobs || []);
+    }
+}
+
+async function loadUploadDetails(uploadId) {
+    currentUpload = null;
+    currentChapters = [];
+    currentRanges = {};
+    document.getElementById('rangeRows').innerHTML = '<tr><td colspan="4" class="text-muted text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading chapters...</td></tr>';
+    document.getElementById('chapterCountBadge').textContent = '0 chapters';
     
-    return `
-        <tr class="chapter-row">
-            <td>
-                <select class="form-select form-select-sm chapter-select" required>
-                    ${chapterOptions}
-                </select>
-                <input type="hidden" class="chapter-no" value="${data.chapter_no || ''}">
-                <input type="hidden" class="chapter-name" value="${data.chapter_name || ''}">
-            </td>
-            <td><input type="number" class="form-control form-control-sm start-page" min="1" value="${data.start_page || ''}" required></td>
-            <td><input type="number" class="form-control form-control-sm end-page" min="1" value="${data.end_page || ''}" required></td>
-            <td class="pdf-pages text-muted small">—</td>
-            <td><input type="number" class="form-control form-control-sm mcq-count" min="0" max="200" value="${data.mcq_count ?? 10}"></td>
-            <td><input type="number" class="form-control form-control-sm short-count" min="0" max="100" value="${data.short_count ?? 5}"></td>
-            <td><input type="number" class="form-control form-control-sm long-count" min="0" max="50" value="${data.long_count ?? 3}"></td>
-            <td><button type="button" class="btn btn-sm btn-outline-danger remove-row">×</button></td>
-        </tr>`;
+    const fd = new FormData();
+    fd.append('action', 'get_upload_details');
+    fd.append('upload_id', uploadId);
+    const data = await postForm(fd);
+    if (!data?.ok) return;
+    
+    currentUpload = data.upload;
+    currentChapters = data.chapters || [];
+    currentRanges = data.ranges || {};
+    
+    document.getElementById('chapterCountBadge').textContent = `${currentChapters.length} chapters`;
+    renderRangeRows();
+    renderGenerateChapters();
+
+    const driveLink = document.getElementById('driveLink');
+    driveLink.href = currentUpload.drive_url || '#';
+    driveLink.classList.toggle('disabled', !currentUpload.drive_url);
+    
+    const metaContainer = document.getElementById('storedBookMeta');
+    metaContainer.innerHTML = `
+        <div class="d-flex flex-wrap gap-2 align-items-center small text-muted">
+            <span class="badge bg-light text-dark border"><i class="fa-solid fa-file-pdf text-danger me-1"></i>${escapeHtml(currentUpload.original_filename)}</span>
+            <span class="badge bg-light text-dark border"><i class="fa-solid fa-file-lines me-1"></i>${currentUpload.pdf_page_count} PDF Pages</span>
+            ${currentUpload.page_offset ? `<span class="badge bg-light text-dark border">Offset: ${currentUpload.page_offset}</span>` : ''}
+        </div>`;
 }
 
-function refreshAllChapterSelects() {
-    document.querySelectorAll('#chapterRows .chapter-row').forEach(row => {
-        const currentNo = row.querySelector('.chapter-no').value;
-        const currentName = row.querySelector('.chapter-name').value;
-        const chapters = getChaptersForBook(currentBookId);
-        
-        let chapterOptions = '<option value="">Select chapter</option>';
-        chapters.forEach(ch => {
-            const selected = (currentNo == ch.chapter_no && currentName == ch.chapter_name) ? 'selected' : '';
-            chapterOptions += `<option value="${encodeURIComponent(JSON.stringify({ chapter_no: ch.chapter_no, chapter_name: ch.chapter_name }))}" ${selected}>${ch.chapter_no}: ${ch.chapter_name}</option>`;
-        });
-        
-        row.querySelector('.chapter-select').innerHTML = chapterOptions;
-    });
-}
-
-function ensureAtLeastOneRow() {
-    const tbody = document.getElementById('chapterRows');
-    if (!tbody.children.length) {
-        tbody.insertAdjacentHTML('beforeend', chapterRowTemplate());
-    }
-}
-
-function collectChapters() {
-    const rows = [];
-    document.querySelectorAll('#chapterRows .chapter-row').forEach(row => {
-        rows.push({
-            chapter_no: parseInt(row.querySelector('.chapter-no').value, 10) || 0,
-            chapter_name: row.querySelector('.chapter-name').value.trim(),
-            start_page: parseInt(row.querySelector('.start-page').value, 10) || 0,
-            end_page: parseInt(row.querySelector('.end-page').value, 10) || 0,
-            mcq_count: parseInt(row.querySelector('.mcq-count').value, 10) || 0,
-            short_count: parseInt(row.querySelector('.short-count').value, 10) || 0,
-            long_count: parseInt(row.querySelector('.long-count').value, 10) || 0,
-        });
-    });
-    return rows;
-}
-
-function validateSelectedPdfSize() {
-    const fileInput = document.getElementById('bookFile');
-    if (!fileInput.files.length || !maxUploadBytes) return true;
-    const file = fileInput.files[0];
-    if (file.size <= maxUploadBytes) return true;
-    const fileMb = (file.size / 1024 / 1024).toFixed(1);
-    const message = 'This PDF is ' + fileMb + ' MB, but the current PHP upload limit is ' + maxUploadMb + ' MB. Increase upload_max_filesize and post_max_size, then restart the server if needed.';
-    document.getElementById('pdfPageInfo').textContent = message;
-    showAlert(message, 'warning');
-    markStep('stepUpload', 'error');
-    return false;
-}
-
-function applyModeVisibility() {
-    const mode = document.getElementById('genMode').value;
-    const addBtn = document.getElementById('addChapterRow');
-    const addAllBtn = document.getElementById('addAllChaptersBtn');
-    const rows = document.querySelectorAll('#chapterRows .chapter-row');
-    addBtn.classList.toggle('d-none', mode === 'one');
-    addAllBtn.classList.toggle('d-none', mode === 'one');
-    if (mode === 'one' && rows.length > 1) {
-        rows.forEach((row, idx) => { if (idx > 0) row.remove(); });
-    }
-}
-
-function addAllChapters() {
-    const chapters = getChaptersForBook(currentBookId);
-    if (!chapters.length) {
-        showAlert('No chapters found for the selected book.', 'warning');
+function renderRangeRows() {
+    const tbody = document.getElementById('rangeRows');
+    if (!currentChapters.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-4">No chapters found for this book in the chapter database.</td></tr>';
         return;
     }
-    const tbody = document.getElementById('chapterRows');
     tbody.innerHTML = '';
-    chapters.forEach(ch => {
-        tbody.insertAdjacentHTML('beforeend', chapterRowTemplate({
-            chapter_no: ch.chapter_no,
-            chapter_name: ch.chapter_name
-        }));
+    currentChapters.forEach(ch => {
+        const range = currentRanges[ch.chapter_id] || {};
+        const pdfText = range.pdf_start_page ? `${range.pdf_start_page} - ${range.pdf_end_page}` : '-';
+        const tr = document.createElement('tr');
+        tr.dataset.chapterId = ch.chapter_id;
+        tr.dataset.chapterSearch = `${ch.chapter_no} ${ch.chapter_name}`.toLowerCase();
+        
+        // Responsive hybrid row: table on desktop, cards on mobile via CSS
+        tr.innerHTML = `
+            <td>
+                <div class="fw-semibold"><span class="badge bg-secondary me-1">Ch ${escapeHtml(ch.chapter_no)}</span>${escapeHtml(ch.chapter_name)}</div>
+                <!-- Mobile Only Inputs Container -->
+                <div class="d-md-none mobile-row-inputs">
+                    <div>
+                        <label class="form-label small text-muted mb-1">Start Page</label>
+                        <input type="number" class="form-control form-control-sm printed-start" min="1" placeholder="Start" value="${range.printed_start_page || ''}" oninput="syncInputs(this, 'start')">
+                    </div>
+                    <div>
+                        <label class="form-label small text-muted mb-1">End Page</label>
+                        <input type="number" class="form-control form-control-sm printed-end" min="1" placeholder="End" value="${range.printed_end_page || ''}" oninput="syncInputs(this, 'end')">
+                    </div>
+                </div>
+                <div class="d-md-none mobile-pdf-info text-muted">
+                    <span>PDF Range:</span>
+                    <strong class="pdf-range-badge text-primary">${pdfText}</strong>
+                </div>
+            </td>
+            <td class="d-none d-md-table-cell">
+                <input type="number" class="form-control form-control-sm printed-start" min="1" placeholder="Start" value="${range.printed_start_page || ''}" oninput="syncInputs(this, 'start')">
+            </td>
+            <td class="d-none d-md-table-cell">
+                <input type="number" class="form-control form-control-sm printed-end" min="1" placeholder="End" value="${range.printed_end_page || ''}" oninput="syncInputs(this, 'end')">
+            </td>
+            <td class="d-none d-md-table-cell text-muted pdf-range">
+                <span class="badge bg-light text-dark border pdf-range-badge">${pdfText}</span>
+            </td>`;
+        tbody.appendChild(tr);
     });
 }
 
-async function detectPdfPageCount() {
-    const fileInput = document.getElementById('bookFile');
-    if (!fileInput.files.length) return;
-    if (!validateSelectedPdfSize()) return;
-    hideAlert();
-    resetSteps();
-    markStep('stepUpload', 'active');
-    setProgressText('Checking uploaded PDF page count...');
-    logProgress('Checking PDF page count for ' + fileInput.files[0].name + '.');
-    document.getElementById('pdfPageInfo').textContent = 'Checking PDF page count...';
-    const fd = new FormData();
-    fd.append('action', 'pdf_page_count');
-    fd.append('csrf_token', document.getElementById('csrfToken').value);
-    fd.append('book_file', fileInput.files[0]);
-    const data = await fetchJson(fd);
-    if (!data || !data.ok) {
-        markStep('stepUpload', 'error');
-        document.getElementById('pdfPageInfo').textContent = 'Could not detect PDF page count. Start generation will show the exact error.';
-        return;
-    }
-    if (data.ok) {
-        pdfPageCount = data.pdf_page_count;
-        document.getElementById('pdfPageInfo').textContent = 'PDF has ' + pdfPageCount + ' pages.';
-        markStep('stepUpload', 'success');
-        logProgress('Detected PDF page count: ' + pdfPageCount);
+function syncInputs(el, type) {
+    const tr = el.closest('tr');
+    if (!tr) return;
+    const targets = tr.querySelectorAll(type === 'start' ? '.printed-start' : '.printed-end');
+    targets.forEach(input => {
+        if (input !== el) input.value = el.value;
+    });
+}
+
+function filterChapters(keyword) {
+    const query = keyword.trim().toLowerCase();
+    const rows = document.querySelectorAll('#rangeRows tr[data-chapter-id]');
+    rows.forEach(row => {
+        const search = row.dataset.chapterSearch || '';
+        row.style.display = search.includes(query) ? '' : 'none';
+    });
+}
+
+document.getElementById('chapterFilterInput').addEventListener('input', e => filterChapters(e.target.value));
+
+function renderGenerateChapters() {
+    const select = document.getElementById('generateChapter');
+    select.innerHTML = '<option value="">Select mapped chapter</option>';
+    let mappedCount = 0;
+    currentChapters.forEach(ch => {
+        const range = currentRanges[ch.chapter_id];
+        if (!range || !range.pdf_start_page) return;
+        mappedCount++;
+        const opt = document.createElement('option');
+        opt.value = ch.chapter_id;
+        opt.textContent = `Ch ${ch.chapter_no}. ${ch.chapter_name} (PDF: ${range.pdf_start_page}-${range.pdf_end_page})`;
+        select.appendChild(opt);
+    });
+    if (mappedCount === 0) {
+        select.innerHTML = '<option value="">No mapped chapters yet. Save ranges above.</option>';
     }
 }
 
-async function calculatePages() {
-    hideAlert();
-    if (!pdfPageCount) {
-        await detectPdfPageCount();
-    }
-    if (!pdfPageCount) return;
+function collectRanges() {
+    return [...document.querySelectorAll('#rangeRows tr[data-chapter-id]')].map(row => {
+        const startInput = row.querySelector('.printed-start');
+        const endInput = row.querySelector('.printed-end');
+        return {
+            chapter_id: parseInt(row.dataset.chapterId, 10),
+            printed_start_page: parseInt(startInput ? startInput.value : 0, 10) || 0,
+            printed_end_page: parseInt(endInput ? endInput.value : 0, 10) || 0
+        };
+    }).filter(row => row.printed_start_page > 0 || row.printed_end_page > 0);
+}
 
-    const fd = new FormData();
-    fd.append('action', 'calculate_pages');
-    fd.append('csrf_token', document.getElementById('csrfToken').value);
-    fd.append('page_offset', document.getElementById('pageOffset').value || '0');
-    fd.append('pdf_page_count', String(pdfPageCount));
-    fd.append('chapters', JSON.stringify(collectChapters()));
-
-    const data = await fetchJson(fd);
-    if (!data || !data.ok) return;
-    const rows = document.querySelectorAll('#chapterRows .chapter-row');
-    data.rows.forEach((item, idx) => {
-        const cell = rows[idx]?.querySelector('.pdf-pages');
-        if (!cell) return;
-        if (item.ok) {
-            cell.textContent = item.pdf_start + ' – ' + item.pdf_end;
-            cell.classList.remove('text-danger');
-            cell.classList.add('text-success');
-        } else {
-            cell.textContent = item.error || 'Invalid';
-            cell.classList.add('text-danger');
-        }
-    });
-    logProgress('PDF page mapping calculated.');
+function validatePdfSize() {
+    const input = document.getElementById('bookFile');
+    if (!input.files.length || !maxUploadBytes) return true;
+    if (input.files[0].size <= maxUploadBytes) return true;
+    showAlert(`This PDF exceeds the server upload limit (${Math.round(maxUploadBytes / 1024 / 1024)} MB).`, 'warning');
+    return false;
 }
 
 function renderProgress(progress) {
     if (!progress) return;
-    progressCard();
-    renderServerLogs(progress.logs || []);
-    const ch = progress.chapter;
-    let html = '';
-    if (currentJobId) html += `Job ID: ${currentJobId}\n`;
-    if (progress.stored_pdf) html += `Stored PDF: storage/book_uploads/${progress.stored_pdf}\n`;
-    html += `Job status: ${progress.job_status || 'ready'}\n`;
-    html += `Chapter: ${(progress.current_chapter_index || 0) + 1} / ${progress.total_chapters || 1}\n`;
-    if (ch) {
-        html += `Current chapter: ${ch.chapter_no}: ${ch.chapter_name}\n`;
-        html += `Chapter status: ${ch.status || 'pending'}\n`;
-        if (ch.current_type) html += `Current type: ${ch.current_type}, batch ${(ch.current_batch || 0) + 1}\n`;
-        html += `MCQs: ${ch.saved?.mcq || 0} / ${ch.targets?.mcq || 0}\n`;
-        html += `Short questions: ${ch.saved?.short || 0} / ${ch.targets?.short || 0}\n`;
-        html += `Long questions: ${ch.saved?.long || 0} / ${ch.targets?.long || 0}\n`;
-        html += `Printed pages: ${ch.printed_start}-${ch.printed_end} | PDF pages: ${ch.pdf_start}-${ch.pdf_end}\n`;
-        html += `Duplicates skipped: ${ch.skipped?.duplicates || 0}\n`;
-        html += `Invalid questions skipped: ${ch.skipped?.invalid || 0}\n`;
-        html += `Replacement attempts: ${ch.replacement_attempts || 0}\n`;
-        if (ch.error) html += `Error: ${ch.error}\n`;
-        if (ch.warning) html += `Notice: ${ch.warning}\n`;
-    }
-    document.getElementById('progressDetails').textContent = html;
-
-    const totalTargets = (ch?.targets?.mcq || 0) + (ch?.targets?.short || 0) + (ch?.targets?.long || 0);
-    const totalSaved = (ch?.saved?.mcq || 0) + (ch?.saved?.short || 0) + (ch?.saved?.long || 0);
-    const pct = totalTargets > 0 ? Math.min(100, Math.round((totalSaved / totalTargets) * 100)) : 0;
+    document.getElementById('progressWrap').classList.remove('d-none');
+    document.getElementById('progressStatsGrid').classList.remove('d-none');
+    document.getElementById('progressDetails').classList.remove('d-none');
+    
+    const ch = progress.chapter || {};
+    const target = (ch.targets?.mcq || 0) + (ch.targets?.short || 0) + (ch.targets?.long || 0);
+    const saved = (ch.saved?.mcq || 0) + (ch.saved?.short || 0) + (ch.saved?.long || 0);
+    const pct = target > 0 ? Math.min(100, Math.round(saved / target * 100)) : 0;
+    
     const bar = document.getElementById('progressBar');
     bar.style.width = pct + '%';
     bar.textContent = pct + '%';
-    const failed = ch?.status === 'failed' || !!ch?.error;
-    document.getElementById('progressText').textContent = progress.job_status === 'completed'
-        ? 'Generation completed.'
-        : (progress.cancelled ? 'Generation cancelled.' : (failed ? 'Generation stopped with an error.' : 'Generating questions...'));
-    currentChapterIndex = progress.current_chapter_index || 0;
 
-    markStep('stepUpload', currentJobId ? 'success' : 'active');
-    markStep('stepJob', currentJobId ? 'success' : 'waiting');
-    markStep('stepExtract', ch && ['generating', 'done'].includes(ch.status) ? 'success' : (ch?.status === 'pending' ? 'active' : 'waiting'));
-    markStep('stepGenerate', failed ? 'error' : (ch?.status === 'generating' ? 'active' : (ch?.status === 'done' ? 'success' : 'waiting')));
-    const savedAny = (ch?.saved?.mcq || 0) + (ch?.saved?.short || 0) + (ch?.saved?.long || 0) > 0;
-    markStep('stepSave', savedAny ? 'success' : (ch?.status === 'generating' ? 'active' : 'waiting'));
-    markStep('stepFinish', progress.job_status === 'completed' ? 'success' : (failed ? 'error' : 'waiting'));
-    syncButtons();
-}
+    // Update Stat pills
+    document.getElementById('statMcqs').textContent = `${ch.saved?.mcq || 0} / ${ch.targets?.mcq || 0}`;
+    document.getElementById('statShort').textContent = `${ch.saved?.short || 0} / ${ch.targets?.short || 0}`;
+    document.getElementById('statLong').textContent = `${ch.saved?.long || 0} / ${ch.targets?.long || 0}`;
+    document.getElementById('statSkipped').textContent = (ch.skipped?.duplicates || 0) + (ch.skipped?.invalid || 0);
 
-function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-}
-
-function renderServerLogs(logs) {
-    logs.forEach(item => {
-        const key = [item.time || '', item.level || '', item.message || ''].join('|');
-        if (renderedServerLogs.has(key)) return;
-        renderedServerLogs.add(key);
-        logProgress((item.time ? item.time + ' ' : '') + (item.message || ''), item.level || 'info');
-    });
-}
-
-async function initJob() {
-    hideAlert();
-    const form = document.getElementById('bookGenForm');
-    if (!form.reportValidity()) {
-        showAlert('Complete the required class, book, PDF, chapter, page range, and question counts first.', 'warning');
-        return false;
-    }
-    const fileInput = document.getElementById('bookFile');
-    if (!fileInput.files.length) {
-        showAlert('Upload the complete textbook PDF.');
-        return false;
-    }
-    if (!validateSelectedPdfSize()) {
-        return false;
-    }
-    resetSteps();
-    markStep('stepUpload', 'active');
-    setProgressText('Uploading PDF and creating generation job...');
-    logProgress('Starting generation for ' + fileInput.files[0].name + '.');
-
-    const fd = new FormData();
-    fd.append('action', 'init_job');
-    fd.append('csrf_token', document.getElementById('csrfToken').value);
-    fd.append('class_id', document.getElementById('classSelect').value);
-    fd.append('book_id', document.getElementById('bookSelect').value);
-    fd.append('page_offset', document.getElementById('pageOffset').value || '0');
-    fd.append('mode', document.getElementById('genMode').value);
-    fd.append('chapters', JSON.stringify(collectChapters()));
-    fd.append('book_file', fileInput.files[0]);
-
-    const data = await fetchJson(fd);
-    if (!data || !data.ok) {
-        markStep('stepUpload', 'error');
-        return false;
-    }
-    currentJobId = data.job_id;
-    pdfPageCount = data.pdf_page_count || pdfPageCount;
-    markStep('stepUpload', 'success');
-    markStep('stepJob', 'success');
-    logProgress('Generation job created: ' + currentJobId + '.');
-    renderProgress(data.progress);
-    syncButtons();
-    return true;
+    // Update Details log
+    document.getElementById('progressDetails').textContent =
+        `Job ID: ${currentJobId}\nStatus: ${progress.job_status}\nChapter: ${ch.chapter_no || ''} ${ch.chapter_name || ''}\n` +
+        `MCQs: ${ch.saved?.mcq || 0}/${ch.targets?.mcq || 0} | Short: ${ch.saved?.short || 0}/${ch.targets?.short || 0} | Long: ${ch.saved?.long || 0}/${ch.targets?.long || 0}\n` +
+        `Duplicates skipped: ${ch.skipped?.duplicates || 0} | Invalid skipped: ${ch.skipped?.invalid || 0}\n${ch.error ? 'Error: ' + ch.error : ''}`;
 }
 
 async function processBatchLoop() {
-    if (!currentJobId || !generationRunning) return;
-
+    if (!generationRunning || !currentJobId) return;
     const fd = new FormData();
     fd.append('action', 'process_batch');
-    fd.append('csrf_token', document.getElementById('csrfToken').value);
     fd.append('job_id', currentJobId);
-
-    try {
-        const data = await fetchJson(fd);
-        if (data?.progress) renderProgress(data.progress);
-        if (!data || !data.ok) {
-            generationRunning = false;
-            syncButtons();
-            return;
-        }
-        if (data.batch) {
-            logProgress('Batch result: saved ' + data.batch.saved + ', duplicates ' + data.batch.duplicates + ', invalid ' + data.batch.invalid + '.');
-        }
-        if (data.done) {
-            generationRunning = false;
-            markStep('stepFinish', 'success');
-            showAlert('Generation finished.', 'success');
-            syncButtons();
-            return;
-        }
-        setTimeout(processBatchLoop, 300);
-    } catch (e) {
-        generationRunning = false;
-        syncButtons();
-        showAlert('Network error during generation. You can continue generation safely.');
-    }
-}
-
-document.getElementById('classSelect').addEventListener('change', () => {
-    updateBookOptions();
-    currentBookId = null;
-    refreshAllChapterSelects();
-});
-document.getElementById('bookSelect').addEventListener('change', () => {
-    currentBookId = document.getElementById('bookSelect').value ? parseInt(document.getElementById('bookSelect').value, 10) : null;
-    refreshAllChapterSelects();
-});
-document.getElementById('bookFile').addEventListener('change', detectPdfPageCount);
-document.getElementById('addChapterRow').addEventListener('click', () => {
-    document.getElementById('chapterRows').insertAdjacentHTML('beforeend', chapterRowTemplate());
-});
-document.getElementById('addAllChaptersBtn').addEventListener('click', addAllChapters);
-document.getElementById('chapterRows').addEventListener('click', e => {
-    if (e.target.classList.contains('remove-row')) {
-        e.target.closest('tr').remove();
-        ensureAtLeastOneRow();
-    }
-});
-document.getElementById('chapterRows').addEventListener('change', e => {
-    if (e.target.classList.contains('chapter-select')) {
-        const row = e.target.closest('tr');
-        const selectedValue = e.target.value;
-        if (selectedValue) {
-            try {
-                const data = JSON.parse(decodeURIComponent(selectedValue));
-                row.querySelector('.chapter-no').value = data.chapter_no;
-                row.querySelector('.chapter-name').value = data.chapter_name;
-            } catch (err) {
-                console.error(err);
-            }
-        }
-    }
-});
-document.getElementById('genMode').addEventListener('change', applyModeVisibility);
-document.getElementById('calcPagesBtn').addEventListener('click', calculatePages);
-document.getElementById('pageOffset').addEventListener('change', () => {
-    document.querySelectorAll('.pdf-pages').forEach(cell => {
-        cell.textContent = '—';
-        cell.classList.remove('text-success', 'text-danger');
-    });
-});
-
-document.getElementById('startBtn').addEventListener('click', async () => {
-    generationRunning = false;
-    syncButtons();
-    const started = await initJob();
-    if (started) {
-        generationRunning = true;
-        syncButtons();
-        processBatchLoop();
-    }
-    syncButtons();
-});
-
-document.getElementById('cancelBtn').addEventListener('click', async () => {
-    if (!currentJobId) return;
-    generationRunning = false;
-    syncButtons();
-    const fd = new FormData();
-    fd.append('action', 'cancel');
-    fd.append('csrf_token', document.getElementById('csrfToken').value);
-    fd.append('job_id', currentJobId);
-    const data = await fetchJson(fd);
+    const data = await postForm(fd);
     if (data?.progress) renderProgress(data.progress);
-    if (data?.ok) showAlert('Generation cancelled.', 'warning');
-});
-
-document.getElementById('retryBtn').addEventListener('click', async () => {
-    if (!currentJobId) return;
-    const fd = new FormData();
-    fd.append('action', 'retry_failed');
-    fd.append('csrf_token', document.getElementById('csrfToken').value);
-    fd.append('job_id', currentJobId);
-    const data = await fetchJson(fd);
-    if (!data || !data.ok) {
+    if (!generationRunning) {
         return;
     }
-    if (data.progress) renderProgress(data.progress);
-    generationRunning = true;
-    syncButtons();
-    processBatchLoop();
+    if (!data || !data.ok) {
+        generationRunning = false;
+        document.getElementById('stopGenerateBtn').classList.add('d-none');
+        return;
+    }
+    if (data.done) {
+        generationRunning = false;
+        showAlert('Draft generation finished! Click "Review generated questions" to inspect and approve them.', 'success');
+        document.getElementById('stopGenerateBtn').classList.add('d-none');
+        loadReviewJobs();
+        return;
+    }
+    setTimeout(processBatchLoop, 300);
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+
+document.getElementById('uploadClass').addEventListener('change', () => populateBooks(document.getElementById('uploadClass'), document.getElementById('uploadBook')));
+
+document.getElementById('uploadBookForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    hideAlert();
+    if (!validatePdfSize() || !event.currentTarget.reportValidity()) return;
+    const submit = document.getElementById('uploadSubmitBtn');
+    submit.disabled = true;
+    submit.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Uploading to Drive...';
+    
+    const fd = new FormData(event.currentTarget);
+    const data = await postForm(fd);
+    submit.disabled = false;
+    submit.innerHTML = '<i class="fa-solid fa-upload me-1"></i>Upload &amp; Store Book';
+    
+    if (data?.ok) {
+        uploads = data.uploads || [];
+        renderUploads();
+        document.getElementById('storedBookSelect').value = data.upload_id;
+        await loadUploadDetails(data.upload_id);
+        showAlert('Book uploaded successfully and stored in Google Drive. Now set chapter page ranges below.', 'success');
+    }
 });
 
-document.getElementById('continueBtn').addEventListener('click', async () => {
-    if (!currentJobId) {
-        showAlert('Start a generation job first.');
+document.getElementById('storedBookSelect').addEventListener('change', event => {
+    if (event.target.value) {
+        loadUploadDetails(event.target.value);
+    }
+});
+
+document.getElementById('saveRangesBtn').addEventListener('click', async () => {
+    if (!currentUpload) {
+        showAlert('Select an uploaded book first.', 'warning');
+        return;
+    }
+    const fd = new FormData();
+    fd.append('action', 'save_chapter_ranges');
+    fd.append('upload_id', currentUpload.id);
+    fd.append('ranges', JSON.stringify(collectRanges()));
+    const data = await postForm(fd);
+    if (data?.ok) {
+        showAlert(`Saved ${data.saved} chapter page range(s) successfully.`, 'success');
+        await loadUploadDetails(currentUpload.id);
+        await refreshData();
+    }
+});
+
+document.getElementById('startGenerateBtn').addEventListener('click', async () => {
+    if (!currentUpload) {
+        showAlert('Select an uploaded book first.', 'warning');
+        return;
+    }
+    const chapterId = document.getElementById('generateChapter').value;
+    if (!chapterId) {
+        showAlert('Select a mapped chapter to generate questions.', 'warning');
         return;
     }
     hideAlert();
+    document.getElementById('reviewLinkWrap').classList.add('d-none');
+    document.getElementById('stopGenerateBtn').classList.add('d-none');
+    
     const fd = new FormData();
-    fd.append('action', 'continue_job');
-    fd.append('csrf_token', document.getElementById('csrfToken').value);
-    fd.append('job_id', currentJobId);
-    const data = await fetchJson(fd);
-    if (!data || !data.ok) {
-        return;
-    }
-    if (data.progress) renderProgress(data.progress);
+    fd.append('action', 'init_chapter_job');
+    fd.append('upload_id', currentUpload.id);
+    fd.append('chapter_id', chapterId);
+    fd.append('mcq_count', document.getElementById('mcqCount').value);
+    fd.append('short_count', document.getElementById('shortCount').value);
+    fd.append('long_count', document.getElementById('longCount').value);
+    
+    const data = await postForm(fd);
+    if (!data?.ok) return;
+    
+    currentJobId = data.job_id;
+    const link = document.getElementById('reviewLink');
+    link.href = 'review.php?job_id=' + encodeURIComponent(currentJobId);
+    document.getElementById('reviewLinkWrap').classList.remove('d-none');
+    document.getElementById('stopGenerateBtn').classList.remove('d-none');
+    renderProgress(data.progress);
     generationRunning = true;
-    syncButtons();
     processBatchLoop();
 });
 
-document.getElementById('viewTextBtn').addEventListener('click', async () => {
-    if (!currentJobId) return;
-    const fd = new FormData();
-    fd.append('action', 'get_extracted_text');
-    fd.append('csrf_token', document.getElementById('csrfToken').value);
-    fd.append('job_id', currentJobId);
-    fd.append('chapter_index', String(currentChapterIndex));
-    const data = await fetchJson(fd);
-    if (!data || !data.ok) {
-        return;
-    }
-    document.getElementById('previewModalTitle').textContent = 'Extracted chapter text';
-    document.getElementById('previewModalBody').textContent = data.text || '';
-    new bootstrap.Modal(document.getElementById('previewModal')).show();
+document.getElementById('stopGenerateBtn').addEventListener('click', () => {
+    generationRunning = false;
+    document.getElementById('stopGenerateBtn').classList.add('d-none');
+    showAlert('Generation paused. You can review and approve drafts generated so far.', 'warning');
+    loadReviewJobs();
 });
 
-document.getElementById('viewSavedBtn').addEventListener('click', async () => {
-    if (!currentJobId) return;
+document.getElementById('testDriveBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('testDriveBtn');
+    const oldHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Testing...';
+    
     const fd = new FormData();
-    fd.append('action', 'get_saved_questions');
-    fd.append('csrf_token', document.getElementById('csrfToken').value);
-    fd.append('job_id', currentJobId);
-    fd.append('chapter_index', String(currentChapterIndex));
-    const data = await fetchJson(fd);
-    if (!data || !data.ok) {
-        return;
+    fd.append('action', 'test_drive');
+    const data = await postForm(fd);
+    btn.disabled = false;
+    btn.innerHTML = oldHtml;
+    
+    if (data?.success || data?.status === 'ok') {
+        showAlert('Google Drive connection is verified and operational.', 'success');
     }
-    const lines = (data.items || []).map(item => {
-        if (item.type === 'mcq') {
-            return `[MCQ #${item.id}] ${item.question}\nA) ${item.option_a}\nB) ${item.option_b}\nC) ${item.option_c}\nD) ${item.option_d}\nAnswer: ${item.correct_option}\n`;
-        }
-        return `[${String(item.type).toUpperCase()} #${item.id}] ${item.question}\n`;
-    });
-    document.getElementById('previewModalTitle').textContent = 'Saved questions';
-    document.getElementById('previewModalBody').textContent = lines.join('\n') || 'No saved questions yet.';
-    new bootstrap.Modal(document.getElementById('previewModal')).show();
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-    ensureAtLeastOneRow();
-    applyModeVisibility();
-    resetSteps();
-    syncButtons();
-});
+document.addEventListener('DOMContentLoaded', refreshData);
 </script>
 
 <?php include_once __DIR__ . '/../footer.php'; ?>

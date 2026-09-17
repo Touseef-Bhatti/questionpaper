@@ -1,70 +1,121 @@
-# ------------------------------
-# 🔒 Project .gitignore — Keep sensitive & system files out of Git
-# ------------------------------
+# -------------------------------------------------------------
+# 🔒 Project .gitignore — AhmadLearninghub / Questionpaper
+# Keep sensitive credentials, storage caches, dumps & temp files out of Git
+# -------------------------------------------------------------
 
-# 🧩 Environment files (never commit real creds)
+# 🧩 Environment & Secrets (Never commit real credentials)
 .env
 .env.*
+*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 !config/.env.template
 !config/.env.example
+!*.env.template
+!*.env.example
 
-env.php
+# Root env file (if any created locally)
+/env.php
 
-# 🗄️ Databases / Dumps
+# 🔑 Service Accounts, OAuth Tokens & Private Keys
+*.pem
+*.key
+*.p12
+*.pfx
+*service_account*.json
+*client_secret*.json
+*credentials*.json
+credentials.json
+/config/google_service_account*.json
+/config/gdrive_*.json
+/config/*credentials*.json
+/config/*client_secret*.json
+/storage/*.json
+/storage/*.token
+!/storage/*.json.example
+
+# 🗄️ Databases & Backups
 *.sql
+*.sql.gz
 *.sqlite
+*.sqlite3
 *.db
 dump/
 backup/
+backups/
 
 # 📦 Dependencies
-node_modules/
 vendor/
+node_modules/
 
-# 🧠 Build / Dist outputs
+# 🧠 Build & Cache Outputs
 dist/
 build/
 .cache/
 .tmp/
 coverage/
 
-# 📂 Cache files (AI MCQs, questions, topics)
+# 📂 Global Cache (AI MCQs, questions, topics)
 /cache/*
 !/cache/.gitkeep
 
-
-
-# 🖥️ IDE & Editor settings
-.vscode/
-.idea/
-*.swp
-
-# 🧱 OS-specific junk
-.DS_Store
-Thumbs.db
-
-# 🔍 Logs & temp files
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-*.log
-
-# 📤 Uploads & User files
+# 📤 Storage, Uploads & PDF Generation Caches
 /uploads/*
 !/uploads/.gitkeep
 /logs/*
 !/logs/.gitkeep
+
 /storage/ai_uploads/*
 !/storage/ai_uploads/.gitkeep
+
+/storage/ai_upload_context/*
+!/storage/ai_upload_context/.gitkeep
+
 /storage/book_uploads/*
 !/storage/book_uploads/.gitkeep
+
 /storage/book_generation/*
 !/storage/book_generation/.gitkeep
-/storage/gdrive_*token*.json
-/config/google_service_account.json
+!/storage/book_generation/**/.gitkeep
+
+/storage/pdf_extraction_cache/*
+!/storage/pdf_extraction_cache/.gitkeep
+
+/storage/temp/*
+!/storage/temp/.gitkeep
+
+# Keep storage htaccess protected
+!/storage/.htaccess
+!/config/.htaccess
+
+# 🖥️ IDE & Editor Settings
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*.sublime-*
+
+# 🧱 OS Artifacts
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+Desktop.ini
+$RECYCLE.BIN/
+
+# 🔍 Logs & Runtime Errors
+*.log
+error_log
+php_errors.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # 🧰 Miscellaneous
 ads.php
-.env.development.local
-.env.production.local
-.env.test.local
+*.bak
+*.tmp

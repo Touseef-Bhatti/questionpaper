@@ -121,7 +121,7 @@ class BookQuestionGenerator
     /**
      * @return array{ok:bool,error?:string,job_id?:string,state?:array<string,mixed>}
      */
-    public function createJob(int $classId, int $bookId, int $pageOffset, string $storedPdfPath, string $originalName, int $pdfPageCount, array $chapters, string $mode): array
+    public function createJob(int $classId, int $bookId, int $pageOffset, string $storedPdfPath, string $originalName, int $pdfPageCount, array $chapters, string $mode, ?int $uploadId = null, bool $reviewMode = false): array
     {
         $validation = $this->validateClassBook($classId, $bookId);
         if (!$validation['ok']) {
@@ -168,6 +168,7 @@ class BookQuestionGenerator
             'admin_id' => (int) ($_SESSION['admin_id'] ?? 0),
             'class_id' => $classId,
             'book_id' => $bookId,
+            'upload_id' => $uploadId,
             'class_name' => $validation['class_name'],
             'book_name' => $validation['book_name'],
             'page_offset' => $pageOffset,
@@ -175,6 +176,7 @@ class BookQuestionGenerator
             'original_filename' => $originalName,
             'stored_pdf' => basename($storedPdfPath),
             'mode' => $mode === 'all' ? 'all' : 'one',
+            'review_mode' => $reviewMode,
             'status' => 'ready',
             'cancelled' => false,
             'current_chapter_index' => 0,
@@ -322,7 +324,7 @@ class BookQuestionGenerator
             $this->saveState($jobId, $state);
             return ['ok' => false, 'error' => 'Gemini API key is not configured. Contact the administrator.'];
         }
-        $model = trim((string) EnvLoader::get('GEMINIMODEL', 'gemini-2.5-flash'));
+        $model = trim((string) EnvLoader::get('GEMINIMODELFORBOOKQUESTIONS', EnvLoader::get('GEMINIMODEL', 'gemini-2.5-flash')));
 
         $chapterIndex = (int) ($state['current_chapter_index'] ?? 0);
         if (!isset($state['chapters'][$chapterIndex])) {
@@ -641,6 +643,7 @@ class BookQuestionGenerator
     private function buildPrompt(array $state, array $chapter, string $type, int $batchSize, string $chapterText, array $existingTexts): string
     {
         $typeLabel = $type === 'mcq' ? 'MCQ' : ($type === 'short' ? 'short question' : 'long question');
+        $topicName = json_encode((string) ($chapter['chapter_name'] ?? ''), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $lines = [];
         $lines[] = 'You are generating exam questions for a textbook chapter.';
         $lines[] = 'Class: ' . ($state['class_name'] ?? '');
@@ -676,13 +679,13 @@ class BookQuestionGenerator
 
         if ($type === 'mcq') {
             $lines[] = '';
-            $lines[] = 'Return JSON exactly like: {"questions":[{"question":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","correct_option":"A|B|C|D","difficulty_level":"Easy|Medium|Hard"}]}';
+            $lines[] = 'Return JSON exactly like: {"questions":[{"topic":' . $topicName . ',"question":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","correct_option":"A|B|C|D","difficulty_level":"Easy|Medium|Hard"}]}';
         } elseif ($type === 'short') {
             $lines[] = '';
-            $lines[] = 'Return JSON exactly like: {"questions":[{"question":"..."}]}';
+            $lines[] = 'Return JSON exactly like: {"questions":[{"topic":' . $topicName . ',"question":"..."}]}';
         } else {
             $lines[] = '';
-            $lines[] = 'Return JSON exactly like: {"questions":[{"question":"..."}]}';
+            $lines[] = 'Return JSON exactly like: {"questions":[{"topic":' . $topicName . ',"question":"..."}]}';
         }
 
         return implode("\n", $lines);
@@ -855,6 +858,10 @@ class BookQuestionGenerator
      */
     private function insertMcq(array $state, array $chapter, array $item): bool
     {
+        if (!empty($state['review_mode'])) {
+            return $this->insertDraftQuestion($state, $chapter, 'mcq', (string) $item['question'], $item);
+        }
+
         $stmt = $this->conn->prepare(
             'INSERT INTO mcqs_from_book (class_id, book_id, chapter_id, question, option_a, option_b, option_c, option_d, correct_option, difficulty_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
@@ -864,11 +871,13 @@ class BookQuestionGenerator
         $classId = (int) $state['class_id'];
         $bookId = (int) $state['book_id'];
         $chapterId = (int) $chapter['chapter_id'];
+        $topic = (string) $chapter['chapter_name'];
         $stmt->bind_param(
-            'iiisssssss',
+            'iiissssssss',
             $classId,
             $bookId,
             $chapterId,
+            $topic,
             $item['question'],
             $item['option_a'],
             $item['option_b'],
@@ -893,6 +902,10 @@ class BookQuestionGenerator
      */
     private function insertQuestion(array $state, array $chapter, string $type, string $questionText): bool
     {
+        if (!empty($state['review_mode'])) {
+            return $this->insertDraftQuestion($state, $chapter, $type, $questionText, []);
+        }
+
         $stmt = $this->conn->prepare(
             'INSERT INTO questions_from_book (class_id, book_id, chapter_id, question_type, question_text, topic, book_name) VALUES (?, ?, ?, ?, ?, ?, ?)'
         );
@@ -913,6 +926,80 @@ class BookQuestionGenerator
 
         $this->insertMainQuestion($state, $chapter, $type, $questionText);
         return true;
+    }
+
+    /**
+     * @param array<string,mixed> $state
+     * @param array<string,mixed> $chapter
+     * @param array<string,mixed> $item
+     */
+    private function insertDraftQuestion(array $state, array $chapter, string $type, string $questionText, array $item): bool
+    {
+        if ($type === 'mcq') {
+            $stmt = $this->conn->prepare(
+                "INSERT INTO book_mcq_drafts
+                    (job_id, upload_id, class_id, book_id, chapter_id, question_text, option_a, option_b, option_c, option_d, correct_option, difficulty_level, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')"
+            );
+        } else {
+            $stmt = $this->conn->prepare(
+                "INSERT INTO book_question_drafts
+                    (job_id, upload_id, class_id, book_id, chapter_id, question_kind, question_text, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')"
+            );
+        }
+        if (!$stmt) {
+            error_log('BookQuestionGenerator draft prepare failed: ' . $this->conn->error);
+            return false;
+        }
+
+        $jobId = (string) ($state['job_id'] ?? '');
+        $uploadId = (int) ($state['upload_id'] ?? 0);
+        $classId = (int) $state['class_id'];
+        $bookId = (int) $state['book_id'];
+        $chapterId = (int) $chapter['chapter_id'];
+        $optionA = (string) ($item['option_a'] ?? '');
+        $optionB = (string) ($item['option_b'] ?? '');
+        $optionC = (string) ($item['option_c'] ?? '');
+        $optionD = (string) ($item['option_d'] ?? '');
+        $correctOption = (string) ($item['correct_option'] ?? '');
+        $difficulty = (string) ($item['difficulty_level'] ?? 'Medium');
+
+        if ($type === 'mcq') {
+            $stmt->bind_param(
+                'siiiisssssss',
+                $jobId,
+                $uploadId,
+                $classId,
+                $bookId,
+                $chapterId,
+                $questionText,
+                $optionA,
+                $optionB,
+                $optionC,
+                $optionD,
+                $correctOption,
+                $difficulty
+            );
+        } else {
+            $stmt->bind_param(
+                'siiiiss',
+                $jobId,
+                $uploadId,
+                $classId,
+                $bookId,
+                $chapterId,
+                $type,
+                $questionText
+            );
+        }
+        $ok = $stmt->execute();
+        if (!$ok) {
+            error_log('BookQuestionGenerator draft insert failed: ' . $stmt->error);
+        }
+        $stmt->close();
+
+        return $ok;
     }
 
     /**
@@ -1285,6 +1372,41 @@ class BookQuestionGenerator
         }
 
         $items = [];
+
+        if (!empty($state['review_mode'])) {
+            $jobIdSafe = (string) ($state['job_id'] ?? $jobId);
+            $stmt = $this->conn->prepare(
+                "SELECT id, 'mcq' AS type, question_text AS question, option_a, option_b, option_c, option_d, correct_option, difficulty_level
+                 FROM book_mcq_drafts
+                 WHERE job_id = ? AND chapter_id = ? AND status = 'pending'
+                 ORDER BY id ASC"
+            );
+            if ($stmt) {
+                $stmt->bind_param('si', $jobIdSafe, $chapterId);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $items[] = $row;
+                }
+                $stmt->close();
+            }
+            $stmt = $this->conn->prepare(
+                "SELECT id, question_kind AS type, question_text AS question, '' AS option_a, '' AS option_b, '' AS option_c, '' AS option_d, '' AS correct_option, '' AS difficulty_level
+                 FROM book_question_drafts
+                 WHERE job_id = ? AND chapter_id = ? AND status = 'pending'
+                 ORDER BY id ASC"
+            );
+            if ($stmt) {
+                $stmt->bind_param('si', $jobIdSafe, $chapterId);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $items[] = $row;
+                }
+                $stmt->close();
+            }
+            return ['ok' => true, 'items' => $items];
+        }
 
         $stmt = $this->conn->prepare('SELECT mcq_id AS id, question, option_a, option_b, option_c, option_d, correct_option, difficulty_level FROM mcqs_from_book WHERE chapter_id = ? ORDER BY mcq_id ASC');
         if ($stmt) {

@@ -34,6 +34,50 @@ function createIndexIfNotExists($conn, $tableName, $indexName, $columns) {
     runQuery($conn, "CREATE INDEX $indexName ON $tableName($columns);", $msg);
 }
 
+function alignQuestionTableColumns($conn, $sourceTable, $targetTable) {
+    $sourceTable = preg_replace('/[^A-Za-z0-9_]/', '', $sourceTable);
+    $targetTable = preg_replace('/[^A-Za-z0-9_]/', '', $targetTable);
+    if ($sourceTable === '' || $targetTable === '') {
+        return;
+    }
+
+    $sourceResult = $conn->query("SHOW COLUMNS FROM `$sourceTable`");
+    $targetResult = $conn->query("SHOW COLUMNS FROM `$targetTable`");
+    if (!$sourceResult || !$targetResult) {
+        return;
+    }
+
+    $targetColumns = [];
+    while ($column = $targetResult->fetch_assoc()) {
+        $targetColumns[(string) $column['Field']] = true;
+    }
+
+    while ($column = $sourceResult->fetch_assoc()) {
+        $field = preg_replace('/[^A-Za-z0-9_]/', '', (string) $column['Field']);
+        if ($field === '' || isset($targetColumns[$field])) {
+            continue;
+        }
+
+        $definition = '`' . $field . '` ' . $column['Type'];
+        $definition .= strtoupper((string) $column['Null']) === 'NO' ? ' NOT NULL' : ' NULL';
+        if ($column['Default'] !== null) {
+            $default = (string) $column['Default'];
+            if (preg_match('/^CURRENT_TIMESTAMP(?:\(\d+\))?$/i', $default)) {
+                $definition .= ' DEFAULT ' . $default;
+            } else {
+                $definition .= " DEFAULT '" . $conn->real_escape_string($default) . "'";
+            }
+        } elseif (strtoupper((string) $column['Null']) !== 'NO') {
+            $definition .= ' DEFAULT NULL';
+        }
+        if (stripos((string) $column['Extra'], 'auto_increment') !== false) {
+            $definition .= ' AUTO_INCREMENT';
+        }
+
+        runQuery($conn, "ALTER TABLE `$targetTable` ADD COLUMN $definition", "Column: $targetTable.$field");
+    }
+}
+
 // 0. Set Time Zone to PST (Pakistan Standard Time, UTC+5)
 runQuery($conn, "SET time_zone = '+05:00';", "Setting Session Time Zone to PST (+05:00)");
 
@@ -330,6 +374,99 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS questions_from_book (
     FOREIGN KEY (book_id) REFERENCES book(book_id) ON DELETE CASCADE,
     FOREIGN KEY (chapter_id) REFERENCES chapter(chapter_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: questions_from_book");
+
+alignQuestionTableColumns($conn, 'mcqs', 'mcqs_from_book');
+alignQuestionTableColumns($conn, 'questions', 'questions_from_book');
+
+// Stored textbook PDFs uploaded to Google Drive for chapter-wise generation
+runQuery($conn, "CREATE TABLE IF NOT EXISTS book_uploads (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    class_id INT NOT NULL,
+    book_id INT NOT NULL,
+    drive_file_id VARCHAR(255) NOT NULL,
+    drive_url VARCHAR(500) NOT NULL,
+    drive_folder_id VARCHAR(255) DEFAULT NULL,
+    local_pdf_path VARCHAR(500) NOT NULL,
+    original_filename VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL DEFAULT 'application/pdf',
+    file_size BIGINT DEFAULT 0,
+    pdf_page_count INT NOT NULL DEFAULT 0,
+    page_offset INT NOT NULL DEFAULT 0,
+    status ENUM('active','archived') NOT NULL DEFAULT 'active',
+    uploaded_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_book_uploads_book (class_id, book_id, status),
+    INDEX idx_book_uploads_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: book_uploads");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS book_chapter_page_ranges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    upload_id INT NOT NULL,
+    class_id INT NOT NULL,
+    book_id INT NOT NULL,
+    chapter_id INT NOT NULL,
+    chapter_no INT NOT NULL,
+    printed_start_page INT NOT NULL,
+    printed_end_page INT NOT NULL,
+    pdf_start_page INT NOT NULL,
+    pdf_end_page INT NOT NULL,
+    page_offset INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_upload_chapter (upload_id, chapter_id),
+    INDEX idx_book_ranges_book (class_id, book_id),
+    INDEX idx_book_ranges_chapter (chapter_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: book_chapter_page_ranges");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS book_mcq_drafts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    job_id VARCHAR(64) NOT NULL,
+    upload_id INT NOT NULL,
+    class_id INT NOT NULL,
+    book_id INT NOT NULL,
+    chapter_id INT NOT NULL,
+    question_text TEXT NOT NULL,
+    option_a TEXT NOT NULL,
+    option_b TEXT NOT NULL,
+    option_c TEXT NOT NULL,
+    option_d TEXT NOT NULL,
+    correct_option ENUM('A','B','C','D') NOT NULL,
+    difficulty_level ENUM('Easy','Medium','Hard') DEFAULT 'Medium',
+    status ENUM('pending','approved','deleted','discarded') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    approved_at DATETIME DEFAULT NULL,
+    approved_by INT DEFAULT NULL,
+    INDEX idx_book_mcq_drafts_job (job_id, status),
+    INDEX idx_book_mcq_drafts_chapter (chapter_id, status),
+    INDEX idx_book_mcq_drafts_upload (upload_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: book_mcq_drafts");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS book_question_drafts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    job_id VARCHAR(64) NOT NULL,
+    upload_id INT NOT NULL,
+    class_id INT NOT NULL,
+    book_id INT NOT NULL,
+    chapter_id INT NOT NULL,
+    question_kind ENUM('mcq','short','long') NOT NULL,
+    question_text TEXT NOT NULL,
+    option_a TEXT NULL,
+    option_b TEXT NULL,
+    option_c TEXT NULL,
+    option_d TEXT NULL,
+    correct_option ENUM('A','B','C','D') NULL,
+    difficulty_level ENUM('Easy','Medium','Hard') DEFAULT 'Medium',
+    status ENUM('pending','approved','deleted','discarded') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    approved_at DATETIME DEFAULT NULL,
+    approved_by INT DEFAULT NULL,
+    INDEX idx_book_drafts_job (job_id, status),
+    INDEX idx_book_drafts_chapter (chapter_id, question_kind, status),
+    INDEX idx_book_drafts_upload (upload_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: book_question_drafts");
 
 // 8.0 AI Questions Topic (Normalized Topic Storage) - MUST be before AIGeneratedMCQs
 runQuery($conn, "CREATE TABLE IF NOT EXISTS AIQuestionsTopic (
