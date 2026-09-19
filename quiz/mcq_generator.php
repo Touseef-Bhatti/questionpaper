@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../services/AIKeyRotator.php';
+require_once __DIR__ . '/../questionPaperFromTopic/GeminiClient.php';
 
 // Ensure environment variables are loaded
 if (class_exists('EnvLoader')) {
@@ -73,117 +74,26 @@ function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 2048, $timeout = 
 }
 
 /**
- * True if the key is an NVIDIA API key (same family as GENERATING_KEYWORDS_KEY).
- */
-function isNvidiaApiKey($key) {
-    $k = is_string($key) ? trim($key) : '';
-    return (bool) preg_match('/^nvapi-/i', $k);
-}
-
-/**
- * NVIDIA integrate.api.nvidia.com chat completions — OpenAI-compatible (matches TopicAIService / keyword generation).
- * Returns [response_text|null, http_code].
- */
-function callNvidiaChatCompletions($apiKey, $model, $prompt, $maxTokens = 4096, $timeout = 120) {
-    $apiKey = trim((string) $apiKey);
-    $model = trim((string) $model);
-    if ($apiKey === '' || $model === '') {
-        return [null, 0];
-    }
-
-    $url = 'https://integrate.api.nvidia.com/v1/chat/completions';
-
-    $payload = [
-        // Rechecking must use the exact model configured in RECHECK_MODEL.
-        'model' => $model,
-        'messages' => [['role' => 'user', 'content' => $prompt]],
-        // Verification is deterministic; lower sampling reduces rambling and
-        // gets the compact JSON response back sooner.
-        'temperature' => 0.15,
-        'top_p' => 0.8,
-        'max_tokens' => $maxTokens,
-        'stream' => false,
-    ];
-
-    $headers = [
-        'Content-Type: application/json',
-        'Accept: application/json',
-        'Authorization: Bearer ' . $apiKey,
-        'User-Agent: AhmadLearningHub/1.0',
-    ];
-
-    // Reuse the cURL handle within a worker so subsequent large-quiz batches
-    // can reuse DNS/TLS connections instead of opening a new connection each
-    // time. PHP releases it automatically when the worker exits.
-    static $recheckCurl = null;
-    if ($recheckCurl === null) {
-        $recheckCurl = curl_init();
-    } else {
-        curl_reset($recheckCurl);
-    }
-    $ch = $recheckCurl;
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_CONNECTTIMEOUT => 15,
-        CURLOPT_TIMEOUT => $timeout,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_TCP_KEEPALIVE => 1,
-    ]);
-
-    $resp = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlErr = curl_error($ch);
-
-    if ($code === 200 && $resp) {
-        $dec = json_decode($resp, true);
-        if (isset($dec['choices'][0]['message'])) {
-            $msg = $dec['choices'][0]['message'];
-            $content = $msg['content'] ?? '';
-            $reasoning = $msg['reasoning_content'] ?? '';
-            $text = !empty($content) ? $content : $reasoning;
-            if (!empty($text)) {
-                return [$text, $code];
-            }
-        }
-    }
-    
-    $errBody = $resp ? substr((string) $resp, 0, 600) : ($curlErr ?: 'empty response');
-    error_log('callNvidiaChatCompletions HTTP ' . $code . ' model=' . $model . ' body=' . $errBody);
-
-    if ($code === 0 && $curlErr) {
-        return [null, 0, $curlErr];
-    }
-
-    return [null, $code];
-}
-
-/**
- * MCQ recheck: OpenRouter keys → OpenRouter; nvapi- keys → NVIDIA.
+ * Send a recheck prompt through the dedicated Gemini API key/model pair.
+ * Returns [response_text|null, http_code, transport_error].
  */
 function callRecheckAi($apiKey, $model, $prompt, $maxTokens = 12000, $timeout = 120) {
-    if (isNvidiaApiKey($apiKey)) {
-        $cap = min((int) $maxTokens, 8192);
-        $result = callNvidiaChatCompletions($apiKey, $model, $prompt, $cap, $timeout);
-        $code = (int) ($result[1] ?? 0);
-        if (in_array($code, [0, 429, 500, 502, 503, 504], true)) {
-            usleep(250000);
-            // Retry once with the same configured key and model. Never switch.
-            return callNvidiaChatCompletions($apiKey, $model, $prompt, $cap, $timeout);
-        }
-        return $result;
-    }
-
-    $result = callOpenRouter($apiKey, $model, $prompt, $maxTokens, $timeout, 0.1, 0.8);
-    $code = (int) ($result[1] ?? 0);
-    if (in_array($code, [0, 429, 500, 502, 503, 504], true)) {
+    $request = function () use ($apiKey, $model, $prompt, $maxTokens, $timeout) {
+        return GeminiClient::callGenerateContent(
+            trim((string) $apiKey),
+            trim((string) $model),
+            [['text' => (string) $prompt]],
+            max(256, min(16384, (int) $maxTokens)),
+            max(10, (int) $timeout),
+            true
+        );
+    };
+    $result = $request();
+    if (empty($result['ok']) && in_array((int) ($result['http'] ?? 0), [0, 429, 500, 502, 503, 504], true)) {
         usleep(250000);
-        return callOpenRouter($apiKey, $model, $prompt, $maxTokens, $timeout, 0.1, 0.8);
+        $result = $request();
     }
-    return $result;
+    return [$result['text'] ?? null, (int) ($result['http'] ?? 0), (string) ($result['error'] ?? '')];
 }
 
 /**
@@ -371,16 +281,16 @@ function estimateMcqTimeout($count) {
  * API key used only for MCQ verification (reads .env via EnvLoader).
  */
 function getRecheckApiKey() {
-    $k = EnvLoader::get('RECHECK_API_KEY', '');
+    $k = EnvLoader::get('GEMINIAPIKEYFORRECHECK', '');
     return is_string($k) ? trim($k) : '';
 }
 
 /**
  * Model used only for recheck. No fallback is allowed: the exact
- * RECHECK_MODEL value must be used with RECHECK_API_KEY.
+ * GEMINIMODELFORRECHECK value must be used with GEMINIAPIKEYFORRECHECK.
  */
 function getRecheckModel() {
-    $m = EnvLoader::get('RECHECK_MODEL', '');
+    $m = EnvLoader::get('GEMINIMODELFORRECHECK', '');
     $m = is_string($m) ? trim($m) : '';
     
     return $m;
@@ -536,7 +446,7 @@ function ensureMcqExplanationColumns($conn) {
 }
 
 /**
- * Verify MCQ rows using only RECHECK_API_KEY (OpenRouter-compatible endpoint).
+ * Verify MCQ rows using only the dedicated Gemini recheck key/model pair.
  *
  * @param array $mcqs Rows from DB (or synthetic rows for freshly inserted AI MCQs)
  * @return array { success, message?, stats }
@@ -640,7 +550,7 @@ function verifyMcqsWithRecheckApiUnlocked($conn, array $mcqs, $sourceTable = 'AI
 
     $apiKey = getRecheckApiKey();
     if ($apiKey === '') {
-        return ['success' => false, 'message' => 'No recheck key: set RECHECK_API_KEY in config/.env.'];
+        return ['success' => false, 'message' => 'No recheck key: set GEMINIAPIKEYFORRECHECK in config/.env.'];
     }
 
     if ($sourceTable === 'mcqs') {
@@ -659,7 +569,7 @@ function verifyMcqsWithRecheckApiUnlocked($conn, array $mcqs, $sourceTable = 'AI
 
     $model = getRecheckModel();
     if ($model === '') {
-        return ['success' => false, 'message' => 'No recheck model: set RECHECK_MODEL in config/.env.'];
+        return ['success' => false, 'message' => 'No recheck model: set GEMINIMODELFORRECHECK in config/.env.'];
     }
 
     $prompt = "You are an expert educator and examiner. Verify each MCQ for factual accuracy.\n"
@@ -711,9 +621,7 @@ function verifyMcqsWithRecheckApiUnlocked($conn, array $mcqs, $sourceTable = 'AI
     $transportError = trim((string) ($apiResult[2] ?? ''));
 
     if ($code !== 200 || !$resp) {
-        $hint = ($code === 401 && isNvidiaApiKey($apiKey))
-            ? ' (check NVIDIA key and RECHECK_MODEL; nvapi keys use integrate.api.nvidia.com, not OpenRouter)'
-            : '';
+        $hint = '';
         $detail = ($code === 0 && $transportError !== '') ? ': ' . $transportError : '';
         return ['success' => false, 'message' => 'Recheck API call failed with HTTP code ' . $code . $detail . $hint];
     }
@@ -919,7 +827,7 @@ function verifyMcqsWithRecheckApiUnlocked($conn, array $mcqs, $sourceTable = 'AI
 }
 
 /**
- * After new AI MCQs are inserted, verify them with RECHECK_API_KEY.
+ * After new AI MCQs are inserted, verify them with the dedicated Gemini recheck key.
  *
  * @param array $insertedRows Output rows from saveGeneratedMcqs (must include id, topic, question, options, correct_option)
  */

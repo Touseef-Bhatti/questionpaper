@@ -1007,8 +1007,8 @@ if (!empty($result['long']) && is_array($result['long'])) {
     }
 }
 
-$recheckKeyForBg = trim((string) EnvLoader::get('RECHECK_API_KEY', ''));
-$recheckModelForBg = trim((string) EnvLoader::get('RECHECK_MODEL', ''));
+$recheckKeyForBg = trim((string) EnvLoader::get('GEMINIAPIKEYFORRECHECK', ''));
+$recheckModelForBg = trim((string) EnvLoader::get('GEMINIMODELFORRECHECK', ''));
 $hasRecheckConfig = ($recheckKeyForBg !== '' && $recheckModelForBg !== '');
 $recheckStatusInsert = $hasRecheckConfig ? 'pending' : 'skipped';
 $recheckFinishedInsert = $hasRecheckConfig ? null : date('Y-m-d H:i:s');

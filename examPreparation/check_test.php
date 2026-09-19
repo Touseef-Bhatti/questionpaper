@@ -150,8 +150,8 @@ foreach (['short', 'long'] as $type) {
 
 if (!empty($ai_items_to_process)) {
     try {
-        $apiKey = trim((string) EnvLoader::get('RECHECK_API_KEY', ''));
-        $model = trim((string) EnvLoader::get('RECHECK_MODEL', ''));
+        $apiKey = trim((string) EnvLoader::get('GEMINIAPIKEYFORRECHECK', ''));
+        $model = trim((string) EnvLoader::get('GEMINIMODELFORRECHECK', ''));
 
         if ($apiKey !== '' && $model !== '') {
             $prompt = "You are a kind, encouraging Pakistani school teacher evaluating a student's exam. 

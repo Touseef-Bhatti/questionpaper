@@ -19,7 +19,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
         }
 
+        if (!isset($_SESSION['submitted_answers'])) {
+            $_SESSION['submitted_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+        }
+
         $_SESSION['test_answers'][$type][$id] = $answer;
+        $_SESSION['submitted_answers'][$type][$id] = true;
+        session_write_close();
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
+    if ($action === 'edit_answer') {
+        header('Content-Type: application/json');
+        $type = $jsonInput['type'] ?? '';
+        $id = preg_replace('/[^A-Za-z0-9_:-]/', '', (string)($jsonInput['id'] ?? ''));
+        if (isset($_SESSION['submitted_answers'][$type][$id])) {
+            unset($_SESSION['submitted_answers'][$type][$id]);
+        }
+        session_write_close();
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
+    if ($action === 'save_draft_answer') {
+        header('Content-Type: application/json');
+        $type = $jsonInput['type'] ?? '';
+        $id = preg_replace('/[^A-Za-z0-9_:-]/', '', (string)($jsonInput['id'] ?? ''));
+        $answer = $jsonInput['answer'] ?? '';
+        if (in_array($type, ['short', 'long'], true) && $id !== '') {
+            if (!isset($_SESSION['test_answers'])) {
+                $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+            }
+            $_SESSION['test_answers'][$type][$id] = $answer;
+        }
         session_write_close();
         echo json_encode(['status' => 'success']);
         exit;
@@ -35,10 +68,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
         }
 
+        if (!isset($_SESSION['submitted_answers'])) {
+            $_SESSION['submitted_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+        }
+
         $_SESSION['test_answers']['mcqs'][$id] = [
             'isCorrect' => $isCorrect,
             'selected' => $selected
         ];
+        $_SESSION['submitted_answers']['mcqs'][$id] = true;
+        session_write_close();
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
+    if ($action === 'edit_mcq_result') {
+        header('Content-Type: application/json');
+        $id = preg_replace('/[^A-Za-z0-9_:-]/', '', (string)($jsonInput['id'] ?? ''));
+        unset($_SESSION['submitted_answers']['mcqs'][$id], $_SESSION['test_answers']['mcqs'][$id]);
         session_write_close();
         echo json_encode(['status' => 'success']);
         exit;
@@ -53,6 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
         }
 
+        if (!isset($_SESSION['submitted_answers'])) {
+            $_SESSION['submitted_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+        }
+
         // Save subjective answers
         foreach ($answers as $a) {
             $type = $a['type'] ?? '';
@@ -60,6 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $val = $a['answer'] ?? '';
             if ($type && $id) {
                 $_SESSION['test_answers'][$type][$id] = $val;
+                $_SESSION['submitted_answers'][$type][$id] = true;
             }
         }
 
@@ -83,13 +135,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $exam_id = intval($_GET['exam_id'] ?? 0);
 $is_custom = isset($_GET['custom']);
+$from_paper = isset($_POST['from_paper']);
+$from_ai_paper = isset($_POST['from_ai_paper']);
+$is_generated_paper = $from_paper || $from_ai_paper;
+$resume_session_test = !$is_generated_paper && !$exam_id && !$is_custom && !empty($_SESSION['current_test_questions']);
 
 // --- Caching Logic ---
 require_once '../services/CacheManager.php';
 $cacheManager = new CacheManager();
 // Unique key based on parameters
-$cacheKey = "take_test_" . md5(serialize($_GET));
-$cachedData = $cacheManager->get($cacheKey);
+$cacheKey = $resume_session_test
+    ? ($_SESSION['current_test_key'] ?? '')
+    : "take_test_" . md5(serialize($_GET) . '|' . serialize($_POST));
+$cachedData = ($is_generated_paper || $resume_session_test) ? null : $cacheManager->get($cacheKey);
 
 if ($cachedData && is_array($cachedData)) {
     $questions_data = $cachedData['questions_data'];
@@ -103,7 +161,58 @@ if ($cachedData && is_array($cachedData)) {
         'long' => []
     ];
 
-    if ($exam_id) {
+    if ($resume_session_test) {
+        $questions_data = $_SESSION['current_test_questions'];
+    } elseif ($from_paper) {
+        $mcqIds = decodeIdList($_POST['mcq_ids'] ?? '');
+        $shortIds = decodeIdList($_POST['short_ids'] ?? '');
+        $longIds = decodeIdList($_POST['long_ids'] ?? '');
+
+        if (!empty($mcqIds)) {
+            $questions_data['mcqs'] = fetchRowsByIds('mcqs', 'mcq_id', $mcqIds);
+        }
+
+        $subjectiveIds = array_values(array_unique(array_merge($shortIds, $longIds)));
+        if (!empty($subjectiveIds)) {
+            $rows = fetchRowsByIds('questions', 'id', $subjectiveIds);
+            foreach ($rows as $row) {
+                if (($row['question_type'] ?? '') === 'short') {
+                    $questions_data['short'][] = $row;
+                } else {
+                    $questions_data['long'][] = $row;
+                }
+            }
+        }
+    } elseif ($from_ai_paper) {
+        $aiQuestions = json_decode((string)($_POST['ai_questions_json'] ?? ''), true);
+        if (is_array($aiQuestions)) {
+            foreach (($aiQuestions['mcqs'] ?? []) as $index => $question) {
+                if (empty($question['question'])) continue;
+                $questionId = $question['mcq_id'] ?? 'ai_' . substr(sha1('mcq|' . $index . '|' . $question['question']), 0, 16);
+                $questions_data['mcqs'][] = [
+                    'mcq_id' => (string)$questionId,
+                    'question' => (string)$question['question'],
+                    'option_a' => (string)($question['option_a'] ?? ''),
+                    'option_b' => (string)($question['option_b'] ?? ''),
+                    'option_c' => (string)($question['option_c'] ?? ''),
+                    'option_d' => (string)($question['option_d'] ?? ''),
+                    'correct_option' => (string)($question['correct_option'] ?? ''),
+                    'explanation' => (string)($question['explanation'] ?? '')
+                ];
+            }
+            foreach (['short', 'long'] as $type) {
+                foreach (($aiQuestions[$type] ?? []) as $index => $question) {
+                    if (empty($question['question'])) continue;
+                    $questionId = $question['id'] ?? 'ai_' . substr(sha1($type . '|' . $index . '|' . $question['question']), 0, 16);
+                    $questions_data[$type][] = [
+                        'id' => (string)$questionId,
+                        'question_text' => (string)$question['question'],
+                        'typical_answer' => (string)($question['typical_answer'] ?? '')
+                    ];
+                }
+            }
+        }
+    } elseif ($exam_id) {
         // Fetch pre-created exam
         $stmt = $conn->prepare("SELECT * FROM exam_preparations WHERE id = ?");
         $stmt->bind_param("i", $exam_id);
@@ -176,13 +285,71 @@ if ($cachedData && is_array($cachedData)) {
         $pageTitle = str_replace(' ', '-', ($info['class_name'] ?? '')) . "-" . str_replace(' ', '-', ($info['book_name'] ?? '')) . "-Practice-Test";
     }
 
-    // Store in cache for 1 hour (3600 seconds)
-    $cacheManager->setex($cacheKey, 3600, [
-        'questions_data' => $questions_data,
-        'exam' => $exam ?? null,
-        'pageTitle' => $pageTitle,
-        'info' => $info
-    ]);
+    // Generated papers are already complete POST payloads; keep them isolated
+    // from the shared GET cache.
+    if (!$is_generated_paper) {
+        $cacheManager->setex($cacheKey, 3600, [
+            'questions_data' => $questions_data,
+            'exam' => $exam ?? null,
+            'pageTitle' => $pageTitle,
+            'info' => $info
+        ]);
+    }
+}
+
+function decodeIdList($value) {
+    $ids = is_array($value) ? $value : json_decode((string)$value, true);
+    if (!is_array($ids)) return [];
+    return array_values(array_unique(array_filter(array_map(static function ($id) {
+        $id = trim((string)$id);
+        return preg_match('/^(?:book_|bookq_)?[1-9][0-9]*$/', $id) ? $id : null;
+    }, $ids))));
+}
+
+function fetchRowsByIds($table, $idColumn, array $ids) {
+    global $conn;
+    $allowed = ['mcqs' => 'mcq_id', 'questions' => 'id'];
+    if (!isset($allowed[$table]) || $allowed[$table] !== $idColumn || empty($ids)) return [];
+
+    $rows = [];
+
+    $numericIds = array_values(array_filter($ids, static fn($id) => ctype_digit((string)$id)));
+    if (!empty($numericIds)) {
+        $placeholders = implode(',', array_fill(0, count($numericIds), '?'));
+        $numericIds = array_map('intval', $numericIds);
+        $stmt = $conn->prepare("SELECT * FROM {$table} WHERE {$idColumn} IN ({$placeholders})");
+        if ($stmt) {
+            $stmt->bind_param(str_repeat('i', count($numericIds)), ...$numericIds);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) $rows[] = $row;
+            $stmt->close();
+        }
+    }
+
+    $bookIds = array_values(array_filter($ids, static fn($id) => strpos((string)$id, $table === 'mcqs' ? 'book_' : 'bookq_') === 0));
+    if (!empty($bookIds)) {
+        $bookNumericIds = array_map(static fn($id) => intval(substr((string)$id, $table === 'mcqs' ? 5 : 6)), $bookIds);
+        $placeholders = implode(',', array_fill(0, count($bookNumericIds), '?'));
+        if ($table === 'mcqs') {
+            $sql = "SELECT mcq_id, chapter_id, question, option_a, option_b, option_c, option_d, correct_option, '' AS explanation FROM mcqs_from_book WHERE mcq_id IN ({$placeholders})";
+        } else {
+            $sql = "SELECT CONCAT('bookq_', id) AS id, question_text, question_type, '' AS typical_answer FROM questions_from_book WHERE id IN ({$placeholders})";
+        }
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param(str_repeat('i', count($bookNumericIds)), ...$bookNumericIds);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                if ($table === 'mcqs') $row['mcq_id'] = 'book_' . $row['mcq_id'];
+                $rows[] = $row;
+            }
+            $stmt->close();
+        }
+    }
+
+    return $rows;
 }
 
 function fetchRandomQuestions($class_id, $book_id, $chapter_ids, $mcq_c, $short_c, $long_c) {
@@ -248,10 +415,11 @@ $assetBase = '../';
 include '../header.php';
 
 // Reset test answers in session only if it's a new test configuration
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+if ($_SERVER['REQUEST_METHOD'] === 'GET' || $is_generated_paper) {
     $prev_key = $_SESSION['current_test_key'] ?? '';
     if ($prev_key !== $cacheKey) {
         $_SESSION['test_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
+        $_SESSION['submitted_answers'] = ['mcqs' => [], 'short' => [], 'long' => []];
     }
     // Update current test key and questions in session
     $_SESSION['current_test_key'] = $cacheKey;
@@ -639,21 +807,124 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             .mcq-option strong { width: 28px; height: 28px; font-size: 0.85rem; border-radius: 8px; }
             .answer-box { min-height: 100px; padding: 14px; font-size: 0.9rem; }
         }
+
+        .test-toolbar {
+            max-width: 900px;
+            margin: 0 auto 22px;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, .06);
+        }
+        .test-topbar { max-width: 900px; margin: 0 auto 22px; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+        .test-topbar-actions { display: flex; align-items: center; gap: 10px; }
+        .test-topbar .btn-exit, .test-topbar .btn-premium { min-height: 46px; padding: 0 18px; }
+        .timer-intro { display: flex; align-items: center; gap: 12px; min-width: 210px; }
+        .timer-icon { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; color: #4338ca; background: #eef2ff; font-size: 1.15rem; }
+        .timer-intro h3 { margin: 0; color: #0f172a; font: 800 1rem 'Outfit', sans-serif; }
+        .timer-intro p { margin: 2px 0 0; color: #64748b; font-size: .78rem; }
+        .timer-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+        .timer-controls label { color: #475569; font-size: .78rem; font-weight: 700; }
+        .timer-controls select, .custom-time input { min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #0f172a; padding: 0 10px; font-size: .88rem; }
+        .custom-time { display: inline-flex; align-items: center; gap: 4px; }
+        .custom-time input { width: 58px; text-align: center; }
+        .timer-button { min-height: 44px; border: 0; border-radius: 10px; padding: 0 13px; font-weight: 700; cursor: pointer; transition: background-color .2s, transform .2s; }
+        .timer-button:focus-visible, .edit-answer-btn:focus-visible, .submit-answer-btn:focus-visible, .mcq-option:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 2px; }
+        .timer-button:hover { transform: translateY(-1px); }
+        .timer-start { background: #4f46e5; color: #fff; }
+        .timer-pause { background: #fef3c7; color: #92400e; }
+        .timer-reset { background: #f1f5f9; color: #334155; }
+        .timer-display { min-width: 76px; padding: 8px 10px; border-radius: 10px; background: #0f172a; color: #fff; font: 800 1.15rem 'Outfit', sans-serif; text-align: center; letter-spacing: .04em; }
+        .timer-display.warning { background: #b45309; }
+        .timer-display.expired { background: #b91c1c; }
+        .question-actions { min-height: 44px; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+        .answer-status { margin-right: auto; color: #64748b; font-size: .82rem; font-weight: 700; }
+        .answer-status i { color: #94a3b8; margin-right: 4px; }
+        .answer-status.submitted { color: #047857; }
+        .answer-status.submitted i { color: #10b981; }
+        .answer-box.is-locked { background: #f1f5f9; color: #475569; cursor: not-allowed; border-color: #cbd5e1; }
+        .submit-answer-btn { cursor: pointer !important; pointer-events: auto !important; }
+        .edit-answer-btn { min-height: 42px; padding: 0 14px; border: 1px solid #c7d2fe; border-radius: 10px; background: #eef2ff; color: #4338ca; font-weight: 700; cursor: pointer; }
+        .edit-answer-btn:hover { background: #e0e7ff; }
+        .mcq-option { min-height: 52px; }
+        .mcq-options-container.answered .mcq-option:not(.correct):not(.wrong) { opacity: .65; }
+        .mcq-options-container.answered .mcq-option { cursor: not-allowed; }
+        @media (max-width: 700px) {
+            .test-topbar { margin-bottom: 16px; gap: 8px; }
+            .test-topbar > *, .test-topbar-actions { flex: 1 1 0; }
+            .test-topbar .btn-exit, .test-topbar .btn-premium { width: 100%; padding: 0 10px; font-size: .82rem; white-space: nowrap; }
+            .test-toolbar { align-items: stretch; flex-direction: column; margin: 0 0 16px; padding: 15px; border-radius: 16px; }
+            .timer-controls { justify-content: stretch; }
+            .timer-controls > * { flex: 1 1 auto; }
+            .timer-controls label { flex: 0 0 auto; align-self: center; }
+            .timer-display { flex: 0 0 76px !important; }
+            .paper-container { margin-top: 12px; }
+            .paper-header .row .col-6 { width: 100%; text-align: left !important; margin-bottom: 7px; }
+            .question-actions { justify-content: stretch; }
+            .answer-status { flex: 1 1 100%; margin-right: 0; }
+            .question-actions button { flex: 1 1 150px; }
+        }
+        @media (max-width: 390px) {
+            .timer-controls label { flex-basis: 100%; }
+            .timer-controls select, .timer-button { width: 100%; }
+            .custom-time { width: 100%; justify-content: center; }
+            .timer-display { width: 100%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+        }
     </style>
 </head>
 <body style="background: #f8fafc;">
 
 <div class="main-content container py-4">
-    <div class="no-print d-flex justify-content-between align-items-center mb-5" style="max-width: 900px; margin: 0 auto;">
-        <a href="javascript:history.back()" class="btn-exit shadow-sm">
+    <div class="test-topbar no-print">
+        <a href="select_class_for_test.php" class="btn-exit shadow-sm">
             <i class="fas fa-arrow-left me-2"></i> Exit Test
         </a>
-        <div class="d-flex gap-2">
+        <div class="test-topbar-actions">
             <button onclick="handleDownloadClick()" class="btn-premium shadow-sm">
                 <i class="fas fa-download me-2"></i> Download Paper
             </button>
         </div>
     </div>
+
+    <section class="test-toolbar no-print" aria-label="Test controls">
+        <div class="timer-intro">
+            <span class="timer-icon"><i class="fas fa-stopwatch" aria-hidden="true"></i></span>
+            <div>
+                <h3>Timed practice</h3>
+                <p>Choose a duration, then start when you are ready.</p>
+            </div>
+        </div>
+        <div class="timer-controls">
+            <label for="timerPreset">Duration</label>
+            <select id="timerPreset" aria-label="Choose test duration">
+                <option value="600">10 minutes</option>
+                <option value="1200">20 minutes</option>
+                <option value="1800">30 minutes</option>
+                <option value="3600">1 hour</option>
+                <option value="7200">2 hours</option>
+                <option value="custom">Custom</option>
+            </select>
+            <div class="custom-time" id="customTimeFields" hidden>
+                <label class="visually-hidden" for="timerHours">Hours</label>
+                <input id="timerHours" type="number" min="0" max="23" value="0" inputmode="numeric" placeholder="HH">
+                <span>:</span>
+                <label class="visually-hidden" for="timerMinutes">Minutes</label>
+                <input id="timerMinutes" type="number" min="0" max="59" value="30" inputmode="numeric" placeholder="MM">
+            </div>
+            <button type="button" class="timer-button timer-start" id="startTimerBtn"><i class="fas fa-play" aria-hidden="true"></i> Start timer</button>
+            <button type="button" class="timer-button timer-pause" id="pauseTimerBtn" hidden><i class="fas fa-pause" aria-hidden="true"></i> Pause</button>
+            <button type="button" class="timer-button timer-reset" id="resetTimerBtn" hidden>Reset</button>
+            <div class="timer-display" id="timerDisplay" aria-live="polite">10:00</div>
+        </div>
+    </section>
 
     <div class="paper-container">
         <div class="paper-header">
@@ -663,7 +934,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 <div class="col-6 text-end"><strong>Roll Number:</strong> _________________</div>
             </div>
             <div class="d-flex justify-content-between mt-3 text-muted small">
-                <span><i class="far fa-clock me-1"></i> Duration: 1.5 Hours</span>
+                <span id="paperDurationLabel"><i class="far fa-clock me-1"></i> Duration: Not started</span>
                 <span><i class="fas fa-trophy me-1"></i> Total Marks: <?= (count($questions_data['mcqs']) * 1) + (count($questions_data['short']) * 2) + (count($questions_data['long']) * 5) ?></span>
             </div>
         </div>
@@ -676,7 +947,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 <span>Click on any option to check your answer instantly!</span>
             </div>
             <?php foreach ($questions_data['mcqs'] as $index => $m): ?>
-                <div class="question-item" data-db-id="<?= htmlspecialchars((string)$m['mcq_id']) ?>">
+                <?php $mcqSubmitted = !empty($_SESSION['submitted_answers']['mcqs'][$m['mcq_id']]); ?>
+                <div class="question-item" data-db-id="<?= htmlspecialchars((string)$m['mcq_id']) ?>" data-submitted="<?= $mcqSubmitted ? '1' : '0' ?>">
                     <p style="font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 20px;">
                         Q<?= $index + 1 ?>. <?= htmlspecialchars($m['question']) ?>
                     </p>
@@ -696,6 +968,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                             </div>
                         <?php endforeach; ?>
                     </div>
+                    <div class="question-actions no-print">
+                        <span class="answer-status<?= $mcqSubmitted ? ' submitted' : '' ?>" aria-live="polite"><i class="fas fa-circle-check" aria-hidden="true"></i> <span><?= $mcqSubmitted ? 'Submitted' : 'Not submitted' ?></span></span>
+                    </div>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
@@ -708,11 +983,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     <p style="font-size: 1.1rem; font-weight: 600; color: #1e293b;">
                         Q<?= $index + 1 ?>. <?= htmlspecialchars($q['question_text']) ?>
                     </p>
-                    <textarea class="answer-box no-print" placeholder="Write your answer here for practice..." id="answer_short_<?= htmlspecialchars((string)$q['id']) ?>"><?= htmlspecialchars($_SESSION['test_answers']['short'][$q['id']] ?? '') ?></textarea>
-                    <div class="text-end mt-2 no-print">
-                        <button class="btn btn-sm btn-outline-primary" onclick="saveAnswer('short', <?= json_encode((string)$q['id']) ?>)">
-                            <i class="fas fa-save me-1"></i> Submit
+                    <?php $shortSubmitted = !empty($_SESSION['submitted_answers']['short'][$q['id']]); ?>
+                    <textarea class="answer-box no-print<?= $shortSubmitted ? ' is-locked' : '' ?>" placeholder="Write your answer here for practice..." id="answer_short_<?= htmlspecialchars((string)$q['id']) ?>"<?= $shortSubmitted ? ' disabled' : '' ?>><?= htmlspecialchars($_SESSION['test_answers']['short'][$q['id']] ?? '') ?></textarea>
+                    <div class="question-actions no-print">
+                        <span class="answer-status<?= $shortSubmitted ? ' submitted' : '' ?>" aria-live="polite"><i class="fas fa-circle-check" aria-hidden="true"></i> <span><?= $shortSubmitted ? 'Submitted' : 'Not submitted' ?></span></span>
+                        <button type="button" class="submit-answer-btn btn btn-sm btn-outline-primary" data-answer-type="short" data-answer-id="<?= htmlspecialchars((string)$q['id'], ENT_QUOTES, 'UTF-8') ?>"<?= $shortSubmitted ? ' hidden' : '' ?>>
+                            <i class="fas fa-paper-plane me-1" aria-hidden="true"></i> Submit answer
                         </button>
+                        <button type="button" class="edit-answer-btn" data-answer-type="short" data-answer-id="<?= htmlspecialchars((string)$q['id'], ENT_QUOTES, 'UTF-8') ?>"<?= $shortSubmitted ? '' : ' hidden' ?>><i class="fas fa-pen" aria-hidden="true"></i> Edit answer</button>
                     </div>
                     <div class="print-only" style="display:none; height: 150px; border: 1px solid #eee; margin-top: 10px;"></div>
                 </div>
@@ -727,11 +1005,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     <p style="font-size: 1.1rem; font-weight: 600; color: #1e293b;">
                         Q<?= $index + 1 ?>. <?= htmlspecialchars($q['question_text']) ?>
                     </p>
-                    <textarea class="answer-box no-print" placeholder="Write a detailed answer here..." id="answer_long_<?= htmlspecialchars((string)$q['id']) ?>"><?= htmlspecialchars($_SESSION['test_answers']['long'][$q['id']] ?? '') ?></textarea>
-                    <div class="text-end mt-2 no-print">
-                        <button class="btn btn-sm btn-outline-primary" onclick="saveAnswer('long', <?= json_encode((string)$q['id']) ?>)">
-                            <i class="fas fa-save me-1"></i> Submit
+                    <?php $longSubmitted = !empty($_SESSION['submitted_answers']['long'][$q['id']]); ?>
+                    <textarea class="answer-box no-print<?= $longSubmitted ? ' is-locked' : '' ?>" placeholder="Write a detailed answer here..." id="answer_long_<?= htmlspecialchars((string)$q['id']) ?>"<?= $longSubmitted ? ' disabled' : '' ?>><?= htmlspecialchars($_SESSION['test_answers']['long'][$q['id']] ?? '') ?></textarea>
+                    <div class="question-actions no-print">
+                        <span class="answer-status<?= $longSubmitted ? ' submitted' : '' ?>" aria-live="polite"><i class="fas fa-circle-check" aria-hidden="true"></i> <span><?= $longSubmitted ? 'Submitted' : 'Not submitted' ?></span></span>
+                        <button type="button" class="submit-answer-btn btn btn-sm btn-outline-primary" data-answer-type="long" data-answer-id="<?= htmlspecialchars((string)$q['id'], ENT_QUOTES, 'UTF-8') ?>"<?= $longSubmitted ? ' hidden' : '' ?>>
+                            <i class="fas fa-paper-plane me-1" aria-hidden="true"></i> Submit answer
                         </button>
+                        <button type="button" class="edit-answer-btn" data-answer-type="long" data-answer-id="<?= htmlspecialchars((string)$q['id'], ENT_QUOTES, 'UTF-8') ?>"<?= $longSubmitted ? '' : ' hidden' ?>><i class="fas fa-pen" aria-hidden="true"></i> Edit answer</button>
                     </div>
                     <div class="print-only" style="display:none; height: 300px; border: 1px solid #eee; margin-top: 10px;"></div>
                 </div>
@@ -760,6 +1041,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 <script>
 const quizApiUrl = window.location.href;
+const testStateStorageKey = <?= json_encode('take_test_state_' . $cacheKey) ?>;
+
+function readTestState() {
+    try { return JSON.parse(localStorage.getItem(testStateStorageKey) || '{}'); } catch (error) { return {}; }
+}
+
+function writeTestState(state) {
+    try { localStorage.setItem(testStateStorageKey, JSON.stringify(state)); } catch (error) {}
+}
+
+function saveDraftLocally(type, id, answer) {
+    const state = readTestState();
+    state.answers = state.answers || { short: {}, long: {}, mcqs: {} };
+    state.answers[type] = state.answers[type] || {};
+    state.answers[type][id] = answer;
+    writeTestState(state);
+}
+
+function queueDraftSave(textarea) {
+    const item = textarea.closest('.question-item');
+    if (!item) return;
+    const type = item.getAttribute('data-type');
+    const id = item.getAttribute('data-id');
+    if (!type || !id) return;
+    saveDraftLocally(type, id, textarea.value);
+    window.clearTimeout(textarea._draftTimer);
+    textarea._draftTimer = window.setTimeout(() => {
+        fetch(quizApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'save_draft_answer', type, id, answer: textarea.value })
+        }).catch(() => {});
+    }, 250);
+}
 
 function handleDownloadClick() {
     triggerActualDownload();
@@ -890,6 +1205,9 @@ function checkMcq(element) {
     const selectedText = element.querySelector('span').textContent.trim();
     
     container.classList.add('answered');
+    const questionItem = container.closest('.question-item');
+    saveDraftLocally('mcqs', questionItem.getAttribute('data-db-id'), selectedKey);
+    setQuestionSubmitted(questionItem, true);
     
     let isCorrect = (selectedKey === correctKey) || (selectedText === correctKey);
     
@@ -923,14 +1241,50 @@ function checkMcq(element) {
     }
 }
 
+function setQuestionSubmitted(questionItem, submitted) {
+    if (!questionItem) return;
+    const status = questionItem.querySelector('.answer-status');
+    const label = status ? status.querySelector('span') : null;
+    const editButton = questionItem.querySelector('.edit-answer-btn');
+    if (status) status.classList.toggle('submitted', submitted);
+    if (label) label.textContent = submitted ? 'Submitted' : 'Not submitted';
+    if (editButton) editButton.hidden = !submitted;
+}
+
+function editMcq(button) {
+    const questionItem = button.closest('.question-item');
+    const container = questionItem ? questionItem.querySelector('.mcq-options-container') : null;
+    if (!container) return;
+    container.classList.remove('answered');
+    container.querySelectorAll('.mcq-option').forEach(option => option.classList.remove('correct', 'wrong'));
+    setQuestionSubmitted(questionItem, false);
+    fetch(quizApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'edit_mcq_result', id: questionItem.getAttribute('data-db-id') })
+    }).catch(() => {});
+}
+
 async function saveAnswer(type, id) {
     const textarea = document.getElementById(`answer_${type}_${id}`);
     if (!textarea) return;
 
     const answer = textarea.value.trim();
-    const btn = textarea.nextElementSibling.querySelector('button');
+    const questionItem = textarea.closest('.question-item');
+    const actionBar = questionItem ? questionItem.querySelector('.question-actions') : null;
+    if (!actionBar) return;
+    const btn = actionBar.querySelector('.submit-answer-btn');
+    if (!btn) return;
     const originalText = btn.innerHTML;
-    
+    const editButton = actionBar.querySelector('.edit-answer-btn');
+
+    // Apply the visible state immediately so the question does not appear
+    // unchanged while the session-save request is in flight.
+    textarea.disabled = true;
+    textarea.classList.add('is-locked');
+    btn.hidden = true;
+    if (editButton) editButton.hidden = false;
+    setQuestionSubmitted(questionItem, true);
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
@@ -947,19 +1301,18 @@ async function saveAnswer(type, id) {
         });
         
         if (response.ok) {
-            btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+            btn.innerHTML = '<i class="fas fa-check"></i> Submitted';
             btn.classList.remove('btn-outline-primary');
             btn.classList.add('btn-success');
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.classList.remove('btn-success');
-                btn.classList.add('btn-outline-primary');
-                btn.disabled = false;
-            }, 2000);
         } else {
             throw new Error('Failed to save');
         }
     } catch (error) {
+        textarea.disabled = false;
+        textarea.classList.remove('is-locked');
+        btn.hidden = false;
+        if (editButton) editButton.hidden = true;
+        setQuestionSubmitted(questionItem, false);
         btn.innerHTML = '<i class="fas fa-times"></i> Error';
         btn.classList.remove('btn-outline-primary');
         btn.classList.add('btn-danger');
@@ -971,6 +1324,183 @@ async function saveAnswer(type, id) {
         }, 2000);
     }
 }
+
+async function editAnswer(type, id) {
+    const textarea = document.getElementById(`answer_${type}_${id}`);
+    if (!textarea) return;
+    textarea.disabled = false;
+    textarea.classList.remove('is-locked');
+    const questionItem = textarea.closest('.question-item');
+    const actionBar = questionItem ? questionItem.querySelector('.question-actions') : null;
+    if (!actionBar) return;
+    const submitButton = actionBar.querySelector('.submit-answer-btn');
+    const editButton = actionBar.querySelector('.edit-answer-btn');
+    if (submitButton) { submitButton.hidden = false; submitButton.disabled = false; }
+    if (editButton) editButton.hidden = true;
+    setQuestionSubmitted(questionItem, false);
+    textarea.focus();
+    try {
+        await fetch(quizApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'edit_answer', type, id })
+        });
+    } catch (error) {
+        // The answer remains editable locally; it will be persisted on submit.
+    }
+}
+
+const timerState = { remaining: 600, interval: null, running: false };
+
+function persistTimer() {
+    const state = readTestState();
+    state.timer = {
+        remaining: timerState.remaining,
+        running: timerState.running,
+        savedAt: Date.now(),
+        preset: document.getElementById('timerPreset')?.value || '600',
+        hours: document.getElementById('timerHours')?.value || '0',
+        minutes: document.getElementById('timerMinutes')?.value || '30'
+    };
+    writeTestState(state);
+}
+
+function formatTimer(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours > 0 ? String(hours).padStart(2, '0') + ':' : ''}${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function renderTimer() {
+    const display = document.getElementById('timerDisplay');
+    if (!display) return;
+    display.textContent = formatTimer(timerState.remaining);
+    const durationLabel = document.getElementById('paperDurationLabel');
+    if (durationLabel) durationLabel.innerHTML = `<i class="far fa-clock me-1"></i> Duration: ${formatTimer(timerState.remaining)}`;
+    display.classList.toggle('warning', timerState.remaining > 0 && timerState.remaining <= 60);
+    display.classList.toggle('expired', timerState.remaining <= 0);
+}
+
+function selectedDuration() {
+    const preset = document.getElementById('timerPreset').value;
+    if (preset !== 'custom') return Number(preset);
+    const hours = Math.max(0, Number(document.getElementById('timerHours').value) || 0);
+    const minutes = Math.max(0, Math.min(59, Number(document.getElementById('timerMinutes').value) || 0));
+    return (hours * 3600) + (minutes * 60);
+}
+
+function stopTimer() {
+    window.clearInterval(timerState.interval);
+    timerState.interval = null;
+    timerState.running = false;
+    persistTimer();
+}
+
+function startTimer() {
+    if (timerState.running) return;
+    if (timerState.remaining <= 0) timerState.remaining = selectedDuration();
+    if (timerState.remaining <= 0) { alert('Please choose a valid duration.'); return; }
+    timerState.running = true;
+    document.getElementById('startTimerBtn').hidden = true;
+    document.getElementById('pauseTimerBtn').hidden = false;
+    document.getElementById('resetTimerBtn').hidden = false;
+    document.getElementById('timerPreset').disabled = true;
+    persistTimer();
+    timerState.interval = window.setInterval(() => {
+        timerState.remaining -= 1;
+        renderTimer();
+        persistTimer();
+        if (timerState.remaining <= 0) {
+            stopTimer();
+            document.getElementById('pauseTimerBtn').hidden = true;
+            alert('Time is up. Your test will be submitted now.');
+            checkAll();
+        }
+    }, 1000);
+}
+
+function resetTimer() {
+    stopTimer();
+    timerState.remaining = selectedDuration();
+    document.getElementById('startTimerBtn').hidden = false;
+    document.getElementById('pauseTimerBtn').hidden = true;
+    document.getElementById('resetTimerBtn').hidden = true;
+    document.getElementById('timerPreset').disabled = false;
+    const state = readTestState();
+    delete state.timer;
+    writeTestState(state);
+    renderTimer();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('click', event => {
+        const submitButton = event.target.closest('.submit-answer-btn');
+        if (submitButton && !submitButton.hidden && !submitButton.disabled) {
+            event.preventDefault();
+            saveAnswer(submitButton.dataset.answerType, submitButton.dataset.answerId);
+            return;
+        }
+
+        const editButton = event.target.closest('.edit-answer-btn');
+        if (editButton && editButton.dataset.answerType && !editButton.hidden) {
+            event.preventDefault();
+            editAnswer(editButton.dataset.answerType, editButton.dataset.answerId);
+        }
+    });
+    const savedState = readTestState();
+    const savedTimer = savedState.timer;
+    const preset = document.getElementById('timerPreset');
+    const customFields = document.getElementById('customTimeFields');
+    if (savedTimer) {
+        if (savedTimer.preset) preset.value = savedTimer.preset;
+        if (savedTimer.hours !== undefined) document.getElementById('timerHours').value = savedTimer.hours;
+        if (savedTimer.minutes !== undefined) document.getElementById('timerMinutes').value = savedTimer.minutes;
+        const elapsed = savedTimer.running ? Math.floor((Date.now() - Number(savedTimer.savedAt || Date.now())) / 1000) : 0;
+        timerState.remaining = Math.max(0, Number(savedTimer.remaining || selectedDuration()) - elapsed);
+        customFields.hidden = preset.value !== 'custom';
+    }
+    document.querySelectorAll('.answer-box').forEach(textarea => {
+        const item = textarea.closest('.question-item');
+        const type = item?.getAttribute('data-type');
+        const id = item?.getAttribute('data-id');
+        const savedAnswer = savedState.answers?.[type]?.[id];
+        if (savedAnswer !== undefined && !textarea.disabled) textarea.value = savedAnswer;
+        textarea.addEventListener('input', () => queueDraftSave(textarea));
+    });
+    document.querySelectorAll('.mcq-options-container').forEach(container => {
+        const item = container.closest('.question-item');
+        const savedChoice = savedState.answers?.mcqs?.[item?.getAttribute('data-db-id')];
+        if (savedChoice && !container.classList.contains('answered')) {
+            const option = Array.from(container.querySelectorAll('.mcq-option')).find(candidate => candidate.dataset.key === savedChoice);
+            if (option) checkMcq(option);
+        }
+    });
+    preset.addEventListener('change', () => {
+        customFields.hidden = preset.value !== 'custom';
+        if (!timerState.running) { timerState.remaining = selectedDuration(); renderTimer(); }
+    });
+    ['timerHours', 'timerMinutes'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+        if (!timerState.running && preset.value === 'custom') { timerState.remaining = selectedDuration(); renderTimer(); }
+    }));
+    document.getElementById('startTimerBtn').addEventListener('click', startTimer);
+    document.getElementById('pauseTimerBtn').addEventListener('click', () => {
+        stopTimer();
+        document.getElementById('pauseTimerBtn').hidden = true;
+        document.getElementById('startTimerBtn').hidden = false;
+    });
+    document.getElementById('resetTimerBtn').addEventListener('click', resetTimer);
+    document.querySelectorAll('.question-item[data-submitted="1"]').forEach(item => {
+        const options = item.querySelector('.mcq-options-container');
+        if (options) options.classList.add('answered');
+    });
+    renderTimer();
+    if (savedTimer?.running && timerState.remaining > 0) {
+        timerState.running = false;
+        startTimer();
+    }
+    window.addEventListener('beforeunload', persistTimer);
+});
 
 async function checkAll() {
     const btn = document.querySelector('button[onclick="checkAll()"]');
@@ -1017,7 +1547,7 @@ async function checkAll() {
         const isCorrect = selectedOpt.classList.contains('correct');
 
         mcqResults.push({
-            id: parseInt(dbId),
+            id: dbId,
             isCorrect: isCorrect,
             selected: selectedKey
         });

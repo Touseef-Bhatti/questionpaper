@@ -707,8 +707,8 @@ if (isset($_GET['filter']) || isset($_GET['page'])) {
                 <div id="setup-phase" class="card shadow-sm border-0 p-4">
                     <h5 class="card-title border-bottom pb-3 mb-4"><i class="fas fa-cog me-2"></i>Verification Settings</h5>
                     <p class="text-muted small mb-4">
-                        Batch verification uses <code>RECHECK_API_KEY</code> and <code>RECHECK_MODEL</code> from <code>.env</code>.
-                        <code>nvapi-</code> keys use NVIDIA <code>integrate.api.nvidia.com</code>; other keys use OpenRouter.
+                        Batch verification uses <code>GEMINIAPIKEYFORRECHECK</code> and <code>GEMINIMODELFORRECHECK</code> from <code>.env</code>.
+                        Rechecks are sent to Google Gemini.
                     </p>
                     
                     <div class="row g-3 align-items-center justify-content-center mb-4">

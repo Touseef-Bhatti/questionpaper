@@ -103,17 +103,17 @@ if (isset($_GET['action']) && $_GET['action'] === 'test_key' && isset($_POST['ap
 }
 
 /**
- * Test RECHECK_API_KEY against OpenRouter (MCQ verification only).
+ * Test the dedicated Gemini recheck key (MCQ verification only).
  *
  * @return array{ok:bool, message?:string, http_code?:int, model?:string, snippet?:string}
  */
 function testMcqRecheckApiKeyConnection() {
     $key = getRecheckApiKey();
     if ($key === '') {
-        return ['ok' => false, 'message' => 'No recheck key: set RECHECK_API_KEY in config/.env.'];
+        return ['ok' => false, 'message' => 'No recheck key: set GEMINIAPIKEYFORRECHECK in config/.env.'];
     }
     $model = getRecheckModel();
-    $provider = isNvidiaApiKey($key) ? 'NVIDIA' : 'OpenRouter';
+    $provider = 'Google Gemini';
     $res = callRecheckAi($key, $model, "Reply with exactly one token on one line: RECHECK_OK", 50, 25);
     $text = $res[0] ?? null;
     $code = $res[1] ?? 0;
@@ -137,7 +137,7 @@ function testMcqRecheckApiKeyConnection() {
             'model' => $model,
         ];
     }
-    return ['ok' => true, 'message' => 'RECHECK_API_KEY works with ' . $provider . ' (model: ' . $model . ')', 'model' => $model];
+    return ['ok' => true, 'message' => 'Gemini recheck key works (model: ' . $model . ')', 'model' => $model];
 }
 
 /**
@@ -149,7 +149,7 @@ function testMcqRecheckVerificationPipeline(mysqli $conn) {
     ensureMcqVerificationTable($conn);
     ensureMcqExplanationColumns($conn);
     if (getRecheckApiKey() === '') {
-        return ['ok' => false, 'message' => 'RECHECK_API_KEY not set; cannot verify MCQs'];
+        return ['ok' => false, 'message' => 'GEMINIAPIKEYFORRECHECK not set; cannot verify MCQs'];
     }
     $res = $conn->query('SELECT id, topic, question_text, option_a, option_b, option_c, option_d, correct_option FROM AIGeneratedMCQs ORDER BY id DESC LIMIT 1');
     if (!$res || !($row = $res->fetch_assoc())) {
@@ -955,8 +955,8 @@ $generatedMCQs = generateMCQsWithGemini($testTopic, $testCount, '', true);
 
         // Test 6: RECHECK API (verification + explanations)
         echo '<div class="test-section">';
-        echo '<h2>Test 6: RECHECK_API_KEY &amp; MCQ verification</h2>';
-        echo '<p class="info" style="margin:0 0 12px 0;">Uses <code>RECHECK_API_KEY</code> and <code>RECHECK_MODEL</code>. Keys starting with <code>nvapi-</code> call NVIDIA (<code>integrate.api.nvidia.com</code>); OpenRouter keys use <code>openrouter.ai</code>.</p>';
+        echo '<h2>Test 6: Gemini recheck &amp; MCQ verification</h2>';
+        echo '<p class="info" style="margin:0 0 12px 0;">Uses <code>GEMINIAPIKEYFORRECHECK</code> and <code>GEMINIMODELFORRECHECK</code> from <code>.env</code>.</p>';
 
         echo '<p><button type="button" class="test-btn" onclick="testRecheckKeyFromEnv()" id="btn-recheck-env">Test RECHECK key (from .env)</button> <span id="recheck-env-status" class="test-status"></span></p>';
 
@@ -986,7 +986,7 @@ $generatedMCQs = generateMCQsWithGemini($testTopic, $testCount, '', true);
         echo '<form method="POST" action="" style="margin-top:12px;">';
         echo '<button type="submit" name="test_recheck_pipeline" value="1">🔁 Run full pipeline (latest AI MCQ → verify → check explanation)</button>';
         echo '</form>';
-        echo '<p class="warning" style="font-size:13px;">Requires at least one row in AIGeneratedMCQs (use Test 3 first) and a valid <code>RECHECK_API_KEY</code>.</p>';
+        echo '<p class="warning" style="font-size:13px;">Requires at least one row in AIGeneratedMCQs (use Test 3 first) and a valid Gemini recheck configuration.</p>';
         echo '</div>';
 
         // Test 7: Gemini API Keys
@@ -1148,7 +1148,7 @@ $generatedMCQs = generateMCQsWithGemini($testTopic, $testCount, '', true);
                 <li>This admin-only page checks MCQ generation and verification integrations.</li>
                 <li>If generation fails, check the error logs in your server</li>
                 <li>Make sure your API key has sufficient quota/credits</li>
-                <li>Rechecking uses only <code>RECHECK_API_KEY</code> and <code>RECHECK_MODEL</code>; Gemini keys are limited to upload and book-question generation.</li>
+                <li>Rechecking uses only <code>GEMINIAPIKEYFORRECHECK</code> and <code>GEMINIMODELFORRECHECK</code>.</li>
                 <li>AI MCQs: <code>AIGeneratedMCQs</code> + verification in <code>MCQVerification</code> (<code>source</code> = <code>AIGeneratedMCQs</code>)</li>
                 <li>Manual MCQs: verification in <code>MCQsVerification</code> — <code>install.php</code> creates this table and does <strong>not</strong> drop it; old AI tables <code>AIMCQsVerification</code> / <code>AIGeneratedMCQsVerification</code> may still be migrated into <code>MCQVerification</code> and removed</li>
                 <li>Access is restricted to authenticated administrators.</li>

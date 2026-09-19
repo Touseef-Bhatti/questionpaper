@@ -1,7 +1,7 @@
 <?php
 /**
  * Background verification for file-upload generation. Every recheck request
- * uses only RECHECK_API_KEY and RECHECK_MODEL.
+ * uses only GEMINIAPIKEYFORRECHECK and GEMINIMODELFORRECHECK.
  */
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../quiz/mcq_generator.php';
@@ -31,7 +31,7 @@ function runAiUploadRecheck($conn, int $uploadId): void
     $model = getRecheckModel();
     if ($recheckKey === '' || $model === '') {
         if (in_array((string) ($row['recheck_status'] ?? ''), ['pending', 'processing', 'failed'], true)) {
-            aiUploadMarkFailed($conn, $uploadId, 'Missing RECHECK_API_KEY or RECHECK_MODEL.');
+            aiUploadMarkFailed($conn, $uploadId, 'Missing GEMINIAPIKEYFORRECHECK or GEMINIMODELFORRECHECK.');
         }
         return;
     }
