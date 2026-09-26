@@ -1,22 +1,34 @@
 <?php
 // Require authentication before accessing this page
 // require_once 'auth/auth_check.php';
+require_once dirname(__DIR__) . '/includes/seo.php';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
 <?php // AdSense review: third-party ads disabled. include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Access free digital textbooks for 9th and 10th class Punjab Board students. Read Physics, Chemistry, Biology, Mathematics, and Computer Science textbooks online. Study materials for exam preparation.">
+    <?php alh_render_seo_head([
+        'title' => 'Free Digital Textbooks for Class 9 & 10 | Punjab Board',
+        'description' => 'Read free digital textbooks for Class 9 and 10 Punjab Board subjects including Physics, Chemistry, Biology, Mathematics and Computer Science.',
+        'canonical' => alh_seo_absolute_url('/textbooks'),
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
+    <meta name="description" content="Read free digital textbooks for Class 9 and 10 Punjab Board subjects including Physics, Chemistry, Biology, Mathematics and Computer Science.">
     <meta name="keywords" content="textbooks, digital textbooks, 9th class books, 10th class books, Punjab Board textbooks, online books, physics textbook, chemistry textbook, biology textbook, free textbooks, study materials">
     <meta name="author" content="Ahmad Learning Hub">
     <meta property="og:title" content="Digital Textbooks - Ahmad Learning Hub">
     <meta property="og:description" content="Access free digital textbooks for Punjab Board 9th and 10th class students. Study online with our comprehensive textbook collection.">
     <meta property="og:type" content="website">
-    <title>Digital Textbooks - Free Online Books for 9th & 10th Class | Ahmad Learning Hub</title>
+    <title>Free Digital Textbooks for Class 9 &amp; 10 | Punjab Board</title>
 
     
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">

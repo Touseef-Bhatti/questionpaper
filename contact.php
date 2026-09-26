@@ -1,9 +1,10 @@
 <?php
+require_once __DIR__ . '/includes/seo.php';
 // contact.php - Professional Contact page for Ahmad Learning Hub
 if (session_status() === PHP_SESSION_NONE) session_start();
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
@@ -12,10 +13,20 @@ if (session_status() === PHP_SESSION_NONE) session_start();
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Contact Ahmad Learning Hub for support with question-paper generation, online MCQs practice, accounts, subscriptions, and live quiz tools.">
-    <link rel="canonical" href="https://ahmadlearninghub.com.pk/contact">
+    <?php alh_render_seo_head([
+        'title' => 'Contact Ahmad Learning Hub | Pakistan Education Support',
+        'description' => 'Contact Ahmad Learning Hub for support with question paper generation, MCQs practice, notes, accounts, subscriptions and live quiz tools.',
+        'canonical' => alh_seo_absolute_url('/contact'),
+        'page_type' => 'ContactPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
+    <meta name="description" content="Contact Ahmad Learning Hub for support with question paper generation, MCQs practice, notes, accounts, subscriptions and live quiz tools.">
     <meta name="keywords" content="contact Ahmad Learning Hub, Online question paper generator, 9 th class, 10th class question paper generator, chapter wise question paper generator, online MCQs test, online quiz hosting, question paper generating, M Arshad Bhatti">
-    <title>Contact Us | Support for 9th & 10th Class AI Exam Prep | Ahmad Learning Hub</title>
+    <title>Contact Ahmad Learning Hub | Pakistan Education Support</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/contact.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">

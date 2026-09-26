@@ -19,6 +19,11 @@ function vnNoteUrl($assetBase, $note) {
 }
 
 function vnEnsureEngagementTables($conn) {
+    $viewsColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'views'");
+    if (!$viewsColumnCheck || $viewsColumnCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE class_notes ADD COLUMN views INT UNSIGNED NOT NULL DEFAULT 0 AFTER rejection_reason");
+    }
+
     $conn->query("CREATE TABLE IF NOT EXISTS class_note_likes (
         id INT AUTO_INCREMENT PRIMARY KEY,
         note_id INT NOT NULL,
@@ -110,6 +115,15 @@ if (!$note) {
     http_response_code(404);
     header('Location: ' . ($assetBase ?? '/') . 'class-notes');
     exit;
+}
+
+// Count a real page open once. POST actions redirect back to the page and are not counted here.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    $viewStmt = $conn->prepare("UPDATE class_notes SET views = views + 1 WHERE id = ?");
+    $viewStmt->bind_param('i', $noteId);
+    $viewStmt->execute();
+    $viewStmt->close();
+    $note['views'] = (int)($note['views'] ?? 0) + 1;
 }
 
 $isLoggedIn = isset($_SESSION['user_id']);
@@ -717,6 +731,15 @@ $commentStmt->close();
             gap: 0.5rem;
             flex-wrap: wrap;
         }
+        .vn-social-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+            padding: 0.7rem 0;
+            border-top: 1px solid #eef2f7;
+            border-bottom: 1px solid #eef2f7;
+        }
         .vn-action-btn {
             border: 1px solid #dbe1ea;
             background: #fff;
@@ -731,6 +754,26 @@ $commentStmt->close();
             gap: 0.45rem;
             text-decoration: none;
         }
+        .vn-action-btn svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        .vn-social-btn {
+            border: 0;
+            background: transparent;
+            color: #475569;
+            padding: 0.55rem 0.7rem;
+            border-radius: 8px;
+        }
+        .vn-social-btn:hover { background: #f1f5f9; color: #1d4ed8; }
+        .vn-social-btn.liked { color: #e11d48; background: #fff1f2; }
+        .vn-social-btn strong { font-size: 0.84rem; }
+        .vn-comments-panel {
+            display: none;
+            padding-top: 1rem;
+        }
+        .vn-comments-panel.open { display: block; }
         .vn-action-btn.primary,
         .vn-action-btn.liked {
             background: #2563eb;
@@ -936,28 +979,39 @@ $commentStmt->close();
 
                     <section class="vn-engagement" id="engagement">
                         <div class="vn-engagement-head">
-                            <h2 class="vn-engagement-title" id="comments">Student Discussion (<?= $commentCount ?>)</h2>
-                            <div class="vn-engagement-actions">
-                                <form method="POST" style="margin:0;">
-                                    <input type="hidden" name="note_action" value="toggle_like">
-                                    <input type="hidden" name="note_csrf_token" value="<?= htmlspecialchars($noteCsrfToken) ?>">
-                                    <button type="submit" class="vn-action-btn <?= $userLiked ? 'liked' : '' ?>">
-                                        <span><?= $userLiked ? 'Liked' : 'Like' ?></span>
-                                        <strong><?= $likeCount ?></strong>
-                                    </button>
-                                </form>
-                                <a class="vn-action-btn" href="<?= htmlspecialchars($note['drive_url']) ?>" target="_blank" rel="noopener">Open File</a>
-                            </div>
+                            <h2 class="vn-engagement-title">Engage with this study material</h2>
+                            <a class="vn-action-btn" href="<?= htmlspecialchars($note['drive_url']) ?>" target="_blank" rel="noopener">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
+                                Open File
+                            </a>
                         </div>
 
-                        <?php if ($engagementError): ?>
-                            <div class="vn-flash error"><?= htmlspecialchars($engagementError) ?></div>
-                        <?php endif; ?>
-
-                        <div class="vn-share-row">
-                            <input type="text" id="shareLink" value="<?= htmlspecialchars($canonicalUrl) ?>" readonly aria-label="Share link">
-                            <button type="button" class="vn-action-btn primary" onclick="copyShareLink()">Copy Share Link</button>
+                        <div class="vn-social-actions" aria-label="Note engagement actions">
+                            <form method="POST" style="margin:0;">
+                                <input type="hidden" name="note_action" value="toggle_like">
+                                <input type="hidden" name="note_csrf_token" value="<?= htmlspecialchars($noteCsrfToken) ?>">
+                                <button type="submit" class="vn-action-btn vn-social-btn <?= $userLiked ? 'liked' : '' ?>" aria-label="<?= $userLiked ? 'Unlike' : 'Like' ?> this note">
+                                    <svg viewBox="0 0 24 24" fill="<?= $userLiked ? 'currentColor' : 'none' ?>" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 8.6c0 5.5-8.8 10.4-8.8 10.4S3.2 14.1 3.2 8.6A4.6 4.6 0 017.8 4c1.4 0 2.8.7 4.2 2 1.4-1.3 2.8-2 4.2-2a4.6 4.6 0 014.6 4.6z"/></svg>
+                                    <span><?= $userLiked ? 'Liked' : 'Like' ?></span>
+                                    <strong><?= $likeCount ?></strong>
+                                </button>
+                            </form>
+                            <button type="button" class="vn-action-btn vn-social-btn" onclick="toggleComments(true)" aria-controls="commentsPanel" aria-expanded="false">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-9 8.5 9.8 9.8 0 01-4-.8L3 21l1.8-4.5A8.2 8.2 0 013 11.5 8.5 8.5 0 0112 3a8.5 8.5 0 019 8.5z"/></svg>
+                                <span>Comments</span>
+                                <strong><?= $commentCount ?></strong>
+                            </button>
+                            <button type="button" class="vn-action-btn vn-social-btn" onclick="shareNote()" aria-label="Share this note">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+                                <span>Share</span>
+                            </button>
                         </div>
+
+                        <div id="commentsPanel" class="vn-comments-panel<?= $engagementError ? ' open' : '' ?>">
+                            <h2 class="vn-engagement-title" id="comments" style="margin-bottom:1rem;">Comments (<?= $commentCount ?>)</h2>
+                            <?php if ($engagementError): ?>
+                                <div class="vn-flash error"><?= htmlspecialchars($engagementError) ?></div>
+                            <?php endif; ?>
 
                         <?php if ($isLoggedIn): ?>
                             <form method="POST" class="vn-comment-form">
@@ -1009,6 +1063,7 @@ $commentStmt->close();
                                     <?php endforeach; ?>
                                 </article>
                             <?php endforeach; ?>
+                        </div>
                         </div>
                     </section>
 
@@ -1195,15 +1250,30 @@ $commentStmt->close();
 
     <?php include '../footer.php'; ?>
     <script>
-    function copyShareLink() {
-        const input = document.getElementById('shareLink');
-        input.select();
-        input.setSelectionRange(0, 99999);
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(input.value);
-        } else {
-            document.execCommand('copy');
+    function toggleComments(shouldScroll) {
+        const panel = document.getElementById('commentsPanel');
+        const button = document.querySelector('[aria-controls="commentsPanel"]');
+        if (!panel) return;
+        const isOpen = panel.classList.toggle('open');
+        if (button) button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (isOpen && shouldScroll) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function shareNote() {
+        const url = <?= json_encode($canonicalUrl) ?>;
+        if (navigator.share) {
+            navigator.share({ title: <?= json_encode($note['title']) ?>, url: url }).catch(() => {});
+            return;
         }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => alert('Note link copied.'));
+            return;
+        }
+        window.prompt('Copy this note link:', url);
+    }
+
+    if (window.location.hash === '#comments') {
+        toggleComments(false);
     }
 
     function toggleReplyForm(commentId) {

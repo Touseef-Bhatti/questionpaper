@@ -30,6 +30,143 @@ function getAppUrl() {
     return rtrim($baseUrl, '/');
 }
 
+function getClassNotesSiteUrl() {
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if ($host !== '' && preg_match('/^(localhost|127\.0\.0\.1)(:\d+)?$/i', $host)) {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        return $scheme . '://' . $host;
+    }
+    return getAppUrl();
+}
+
+/**
+ * Notify a user that their class-note submission was received.
+ */
+function sendClassNoteUploadEmail($to, $userName, $title, $class, $subject) {
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        error_log('Class note upload email skipped: invalid recipient.');
+        return false;
+    }
+
+    try {
+        $mail = new PHPMailer(true);
+        configureMailerSmtp($mail);
+
+        $fromName = getMailerFromName();
+        $notesUrl = getClassNotesSiteUrl() . '/class-notes';
+        $safeName = htmlspecialchars((string)$userName, ENT_QUOTES, 'UTF-8');
+        $safeTitle = htmlspecialchars((string)$title, ENT_QUOTES, 'UTF-8');
+        $safeClass = htmlspecialchars((string)$class, ENT_QUOTES, 'UTF-8');
+        $safeSubject = htmlspecialchars((string)$subject, ENT_QUOTES, 'UTF-8');
+
+        $mail->setFrom(getMailerFromAddress(), $fromName);
+        $mail->addAddress($to, $userName);
+        $mail->isHTML(true);
+        $mail->Subject = 'Thank you for sharing your notes - ' . $fromName;
+        $mail->Body = '<!doctype html><html><body style="margin:0;background:#f4f7fb;font-family:Arial,sans-serif;color:#1f2937;">'
+            . '<div style="max-width:620px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">'
+            . '<div style="background:#1e3a8a;padding:28px 32px;color:#ffffff;"><h1 style="margin:0;font-size:24px;">Notes received</h1></div>'
+            . '<div style="padding:32px;"><p style="font-size:16px;">Hello ' . $safeName . ',</p>'
+            . '<p>Thank you for sharing your notes with Ahmad Learning Hub. We have received your submission and our team will review and verify it shortly.</p>'
+            . '<div style="background:#f8fafc;border-radius:10px;padding:16px;margin:24px 0;"><strong>' . $safeTitle . '</strong><br>'
+            . '<span style="color:#64748b;">Class ' . $safeClass . ' &middot; ' . $safeSubject . '</span></div>'
+            . '<a href="' . htmlspecialchars($notesUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:bold;">View Class Notes</a>'
+            . '<p style="margin-top:28px;color:#64748b;font-size:14px;">We appreciate your contribution to the learning community.</p>'
+            . '<p>Best regards,<br><strong>' . htmlspecialchars($fromName, ENT_QUOTES, 'UTF-8') . '</strong></p></div></div></body></html>';
+        $mail->AltBody = "Hello {$userName},\n\nThank you for sharing your notes with Ahmad Learning Hub. We have received your submission and our team will review and verify it shortly.\n\nView class notes: {$notesUrl}\n\nBest regards,\n{$fromName}";
+        $mail->send();
+        return true;
+    } catch (Throwable $e) {
+        error_log('Class note upload email error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Notify a user when an admin approves or rejects their class-note submission.
+ */
+function sendClassNoteStatusEmail($to, $userName, $title, $class, $subject, $status, $reason = '') {
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL) || !in_array($status, ['approved', 'rejected'], true)) {
+        return false;
+    }
+
+    try {
+        $mail = new PHPMailer(true);
+        configureMailerSmtp($mail);
+
+        $fromName = getMailerFromName();
+        $notesUrl = getClassNotesSiteUrl() . '/class-notes';
+        $isApproved = $status === 'approved';
+        $statusLabel = $isApproved ? 'approved' : 'not approved';
+        $accent = $isApproved ? '#15803d' : '#b91c1c';
+        $safeName = htmlspecialchars((string)$userName, ENT_QUOTES, 'UTF-8');
+        $safeTitle = htmlspecialchars((string)$title, ENT_QUOTES, 'UTF-8');
+        $safeClass = htmlspecialchars((string)$class, ENT_QUOTES, 'UTF-8');
+        $safeSubject = htmlspecialchars((string)$subject, ENT_QUOTES, 'UTF-8');
+        $safeReason = htmlspecialchars(trim((string)$reason), ENT_QUOTES, 'UTF-8');
+        $reasonHtml = !$isApproved && $safeReason !== ''
+            ? '<div style="background:#fef2f2;border-left:4px solid #ef4444;padding:14px 16px;margin:22px 0;"><strong>Reviewer feedback</strong><br>' . $safeReason . '</div>'
+            : '';
+
+        $mail->setFrom(getMailerFromAddress(), $fromName);
+        $mail->addAddress($to, $userName);
+        $mail->isHTML(true);
+        $mail->Subject = 'Your class notes have been ' . $statusLabel . ' - ' . $fromName;
+        $mail->Body = '<!doctype html><html><body style="margin:0;background:#f4f7fb;font-family:Arial,sans-serif;color:#1f2937;">'
+            . '<div style="max-width:620px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">'
+            . '<div style="background:' . $accent . ';padding:28px 32px;color:#ffffff;"><h1 style="margin:0;font-size:24px;">Notes review update</h1></div>'
+            . '<div style="padding:32px;"><p style="font-size:16px;">Hello ' . $safeName . ',</p>'
+            . '<p>Your submitted notes, <strong>' . $safeTitle . '</strong>, have been <strong style="color:' . $accent . ';">' . $statusLabel . '</strong> by our review team.</p>'
+            . '<p style="color:#64748b;">Class ' . $safeClass . ' &middot; ' . $safeSubject . '</p>'
+            . $reasonHtml
+            . '<a href="' . htmlspecialchars($notesUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:bold;">View Class Notes</a>'
+            . '<p style="margin-top:28px;color:#64748b;font-size:14px;">Thank you for contributing to the Ahmad Learning Hub community.</p>'
+            . '<p>Best regards,<br><strong>' . htmlspecialchars($fromName, ENT_QUOTES, 'UTF-8') . '</strong></p></div></div></body></html>';
+        $plainReason = !$isApproved && trim((string)$reason) !== '' ? "\nReviewer feedback: {$reason}\n" : '';
+        $mail->AltBody = "Hello {$userName},\n\nYour submitted notes, {$title}, have been {$statusLabel}.\nClass {$class} | {$subject}{$plainReason}\n\nView class notes: {$notesUrl}\n\nBest regards,\n{$fromName}";
+        $mail->send();
+        return true;
+    } catch (Throwable $e) {
+        error_log('Class note status email error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Notify the review mailbox that a user submission needs attention.
+ */
+function sendClassNoteAdminAlertEmail($to, $userName, $userEmail, $title, $class, $subject) {
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        return false;
+    }
+
+    try {
+        $mail = new PHPMailer(true);
+        configureMailerSmtp($mail);
+        $fromName = getMailerFromName();
+        $reviewUrl = getClassNotesSiteUrl() . '/admin/uploadingNotesForClasses/index.php?status=pending';
+        $details = htmlspecialchars("{$title} | Class {$class} | {$subject}", ENT_QUOTES, 'UTF-8');
+        $uploader = htmlspecialchars("{$userName} ({$userEmail})", ENT_QUOTES, 'UTF-8');
+
+        $mail->setFrom(getMailerFromAddress(), $fromName);
+        $mail->addAddress($to);
+        $mail->isHTML(true);
+        $mail->Subject = 'New class notes submission requires review';
+        $mail->Body = '<!doctype html><html><body style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6;">'
+            . '<h2 style="color:#1e3a8a;">New notes submission</h2>'
+            . '<p>A user has uploaded notes and the submission is pending review.</p>'
+            . '<p><strong>Notes:</strong> ' . $details . '<br><strong>Uploaded by:</strong> ' . $uploader . '</p>'
+            . '<p><a href="' . htmlspecialchars($reviewUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:7px;font-weight:bold;">Review Submission</a></p>'
+            . '</body></html>';
+        $mail->AltBody = "A user has uploaded notes and the submission is pending review.\n\nNotes: {$title} | Class {$class} | {$subject}\nUploaded by: {$userName} ({$userEmail})\n\nReview: {$reviewUrl}";
+        $mail->send();
+        return true;
+    } catch (Throwable $e) {
+        error_log('Class note admin alert email error: ' . $e->getMessage());
+        return false;
+    }
+}
+
 function configureMailerSmtp(PHPMailer $mail) {
     $mail->isSMTP();
     $mail->CharSet = 'UTF-8';

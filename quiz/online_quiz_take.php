@@ -1504,6 +1504,15 @@ document.addEventListener('copy', (e) => {
     cheatingDetection.logEvent('copy_text', 'User attempted to copy text from screen');
 });
 
+// Restrict clipboard actions during the live quiz and record the attempt.
+['cut', 'paste'].forEach((action) => {
+    document.addEventListener(action, (e) => {
+        e.preventDefault();
+        cheatingDetection.logEvent(action + '_text', `User attempted to ${action} text during the quiz`);
+        alert(`${action.charAt(0).toUpperCase() + action.slice(1)} is disabled during the quiz.`);
+    });
+});
+
 // 4. Disable Right-Click (Prevent Inspect Element)
 document.addEventListener('contextmenu', (e) => {
     e.preventDefault();
@@ -1536,6 +1545,13 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         cheatingDetection.logEvent('inspect_mode', 'User pressed Ctrl+U (View Source shortcut)');
         alert("View Source is disabled.");
+    }
+    // Ctrl+C, Ctrl+X and Ctrl+V clipboard shortcuts
+    if (e.ctrlKey && [67, 88, 86].includes(e.keyCode)) {
+        e.preventDefault();
+        const action = e.keyCode === 67 ? 'copy' : (e.keyCode === 88 ? 'cut' : 'paste');
+        cheatingDetection.logEvent(action + '_text', `User attempted Ctrl+${action.toUpperCase()} during the quiz`);
+        alert(`${action.charAt(0).toUpperCase() + action.slice(1)} is disabled during the quiz.`);
     }
     // Ctrl+Shift+C (Element Inspector)
     if (e.ctrlKey && e.shiftKey && e.keyCode === 67) {

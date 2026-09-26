@@ -1,17 +1,29 @@
 <?php
 include '../db_connect.php';
+require_once dirname(__DIR__) . '/includes/seo.php';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php alh_render_seo_head([
+        'title' => 'Class 9–12 Notes & Study Material | Pakistan Board',
+        'description' => 'Find free Class 9, 10, 11 and 12 notes, textbooks and chapter-wise MCQs for Punjab Board and BISE exam preparation in Pakistan. Study by subject and chapter.',
+        'canonical' => alh_seo_absolute_url('/study-material-for-board-exam-preparations'),
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
 
     <!-- SEO Meta Tags -->
-    <title>Free Study Materials for Class 9 & 10 Punjab Board – Notes, Textbooks, MCQs | Ahmad Learning Hub</title>
-    <meta name="description" content="Access study materials for Punjab Board class 9 and 10, including notes, digital textbooks, and chapter-wise MCQs for major science subjects.">
+    <title>Class 9–12 Notes & Study Material | Pakistan Board</title>
+    <meta name="description" content="Find free Class 9, 10, 11 and 12 notes, textbooks and chapter-wise MCQs for Punjab Board and BISE exam preparation in Pakistan. Study by subject and chapter.">
     <meta name="keywords" content="Punjab Board notes, class 9 notes, class 10 notes, 9th class study material, 10th class study material, PCTB notes, Punjab Board textbooks, free notes class 9, free notes class 10, MCQs class 9, MCQs class 10, Physics notes 9th, Chemistry notes 10th, Biology notes, Math notes Punjab Board, Computer Science notes, board exam preparation, Ahmad Learning Hub">
     <meta name="author" content="Ahmad Learning Hub">
 
@@ -21,7 +33,6 @@ include '../db_connect.php';
     <meta property="og:type" content="website">
 
     <!-- Canonical -->
-    <link rel="canonical" href="https://ahmadlearninghub.com.pk/study-material-for-board-exam-preparations">
 
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/notes.css">

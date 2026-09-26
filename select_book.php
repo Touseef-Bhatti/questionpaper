@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db_connect.php';
+require_once __DIR__ . '/includes/seo.php';
 require_once 'middleware/SubscriptionCheck.php';
 
 // Ensure class_id is provided and is valid integer
@@ -71,6 +72,17 @@ while ($row = $result->fetch_assoc()) {
     <link rel="stylesheet" href="css/buttons.css">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <?php alh_render_seo_head([
+        'title' => $classOrdinal . ' Class Question Paper Generator | Punjab Board',
+        'description' => 'Generate Class ' . $classId . ' question papers online for Pakistan according to Punjab Board patterns. Choose a subject for printable MCQs, short and long questions.',
+        'canonical' => alh_seo_absolute_url('/class-' . $classId . '-online-question-paper-generator'),
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
 
 
 

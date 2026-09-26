@@ -1,6 +1,21 @@
 User-agent: *
 Allow: /
 
+# Keep search and answer-engine crawlers able to discover the public learning
+# pages. Private application routes are blocked below and by server headers.
+User-agent: Googlebot
+Allow: /
+User-agent: Bingbot
+Allow: /
+User-agent: GPTBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+
 # Allow access to CSS and JS files
 Allow: /css/
 Allow: /js/
@@ -29,9 +44,10 @@ Disallow: /newsletter-signup.php
 Disallow: /check_email.php
 Disallow: /resend_verification_ajax.php
 
-# Block access to sensitive files
+# Block access to sensitive files and internal documentation. llms.txt is
+# intentionally public so AI systems can understand the site's official scope.
 Disallow: /*.sql
-Disallow: /*.txt
+Disallow: /skills.md
 Disallow: /db_connect.php
 Disallow: /install.php
 Disallow: /payment/run_migration.php

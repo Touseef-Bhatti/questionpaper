@@ -5,7 +5,7 @@
  * Uses raw cURL calls (no Composer/SDK) for shared hosting compatibility.
  * Features:
  * - Resilient Folder ID resolution (ID, full URL, or auto-discovery by folder name "AhmadLearningHub")
- * - Automatic subfolder creation (e.g., AhmadLearningHub -> Class 9 -> Physics)
+ * - Automatic subfolder creation (e.g., AhmadLearningHub -> Notes -> Class9 -> Physics -> Users)
  * - Self-healing diagnostics for debugging connection, permissions, and quota
  * - Public share link generation
  */
@@ -278,16 +278,25 @@ class GoogleDriveService
     }
 
     /**
-     * Upload a file with automatic subfolder organization (e.g. AhmadLearningHub/Class 9/Physics)
+     * Upload a file with automatic subfolder organization.
+     * Files are stored under Notes/Class{9|10|11|12}/{Subject}/{Admin|Users}.
      * 
      * @param string $filePath Local file path
      * @param string $fileName Desired file name on Drive
      * @param string $mimeType MIME type
      * @param string|null $classLabel Optional class (e.g. "9", "Class 9")
      * @param string|null $subjectLabel Optional subject (e.g. "Physics")
+     * @param string $uploaderType Whether the uploader is an admin or a user
      * @return array ['file_id' => string, 'url' => string, 'folder_id' => string]
      */
-    public function uploadFile(string $filePath, string $fileName, string $mimeType, ?string $classLabel = null, ?string $subjectLabel = null): array
+    public function uploadFile(
+        string $filePath,
+        string $fileName,
+        string $mimeType,
+        ?string $classLabel = null,
+        ?string $subjectLabel = null,
+        string $uploaderType = 'user'
+    ): array
     {
         if (!file_exists($filePath)) {
             throw new Exception("File not found: $filePath");
@@ -296,15 +305,23 @@ class GoogleDriveService
         $token = $this->getAccessToken();
         $targetFolderId = $this->getRootFolderId($token);
 
-        // Auto-create/navigate into Class subfolder (e.g. "Class 9")
+        // Keep all class notes below one dedicated folder in the configured Drive root.
+        $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, 'Notes', $token);
+
+        // Auto-create/navigate into Class subfolder (e.g. "Class9").
         if (!empty($classLabel)) {
-            $folderName = str_starts_with(strtolower($classLabel), 'class') ? $classLabel : "Class $classLabel";
+            $normalizedClass = preg_replace('/^class\s*/i', '', trim($classLabel));
+            $folderName = 'Class' . $normalizedClass;
             $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, $folderName, $token);
 
-            // Auto-create/navigate into Subject subfolder (e.g. "Physics")
+            // Auto-create/navigate into Subject subfolder (e.g. "Physics").
             if (!empty($subjectLabel) && $subjectLabel !== 'Other') {
                 $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, $subjectLabel, $token);
             }
+
+            // Separate administrator material from community submissions.
+            $ownerFolder = strtolower(trim($uploaderType)) === 'admin' ? 'Admin' : 'Users';
+            $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, $ownerFolder, $token);
         }
 
         $fileSize = filesize($filePath);

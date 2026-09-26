@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db_connect.php';
+require_once __DIR__ . '/includes/seo.php';
 require_once 'middleware/SubscriptionCheck.php';
 
 // Fetch classes 11 and 12 with their IDs and names using prepared statement (OPTIMIZED)
@@ -31,15 +32,26 @@ if (isset($_SESSION['user_id'])) {
 <?php // AdSense review: third-party ads disabled. include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php alh_render_seo_head([
+        'title' => 'Class 11 & 12 Question Paper Generator | Punjab Board',
+        'description' => 'Create Class 11 and 12 Punjab Board papers online with MCQs, short and long questions. Choose chapters for printable intermediate exam preparation in Pakistan.',
+        'canonical' => alh_seo_absolute_url('/class-11-and-12-online-question-paper-generator'),
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
 
-<meta name="description" content=" Online Question Paper Generator for Class 11 & 12 (Punjab Board). Create chapter-wise tests, MCQs, short & long questions with answers. Generate and download exam papers instantly for college teachers in Pakistan.">
+<meta name="description" content="Create Class 11 and 12 Punjab Board papers online with MCQs, short and long questions. Choose chapters for printable intermediate exam preparation in Pakistan.">
 
 <meta name="keywords" content="Online question paper generator, 11th class Question paper generator, 12th class Question paper generator, Punjab Board question papers,Chapter Wise Question Paper ,MCQs Paper generator for class 11 and 12, online test maker, online paper Software ,Question paper generatr Tool , Board Pattern Question Paper, Intermediate Exam ,Board Exam paper generator ,Online paper generator , Custom Paper generator , Online Exam ,Board Pattern Paper generator,online MCQs test 11th class, 12th class MCQs tests, college exam papers, chapter-wise MCQs, test generator Pakistan">
 
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_class.css">
 
-    <title>Online Question Paper Generator Class 11 & 12 | Punjab Board</title>
+    <title>Class 11 &amp; 12 Question Paper Generator | Punjab Board</title>
 </head>
 
 <body>

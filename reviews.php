@@ -1,6 +1,7 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 include 'db_connect.php';
+require_once __DIR__ . '/includes/seo.php';
 
 $reviews = [];
 $totalReviews = 0;
@@ -147,8 +148,19 @@ function renderStars(int $rating): string {
 <?php // AdSense review: third-party ads disabled. include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Read verified student and teacher reviews for Ahmad Learning Hub. See real feedback about online quizzes, MCQs practice, and question paper generation tools.">
-    <title>User Reviews | Ahmad Learning Hub</title>
+    <?php alh_render_seo_head([
+        'title' => 'Ahmad Learning Hub Reviews | Question Papers, MCQs & Quiz Tools',
+        'description' => 'Read feedback from students and teachers about Ahmad Learning Hub question paper generation, MCQs practice, study resources and live quizzes.',
+        'canonical' => alh_seo_absolute_url('/reviews'),
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
+    <meta name="description" content="Read feedback from students and teachers about Ahmad Learning Hub question paper generation, MCQs practice, study resources and live quizzes.">
+    <title>Ahmad Learning Hub Reviews | Question Papers, MCQs &amp; Quiz Tools</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/index.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">

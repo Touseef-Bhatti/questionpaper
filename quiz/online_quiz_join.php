@@ -2,6 +2,7 @@
 // online_quiz_join.php - Student joins a room with name and roll number
 if (session_status() === PHP_SESSION_NONE) session_start();
 include '../db_connect.php';
+require_once dirname(__DIR__) . '/includes/seo.php';
 
 $room_code = strtoupper(trim($_GET['room'] ?? ''));
 $error = '';
@@ -139,12 +140,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
 <?php // AdSense review: third-party ads disabled. include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
+  <?php alh_render_seo_head([
+      'title' => 'Join or Host an Online Live Quiz | Ahmad Learning Hub',
+      'description' => 'Join a live MCQ quiz with a room code or host an online quiz for students, schools and academies in Pakistan.',
+      'canonical' => alh_seo_absolute_url('/online_quiz_join'),
+      'page_type' => 'WebPage',
+      'include_title' => false,
+      'include_description' => false,
+      'include_keywords' => false,
+      'include_robots' => false,
+      'include_author' => false,
+  ]); ?>
   <title>Join or Host an Online Live Quiz | Ahmad Learning Hub</title>
-  <meta name="description" content="Join an Ahmad Learning Hub live quiz with a room code or host your own online MCQ quiz for students. Create rooms, select questions and share a join link.">
+  <meta name="description" content="Join a live MCQ quiz with a room code or host an online quiz for students, schools and academies in Pakistan.">
   <meta name="keywords" content="join online quiz with room code, host live quiz online, online MCQ quiz Pakistan, classroom quiz maker, quiz room for students, teacher live quiz host, Punjab Board MCQ quiz">
   <meta name="author" content="Ahmad Learning Hub">
   <meta name="robots" content="index, follow">
@@ -168,17 +180,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           "@type": "Organization",
           "name": "Ahmad Learning Hub"
         }
-      },
-      {
-        "@type": "HowTo",
-        "name": "How to host an online quiz room",
-        "step": [
-          {"@type": "HowToStep", "name": "Open the host page", "text": "Sign in and open the Host Your Own Quiz page."},
-          {"@type": "HowToStep", "name": "Choose questions", "text": "Select questions by class, book, chapter or topic, or add custom questions."},
-          {"@type": "HowToStep", "name": "Configure the quiz", "text": "Set the number of questions and quiz duration, then review the preview."},
-          {"@type": "HowToStep", "name": "Create and share the room", "text": "Create the room and share its room code or join link with participants."},
-          {"@type": "HowToStep", "name": "Start the session", "text": "Wait for participants to join, then start and manage the live quiz."}
-        ]
       },
       {
         "@type": "FAQPage",
@@ -618,7 +619,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h2 id="host-quiz-guide-title">Host Your Own Online Quiz</h2>
         <p>Create a live MCQ room, choose questions from books and chapters, add your own questions, set the duration and share one room code with your students.</p>
         <div class="quiz-host-actions">
-          <a class="quiz-host-button quiz-host-button--primary" href="online_quiz_host_new.php">Host Your Own Quiz</a>
+          <a class="quiz-host-button quiz-host-button--primary" href="../online-quiz-hosting">Learn About Hosting</a>
           <a class="quiz-host-button quiz-host-button--secondary" href="#quiz-hosting-guide">Read Hosting Guide</a>
         </div>
       </div>

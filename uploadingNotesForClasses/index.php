@@ -1,5 +1,6 @@
 <?php
 include '../db_connect.php';
+require_once dirname(__DIR__) . '/includes/seo.php';
 
 // Start session for user upload button
 if (session_status() === PHP_SESSION_NONE) {
@@ -110,7 +111,23 @@ $stmt->close();
 $totalPages = max(1, ceil($totalNotes / $perPage));
 
 // Fetch notes with pagination
-$query = "SELECT n.* FROM class_notes n $whereClause ORDER BY n.created_at DESC LIMIT ? OFFSET ?";
+$query = "SELECT n.*,
+                 COALESCE(l.like_count, 0) AS like_count,
+                 COALESCE(c.comment_count, 0) AS comment_count
+          FROM class_notes n
+          LEFT JOIN (
+              SELECT note_id, COUNT(*) AS like_count
+              FROM class_note_likes
+              GROUP BY note_id
+          ) l ON l.note_id = n.id
+          LEFT JOIN (
+              SELECT note_id, COUNT(*) AS comment_count
+              FROM class_note_comments
+              WHERE is_deleted = 0
+              GROUP BY note_id
+          ) c ON c.note_id = n.id
+          $whereClause
+          ORDER BY n.created_at DESC LIMIT ? OFFSET ?";
 $params[] = $perPage;
 $params[] = $offset;
 $types .= 'ii';
@@ -171,9 +188,8 @@ if (!empty($classLabel)) {
     $metaKeywords = "{$classShort} notes, {$classLabel} study material, free {$classShort} PDF notes, {$classShort} board exam preparation, Punjab board {$classShort}, BISE notes {$classShort}, {$metaKeywords}";
 }
 
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-$currentUrl = $protocol . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-$siteUrl = $protocol . "://" . $_SERVER['HTTP_HOST'];
+$siteUrl = alh_seo_site_url();
+$currentUrl = $siteUrl . (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
 $canonicalPath = '/' . ltrim(cnListingUrl('', $classFilter, $subjectFilter), '/');
 if ($page > 1) {
     $canonicalPath .= '?page=' . $page;
@@ -240,12 +256,23 @@ function cnGetTypeColor($mime) {
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php alh_render_seo_head([
+        'title' => $pageTitle,
+        'description' => $pageDescription,
+        'keywords' => $metaKeywords,
+        'canonical' => $canonicalUrl,
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
 
     <title><?= htmlspecialchars($pageTitle) ?></title>
     <meta name="description" content="<?= htmlspecialchars($pageDescription) ?>">
     <meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="<?= htmlspecialchars($canonicalUrl) ?>">
 
     <meta property="og:title" content="<?= htmlspecialchars($pageTitle) ?>">
     <meta property="og:description" content="<?= htmlspecialchars($pageDescription) ?>">
@@ -840,6 +867,23 @@ function cnGetTypeColor($mime) {
         }
         .cn-card-meta svg { width: 13px; height: 13px; }
 
+        .cn-card-social {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            border-top: 1px solid var(--cn-border);
+            color: var(--cn-text-muted);
+            font-size: 0.78rem;
+        }
+        .cn-card-social span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .cn-card-social svg { width: 15px; height: 15px; }
+        .cn-card-social .cn-like-stat { color: #e11d48; }
+
         /* Card Action */
         .cn-card-actions {
             padding: 0.85rem 1.5rem;
@@ -1331,6 +1375,20 @@ function cnGetTypeColor($mime) {
                                     <span>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                                         <?= date('M d, Y', strtotime($note['created_at'])) ?>
+                                    </span>
+                                </div>
+                                <div class="cn-card-social" aria-label="Note engagement counts">
+                                    <span title="Views">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        <?= number_format((int)($note['views'] ?? 0)) ?>
+                                    </span>
+                                    <span class="cn-like-stat" title="Likes">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 8.6c0 5.5-8.8 10.4-8.8 10.4S3.2 14.1 3.2 8.6A4.6 4.6 0 017.8 4c1.4 0 2.8.7 4.2 2 1.4-1.3 2.8-2 4.2-2a4.6 4.6 0 014.6 4.6z"/></svg>
+                                        <?= number_format((int)($note['like_count'] ?? 0)) ?>
+                                    </span>
+                                    <span title="Comments">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-9 8.5 9.8 9.8 0 01-4-.8L3 21l1.8-4.5A8.2 8.2 0 013 11.5 8.5 8.5 0 0112 3a8.5 8.5 0 019 8.5z"/></svg>
+                                        <?= number_format((int)($note['comment_count'] ?? 0)) ?>
                                     </span>
                                 </div>
                             </div>

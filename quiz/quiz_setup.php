@@ -2,6 +2,7 @@
 session_start();
 // quiz_setup.php - Public quiz setup page
 include '../db_connect.php';
+require_once dirname(__DIR__) . '/includes/seo.php';
 
 // Function to create a slug from a string
 function createSlug($string) {
@@ -16,7 +17,7 @@ function createSlug($string) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
@@ -24,14 +25,24 @@ function createSlug($string) {
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>9th 10th 11th 12th Class MCQs Online Test 2026 — Chapter Wise All Subjects | Ahmad Learning Hub</title>
+    <?php alh_render_seo_head([
+        'title' => 'Class 9–12 Online MCQs Tests | Board Exam Preparation',
+        'description' => 'Practise chapter-wise MCQs online for Class 9, 10, 11 and 12 in Pakistan. Choose a subject, check answers and prepare for Punjab Board exams.',
+        'canonical' => alh_seo_absolute_url('/class-9-and-10-online-mcqs-prepation-test'),
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
+    <title>Class 9–12 Online MCQs Tests | Board Exam Preparation</title>
     <!-- Enhanced SEO Meta Tags -->
-    <meta name="description" content="Practise chapter-wise MCQs for classes 9, 10, 11 and 12 using the subjects and questions currently available in Ahmad Learning Hub.">
+    <meta name="description" content="Practise chapter-wise MCQs online for Class 9, 10, 11 and 12 in Pakistan. Choose a subject, check answers and prepare for Punjab Board exams.">
 
     <meta name="keywords" content="9th class physics mcqs, class 9 physics mcqs chapter wise, 9th physics chapter 1 mcqs, 9th physics solved mcqs, 9th class physics online test, 9th physics important mcqs, 9th class physics guess mcqs, 9th chemistry mcqs, 9th biology mcqs, 9th computer mcqs, 9th maths mcqs, 9th english mcqs, 9th islamiat mcqs, 9th pak studies mcqs, 9th class all subjects mcqs, matric part 1 mcqs, class 9 chapter wise mcqs, 9th class board exam mcqs, 10th class physics mcqs, class 10 physics chapter wise mcqs, 10th chemistry mcqs, 10th biology mcqs, 10th maths mcqs, 10th computer science mcqs, 10th class online mcqs test, matric part 2 mcqs, 10th class important mcqs, 10th class board mcqs, chapter wise mcqs class 10, 11th class physics mcqs, first year physics mcqs, 1st year chemistry mcqs, 1st year biology mcqs, 1st year computer mcqs, class 11 physics chapter wise mcqs, fsc part 1 mcqs, 11th class important mcqs, 12th class physics mcqs, second year physics mcqs, 2nd year chemistry mcqs, 2nd year biology mcqs, class 12 chapter wise mcqs, fsc part 2 mcqs, 12th class online test, 12th class important mcqs, board exam mcqs class 12, class 9 science mcqs, class 10 science mcqs, cbse class 10 mcqs, cbse class 11 physics mcqs, cbse class 12 mcqs, class 12 board exam mcqs, online mcqs test, funny mode quiz, Ahmad Learning Hub">
     <meta name="author" content="Ahmad Learning Hub">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://ahmadlearninghub.com.pk/class-9-and-10-online-mcqs-prepation-test">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -288,7 +299,7 @@ function createSlug($string) {
 
             <h3>9th Class Physics — Why It Deserves Special Attention</h3>
             <p>
-                Physics is the subject where most marks are lost to careless conceptual errors. Our <strong>9th class physics online test</strong> focuses on high-frequency examination topics: SI units, kinematics equations, Newton's laws, work-energy relations and thermal expansion. Taking a timed <strong>class 9 chapter wise MCQs</strong> session of 20–50 questions a day builds the speed and accuracy needed to score 12/12 in the objective section. Combine this with our <strong>9th physics important MCQs</strong> collection — curated from past five years' papers — and you have a preparation edge that textbooks alone cannot provide.
+                Physics is the subject where students often lose marks through conceptual mistakes. Our <strong>9th class physics online test</strong> focuses on topics such as SI units, kinematics, Newton's laws, work-energy relations and thermal expansion. A timed <strong>class 9 chapter wise MCQs</strong> session can build speed and accuracy. Combine practice with your current textbook and the official board syllabus.
             </p>
 
             <h2>10th Class MCQs — The Final Sprint for Matric Part 2</h2>
@@ -309,7 +320,7 @@ function createSlug($string) {
                 Intermediate subjects require deeper conceptual practice. Class 11 learners can choose from the books and chapters currently available, take repeat quizzes, and use results to identify topics that deserve another textbook review.
             </p>
             <p>
-                The <strong>11th class online MCQs test</strong> format includes negative-marking mode for MDCAT aspirants, standard mode for board candidates and — uniquely — a <strong>funny mode</strong> that injects humour into answer explanations. Our <strong>FSc part 1 MCQs</strong> and <strong>11th class important MCQs</strong> collection is updated yearly to track the latest examination pattern. If you need to focus on a single unit, start with <strong>chapter 1 physics MCQs class 11</strong> (Measurement) and work your way up.
+                The <strong>11th class online MCQs test</strong> format includes negative-marking mode for entry-test practice, standard mode for board candidates and an optional <strong>funny mode</strong> for lighter answer explanations. Use our <strong>FSc part 1 MCQs</strong> and <strong>11th class important MCQs</strong> with the latest textbook and official examination guidance. If you need to focus on a single unit, start with <strong>chapter 1 physics MCQs class 11</strong> (Measurement) and work your way up.
             </p>
 
             <h2>12th Class MCQs — FSc Part 2 / Second Year Board Exam</h2>

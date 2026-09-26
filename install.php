@@ -193,6 +193,7 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS class_notes (
     uploader_email VARCHAR(255) DEFAULT NULL,
     uploader_type ENUM('admin','user') DEFAULT 'user',
     rejection_reason TEXT,
+    views INT UNSIGNED NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME DEFAULT NULL,
     approved_by INT DEFAULT NULL,
@@ -206,6 +207,11 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS class_notes (
 $result = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'uploader_email'");
 if (!$result || $result->num_rows == 0) {
     runQuery($conn, "ALTER TABLE class_notes ADD COLUMN uploader_email VARCHAR(255) DEFAULT NULL AFTER uploader_name", "Column: class_notes.uploader_email");
+}
+
+$result = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'views'");
+if (!$result || $result->num_rows == 0) {
+    runQuery($conn, "ALTER TABLE class_notes ADD COLUMN views INT UNSIGNED NOT NULL DEFAULT 0 AFTER rejection_reason", "Column: class_notes.views");
 }
 
 runQuery($conn, "CREATE TABLE IF NOT EXISTS class_note_likes (

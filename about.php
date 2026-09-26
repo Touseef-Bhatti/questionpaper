@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/includes/seo.php';
 // about.php - Professional About page for Ahmad Learning Hub
 if (session_status() === PHP_SESSION_NONE) session_start();
 include 'db_connect.php';
@@ -44,7 +45,7 @@ $dailyQuizSessions =
     alhPublicCount($conn, 'SELECT COUNT(*) FROM quiz_participants WHERE started_at >= CURDATE() AND started_at < CURDATE() + INTERVAL 1 DAY');
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
@@ -53,10 +54,20 @@ $dailyQuizSessions =
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Learn about Ahmad Learning Hub, its founder, and its educational tools for question-paper generation, MCQs practice, notes, tests, and live quizzes.">
-    <link rel="canonical" href="https://ahmadlearninghub.com.pk/about">
+    <?php alh_render_seo_head([
+        'title' => 'About Ahmad Learning Hub | Pakistan Exam Preparation Platform',
+        'description' => 'Learn how Ahmad Learning Hub helps Pakistani students, teachers and tutors create question papers, practise MCQs, use study notes and host quizzes.',
+        'canonical' => alh_seo_absolute_url('/about'),
+        'page_type' => 'AboutPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
+    <meta name="description" content="Learn how Ahmad Learning Hub helps Pakistani students, teachers and tutors create question papers, practise MCQs, use study notes and host quizzes.">
     <meta name="keywords" content="Online question paper generator, 9 th class, 10th class question paper generator, chapter wise question paper generator, online MCQs test, online quiz hosting, question paper generating, Ahmad Learning Hub, M Arshad Bhatti, Sheikhupura academy">
-    <title>About Us | AI-Powered 9th & 10th Class Exam Preparation | Ahmad Learning Hub</title>
+    <title>About Ahmad Learning Hub | Pakistan Exam Preparation</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/about.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -142,7 +153,7 @@ $dailyQuizSessions =
                         <p>Use AI-assisted tools to create practice material from selected topics or uploaded educational content, then review the result before classroom or exam use.</p>
                         <div class="feature-link">Explore AI Tools <i class="fas fa-arrow-right"></i></div>
                     </a>
-                    <a href="quiz/online_quiz_host_new.php" class="feature-card animate-on-scroll">
+                    <a href="online-quiz-hosting" class="feature-card animate-on-scroll">
                         <div class="feature-icon"><i class="fas fa-desktop"></i></div>
                         <h3>Host Online Quizzes</h3>
                         <p>Teachers can easily <strong>host online quizzes</strong> for their students, making classroom assessment interactive and data-driven.</p>

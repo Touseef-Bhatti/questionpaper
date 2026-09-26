@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../security.php';
 require_once __DIR__ . '/../../services/GoogleDriveService.php';
+require_once __DIR__ . '/../../email/phpmailer_mailer.php';
 
 requireAdminAuth();
 
@@ -147,6 +148,12 @@ if ($action === 'admin_upload') {
         exit;
     }
 
+    if (!in_array($class, ['9', '10', '11', '12'], true)) {
+        $_SESSION['cn_error'] = 'Please select a valid class.';
+        header('Location: index.php');
+        exit;
+    }
+
     if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
         $_SESSION['cn_error'] = 'Please choose a valid file to upload.';
         header('Location: index.php');
@@ -172,7 +179,7 @@ if ($action === 'admin_upload') {
 
     try {
         $driveService = new GoogleDriveService();
-        $driveResult = $driveService->uploadFile($fileTmpPath, $originalFileName, $mimeType, $class, $subject);
+        $driveResult = $driveService->uploadFile($fileTmpPath, $originalFileName, $mimeType, $class, $subject, 'admin');
 
         $stmt = $conn->prepare("INSERT INTO class_notes 
             (title, description, subject, class, chapter, drive_file_id, drive_url, original_filename, mime_type, file_size, status, uploaded_by, uploader_name, uploader_email, uploader_type, approved_at, approved_by) 
@@ -267,10 +274,31 @@ switch ($action) {
             echo json_encode(['success' => false, 'error' => 'Invalid note ID']);
             exit;
         }
+        $noteStmt = $conn->prepare("SELECT title, class, subject, uploader_name, uploader_email, uploader_type FROM class_notes WHERE id = ? LIMIT 1");
+        $noteStmt->bind_param("i", $noteId);
+        $noteStmt->execute();
+        $note = $noteStmt->get_result()->fetch_assoc();
+        $noteStmt->close();
+
+        if (!$note) {
+            echo json_encode(['success' => false, 'error' => 'Note not found']);
+            exit;
+        }
+
         $stmt = $conn->prepare("UPDATE class_notes SET status = 'approved', approved_at = NOW(), approved_by = ?, rejection_reason = NULL WHERE id = ?");
         $stmt->bind_param("ii", $adminId, $noteId);
         $success = $stmt->execute();
         $stmt->close();
+        if ($success && ($note['uploader_type'] ?? 'user') === 'user') {
+            sendClassNoteStatusEmail(
+                $note['uploader_email'] ?? '',
+                $note['uploader_name'] ?? 'Contributor',
+                $note['title'],
+                $note['class'],
+                $note['subject'],
+                'approved'
+            );
+        }
         echo json_encode(['success' => $success]);
         exit;
 
@@ -281,10 +309,32 @@ switch ($action) {
             echo json_encode(['success' => false, 'error' => 'Invalid note ID']);
             exit;
         }
+        $noteStmt = $conn->prepare("SELECT title, class, subject, uploader_name, uploader_email, uploader_type FROM class_notes WHERE id = ? LIMIT 1");
+        $noteStmt->bind_param("i", $noteId);
+        $noteStmt->execute();
+        $note = $noteStmt->get_result()->fetch_assoc();
+        $noteStmt->close();
+
+        if (!$note) {
+            echo json_encode(['success' => false, 'error' => 'Note not found']);
+            exit;
+        }
+
         $stmt = $conn->prepare("UPDATE class_notes SET status = 'rejected', rejection_reason = ? WHERE id = ?");
         $stmt->bind_param("si", $reason, $noteId);
         $success = $stmt->execute();
         $stmt->close();
+        if ($success && ($note['uploader_type'] ?? 'user') === 'user') {
+            sendClassNoteStatusEmail(
+                $note['uploader_email'] ?? '',
+                $note['uploader_name'] ?? 'Contributor',
+                $note['title'],
+                $note['class'],
+                $note['subject'],
+                'rejected',
+                $reason
+            );
+        }
         echo json_encode(['success' => $success]);
         exit;
 

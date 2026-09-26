@@ -98,6 +98,11 @@ Options -Indexes
     RewriteRule ^(quiz/)?mcqs_topic(\.php)?$ /topic-wise-mcqs-test [R=301,L]
     RewriteRule ^topic-wise-mcqs-test/?$ quiz/mcqs_topic.php [NC,L]
 
+    # Public live quiz hosting landing page. Keep the old slug as a single-hop 301.
+    RewriteCond %{THE_REQUEST} \s/+quiz-host-index(?:\.php)?(?:[\s?/]|\s) [NC]
+    RewriteRule ^(?:quiz/)?quiz-host-index(?:\.php)?$ /online-quiz-hosting [R=301,L]
+    RewriteRule ^online-quiz-hosting/?$ quiz/quiz-host-index.php [NC,L]
+
     # 1. Map root-level requests to 'quiz/' folder
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d

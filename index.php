@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db_connect.php';
+require_once __DIR__ . '/includes/seo.php';
 
 $latestReviews = [];
 $reviewsTableExists = false;
@@ -19,21 +20,35 @@ function homeReviewStars(int $rating): string {
     $full = max(0, min(5, $rating));
     return str_repeat('★', $full) . str_repeat('☆', 5 - $full);
 }
+
+$pageTitle = 'Online Question Paper Generator | Ahmad Learning Hub';
+$metaDescription = 'Create Class 9, 10, 11 and 12 question papers, practise chapter-wise MCQs, find board exam notes and host live quizzes for Pakistani classrooms.';
+$metaKeywords = 'online question paper generator Pakistan, class 9 question paper generator, class 10 question paper generator, class 11 MCQs test, class 12 MCQs test, Punjab Board notes, board exam preparation, online quiz hosting';
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <?php // AdSense review: third-party ads disabled. include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Create class 9 and 10 question papers, practise chapter-wise MCQs, prepare board tests, and host live educational quizzes with Ahmad Learning Hub.">
-    <link rel="canonical" href="https://ahmadlearninghub.com.pk/">
+    <?php alh_render_seo_head([
+        'title' => $pageTitle,
+        'description' => $metaDescription,
+        'keywords' => $metaKeywords,
+        'canonical' => alh_seo_absolute_url('/'),
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
+    <meta name="description" content="Create Class 9, 10, 11 and 12 question papers, practise chapter-wise MCQs, find board exam notes and host live quizzes for Pakistani classrooms.">
 
     
-    <title>Ahmad Learning Hub – Online Question Paper Generator for All Classes | School, College & University</title>
+    <title>Online Question Paper Generator | Ahmad Learning Hub</title>
     
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/index.css">
@@ -54,11 +69,11 @@ function homeReviewStars(int $rating): string {
                <div class="hero-content">
 
     <h1 class="hero-title">
-        Generate Papers & Practice MCQs for Any Topic
+        Online Question Paper Generator & MCQs Practice for Pakistan
     </h1>
     
     <p class="subtitle">
-        Create 9th & 10th class question papers or search any topic to start MCQs tests instantly — with real exam patterns, short and long questions, and downloadable papers.
+        Create Class 9, 10, 11 and 12 question papers, practise chapter-wise MCQs, revise with study notes, and prepare board-oriented tests online. Built for students, teachers and academies in Pakistan.
     </p>
 </div>
 
@@ -160,21 +175,21 @@ function homeReviewStars(int $rating): string {
                                 <p>Students join instantly with a unique quiz code — no signup required.</p>
                             </div>
                         </a>
-                        <a href="online_quiz_host_new" class="qf-card">
+                        <a href="online-quiz-hosting" class="qf-card">
                             <div class="qf-icon"><i class="fas fa-chart-bar"></i></div>
                             <div class="qf-content">
                                 <h4>Real-Time Leaderboard</h4>
                                 <p>Live rank tracking keeps engagement high and learning competitive.</p>
                             </div>
                         </a>
-                        <a href="online_quiz_host_new" class="qf-card">
+                        <a href="online-quiz-hosting" class="qf-card">
                             <div class="qf-icon"><i class="fas fa-stopwatch"></i></div>
                             <div class="qf-content">
                                 <h4>Timed Questions</h4>
                                 <p>Set per-question timers for a real exam feel with auto-submit.</p>
                             </div>
                         </a>
-                        <a href="online_quiz_host_new" class="qf-card">
+                        <a href="online-quiz-hosting" class="qf-card">
                             <div class="qf-icon"><i class="fas fa-trophy"></i></div>
                             <div class="qf-content">
                                 <h4>Instant Results</h4>
@@ -223,7 +238,7 @@ function homeReviewStars(int $rating): string {
 
                 <!-- Bottom CTA -->
                 <div class="quiz-showcase-cta">
-                    <a href="online_quiz_host_new" class="button primary large quiz-host-btn"><i class="fas fa-play-circle"></i> Host a Quiz Now</a>
+                    <a href="online-quiz-hosting" class="button primary large quiz-host-btn"><i class="fas fa-play-circle"></i> Start Hosting a Quiz</a>
                     <a href="online_quiz_join" class="button secondary large quiz-join-btn"><i class="fas fa-gamepad"></i> Join a Quiz</a>
                 </div>
             </div>
@@ -257,7 +272,7 @@ function homeReviewStars(int $rating): string {
                                     <i class="fas fa-file-invoice"></i> Generate Paper
                                 </a>
                                 <div class="role-sub-actions">
-                                    <a href="online_quiz_host_new" class="role-btn secondary">Host a Quiz</a>
+                                    <a href="online-quiz-hosting" class="role-btn secondary">Host a Live Quiz</a>
                                     <a href="note" class="role-btn ghost">View Notes</a>
                                 </div>
                             </div>

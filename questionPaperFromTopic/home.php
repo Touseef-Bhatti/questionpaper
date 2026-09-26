@@ -1,10 +1,11 @@
 <?php
 session_start();
 require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../includes/seo.php';
 $appName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
-$pageTitle       = "AI Exam Paper Generator | MCQ Maker for SAT, GCSE, IB & A-Levels – " . $appName;
-$metaDescription = "The #1 AI-powered exam paper generator for teachers and students globally. Create custom MCQs, short questions, and tests for SAT, ACT, GCSE, A-Levels, and IB. Free online assessment builder for USA, UK, Europe, and beyond.";
-$metaKeywords    = "exam paper generator, MCQ maker, test creator, online paper builder, SAT question generator, GCSE test maker, A-Level paper builder, IB exam creator, AI assessment tool, test bank generator, teacher resources USA, UK education tools, European Baccalaureate prep, classroom assessment builder, online quiz maker for schools";
+$pageTitle       = "AI Question Paper Generator | " . $appName;
+$metaDescription = "Create MCQs, short and long questions from any topic for teachers and students. Review each generated paper before using it for class tests or exam preparation.";
+$metaKeywords    = "AI question paper generator, online exam paper generator, MCQ maker, online test maker, question paper generator Pakistan, teacher assessment tool, printable exam papers";
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -13,6 +14,17 @@ $metaKeywords    = "exam paper generator, MCQ maker, test creator, online paper 
 <?php // AdSense review: third-party ads disabled. include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php alh_render_seo_head([
+        'title' => $pageTitle,
+        'description' => $metaDescription,
+        'canonical' => alh_seo_absolute_url('/online-question-paper-generator'),
+        'page_type' => 'WebPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
 
     <!-- Primary SEO -->
     <title><?= htmlspecialchars($pageTitle) ?></title>

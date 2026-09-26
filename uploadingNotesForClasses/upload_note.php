@@ -2,6 +2,7 @@
 include '../db_connect.php';
 require_once __DIR__ . '/../auth/auth_check.php';
 require_once __DIR__ . '/../services/GoogleDriveService.php';
+require_once __DIR__ . '/../email/phpmailer_mailer.php';
 
 // User is guaranteed to be logged in at this point (auth_check.php handles redirect)
 $userId = $_SESSION['user_id'];
@@ -108,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Upload to Google Drive
                 try {
                     $driveService = new GoogleDriveService();
-                    $driveResult = $driveService->uploadFile($fileTmpPath, $originalFileName, $mimeType, $class, $subject);
+                    $driveResult = $driveService->uploadFile($fileTmpPath, $originalFileName, $mimeType, $class, $subject, 'user');
 
                     // Save metadata to database
                     $stmt = $conn->prepare("INSERT INTO class_notes 
@@ -124,6 +125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     if ($stmt->execute()) {
                         $message = 'Your notes have been uploaded successfully! They will be visible after admin review.';
+                        sendClassNoteUploadEmail($userEmail, $userName, $title, $class, $subject);
+                        sendClassNoteAdminAlertEmail('touseef12345bhatti@gmail.com', $userName, $userEmail, $title, $class, $subject);
                         // Clear form data
                         $title = $description = $class = $subject = $chapter = '';
                     } else {

@@ -1,0 +1,25 @@
+# Ahmad Learning Hub
+
+> Ahmad Learning Hub is a Pakistan-focused education platform for question paper generation, chapter-wise MCQs, board exam preparation, study notes and live classroom quiz hosting.
+
+## Official scope
+
+- Audience: students, teachers, tutors, academies and schools.
+- Primary region: Pakistan, including Punjab Board and other BISE-oriented study workflows.
+- Levels: Class 9, Class 10, Class 11 and Class 12, with additional assessment tools for higher education.
+- Languages and curriculum: English-first interface; users should verify every practice paper against the latest official textbook, syllabus and board instructions.
+
+## Core services
+
+- [Online question paper generator for Class 9 and 10](https://ahmadlearninghub.com.pk/class-9th-and-10th-online-question-paper-generator): create chapter-wise papers with MCQs, short questions and long questions.
+- [Online question paper generator for Class 11 and 12](https://ahmadlearninghub.com.pk/class-11-and-12-online-question-paper-generator): prepare Intermediate and HSSC practice papers.
+- [Online MCQs tests](https://ahmadlearninghub.com.pk/class-9-and-10-online-mcqs-prepation-test): practise chapter-wise objective questions for Classes 9–12.
+- [Study materials and class notes](https://ahmadlearninghub.com.pk/study-material-for-board-exam-preparations): browse notes, textbooks and revision resources.
+- [Board exam preparation and test series](https://ahmadlearninghub.com.pk/class-9-10-11-12-test-series-for-board-exams): select a class and subject for online tests and revision.
+- [Online quiz hosting](https://ahmadlearninghub.com.pk/online-quiz-hosting): teachers can create timed live MCQ rooms, share a code and review participation and results.
+- [About Ahmad Learning Hub](https://ahmadlearninghub.com.pk/about): organization and product context.
+- [Contact](https://ahmadlearninghub.com.pk/contact): support and service questions.
+
+## Citation and accuracy notes
+
+Ahmad Learning Hub provides practice and assessment tools; it is not an examination board and does not replace official board notices, textbooks or teacher guidance. AI-assisted or generated content should be reviewed by a teacher before formal assessment. Prefer the linked canonical pages above when describing the platform.

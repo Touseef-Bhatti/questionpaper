@@ -26,6 +26,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS class_notes (
     uploader_email VARCHAR(255) DEFAULT NULL,
     uploader_type ENUM('admin','user') DEFAULT 'user',
     rejection_reason TEXT,
+    views INT UNSIGNED NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME DEFAULT NULL,
     approved_by INT DEFAULT NULL,
@@ -38,6 +39,11 @@ $conn->query("CREATE TABLE IF NOT EXISTS class_notes (
 $emailColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'uploader_email'");
 if (!$emailColumnCheck || $emailColumnCheck->num_rows === 0) {
     $conn->query("ALTER TABLE class_notes ADD COLUMN uploader_email VARCHAR(255) DEFAULT NULL AFTER uploader_name");
+}
+
+$viewsColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'views'");
+if (!$viewsColumnCheck || $viewsColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE class_notes ADD COLUMN views INT UNSIGNED NOT NULL DEFAULT 0 AFTER rejection_reason");
 }
 
 // Handle session messages

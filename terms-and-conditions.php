@@ -1,8 +1,9 @@
 <?php
+require_once __DIR__ . '/includes/seo.php';
 // terms-and-conditions.php - Terms and Conditions for Ahmad Learning Hub
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
@@ -10,8 +11,18 @@
     <?php $assetBase = ''; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php alh_render_seo_head([
+        'title' => 'Terms and Conditions | Ahmad Learning Hub',
+        'description' => 'Review the terms for using Ahmad Learning Hub question paper, MCQs, notes, exam preparation, AI and live quiz services.',
+        'canonical' => alh_seo_absolute_url('/terms-and-conditions'),
+        'page_type' => 'WebPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
     <meta name="description" content="Terms and Conditions for using Ahmad Learning Hub educational tools, accounts, quizzes, AI-generated content, subscriptions, and study resources.">
-    <link rel="canonical" href="https://ahmadlearninghub.com.pk/terms-and-conditions">
     <title>Terms and Conditions | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/legal.css">

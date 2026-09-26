@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db_connect.php';
+require_once __DIR__ . '/includes/seo.php';
 require_once 'middleware/SubscriptionCheck.php';
 
 // Fetch all available classes with their IDs and names using prepared statement (OPTIMIZED)
@@ -31,15 +32,26 @@ if (isset($_SESSION['user_id'])) {
 <?php // AdSense review: third-party ads disabled. include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php alh_render_seo_head([
+        'title' => 'Class 9 & 10 Question Paper Generator | Punjab Board',
+        'description' => 'Create Class 9 and 10 Punjab Board question papers online with MCQs, short and long questions. Choose chapters and prepare printable matric papers in Pakistan.',
+        'canonical' => alh_seo_absolute_url('/class-9th-and-10th-online-question-paper-generator'),
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
 
-<meta name="description" content="Use an online question paper generator for Class 9 and 10 in Pakistan. Create chapter-wise, pairing-scheme and Punjab Board pattern matric papers with MCQs, short questions and long questions.">
+<meta name="description" content="Create Class 9 and 10 Punjab Board question papers online with MCQs, short and long questions. Choose chapters and prepare printable matric papers in Pakistan.">
 
 <meta name="keywords" content="Online question paper generator, 9th class Question paper generator, 10th class Question paper generator, Punjab Board question papers,Chapter Wise Question Paper ,MCQs Paper generator for class 9 and 10, online test maker, online paper Software ,Question paper generatr Tool ,  Board Pattern Question Paper, Matric Exam ,Board Exam paper generator ,Online paper generator , Custom Paper generator , Online Exam ,Board Pattern Paper generator,online MCQs test 9th class, 10th class MCQs tests, school exam papers, chapter-wise MCQs, test generator Pakistan">
 
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/select_class.css">
 
-    <title>Online Question Paper Generator for Class 9 &amp; 10 | Punjab Board</title>
+    <title>Class 9 &amp; 10 Question Paper Generator | Punjab Board</title>
 </head>
 
 <body>

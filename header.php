@@ -1,8 +1,15 @@
 <?php
 include_once __DIR__ . '/db_connect.php';
+require_once __DIR__ . '/includes/seo.php';
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) session_start();
 
 $current_page = $_SERVER['SCRIPT_NAME'];
+if (!isset($pageTitle)) {
+    $pageTitle = 'Ahmad Learning Hub | Online Exam Preparation';
+}
+if (!isset($metaDescription)) {
+    $metaDescription = 'Create question papers, practise chapter-wise MCQs, use study notes and prepare for board exams online with Ahmad Learning Hub in Pakistan.';
+}
 if (!function_exists('is_active')) {
     function is_active($page_name) {
         global $current_page;
@@ -10,7 +17,7 @@ if (!function_exists('is_active')) {
     }
 }
 
-$gen_paper_pages = ['select_class.php','select_book.php','select_chapters.php','topic-wise-mcqs-test','quiz_setup.php','online_quiz_host','online_quiz_lobby.php','quiz.php'];
+$gen_paper_pages = ['select_class.php','select_book.php','select_chapters.php','topic-wise-mcqs-test','quiz_setup.php','quiz-host-index','online-quiz-hosting','online_quiz_host','online_quiz_lobby.php','quiz.php'];
 $is_gen_paper_active = false;
 foreach ($gen_paper_pages as $p) {
     if (strpos($current_page, $p) !== false) { $is_gen_paper_active = true; break; }
@@ -33,9 +40,21 @@ $alh_render_shell = !isset($skip_shell) && !isset($only_navbar) && !$alh_has_pri
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'AhmadLearningHub' ?></title>
+<title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'Ahmad Learning Hub | Online Exam Preparation' ?></title>
 <?php if (isset($metaDescription)): ?><meta name="description" content="<?= htmlspecialchars($metaDescription) ?>"><?php endif; ?>
 <?php if (isset($metaKeywords)): ?><meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>"><?php endif; ?>
+<?php if ($alh_render_shell): ?>
+<?php alh_render_seo_head([
+    'title' => $pageTitle ?? 'Ahmad Learning Hub',
+    'description' => $metaDescription ?? 'Online question paper generation, MCQs practice, study notes, exam preparation and live quiz hosting for students and teachers in Pakistan.',
+    'keywords' => $metaKeywords ?? '',
+    'include_title' => false,
+    'include_description' => false,
+    'include_keywords' => false,
+    'include_robots' => false,
+    'include_author' => false,
+]); ?>
+<?php endif; ?>
 
 <script>
 (function(){
@@ -650,8 +669,8 @@ body { padding-top:var(--ah, 66px); }
           <div class="ALH_hdiv"></div>
           <div class="ALH_mlabel">Quick Actions</div>
           <div class="ALH_ar">
-            <a href="<?= $assetBase ?>online_quiz_host_new" class="ALH_ac <?= is_active('online_quiz_host_new.php') ?>">
-              <i class="fas fa-broadcast-tower"></i>Host Quiz
+            <a href="<?= $assetBase ?>online-quiz-hosting" class="ALH_ac <?= is_active('quiz-host-index.php') || is_active('online-quiz-hosting') ? 'alh-active' : '' ?>">
+              <i class="fas fa-broadcast-tower"></i>Host a Live Quiz
             </a>
             <button class="ALH_ac ALH_cct" data-action="online_mcqs" type="button">
               <i class="fas fa-question-circle"></i>MCQs Quiz

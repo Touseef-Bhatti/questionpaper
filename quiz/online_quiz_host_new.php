@@ -13,39 +13,7 @@ if (isset($_GET['clear_topics'])) {
 
 // Get user info for personalized experience
 $user_name = $_SESSION['name'] ?? 'Instructor';
-$pageTitle = "Host an Online Quiz Free | Live MCQ Quiz Maker";
-
-$metaDescription = "Create and host a live online MCQ quiz for classrooms, academies and remote learners. Choose textbook questions, topics, saved MCQs or upload a file, then share the room code and manage results live.";
-
-$metaKeywords = "host online quiz free, live quiz maker, MCQ quiz host Pakistan, classroom quiz room, teacher quiz generator, online test host, live leaderboard quiz, AI quiz maker, quiz room code";
-$siteBaseUrl = rtrim(EnvLoader::get('APP_URL', EnvLoader::get('SITE_URL', 'https://ahmadlearninghub.com.pk')), '/');
-$canonicalUrl = $siteBaseUrl . '/online_quiz_host_new';
-
-$hostHowToSchema = [
-    '@context' => 'https://schema.org',
-    '@type' => 'HowTo',
-    'name' => 'How to host a live online quiz',
-    'description' => $metaDescription,
-    'totalTime' => 'PT5M',
-    'step' => [
-        ['@type' => 'HowToStep', 'position' => 1, 'name' => 'Choose quiz questions', 'text' => 'Select a class and book, search by topic, upload a file, or add custom and saved MCQs.'],
-        ['@type' => 'HowToStep', 'position' => 2, 'name' => 'Select chapters', 'text' => 'Choose specific textbook chapters or leave the selection empty to use the complete selected book.'],
-        ['@type' => 'HowToStep', 'position' => 3, 'name' => 'Set questions and duration', 'text' => 'Enter the number of questions and choose a suitable quiz duration.'],
-        ['@type' => 'HowToStep', 'position' => 4, 'name' => 'Create the quiz room', 'text' => 'Review the quiz preview and select Create Quiz Room.'],
-        ['@type' => 'HowToStep', 'position' => 5, 'name' => 'Share and host live', 'text' => 'Share the generated room code or join link, open the host dashboard, wait for participants and start the quiz.']
-    ]
-];
-
-$hostFaqSchema = [
-    '@context' => 'https://schema.org',
-    '@type' => 'FAQPage',
-    'mainEntity' => [
-        ['@type' => 'Question', 'name' => 'How do I host an online quiz?', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Sign in, choose questions from a class and book, topic, uploaded file, saved list or custom MCQs, set the question count and duration, create the room, and share its code or link.']],
-        ['@type' => 'Question', 'name' => 'How do students join the live quiz?', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Students open the Join Quiz page and enter the room code, or use the direct join link shared by the host.']],
-        ['@type' => 'Question', 'name' => 'Can I create MCQs from a PDF or Word file?', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Yes. The host page accepts supported PDF, Word, PowerPoint and image files up to 10 MB and can generate MCQs from the uploaded content.']],
-        ['@type' => 'Question', 'name' => 'Can I use my own quiz questions?', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Yes. Add custom questions manually or select MCQs previously saved to your profile.']]
-    ]
-];
+$pageTitle = "Create a Live Quiz Room";
 
 include_once '../header.php';
 ?>
@@ -65,17 +33,7 @@ include_once '../header.php';
 
 <title><?= htmlspecialchars($pageTitle) ?> | Ahmad Learning Hub</title>
 
-<meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
-
-<meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="<?= htmlspecialchars($canonicalUrl) ?>">
-<meta property="og:type" content="website">
-<meta property="og:url" content="<?= htmlspecialchars($canonicalUrl) ?>">
-<meta property="og:title" content="<?= htmlspecialchars($pageTitle) ?>">
-<meta property="og:description" content="<?= htmlspecialchars($metaDescription) ?>">
-<script type="application/ld+json"><?= json_encode($hostHowToSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
-<script type="application/ld+json"><?= json_encode($hostFaqSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
+<meta name="robots" content="noindex, nofollow">
 
 </head>
 
@@ -90,9 +48,29 @@ include_once '../header.php';
     <div class="creator-header">
             <div>
                 <h1><i class="fas fa-tower-broadcast" aria-hidden="true"></i> Create Quiz Room</h1>
-                <p class="subtitle">Welcome back, <?= htmlspecialchars($user_name) ?>! Let's create an amazing quiz experience.</p>
+                <p class="subtitle">Welcome back, <?= htmlspecialchars($user_name) ?>. Set up your questions, timing and room access.</p>
             </div>
-            
+            <button type="button" class="host-help-trigger" id="hostHelpTrigger" aria-label="Open quiz hosting guide" aria-controls="hostGuideModal" aria-expanded="false" title="Quick guide">
+                <i class="fas fa-info" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="host-guide-modal" id="hostGuideModal" hidden>
+            <div class="host-guide-modal__backdrop" data-close-host-guide></div>
+            <section class="host-guide-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="hostGuideTitle">
+                <div class="host-guide-modal__header">
+                    <div><span class="host-guide-modal__eyebrow" id="hostGuideEyebrow">Quick guide</span><h2 id="hostGuideTitle">Create a live quiz in 5 steps</h2></div>
+                    <button type="button" class="host-guide-modal__close" id="hostGuideClose" aria-label="Close guide"><i class="fas fa-times" aria-hidden="true"></i></button>
+                </div>
+                <ol class="host-guide-modal__steps" id="hostGuideSteps">
+                    <li><div class="host-guide-modal__step-copy"><strong>Choose questions</strong><span>Select a class and book, search by topic, upload learning material, or add custom/saved MCQs.</span></div></li>
+                    <li><div class="host-guide-modal__step-copy"><strong>Pick chapters</strong><span>Choose specific chapters or leave them unselected to use the complete selected book.</span></div></li>
+                    <li><div class="host-guide-modal__step-copy"><strong>Set the quiz</strong><span>Enter the question count and duration. Check the preview before creating the room.</span></div></li>
+                    <li><div class="host-guide-modal__step-copy"><strong>Create and share</strong><span>Create the room, then share its code or join link with your students.</span></div></li>
+                    <li><div class="host-guide-modal__step-copy"><strong>Start from the dashboard</strong><span>Wait for participants, start the quiz and review live results when the session ends.</span></div></li>
+                </ol>
+                <p class="host-guide-modal__tip" id="hostGuideTip"><i class="fas fa-lightbulb" aria-hidden="true"></i><span>Tip: use clear questions with one correct answer and allow enough time for reading.</span></p>
+            </section>
         </div>
         
         <?php
@@ -103,37 +81,6 @@ include_once '../header.php';
         ?>
 
         <div class="creator-body">
-            <section class="teaching-capabilities" aria-labelledby="teaching-capabilities-title">
-                <div class="teaching-capabilities-intro">
-                    <span class="teaching-capabilities-label">Live teaching toolkit</span>
-                    <h2 id="teaching-capabilities-title">Built for Live Teaching and Assessment</h2>
-                    <p>Create questions faster, manage a live room and review participant performance from one workflow.</p>
-                </div>
-                <div class="teaching-capabilities-grid">
-                    <div class="teaching-capability">
-                        <span class="teaching-capability-icon"><i class="fas fa-chart-line"></i></span>
-                        <div>
-                            <h3>Live Performance</h3>
-                            <p>Monitor participation, answers and scores from the host dashboard.</p>
-                        </div>
-                    </div>
-                    <div class="teaching-capability">
-                        <span class="teaching-capability-icon"><i class="fas fa-wand-magic-sparkles"></i></span>
-                        <div>
-                            <h3>Flexible Question Creation</h3>
-                            <p>Use textbook MCQs, topic search, file generation or your own saved questions.</p>
-                        </div>
-                    </div>
-                    <div class="teaching-capability">
-                        <span class="teaching-capability-icon"><i class="fas fa-ranking-star"></i></span>
-                        <div>
-                            <h3>Engaging Live Sessions</h3>
-                            <p>Share a room code and use the leaderboard to keep learners involved.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             <form id="quizForm" method="POST" action="online_quiz_create_room.php">
                 <input type="hidden" name="source" value="host">
                 <!-- Quiz Configuration -->
@@ -149,12 +96,18 @@ include_once '../header.php';
                     <div class="form-grid">
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <div class="host-source-actions">
-                                <button type="button" class="btn host-source-btn host-source-btn--topic" onclick="goToTopicSearch()">
-                                    <i class="fas fa-magnifying-glass"></i> Search Questions by Topic
-                                </button>
-                                <button type="button" class="btn host-source-btn host-source-btn--file" onclick="openHostFileUploadModal()">
-                                    <i class="fas fa-file-arrow-up"></i> Upload File to Create MCQs
-                                </button>
+                                <div class="host-source-action">
+                                    <button type="button" class="btn host-source-btn host-source-btn--topic" onclick="goToTopicSearch()">
+                                        <i class="fas fa-magnifying-glass"></i> Search Questions by Topic
+                                    </button>
+                                    <button type="button" class="host-inline-help host-guide-inline-trigger" data-guide="topic" aria-label="Guide for searching questions by topic" title="How topic search works"><i class="fas fa-info" aria-hidden="true"></i></button>
+                                </div>
+                                <div class="host-source-action">
+                                    <button type="button" class="btn host-source-btn host-source-btn--file" onclick="openHostFileUploadModal()">
+                                        <i class="fas fa-file-arrow-up"></i> Upload File to Create MCQs
+                                    </button>
+                                    <button type="button" class="host-inline-help host-guide-inline-trigger" data-guide="file" aria-label="Guide for uploading a file to create MCQs" title="How file upload works"><i class="fas fa-info" aria-hidden="true"></i></button>
+                                </div>
                             </div>
                             <div class="form-hint" style="text-align: center; margin-top: 8px;">Search by topic, or upload a PDF/Word/PPT/image and AI will build MCQs from your file only (max 10 MB)</div>
                             
@@ -208,7 +161,7 @@ include_once '../header.php';
                             <div class="toggle-knob"></div>
                         </div>
                         <div>
-                            <h3 class="toggle-title"><i class="fas fa-pen-to-square" aria-hidden="true"></i> Add Custom Questions</h3>
+                            <div class="custom-question-title"><h3 class="toggle-title"><i class="fas fa-pen-to-square" aria-hidden="true"></i> Add Custom Questions</h3><button type="button" class="host-inline-help host-guide-inline-trigger" data-guide="custom" aria-label="Guide for adding custom questions" title="How custom questions work"><i class="fas fa-info" aria-hidden="true"></i></button></div>
                             <p style="margin: 5px 0 0; color: #6b7280;">Create your own questions. They will be <b>automatically saved</b> to your profile.</p>
                         </div>
                     </div>
@@ -408,7 +361,6 @@ include_once '../header.php';
                 </div>
                 
             </form>
-            <?php include __DIR__ . '/../includes/online_quiz_host_guide.php'; ?>
         </div>
     </div>
 
@@ -1141,6 +1093,106 @@ include_once '../header.php';
                 alert('Please select at least one question.');
             }
         }
+
+        // Compact, accessible help guide for the room creator.
+        (function initHostGuide() {
+            const trigger = document.getElementById('hostHelpTrigger');
+            const modal = document.getElementById('hostGuideModal');
+            const closeButton = document.getElementById('hostGuideClose');
+            const guideTitle = document.getElementById('hostGuideTitle');
+            const guideEyebrow = document.getElementById('hostGuideEyebrow');
+            const guideSteps = document.getElementById('hostGuideSteps');
+            const guideTip = document.querySelector('#hostGuideTip span');
+            if (!trigger || !modal || !closeButton) return;
+
+            let lastFocusedElement = null;
+            const guides = {
+                default: {
+                    eyebrow: 'Quick guide',
+                    title: 'Create a live quiz in 5 steps',
+                    steps: [
+                        ['Choose questions', 'Select a class and book, search by topic, upload learning material, or add custom/saved MCQs.'],
+                        ['Pick chapters', 'Choose specific chapters or leave them unselected to use the complete selected book.'],
+                        ['Set the quiz', 'Enter the question count and duration. Check the preview before creating the room.'],
+                        ['Create and share', 'Create the room, then share its code or join link with your students.'],
+                        ['Start from the dashboard', 'Wait for participants, start the quiz and review live results when the session ends.']
+                    ],
+                    tip: 'Tip: use clear questions with one correct answer and allow enough time for reading.'
+                },
+                topic: {
+                    eyebrow: 'Question source',
+                    title: 'Search questions by topic',
+                    steps: [
+                        ['Enter a topic', 'Search for a concept, subject area or lesson topic to find relevant MCQs.'],
+                        ['Select useful results', 'Review the generated suggestions and select only the topics you want in the quiz.'],
+                        ['Keep your settings', 'Your question count and duration are carried into the quiz creator when you return.'],
+                        ['Review before sharing', 'Check the selected topics and preview the quiz before creating the room.']
+                    ],
+                    tip: 'Tip: use a focused topic such as “Newton laws” instead of a broad phrase such as “physics”.'
+                },
+                file: {
+                    eyebrow: 'Question source',
+                    title: 'Upload a file to create MCQs',
+                    steps: [
+                        ['Choose your file', 'Upload a supported PDF, Word, PowerPoint or image file up to 10 MB.'],
+                        ['Generate questions', 'The system creates MCQs from the content of the uploaded file.'],
+                        ['Review every question', 'Check wording, answer choices and the marked answer before adding them to the room.'],
+                        ['Continue setup', 'Add the generated questions to your quiz, set timing and review the final preview.']
+                    ],
+                    tip: 'Tip: use clear, readable source material and always verify generated questions before students join.'
+                },
+                custom: {
+                    eyebrow: 'Question source',
+                    title: 'Add custom questions',
+                    steps: [
+                        ['Turn on custom questions', 'Open this section to reveal the custom question builder.'],
+                        ['Write the MCQ', 'Add the question, four answer choices and select the one correct option.'],
+                        ['Reuse saved questions', 'Select previously saved questions when you want to build a room faster.'],
+                        ['Review and create', 'Your custom questions are saved to your profile and included when you create the room.']
+                    ],
+                    tip: 'Tip: keep each question clear and make sure only one option is correct.'
+                }
+            };
+
+            function renderGuide(guideKey) {
+                const guide = guides[guideKey] || guides.default;
+                guideEyebrow.textContent = guide.eyebrow;
+                guideTitle.textContent = guide.title;
+                guideSteps.innerHTML = guide.steps.map(([title, text]) => `<li><div class="host-guide-modal__step-copy"><strong>${title}</strong><span>${text}</span></div></li>`).join('');
+                guideTip.textContent = guide.tip;
+            }
+
+            function openGuide(guideKey = 'default') {
+                lastFocusedElement = document.activeElement;
+                renderGuide(guideKey);
+                modal.hidden = false;
+                trigger.setAttribute('aria-expanded', 'true');
+                document.body.classList.add('host-guide-open');
+                closeButton.focus();
+            }
+
+            function closeGuide() {
+                modal.hidden = true;
+                trigger.setAttribute('aria-expanded', 'false');
+                document.body.classList.remove('host-guide-open');
+                if (lastFocusedElement) lastFocusedElement.focus();
+            }
+
+            trigger.addEventListener('click', openGuide);
+            document.querySelectorAll('.host-guide-inline-trigger').forEach((guideButton) => {
+                guideButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    lastFocusedElement = guideButton;
+                    openGuide(guideButton.dataset.guide);
+                });
+            });
+            closeButton.addEventListener('click', closeGuide);
+            modal.querySelector('[data-close-host-guide]')?.addEventListener('click', closeGuide);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && !modal.hidden) closeGuide();
+            });
+        })();
     </script>
 </body>
 </html>

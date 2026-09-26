@@ -2,6 +2,7 @@
 session_start();
 // quiz_setup_inter.php - Public quiz setup page for Class 11 & 12
 include '../db_connect.php';
+require_once dirname(__DIR__) . '/includes/seo.php';
 
 // Function to create a slug from a string
 function createSlug($string) {
@@ -16,17 +17,28 @@ function createSlug($string) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <!-- Google tag (gtag.js) -->
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online MCQs Test For 11th and 12th (FSc, ICS) Board Exams - Ahmad Learning Hub</title>
+    <?php alh_render_seo_head([
+        'title' => 'Class 11 & 12 Online MCQs Test | FSc, ICS Board Preparation',
+        'description' => 'Practise chapter-wise Class 11 and 12 MCQs for FSc and ICS in Pakistan. Revise Physics, Chemistry, Biology and Mathematics for board and entry-test preparation.',
+        'canonical' => alh_seo_absolute_url('/class-11-and-12-online-mcqs-prepation-test'),
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
+    <title>Class 11 &amp; 12 Online MCQs Test | FSc, ICS Board Preparation</title>
     
     <!-- Enhanced SEO Meta Tags -->
-    <meta name="description" content="Chapter Wise MCQs for HSSC Part 1 & 2. Online MCQs test for Class 11 and 12 Board Exams (Physics, Chemistry, Biology, Math). Prep for MDCAT & ECAT - Ahmad Learning Hub">
+    <meta name="description" content="Practise chapter-wise Class 11 and 12 MCQs for FSc and ICS in Pakistan. Revise Physics, Chemistry, Biology and Mathematics for board and entry-test preparation.">
     <meta name="keywords" content="FSc MCQs, 11th class MCQs, 12th class MCQs, MDCAT preparation, ECAT preparation, online MCQs practice, HSSC MCQs, Physics FSc MCQs, Biology MDCAT MCQs, Chemistry ECAT MCQs, All board MCQs, Ahmad Learning Hub, automatic test generator">
     <meta name="author" content="Ahmad Learning Hub">
     <meta name="robots" content="index, follow">

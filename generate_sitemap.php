@@ -3,7 +3,10 @@ require_once 'db_connect.php';
 require_once __DIR__ . '/config/env.php';
 
 header('Content-Type: application/xml; charset=UTF-8');
-$baseUrl = rtrim(EnvLoader::get('APP_URL', EnvLoader::get('SITE_URL', 'https://ahmadlearninghub.com.pk')), '/');
+$baseUrl = rtrim(EnvLoader::get('PUBLIC_SITE_URL', EnvLoader::get('BASE_URL', 'https://ahmadlearninghub.com.pk')), '/');
+if ($baseUrl === '' || preg_match('/localhost|127\.0\.0\.1|\.local(?:$|\/)/i', $baseUrl)) {
+    $baseUrl = 'https://ahmadlearninghub.com.pk';
+}
 $today = date('Y-m-d');
 $urls = [];
 
@@ -92,7 +95,10 @@ addUrl($urls, $baseUrl, '/class-11-and-12-online-question-paper-generator', 'wee
 addUrl($urls, $baseUrl, '/online-question-paper-generator', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/online-mcqs-test-for-9th-and-10th-board-exams', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/study-material-for-board-exam-preparations', 'weekly', '0.9', $today);
+addUrl($urls, $baseUrl, '/class-notes', 'weekly', '0.9', $today);
+addUrl($urls, $baseUrl, '/textbooks', 'monthly', '0.7', $today);
 addUrl($urls, $baseUrl, '/topic-wise-mcqs-test', 'weekly', '0.8', $today);
+addUrl($urls, $baseUrl, '/online-quiz-hosting', 'monthly', '0.8', $today);
 addUrl($urls, $baseUrl, '/class-9-10-11-12-mcqs-for-board-exams', 'weekly', '0.9', $today);
 // Exam Preparation Entry Points
 addUrl($urls, $baseUrl, '/class-9-10-pastpaper-and-test-papers', 'weekly', '0.9', $today);
@@ -212,8 +218,6 @@ foreach ($urls as $url) {
     echo "  <url>\n";
     echo '    <loc>' . xmlEscape($url['loc']) . "</loc>\n";
     echo '    <lastmod>' . xmlEscape($url['lastmod']) . "</lastmod>\n";
-    echo '    <changefreq>' . $url['changefreq'] . "</changefreq>\n";
-    echo '    <priority>' . $url['priority'] . "</priority>\n";
     echo "  </url>\n";
 }
 echo "</urlset>\n";

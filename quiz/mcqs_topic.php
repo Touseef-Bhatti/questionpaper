@@ -3,6 +3,7 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 include_once '../db_connect.php';
+require_once '../includes/seo.php';
 require_once 'mcq_generator.php';
 require_once '../includes/ai_mcq_recommendations.php';
 // require_once 'MongoSearchLogger.php';
@@ -473,6 +474,17 @@ if (isset($_POST['start_quiz'])) {
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php alh_render_seo_head([
+        'title' => 'Topic-Wise MCQs Test Online | Ahmad Learning Hub',
+        'description' => 'Choose a topic and practise online MCQs with instant feedback for school, college and board exam preparation in Pakistan.',
+        'canonical' => alh_seo_absolute_url('/topic-wise-mcqs-test'),
+        'page_type' => 'CollectionPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
     <title>Free Online MCQs Test Preparation for All Competitive Exams | Ahmad Learning Hub</title>
     <!-- SEO & AI Optimization Meta Tags -->
     <meta name="description" content="Ahmad Learning Hub is a free online test preparation website. It offers practice tests, MCQs, and resources for competitive exams, job tests, and interviews.">

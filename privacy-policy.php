@@ -1,8 +1,9 @@
 <?php
 // privacy-policy.php - Privacy Policy for Ahmad Learning Hub
+require_once __DIR__ . '/includes/seo.php';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PK">
 <head>
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
     <?php // AdSense review: third-party ads disabled. include_once __DIR__ . '/includes/monetag_ads.php'; ?>
@@ -10,8 +11,18 @@
     <?php include_once __DIR__ . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php alh_render_seo_head([
+        'title' => 'Privacy Policy | Ahmad Learning Hub',
+        'description' => 'Read the Ahmad Learning Hub privacy policy covering accounts, cookies, analytics, educational tools, uploads, quizzes and privacy choices.',
+        'canonical' => alh_seo_absolute_url('/privacy-policy'),
+        'page_type' => 'WebPage',
+        'include_title' => false,
+        'include_description' => false,
+        'include_keywords' => false,
+        'include_robots' => false,
+        'include_author' => false,
+    ]); ?>
     <meta name="description" content="Privacy Policy for Ahmad Learning Hub, including account information, cookies, optional analytics, educational tools, and user privacy choices.">
-    <link rel="canonical" href="https://ahmadlearninghub.com.pk/privacy-policy">
     <title>Privacy Policy | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/legal.css">
