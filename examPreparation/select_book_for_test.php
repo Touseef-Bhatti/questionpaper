@@ -42,21 +42,14 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-$assetBase = '../';
-include '../header.php';
 $displayClassName = $className;
 $pageTitle = $displayClassName . " Board Exam Preparation 2026 - Online Test Papers & Past Papers";
+$metaDescription = "Prepare for " . $displayClassName . " board exams with our comprehensive collection of past papers and test papers for all subjects.";
+$metaKeywords = $displayClassName . ' board exam preparation, online test papers, past papers, Pakistan board exams';
+$assetBase = '../';
+$extraHead = '<link rel="stylesheet" href="' . $assetBase . 'css/exam_prep.css">';
+include '../header.php';
 ?>
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($pageTitle) ?> - Ahmad Learning Hub</title>
-    <?php $metaDesc = "Prepare for " . $displayClassName . " board exams with our comprehensive collection of past papers and test papers for all subjects."; ?>
-    <meta name="description" content="<?= htmlspecialchars($metaDesc) ?>">
-    <link rel="stylesheet" href="../css/exam_prep.css?v=<?= time() ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-</head>
-<body>
 
 <div class="main-content container">
     <div class="prep-hero shadow-lg">

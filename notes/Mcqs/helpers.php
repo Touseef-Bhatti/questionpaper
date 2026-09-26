@@ -9,10 +9,21 @@ function alh_mcqs_slug(string $value): string
 
 function alh_mcqs_abs_url(string $path): string
 {
-    $https = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
-    $protocol = $https ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'ahmadlearninghub.com.pk';
-    return $protocol . '://' . $host . '/' . ltrim($path, '/');
+    // MCQ canonical URLs must never inherit a crawler's www/http host.
+    // Otherwise the canonical can point at a redirecting URL and create a
+    // duplicate/redirect chain in Search Console.
+    $siteUrl = 'https://ahmadlearninghub.com.pk';
+    if (class_exists('EnvLoader')) {
+        $configured = trim((string) EnvLoader::get('PUBLIC_SITE_URL', ''));
+        if ($configured === '') {
+            $configured = trim((string) EnvLoader::get('BASE_URL', ''));
+        }
+        if ($configured !== '' && !preg_match('/localhost|127\.0\.0\.1|\.local(?:$|\/)/i', $configured)) {
+            $siteUrl = rtrim($configured, '/');
+        }
+    }
+
+    return $siteUrl . '/' . ltrim($path, '/');
 }
 
 function alh_mcqs_class_url(int $classId): string

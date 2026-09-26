@@ -777,9 +777,14 @@ if (count($questions) < $mcq_count && !empty($_SESSION['quiz_prefetch_mcqs']) &&
     }
 }
 
-// If still empty after generation attempt, show error
+// An unavailable class/book quiz must not look like a valid page to crawlers.
+// Return a real 404 instead of a 200 error document, which Google classifies
+// as a soft 404.
 if (empty($questions)) {
-    die('<h2 style="color:red;">Unable to generate quiz. Please try again or contact support.</h2>');
+    http_response_code(404);
+    header('X-Robots-Tag: noindex, follow');
+    $safeSetupUrl = htmlspecialchars($setup_url, ENT_QUOTES, 'UTF-8');
+    die('<!doctype html><html lang="en"><head><meta charset="UTF-8"><title>Quiz not available</title></head><body><h1>Quiz not available</h1><p>No questions are currently available for this class and subject.</p><p><a href="' . $safeSetupUrl . '">Choose another online MCQs test</a></p></body></html>');
 }
 
 // Limit to requested count and shuffle

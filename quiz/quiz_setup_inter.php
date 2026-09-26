@@ -4,6 +4,12 @@ session_start();
 include '../db_connect.php';
 require_once dirname(__DIR__) . '/includes/seo.php';
 
+// Query parameters only preselect the class/book in the interactive form;
+// they do not create a separate search page. Keep the clean route canonical.
+if (isset($_GET['class_id']) || isset($_GET['book_id'])) {
+    header('X-Robots-Tag: noindex, follow');
+}
+
 // Function to create a slug from a string
 function createSlug($string) {
     // Convert to lowercase

@@ -48,17 +48,11 @@ if (isset($_SESSION['user_id'])) {
 }
 
 $assetBase = '../';
+$metaDescription = $metaDesc;
+$metaKeywords = 'board exam preparation, online test papers, Class 9, Class 10, Class 11, Class 12, Pakistan board exams';
+$extraHead = '<link rel="stylesheet" href="' . $assetBase . 'css/exam_prep.css">';
 include '../header.php';
 ?>
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $pageTitle ?> - Ahmad Learning Hub</title>
-    <meta name="description" content="<?= $metaDesc ?>">
-    <link rel="stylesheet" href="../css/exam_prep.css?v=<?= time() ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-</head>
-<body>
 
 <div class="main-content container">
     <div class="prep-hero shadow-lg">

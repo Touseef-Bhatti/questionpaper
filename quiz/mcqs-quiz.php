@@ -99,9 +99,9 @@ $book_name = $bookData['book_name'];
 
 // Create SEO slug
 $book_slug = createSlug($book_name);
-// Add 2026 suffix to SEO URL (main ranking page)
-$seoUrl = "class-{$class_id}-{$book_slug}-mcqs-2026";
-$canonicalUrl = "https://{$_SERVER['HTTP_HOST']}/{$seoUrl}";
+// Use the current public quiz route; the former -mcqs-2026 URL returned 404.
+$seoUrl = "class-{$class_id}-{$book_slug}-mcqs-test-2026";
+$canonicalUrl = "https://ahmadlearninghub.com.pk/{$seoUrl}";
 
 // SEO setup - include high-value search patterns for Pakistan & India boards
 $pageTitle = "{$class_name} {$book_name} MCQs 2026 — Chapter Wise Online Test with Answers | Ahmad Learning Hub";

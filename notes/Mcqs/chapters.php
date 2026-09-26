@@ -43,7 +43,7 @@ $selectedChapter = $chapterSlug !== '' ? alh_mcqs_find_chapter($conn, $classId, 
 $chapters = [];
 $stmt = $conn->prepare("SELECT ch.chapter_id, ch.chapter_no, ch.chapter_name, COUNT(m.mcq_id) AS mcq_count
     FROM chapter ch
-    LEFT JOIN mcqs m ON m.chapter_id = ch.chapter_id
+    JOIN mcqs m ON m.chapter_id = ch.chapter_id AND m.class_id = ch.class_id AND m.book_id = ch.book_id
     WHERE ch.class_id = ? AND ch.book_id = ?
     GROUP BY ch.chapter_id, ch.chapter_no, ch.chapter_name
     ORDER BY ch.chapter_no ASC, ch.chapter_id ASC");
@@ -79,6 +79,10 @@ if ($selectedChapter) {
     $stmt->close();
 }
 
+if ($selectedChapter && count($mcqs) === 0) {
+    header('X-Robots-Tag: noindex, follow');
+}
+
 $chapterTitle = $selectedChapter ? ' ' . $selectedChapter['chapter_name'] : '';
 $pageTitle = $selectedChapter
     ? "{$className} {$bookName} {$selectedChapter['chapter_name']} MCQs With Explanations"
@@ -90,6 +94,12 @@ $canonicalPath = $selectedChapter
     ? alh_mcqs_chapter_url($classId, $bookName, $selectedChapter)
     : alh_mcqs_book_url($classId, $bookName);
 $canonicalUrl = alh_mcqs_abs_url(ltrim($canonicalPath, '/'));
+$requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+$requestQuery = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY);
+if ($requestPath !== '' && (rtrim('/' . ltrim($requestPath, '/'), '/') !== rtrim($canonicalPath, '/') || $requestQuery !== '')) {
+    header('Location: ' . $canonicalUrl, true, 301);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -143,11 +153,11 @@ $canonicalUrl = alh_mcqs_abs_url(ltrim($canonicalPath, '/'));
     <?php if (!$selectedChapter): ?>
         <section class="alh-mcq-grid" aria-label="Select chapter">
             <?php foreach ($chapters as $chapter): ?>
-                <div class="alh-mcq-card" onclick="selectChapter('<?= htmlspecialchars(alh_mcqs_chapter_url($classId, $bookName, $chapter)) ?>')" style="cursor: pointer;">
+                <a class="alh-mcq-card" href="<?= htmlspecialchars(alh_mcqs_chapter_url($classId, $bookName, $chapter)) ?>">
                     <span class="alh-mcq-badge"><?= (int) $chapter['mcq_count'] ?> MCQs</span>
                     <h2><?= (int) $chapter['chapter_no'] > 0 ? 'Chapter ' . (int) $chapter['chapter_no'] . ': ' : '' ?><?= htmlspecialchars($chapter['chapter_name']) ?></h2>
                     <p>Open MCQs with explanations for this chapter.</p>
-                </div>
+                </a>
             <?php endforeach; ?>
         </section>
     <?php else: ?>

@@ -34,6 +34,12 @@ $stmt->close();
 $pageTitle = "{$className} All Subjects MCQs With Explanations";
 $pageDesc = "Practice {$className} all subjects MCQs with explanations for Pakistani board exams. Select Physics, Chemistry, Biology, Mathematics, Computer Science, English or your board subject for chapter-wise preparation.";
 $canonicalUrl = alh_mcqs_abs_url(ltrim(alh_mcqs_class_url($classId), '/'));
+$requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+$canonicalPath = alh_mcqs_class_url($classId);
+if ($requestPath !== '' && rtrim('/' . ltrim($requestPath, '/'), '/') !== rtrim($canonicalPath, '/')) {
+    header('Location: ' . $canonicalUrl, true, 301);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

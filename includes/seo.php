@@ -11,6 +11,15 @@
 if (!function_exists('alh_seo_site_url')) {
     function alh_seo_site_url(): string
     {
+        // Keep local canonical/OG URLs local during development. The request
+        // host is used so ports such as localhost:8001 are preserved, while
+        // production continues to use the configured public domain below.
+        $requestHost = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+        if ($requestHost !== '' && preg_match('/^(?:localhost|127\.0\.0\.1|::1)(?::\d+)?$/i', $requestHost)) {
+            $isHttps = !empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off';
+            return ($isHttps ? 'https://' : 'http://') . $requestHost;
+        }
+
         $configured = '';
         if (class_exists('EnvLoader')) {
             $configured = trim((string) EnvLoader::get('PUBLIC_SITE_URL', ''));
@@ -51,6 +60,11 @@ if (!function_exists('alh_seo_current_path')) {
 
         $legacyRoutes = [
             '/index.php' => '/',
+            '/index' => '/',
+            '/home' => '/online-question-paper-generator',
+            '/home.php' => '/online-question-paper-generator',
+            '/reviews.php' => '/reviews',
+            '/select_class' => '/class-9th-and-10th-online-question-paper-generator',
             '/select_class.php' => '/class-9th-and-10th-online-question-paper-generator',
             '/select_class_11-12.php' => '/class-11-and-12-online-question-paper-generator',
             '/quiz/quiz_setup.php' => '/class-9-and-10-online-mcqs-prepation-test',
@@ -58,6 +72,8 @@ if (!function_exists('alh_seo_current_path')) {
             '/quiz/quiz-host-index.php' => '/online-quiz-hosting',
             '/quiz/mcqs_topic.php' => '/topic-wise-mcqs-test',
             '/notes/note.php' => '/study-material-for-board-exam-preparations',
+            '/mcqs.php' => '/class-9-10-11-12-mcqs-for-board-exams',
+            '/notes/mcqs.php' => '/class-9-10-11-12-mcqs-for-board-exams',
             '/examPreparation/select_class_for_test.php' => '/class-9-10-11-12-test-series-for-board-exams',
         ];
 

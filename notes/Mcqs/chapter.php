@@ -42,7 +42,7 @@ $bookName = (string) $book['book_name'];
 $selectedChapter = alh_mcqs_find_chapter($conn, $classId, $bookId, $chapterSlug);
 
 if (!$selectedChapter) {
-    header('Location: ' . alh_mcqs_book_url($classId, $bookName), true, 302);
+    header('Location: ' . alh_mcqs_book_url($classId, $bookName), true, 301);
     exit;
 }
 
@@ -71,6 +71,12 @@ while ($row = $result->fetch_assoc()) {
     $mcqs[] = $row;
 }
 $stmt->close();
+
+// Do not offer an empty chapter page as an indexable search result. Keep it
+// crawlable so Google can discover the book and other populated chapters.
+if (count($mcqs) === 0) {
+    header('X-Robots-Tag: noindex, follow');
+}
 
 $explanationCount = 0;
 $topics = [];
@@ -113,6 +119,12 @@ $pageTitle = "{$className} {$bookName} {$chapterLabel} MCQs With Explanations";
 $pageDesc = "Practice {$className} {$bookName} {$chapterLabel} MCQs with explanations for Pakistani board exams. Includes solved objective questions, answer checking, chapter revision guidance and next chapter suggestions.";
 $canonicalPath = alh_mcqs_chapter_url($classId, $bookName, $selectedChapter);
 $canonicalUrl = alh_mcqs_abs_url(ltrim($canonicalPath, '/'));
+$requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+$requestQuery = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY);
+if ($requestPath !== '' && (rtrim('/' . ltrim($requestPath, '/'), '/') !== rtrim($canonicalPath, '/') || $requestQuery !== '')) {
+    header('Location: ' . $canonicalUrl, true, 301);
+    exit;
+}
 $bookUrl = alh_mcqs_book_url($classId, $bookName);
 $classUrl = alh_mcqs_class_url($classId);
 

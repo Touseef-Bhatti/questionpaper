@@ -90,7 +90,9 @@ if ($classId > 0) {
     $stmt->close();
 }
 
-if (empty($book_name)) {
+if ($classId <= 0 || empty($book_name)) {
+    http_response_code(404);
+    header('X-Robots-Tag: noindex, follow');
     echo("<h2 style='color:red;'>Invalid book name. Please go back and try again.</h2>");
     exit;
 }
@@ -108,6 +110,8 @@ if (!is_array($selectedChapters)) {
     }
 }
 if (empty($selectedChapters)) {
+    http_response_code(404);
+    header('X-Robots-Tag: noindex, follow');
     echo("<h2 style='color:red;'>No chapters selected. Please go back and select chapters.</h2>");
     exit;
 }
@@ -200,7 +204,7 @@ if (count($selectedChapters) >= $totalChaptersCount && $totalChaptersCount > 0) 
     $seoBackUrl = "{$classOrdinal}-class-{$bookSlug}-chapter-{$chapterSlugPart}-question-paper-generator";
 }
 
-$siteBaseUrl = 'https://ahmadlearninghub.com';
+$siteBaseUrl = 'https://ahmadlearninghub.com.pk';
 $canonicalUrl = $siteBaseUrl . '/' . ltrim($seoBackUrl, '/');
 $pageTitle = "{$className} {$book_name} {$chapter_info} Question Paper Review";
 $pageDescription = "Review {$totalSelectedMcqs} MCQs, {$totalSelectedShorts} short questions and {$totalSelectedLongs} long questions for {$className} {$book_name} {$chapter_info}, then generate a printable paper.";

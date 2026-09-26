@@ -115,7 +115,14 @@ if ($classQuery) {
 }
 
 $bookRows = [];
-$bookQuery = $conn->query('SELECT class_id, book_name FROM book ORDER BY class_id ASC, book_name ASC');
+$bookQuery = $conn->query('SELECT b.class_id, b.book_id, b.book_name,
+    EXISTS (
+        SELECT 1 FROM mcqs m
+        WHERE m.class_id = b.class_id AND m.book_id = b.book_id
+          AND m.correct_option IS NOT NULL AND m.correct_option <> ""
+    ) AS has_quiz_questions
+    FROM book b
+    ORDER BY b.class_id ASC, b.book_name ASC');
 if ($bookQuery) {
     while ($bookRow = $bookQuery->fetch_assoc()) {
         $bookRows[] = $bookRow;
@@ -140,6 +147,7 @@ foreach ($classRows as $classRow) {
 foreach ($bookRows as $bookRow) {
     $classId = (int) ($bookRow['class_id'] ?? 0);
     $bookName = trim((string) ($bookRow['book_name'] ?? ''));
+    $hasQuizQuestions = (int) ($bookRow['has_quiz_questions'] ?? 0) === 1;
     if ($classId <= 0 || $bookName === '') {
         continue;
     }
@@ -153,12 +161,21 @@ foreach ($bookRows as $bookRow) {
     addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-chapterwise-test-series-with-solutions', 'weekly', '0.8', $today);
     if (in_array($classId, [9, 10, 11, 12], true)) {
         addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-chapter-wise-mcqs-with-explanations', 'weekly', '0.8', $today);
-        addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-mcqs-test-2026', 'weekly', '0.8', $today);
+        if ($hasQuizQuestions) {
+            addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-mcqs-test-2026', 'weekly', '0.8', $today);
+        }
     }
 }
 
 $chapterRows = [];
-$chapterQuery = $conn->query('SELECT ch.class_id, ch.chapter_no, ch.chapter_name, b.book_name FROM chapter ch JOIN book b ON b.book_id = ch.book_id ORDER BY ch.class_id ASC, b.book_id ASC, ch.chapter_no ASC');
+$chapterQuery = $conn->query('SELECT ch.class_id, ch.chapter_no, ch.chapter_name, b.book_name
+    FROM chapter ch
+    JOIN book b ON b.book_id = ch.book_id
+    WHERE EXISTS (
+        SELECT 1 FROM mcqs m
+        WHERE m.chapter_id = ch.chapter_id AND m.class_id = ch.class_id AND m.book_id = ch.book_id
+    )
+    ORDER BY ch.class_id ASC, b.book_id ASC, ch.chapter_no ASC');
 if ($chapterQuery) {
     while ($chapterRow = $chapterQuery->fetch_assoc()) {
         $classId = (int) ($chapterRow['class_id'] ?? 0);
@@ -175,38 +192,6 @@ if ($chapterQuery) {
         $cleanedChapterName = trim($cleanedChapterName, ' -');
         $chapterPart = $chapterNo > 0 ? 'chapter-' . $chapterNo . '-' . $cleanedChapterName : $cleanedChapterName;
         addUrl($urls, $baseUrl, '/class-' . $classId . '-' . toSlug($bookName) . '-' . toSlug($chapterPart) . '-mcqs-with-explanations', 'weekly', '0.7', $today);
-    }
-}
-
-$examQuery = $conn->query('SELECT e.id, e.class_id, e.title, b.book_name FROM exam_preparations e JOIN book b ON e.book_id = b.book_id ORDER BY e.id ASC');
-if ($examQuery) {
-    while ($examRow = $examQuery->fetch_assoc()) {
-        $classId = (int) ($examRow['class_id'] ?? 0);
-        $bookName = trim((string) ($examRow['book_name'] ?? ''));
-        $examTitle = trim((string) ($examRow['title'] ?? ''));
-        $examId = (int) ($examRow['id'] ?? 0);
-        
-        if ($classId <= 0 || $bookName === '' || $examTitle === '' || $examId <= 0) {
-            continue;
-        }
-
-        $bookSlug = toSlug($bookName);
-        if ($bookSlug === '') {
-            continue;
-        }
-
-        // Remove redundant class and book name from examTitle before slugifying
-        $cleanedExamTitle = $examTitle;
-        // Remove "Class X"
-        $cleanedExamTitle = preg_replace('/(?:Class\s*)?' . preg_quote((string)$classId, '/') . '\s*/i', '', $cleanedExamTitle, 1);
-        // Remove "Book Name"
-        $cleanedExamTitle = preg_replace('/' . preg_quote($bookName, '/') . '\s*/i', '', $cleanedExamTitle, 1);
-        $cleanedExamTitle = trim($cleanedExamTitle, ' -');
-        
-        $examTitleSlug = toSlug($cleanedExamTitle);
-        if ($examTitleSlug !== '') {
-            addUrl($urls, $baseUrl, '/class-' . $classId . '-' . $bookSlug . '-' . $examTitleSlug . '-with-solutions', 'weekly', '0.7', $today);
-        }
     }
 }
 

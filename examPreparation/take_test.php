@@ -3,6 +3,11 @@ session_start();
 include '../db_connect.php';
 require_once '../services/QuestionService.php';
 
+// These pages represent generated/session-based assessments, not stable
+// reference content. Keep every clean test URL and query variant out of the
+// index while preserving access for students.
+header('X-Robots-Tag: noindex, nofollow, noarchive');
+
 // --- POST Action Handlers ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawInput = file_get_contents('php://input');

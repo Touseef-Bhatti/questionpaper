@@ -154,6 +154,14 @@ function alh_mcqs_chapter_profile(string $chapterName, array $subject): array
 
     $key = alh_mcqs_normalize_key($chapterName);
     $rules = [
+        '/biomolecule|biomolecular|macromolecule|carbohydrate|protein|lipid|nucleic/' => [
+            'focus' => 'the elements, bonds, properties and biological roles of carbohydrates, lipids, proteins, nucleic acids, water and other important biomolecules',
+            'activity' => 'Make a comparison table for each biomolecule, including its building units, bond type, examples, functions and common food or laboratory tests before attempting the next question set.',
+        ],
+        '/differentiat|derivative|integrat|limit|continuity/' => [
+            'focus' => 'notation, rules, derivatives, rates of change, limits, continuity, graphs and the conditions needed for a correct mathematical result',
+            'activity' => 'Write the relevant rule first, show each algebraic step and check the domain or graph so that a familiar-looking option is not selected without verifying the calculation.',
+        ],
         '/motion|force|dynamics|kinematics|work|energy|power/' => [
             'focus' => 'relationships between physical quantities, direction, units, laws, graphs and the conditions under which an equation applies',
             'activity' => 'Sketch a simple situation or graph for difficult questions and check whether the selected option agrees with both the formula and the physical meaning.',

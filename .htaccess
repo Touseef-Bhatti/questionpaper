@@ -46,6 +46,76 @@ Options -Indexes
     RewriteBase /
     Options -MultiViews
 
+    # Directory URLs are not public pages. Redirect legacy folder requests
+    # directly to the HTTPS, non-www landing pages in one hop.
+    RewriteRule ^questionPaperFromTopic/?$ https://ahmadlearninghub.com.pk/online-question-paper-generator [R=301,L,NE,QSD,NC]
+    RewriteRule ^notes/?$ https://ahmadlearninghub.com.pk/study-material-for-board-exam-preparations [R=301,L,NE,QSD,NC]
+
+    # Retire legacy MCQ URLs and malformed crawl candidates.
+    RewriteRule ^class-([0-9]+)-([a-zA-Z0-9-]+)-mcqs-2026/?$ https://ahmadlearninghub.com.pk/class-$1-$2-mcqs-test-2026 [R=301,L,NE,QSD,NC]
+    RewriteRule ^mcqs/online-mcqs-test-for-9th-and-10th-board-exams/?$ https://ahmadlearninghub.com.pk/online-mcqs-test-for-9th-and-10th-board-exams [R=301,L,NE,QSD,NC]
+    RewriteRule ^notes/notes\.php/?$ https://ahmadlearninghub.com.pk/study-material-for-board-exam-preparations [R=301,L,NE,QSD,NC]
+    RewriteRule ^topic-wise-mcqs-test-2026/?$ https://ahmadlearninghub.com.pk/topic-wise-mcqs-test [R=301,L,NE,QSD,NC]
+    RewriteRule ^class-[0-9]+-$ - [G,L,NC]
+    RewriteRule ^class-$ - [G,L,NC]
+    RewriteRule ^reset_and_go\.php$ - [G,L,NC]
+
+    # Retire both bare legacy MCQ listing entrypoints. Parameterized legacy
+    # requests are still handled by notes/mcqs.php and redirected by its
+    # class/book/chapter resolver.
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{QUERY_STRING} ^$
+    RewriteCond %{THE_REQUEST} \s/+mcqs\.php(?:[\s?]) [NC]
+    RewriteRule ^mcqs\.php$ https://ahmadlearninghub.com.pk/class-9-10-11-12-mcqs-for-board-exams [R=301,L,NE,QSD,NC]
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{QUERY_STRING} ^$
+    RewriteCond %{THE_REQUEST} \s/+notes/mcqs\.php(?:[\s?]) [NC]
+    RewriteRule ^notes/mcqs\.php$ https://ahmadlearninghub.com.pk/class-9-10-11-12-mcqs-for-board-exams [R=301,L,NE,QSD,NC]
+
+    # A bare question-review endpoint has no selection to review. Send only
+    # that direct GET to the public generator; valid parameterized workflows
+    # and POST submissions continue to use select_question.php.
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{QUERY_STRING} ^$
+    RewriteCond %{THE_REQUEST} \s/+select_question\.php(?:[\s?]) [NC]
+    RewriteRule ^select_question\.php$ https://ahmadlearninghub.com.pk/class-9th-and-10th-online-question-paper-generator [R=301,L,NE,QSD,NC]
+
+    # The upload endpoint is a POST-only JSON action. Redirect crawler GETs
+    # from both its legacy paths without affecting real upload submissions.
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteRule ^(?:questionPaperFromTopic/)?generate_from_upload\.php$ https://ahmadlearninghub.com.pk/online-question-paper-generator [R=301,L,NE,QSD,NC]
+
+    # Newsletter signup is a POST-only API endpoint. Redirect direct crawler
+    # GETs to the public site while preserving real subscription submissions.
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteRule ^newsletter-signup(?:\.php)?$ https://ahmadlearninghub.com.pk/ [R=301,L,NE,QSD,NC]
+
+    # Use one production origin for production-host requests only. Local
+    # development hosts such as localhost:8001 must remain local.
+    RewriteCond %{HTTP_HOST} ^(?:www\.)?ahmadlearninghub\.com\.pk$ [NC]
+    RewriteCond %{HTTPS} !=on [OR]
+    RewriteCond %{HTTP_HOST} ^www\.ahmadlearninghub\.com\.pk$ [NC]
+    RewriteRule ^ https://ahmadlearninghub.com.pk%{REQUEST_URI} [R=301,L,NE]
+
+    # Collapse legacy root-file and extensionless URLs onto their public
+    # landing pages. These endpoints otherwise create duplicate candidates
+    # even when the page contains a canonical tag.
+    RewriteCond %{THE_REQUEST} \s/+index\.php(?:[?\s]) [NC]
+    RewriteRule ^index\.php$ / [R=301,L,NE,QSD]
+    RewriteCond %{THE_REQUEST} \s/+index(?:[?\s]) [NC]
+    RewriteRule ^index/?$ / [R=301,L,NE,QSD]
+    RewriteCond %{THE_REQUEST} \s/+home(?:[?\s]) [NC]
+    RewriteRule ^home/?$ /online-question-paper-generator [R=301,L,NE,QSD]
+    RewriteCond %{THE_REQUEST} \s/+reviews\.php(?:[?\s]) [NC]
+    RewriteRule ^reviews\.php$ /reviews [R=301,L,NE,QSD]
+    RewriteCond %{THE_REQUEST} \s/+select_class(?:\.php)?(?:[?\s]) [NC]
+    RewriteRule ^select_class(?:\.php)?$ /class-9th-and-10th-online-question-paper-generator [R=301,L,NE,QSD]
+    RewriteCond %{THE_REQUEST} \s/+select_book(?:\.php)?(?:[?\s]) [NC]
+    RewriteCond %{QUERY_STRING} (^|&)class_id=([0-9]+)(&|$) [NC]
+    RewriteRule ^select_book(?:\.php)?$ /class-%2-online-question-paper-generator [R=301,L,NE,QSD]
+    RewriteCond %{THE_REQUEST} \s/+select_book(?:\.php)?(?:[?\s]) [NC]
+    RewriteRule ^select_book(?:\.php)?$ /class-9th-and-10th-online-question-paper-generator [R=301,L,NE,QSD]
+
     # Keep specific generator endpoints addressable by their exact PHP paths.
     RewriteRule ^admin/manageBookQuestions/(?:generate_from_book|api)\.php$ - [L,NC]
     RewriteRule ^admin/manageAIcontent/test_mcq_generation\.php$ - [L,NC]
@@ -162,6 +232,12 @@ Options -Indexes
     # Matches patterns like: 10th-class-physics-question-paper-generator
     RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-question-paper-generator/?$ select_chapters.php?class_id=$1&book_name=$2 [QSA,NC,L]
 
+    # The chapter selector requires class_id and book_name. A bare legacy
+    # request is not a usable page, so send it directly to the public entry
+    # page instead of allowing a redirect chain through select_class.php.
+    RewriteCond %{THE_REQUEST} \s/+select_chapters\.php(?:\s|$) [NC]
+    RewriteRule ^select_chapters\.php$ /class-9th-and-10th-online-question-paper-generator [R=301,L]
+
     # Matches patterns like: 10th-class-physics-chapter-1-2-question-paper-generator or 10th-class-physics-all-chapter-question-paper-generator
     # These point to question selection
     RewriteRule ^([0-9]+)(?:st|nd|rd|th)-class-([a-zA-Z0-9-]+)-chapter-([a-zA-Z0-9,%\s\-]+)-question-paper-generator/?$ select_question.php?class_id=$1&book_name=$2&chapters_from_url=$3 [QSA,NC,L]
@@ -201,11 +277,17 @@ Options -Indexes
     RewriteRule ^class-9-10-11-12-mcqs-for-board-exams/?$ notes/Mcqs/index.php [NC,L]
     RewriteRule ^class-?([0-9]+)-all-subjects-mcqs-with-explanations/?$ notes/Mcqs/books.php?class_id=$1 [QSA,NC,L]
     RewriteRule ^class-?([0-9]+)-all-subjects-mcqs-with-answers/?$ /class-$1-all-subjects-mcqs-with-explanations [R=301,L]
+    RewriteCond %{QUERY_STRING} (^|&)page=[^&]+(&|$) [NC]
+    RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapter-wise-mcqs-with-explanations/?$ /class-$1-$2-chapter-wise-mcqs-with-explanations [R=301,L,NE,QSD]
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapter-wise-mcqs-with-explanations/?$ notes/Mcqs/chapters.php?class_id=$1&book_name=$2 [QSA,NC,L]
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-chapter-wise-mcqs-with-answers/?$ /class-$1-$2-chapter-wise-mcqs-with-explanations [R=301,L]
+    # Chapter slugs contain the book slug followed by -chapter-. Pass the
+    # complete tail to the resolver so a greedy regex cannot split the book
+    # and chapter at the wrong hyphen.
+    RewriteRule ^class-?([0-9]+)-(.+)-mcqs-with-explanations/?$ notes/Mcqs/chapter.php?class_id=$1&book_name=$2 [QSA,NC,L]
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-(.+)-mcqs-with-explanations/?$ notes/Mcqs/chapter.php?class_id=$1&book_name=$2&chapter_slug=$3 [QSA,NC,L]
     RewriteRule ^class-?([0-9]+)-([a-zA-Z0-9-]+)-(.+)-mcqs-with-answers/?$ /class-$1-$2-$3-mcqs-with-explanations [R=301,L]
-    RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ /class-$1-$2-chapter-wise-mcqs-with-explanations [R=301,L]
+    RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ /class-$1-$2-chapter-wise-mcqs-with-explanations [R=301,L,QSD]
 
     # Matches patterns like: mcqs/9th-class/physics
     RewriteRule ^mcqs/([0-9]+)(?:st|nd|rd|th)-class/([a-zA-Z0-9-]+)/?$ notes/mcqs.php?class_id=$1&book_name=$2&view=1 [QSA,NC,L]

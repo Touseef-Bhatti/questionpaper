@@ -1,6 +1,7 @@
 <?php
 ob_start();
 include '../db_connect.php';
+require_once __DIR__ . '/Mcqs/helpers.php';
 
 // Get filter parameters
 $classId = isset($_GET['class_id']) ? intval($_GET['class_id']) : 0;
@@ -84,10 +85,9 @@ if ($classId > 0 && $bookId > 0 && (strpos($_SERVER['REQUEST_URI'], 'mcqs.php') 
         
         $queryString = !empty($remainingParams) ? '?' . http_build_query($remainingParams) : '';
         
-        // Build absolute URL to avoid issues with subdirectories if any
-        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'];
-        $fullRedirectUrl = $protocol . "://" . $host . $newPath . $queryString;
+        // Use the single production origin so legacy redirects never point
+        // crawlers back to a www/http duplicate.
+        $fullRedirectUrl = alh_mcqs_abs_url(ltrim($newPath, '/')) . $queryString;
         
         header("HTTP/1.1 301 Moved Permanently");
         header("Location: " . $fullRedirectUrl);
@@ -291,9 +291,9 @@ if ($viewMcqs) {
     }
     
     // Get current URL for canonical and Open Graph
-    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-    $currentUrl = $protocol . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-    $canonicalUrl = $protocol . "://" . $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?');
+    $requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+    $currentUrl = alh_mcqs_abs_url(ltrim($requestPath, '/'));
+    $canonicalUrl = $currentUrl;
     ?>
     
     <!-- Primary Meta Tags -->

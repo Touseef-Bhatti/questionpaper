@@ -34,13 +34,12 @@ Disallow: /storage/
 Disallow: /scratch/
 Disallow: /tests/
 
-# Disallow search results and private pages
+# Private pages send noindex headers; allow Google to see those directives.
 Disallow: /search.php
-Disallow: /profile.php
 Disallow: /logout.php
 
-# Disallow newsletter and API endpoints
-Disallow: /newsletter-signup.php
+# Newsletter and API endpoints are handled by server rules and are not
+# included in the sitemap.
 Disallow: /check_email.php
 Disallow: /resend_verification_ajax.php
 

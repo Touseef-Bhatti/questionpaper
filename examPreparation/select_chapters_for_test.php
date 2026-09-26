@@ -56,20 +56,13 @@ while ($row = $examsResult->fetch_assoc()) {
 }
 $stmt->close();
 
-$assetBase = '../';
-include '../header.php';
 $pageTitle = $className . " " . $bookName . " Online Exam Preparation & Test Papers 2026";
+$metaDescription = "Boost your " . $className . " " . $bookName . " board exam score. Take chapter-wise online tests and access important question papers for Class 9-12.";
+$metaKeywords = $className . ' ' . $bookName . ' chapter-wise tests, online test papers, board exam preparation, Pakistan';
+$assetBase = '../';
+$extraHead = '<link rel="stylesheet" href="' . $assetBase . 'css/exam_prep.css">';
+include '../header.php';
 ?>
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($pageTitle) ?> - Ahmad Learning Hub</title>
-    <?php $metaDesc = "Boost your " . $className . " " . $bookName . " board exam score. Take chapter-wise online tests and access important question papers for Class 9-12."; ?>
-    <meta name="description" content="<?= htmlspecialchars($metaDesc) ?>">
-    <link rel="stylesheet" href="../css/exam_prep.css?v=<?= time() ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-</head>
-<body>
 
 <div class="main-content container">
     <div class="prep-hero shadow-lg">
