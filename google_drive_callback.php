@@ -31,7 +31,7 @@ try {
         }
 
         $tokenData = $drive->exchangeAuthorizationCode((string) $_GET['code']);
-        $message = 'Google Drive OAuth is connected. Class notes uploads will now use this Google account.';
+        $message = 'Google Drive OAuth is connected. Notes and textbook uploads will now use this Google account.';
         $details[] = 'Refresh token saved securely in storage/gdrive_oauth_token.json.';
         $details[] = 'Access token expires in about ' . (int)($tokenData['expires_in'] ?? 3600) . ' seconds and will refresh automatically.';
     }
@@ -89,7 +89,7 @@ $redirectUri = is_array($diagnostics) ? ($diagnostics['oauth_redirect_uri'] ?? '
         <div class="oauth-header">
             <div class="oauth-title">
                 <h1><i class="fab fa-google-drive" style="color:#4285F4"></i> Google Drive OAuth</h1>
-                <p>Connect the Google account that should own class-note uploads.</p>
+                <p>Connect the Google account that should own class-note and textbook uploads.</p>
             </div>
             <div class="actions">
                 <a class="btn secondary" href="admin/uploadingNotesForClasses/index.php"><i class="fas fa-arrow-left"></i> Notes Admin</a>
@@ -133,7 +133,8 @@ $redirectUri = is_array($diagnostics) ? ($diagnostics['oauth_redirect_uri'] ?? '
                 <li>Authorized redirect URI must be <code><?= htmlspecialchars($redirectUri) ?></code></li>
                 <li>Set <code>GOOGLE_DRIVE_AUTH_MODE=oauth</code> in <code>config/.env</code> when you are ready to force OAuth.</li>
                 <li>Set <code>GOOGLE_DRIVE_CLIENT_ID</code> and <code>GOOGLE_DRIVE_CLIENT_SECRET</code> in <code>config/.env</code>.</li>
-                <li>Keep <code>GOOGLE_DRIVE_FOLDER_ID</code> as the Drive folder ID or create a folder named <code>AhmadLearningHub</code>.</li>
+                <li>Keep <code>GOOGLE_DRIVE_FOLDER_ID</code> pointed at the root folder named <code>AhmadLearningHub</code>.</li>
+                <li>Notes are organized under <code>AhmadLearningHub/Notes/ClassX/Book/Chapter/Admin|Users</code>; textbooks under <code>AhmadLearningHub/ClassX/BookName</code>.</li>
             </ul>
         </section>
 

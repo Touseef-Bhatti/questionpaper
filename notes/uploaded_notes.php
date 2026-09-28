@@ -1,6 +1,24 @@
 <?php
 include '../db_connect.php';
 
+// Drive-backed note metadata columns; files are not kept in project storage.
+$driveFileColumnCheck = $conn->query("SHOW COLUMNS FROM uploaded_notes LIKE 'drive_file_id'");
+if (!$driveFileColumnCheck || $driveFileColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE uploaded_notes ADD COLUMN drive_file_id VARCHAR(255) DEFAULT NULL AFTER file_path");
+}
+$driveUrlColumnCheck = $conn->query("SHOW COLUMNS FROM uploaded_notes LIKE 'drive_url'");
+if (!$driveUrlColumnCheck || $driveUrlColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE uploaded_notes ADD COLUMN drive_url VARCHAR(500) DEFAULT NULL AFTER drive_file_id");
+}
+$driveStatusColumnCheck = $conn->query("SHOW COLUMNS FROM uploaded_notes LIKE 'drive_status'");
+if (!$driveStatusColumnCheck || $driveStatusColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE uploaded_notes ADD COLUMN drive_status ENUM('available','missing') NOT NULL DEFAULT 'available' AFTER drive_url");
+}
+$driveDeletedAtColumnCheck = $conn->query("SHOW COLUMNS FROM uploaded_notes LIKE 'drive_deleted_at'");
+if (!$driveDeletedAtColumnCheck || $driveDeletedAtColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE uploaded_notes ADD COLUMN drive_deleted_at DATETIME DEFAULT NULL AFTER drive_status");
+}
+
 // Get filter parameters
 $classId = isset($_GET['class_id']) ? intval($_GET['class_id']) : 0;
 $bookId = isset($_GET['book_id']) ? intval($_GET['book_id']) : 0;
@@ -45,7 +63,7 @@ if ($classId > 0 && $bookId > 0) {
 }
 
 // Build query for notes
-$whereConditions = ['n.is_deleted = 0'];
+$whereConditions = ["n.is_deleted = 0", "n.drive_status = 'available'"];
 $params = [];
 $types = '';
 
@@ -1030,8 +1048,9 @@ $siteUrl = $protocol . "://" . $_SERVER['HTTP_HOST'];
                                 // Create clean filename from title
                                 $cleanTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $note['title']);
                                 $downloadFilename = $cleanTitle . '.' . $note['file_type'];
+                                $noteDownloadUrl = !empty($note['drive_url']) ? $note['drive_url'] : '../' . $note['file_path'];
                                 ?>
-                                <a href="../<?= htmlspecialchars($note['file_path']) ?>" download="<?= htmlspecialchars($downloadFilename) ?>" class="note-btn btn-download" style="width: 100%;">
+                                <a href="<?= htmlspecialchars($noteDownloadUrl) ?>" target="_blank" rel="noopener" download="<?= htmlspecialchars($downloadFilename) ?>" class="note-btn btn-download" style="width: 100%;">
                                     <span>📥</span> Download
                                 </a>
                             </div>

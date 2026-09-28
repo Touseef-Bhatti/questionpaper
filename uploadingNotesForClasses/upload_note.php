@@ -64,8 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $chapter = trim($_POST['chapter'] ?? '');
     $customChapter = trim($_POST['custom_chapter'] ?? '');
-    if ($chapter === '__custom__' && !empty($customChapter)) {
-        $chapter = $customChapter;
+        if ($chapter === '__custom__') {
+            $chapter = !empty($customChapter) ? $customChapter : '';
     }
 
     // Validation
@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Upload to Google Drive
                 try {
                     $driveService = new GoogleDriveService();
-                    $driveResult = $driveService->uploadFile($fileTmpPath, $originalFileName, $mimeType, $class, $subject, 'user');
+                    $driveResult = $driveService->uploadFile($fileTmpPath, $originalFileName, $mimeType, $class, $subject, 'user', $chapter);
 
                     // Save metadata to database
                     $stmt = $conn->prepare("INSERT INTO class_notes 

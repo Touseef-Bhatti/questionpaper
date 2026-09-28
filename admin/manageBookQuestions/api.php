@@ -62,19 +62,31 @@ function ensureBookQuestionSchema(mysqli $conn): void
         drive_file_id VARCHAR(255) NOT NULL,
         drive_url VARCHAR(500) NOT NULL,
         drive_folder_id VARCHAR(255) DEFAULT NULL,
-        local_pdf_path VARCHAR(500) NOT NULL,
+        local_pdf_path VARCHAR(500) NOT NULL DEFAULT '',
         original_filename VARCHAR(255) NOT NULL,
         mime_type VARCHAR(100) NOT NULL DEFAULT 'application/pdf',
         file_size BIGINT DEFAULT 0,
         pdf_page_count INT NOT NULL DEFAULT 0,
         page_offset INT NOT NULL DEFAULT 0,
         status ENUM('active','archived') NOT NULL DEFAULT 'active',
+        drive_status ENUM('available','missing') NOT NULL DEFAULT 'available',
+        drive_deleted_at DATETIME DEFAULT NULL,
         uploaded_by INT DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_book_uploads_book (class_id, book_id, status),
+        INDEX idx_book_uploads_drive_status (drive_status),
         INDEX idx_book_uploads_created (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $driveStatusColumnCheck = $conn->query("SHOW COLUMNS FROM book_uploads LIKE 'drive_status'");
+    if (!$driveStatusColumnCheck || $driveStatusColumnCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE book_uploads ADD COLUMN drive_status ENUM('available','missing') NOT NULL DEFAULT 'available' AFTER status");
+    }
+    $driveDeletedAtColumnCheck = $conn->query("SHOW COLUMNS FROM book_uploads LIKE 'drive_deleted_at'");
+    if (!$driveDeletedAtColumnCheck || $driveDeletedAtColumnCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE book_uploads ADD COLUMN drive_deleted_at DATETIME DEFAULT NULL AFTER drive_status");
+    }
 
     $conn->query("CREATE TABLE IF NOT EXISTS book_chapter_page_ranges (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -323,14 +335,9 @@ if ($action === 'upload_book') {
         jsonResponse(['ok' => false, 'error' => 'Uploaded file is not a valid PDF.']);
     }
 
-    $uploadDir = $generator->getUploadDir();
-    if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0750, true)) {
-        jsonResponse(['ok' => false, 'error' => 'Could not create local book storage folder.']);
-    }
-    $storedName = 'book_' . bin2hex(random_bytes(12)) . '.pdf';
-    $localPath = $uploadDir . '/' . $storedName;
-    if (!move_uploaded_file($file['tmp_name'], $localPath)) {
-        jsonResponse(['ok' => false, 'error' => 'Could not store uploaded book locally.']);
+    $localPath = (string) ($file['tmp_name'] ?? '');
+    if ($localPath === '' || !is_uploaded_file($localPath)) {
+        jsonResponse(['ok' => false, 'error' => 'Uploaded textbook temporary file is not available.']);
     }
 
     $extractor = new BookChapterExtractor();
@@ -342,7 +349,7 @@ if ($action === 'upload_book') {
     try {
         $drive = new GoogleDriveService();
         $classLabel = $book['class_name'] ?: ('Class ' . $classId);
-        $driveResult = $drive->uploadFile($localPath, $origName, $mimeType, $classLabel, (string) $book['book_name']);
+        $driveResult = $drive->uploadBookFile($localPath, $origName, $mimeType, $classLabel, (string) $book['book_name']);
     } catch (Throwable $e) {
         jsonResponse(['ok' => false, 'error' => 'Google Drive upload failed: ' . $e->getMessage()]);
     }
@@ -353,11 +360,12 @@ if ($action === 'upload_book') {
     $folderId = (string) ($driveResult['folder_id'] ?? '');
     $driveFileId = (string) $driveResult['file_id'];
     $driveUrl = (string) $driveResult['url'];
+    $storedLocalPath = '';
     $stmt = $conn->prepare(
         'INSERT INTO book_uploads (class_id, book_id, drive_file_id, drive_url, drive_folder_id, local_pdf_path, original_filename, mime_type, file_size, pdf_page_count, page_offset, uploaded_by)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    $stmt->bind_param('iissssssiiii', $classId, $bookId, $driveFileId, $driveUrl, $folderId, $localPath, $origName, $mimeType, $fileSize, $pdfPages, $pageOffset, $adminId);
+    $stmt->bind_param('iissssssiiii', $classId, $bookId, $driveFileId, $driveUrl, $folderId, $storedLocalPath, $origName, $mimeType, $fileSize, $pdfPages, $pageOffset, $adminId);
     if (!$stmt->execute()) {
         $err = $stmt->error;
         $stmt->close();
@@ -365,9 +373,175 @@ if ($action === 'upload_book') {
     }
     $uploadId = (int) $stmt->insert_id;
     $stmt->close();
+    @unlink($localPath);
 
     logAdminAction('book_pdf_uploaded', 'Upload ID ' . $uploadId);
     jsonResponse(['ok' => true, 'upload_id' => $uploadId, 'pdf_page_count' => $pdfPages, 'drive_url' => $driveUrl] + listBookPayload($conn));
+}
+
+if ($action === 'replace_book') {
+    $uploadId = intval($_POST['upload_id'] ?? 0);
+    $upload = fetchUpload($conn, $uploadId);
+    if (!$upload) {
+        jsonResponse(['ok' => false, 'error' => 'Uploaded book record not found.']);
+    }
+    if (($upload['drive_status'] ?? 'available') !== 'missing') {
+        jsonResponse(['ok' => false, 'error' => 'This book is not marked as missing from Google Drive.']);
+    }
+    if (!isset($_FILES['book_file']) || !is_array($_FILES['book_file'])) {
+        jsonResponse(['ok' => false, 'error' => 'Upload a replacement textbook PDF.']);
+    }
+
+    $file = $_FILES['book_file'];
+    $uploadError = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($uploadError !== UPLOAD_ERR_OK) {
+        jsonResponse(['ok' => false, 'error' => uploadErrorMessage($uploadError)]);
+    }
+    $replacementPath = (string) ($file['tmp_name'] ?? '');
+    $origName = basename((string) ($file['name'] ?? 'book.pdf'));
+    if ($replacementPath === '' || !is_uploaded_file($replacementPath) || strtolower(pathinfo($origName, PATHINFO_EXTENSION)) !== 'pdf') {
+        jsonResponse(['ok' => false, 'error' => 'Only a valid replacement PDF is supported.']);
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = (string) $finfo->file($replacementPath);
+    if (strpos(strtolower($mimeType), 'pdf') === false) {
+        jsonResponse(['ok' => false, 'error' => 'Replacement file is not a valid PDF.']);
+    }
+
+    $extractor = new BookChapterExtractor();
+    $pageInfo = $extractor->getPdfPageCount($replacementPath);
+    if (!$pageInfo['ok']) {
+        jsonResponse(['ok' => false, 'error' => $pageInfo['error'] ?? 'Could not read replacement PDF page count.']);
+    }
+
+    try {
+        $drive = new GoogleDriveService();
+        $driveResult = $drive->uploadBookFile(
+            $replacementPath,
+            $origName,
+            $mimeType,
+            (string) $upload['class_name'],
+            (string) $upload['book_name']
+        );
+        $fileSize = (int) filesize($replacementPath);
+        $stmt = $conn->prepare("UPDATE book_uploads
+            SET drive_file_id = ?, drive_url = ?, drive_folder_id = ?, local_pdf_path = '',
+                original_filename = ?, mime_type = ?, file_size = ?, pdf_page_count = ?,
+                drive_status = 'available', drive_deleted_at = NULL
+            WHERE id = ?");
+        $stmt->bind_param(
+            'sssssiii',
+            $driveResult['file_id'],
+            $driveResult['url'],
+            $driveResult['folder_id'],
+            $origName,
+            $mimeType,
+            $fileSize,
+            $pageInfo['page_count'],
+            $uploadId
+        );
+        $success = $stmt->execute();
+        $updateError = $stmt->error;
+        $stmt->close();
+        if (!$success) {
+            try {
+                $drive->deleteFile((string) $driveResult['file_id']);
+            } catch (Throwable $cleanupError) {
+                error_log('Failed to clean up replacement textbook: ' . $cleanupError->getMessage());
+            }
+            jsonResponse(['ok' => false, 'error' => 'Replacement uploaded, but the book record could not be updated: ' . $updateError]);
+        }
+        jsonResponse(['ok' => true] + listBookPayload($conn));
+    } catch (Throwable $e) {
+        error_log('Textbook replacement upload failed: ' . $e->getMessage());
+        jsonResponse(['ok' => false, 'error' => 'Replacement upload failed. Check the Google Drive connection.']);
+    } finally {
+        if (is_file($replacementPath)) {
+            @unlink($replacementPath);
+        }
+    }
+}
+
+if ($action === 'purge_missing_records') {
+    // Remove only textbook upload rows already confirmed missing from Drive,
+    // together with their page mappings and generated draft relationships.
+    $conn->begin_transaction();
+    try {
+        $missingIds = [];
+        $missingRes = $conn->query("SELECT id FROM book_uploads WHERE drive_status = 'missing'");
+        while ($missingRes && ($missingRow = $missingRes->fetch_assoc())) {
+            $missingIds[] = (int) $missingRow['id'];
+        }
+
+        foreach (['book_chapter_page_ranges', 'book_mcq_drafts', 'book_question_drafts'] as $relatedTable) {
+            $tableCheck = $conn->query("SHOW TABLES LIKE '" . $conn->real_escape_string($relatedTable) . "'");
+            if (!$tableCheck || $tableCheck->num_rows === 0 || $missingIds === []) {
+                continue;
+            }
+            $relatedStmt = $conn->prepare("DELETE FROM {$relatedTable} WHERE upload_id = ?");
+            if (!$relatedStmt) {
+                throw new RuntimeException('Could not prepare missing-textbook cleanup.');
+            }
+            foreach ($missingIds as $missingId) {
+                $relatedStmt->bind_param('i', $missingId);
+                $relatedStmt->execute();
+            }
+            $relatedStmt->close();
+        }
+
+        $deleteStmt = $conn->prepare("DELETE FROM book_uploads WHERE drive_status = 'missing'");
+        if (!$deleteStmt || !$deleteStmt->execute()) {
+            throw new RuntimeException('Could not remove missing textbook records.');
+        }
+        $deletedCount = (int) $deleteStmt->affected_rows;
+        $deleteStmt->close();
+        $conn->commit();
+        jsonResponse(['ok' => true, 'deleted_count' => $deletedCount] + listBookPayload($conn));
+    } catch (Throwable $e) {
+        $conn->rollback();
+        error_log('Missing textbook record purge failed: ' . $e->getMessage());
+        jsonResponse(['ok' => false, 'error' => 'Could not remove missing textbook records.']);
+    }
+}
+
+if ($action === 'delete_book_record') {
+    $uploadId = intval($_POST['upload_id'] ?? 0);
+    $upload = fetchUpload($conn, $uploadId);
+    if (!$upload) {
+        jsonResponse(['ok' => false, 'error' => 'Uploaded book record not found.']);
+    }
+    if (($upload['drive_status'] ?? 'available') !== 'missing') {
+        jsonResponse(['ok' => false, 'error' => 'Only books already deleted from Google Drive can be removed this way.']);
+    }
+
+    $conn->begin_transaction();
+    try {
+        foreach (['book_chapter_page_ranges', 'book_mcq_drafts', 'book_question_drafts'] as $relatedTable) {
+            $tableCheck = $conn->query("SHOW TABLES LIKE '" . $conn->real_escape_string($relatedTable) . "'");
+            if ($tableCheck && $tableCheck->num_rows > 0) {
+                $stmt = $conn->prepare("DELETE FROM {$relatedTable} WHERE upload_id = ?");
+                if ($stmt) {
+                    $stmt->bind_param('i', $uploadId);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+        }
+        $stmt = $conn->prepare("DELETE FROM book_uploads WHERE id = ? AND drive_status = 'missing'");
+        $stmt->bind_param('i', $uploadId);
+        $stmt->execute();
+        $deleted = $stmt->affected_rows > 0;
+        $stmt->close();
+        if (!$deleted) {
+            throw new RuntimeException('The book record could not be deleted.');
+        }
+        $conn->commit();
+        jsonResponse(['ok' => true] + listBookPayload($conn));
+    } catch (Throwable $e) {
+        $conn->rollback();
+        jsonResponse(['ok' => false, 'error' => $e->getMessage()]);
+    }
 }
 
 if ($action === 'save_chapter_ranges') {
@@ -375,6 +549,9 @@ if ($action === 'save_chapter_ranges') {
     $upload = fetchUpload($conn, $uploadId);
     if (!$upload) {
         jsonResponse(['ok' => false, 'error' => 'Uploaded book not found.']);
+    }
+    if (($upload['drive_status'] ?? 'available') !== 'available') {
+        jsonResponse(['ok' => false, 'error' => 'This textbook was deleted from Google Drive. Re-upload it before editing chapter ranges.']);
     }
     $pageOffset = 0;
     $rows = json_decode((string) ($_POST['ranges'] ?? '[]'), true);
@@ -448,8 +625,15 @@ if ($action === 'init_chapter_job') {
     if (!$upload) {
         jsonResponse(['ok' => false, 'error' => 'Uploaded book not found.']);
     }
-    if (!is_readable((string) $upload['local_pdf_path'])) {
-        jsonResponse(['ok' => false, 'error' => 'The local PDF copy is missing. Re-upload the book before generating questions.']);
+    if (($upload['drive_status'] ?? 'available') !== 'available') {
+        jsonResponse(['ok' => false, 'error' => 'This textbook was deleted from Google Drive. Re-upload it before generating questions.']);
+    }
+    $temporaryPdfPath = $generator->getTemporaryPdfPath('upload_' . $uploadId . '_' . bin2hex(random_bytes(8)));
+    try {
+        $drive = new GoogleDriveService();
+        $drive->downloadFileToTemp((string) $upload['drive_file_id'], $temporaryPdfPath);
+    } catch (Throwable $e) {
+        jsonResponse(['ok' => false, 'error' => 'The textbook could not be downloaded from Google Drive for processing.']);
     }
 
     $stmt = $conn->prepare('SELECT r.*, ch.chapter_name FROM book_chapter_page_ranges r INNER JOIN chapter ch ON ch.chapter_id = r.chapter_id WHERE r.upload_id = ? AND r.chapter_id = ? LIMIT 1');
@@ -474,7 +658,7 @@ if ($action === 'init_chapter_job') {
         jsonResponse(['ok' => false, 'error' => $chapterCheck['error'] ?? 'Invalid question counts.']);
     }
 
-    $job = $generator->createJob((int) $upload['class_id'], (int) $upload['book_id'], 0, (string) $upload['local_pdf_path'], (string) $upload['original_filename'], (int) $upload['pdf_page_count'], $chapterCheck['chapters'], 'one', $uploadId, true);
+    $job = $generator->createJob((int) $upload['class_id'], (int) $upload['book_id'], 0, $temporaryPdfPath, (string) $upload['original_filename'], (int) $upload['pdf_page_count'], $chapterCheck['chapters'], 'one', $uploadId, true);
     if (!$job['ok']) {
         jsonResponse(['ok' => false, 'error' => $job['error'] ?? 'Could not create generation job.']);
     }
@@ -489,6 +673,9 @@ if ($action === 'process_batch') {
         jsonResponse(['ok' => false, 'error' => 'Missing generation job ID.']);
     }
     $result = $generator->processNextBatch($jobId);
+    if (!empty($result['done']) && isset($result['state']) && is_array($result['state'])) {
+        $generator->cleanupTemporaryPdf($result['state']);
+    }
     if (!$result['ok']) {
         jsonResponse(['ok' => false, 'error' => $result['error'] ?? 'Batch failed.', 'progress' => isset($result['state']) ? $generator->buildProgress($result['state']) : null]);
     }

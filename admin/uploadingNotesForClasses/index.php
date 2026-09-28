@@ -5,6 +5,7 @@
  */
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../security.php';
+require_once __DIR__ . '/../../services/GoogleDriveContentSyncService.php';
 requireAdminAuth();
 
 // Ensure class_notes table exists
@@ -30,8 +31,11 @@ $conn->query("CREATE TABLE IF NOT EXISTS class_notes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME DEFAULT NULL,
     approved_by INT DEFAULT NULL,
+    drive_status ENUM('available','missing') NOT NULL DEFAULT 'available',
+    drive_deleted_at DATETIME DEFAULT NULL,
     INDEX idx_class (class),
     INDEX idx_status (status),
+    INDEX idx_drive_status (drive_status),
     INDEX idx_subject (subject),
     INDEX idx_class_status (class, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
@@ -44,6 +48,113 @@ if (!$emailColumnCheck || $emailColumnCheck->num_rows === 0) {
 $viewsColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'views'");
 if (!$viewsColumnCheck || $viewsColumnCheck->num_rows === 0) {
     $conn->query("ALTER TABLE class_notes ADD COLUMN views INT UNSIGNED NOT NULL DEFAULT 0 AFTER rejection_reason");
+}
+
+$ensureDriveColumn = static function (mysqli $connection, string $table, string $column, string $definition, string $afterColumn = ''): bool {
+    $allowedTables = ['class_notes', 'book_uploads'];
+    $allowedColumns = ['drive_status', 'drive_deleted_at'];
+    if (!in_array($table, $allowedTables, true) || !in_array($column, $allowedColumns, true)) {
+        return false;
+    }
+
+    try {
+        $tableCheck = $connection->query("SHOW TABLES LIKE '{$table}'");
+        if (!$tableCheck || $tableCheck->num_rows === 0) {
+            return false;
+        }
+
+        $columnCheck = $connection->query("SHOW COLUMNS FROM `{$table}` LIKE '{$column}'");
+        if ($columnCheck && $columnCheck->num_rows > 0) {
+            return true;
+        }
+
+        $afterSql = $afterColumn !== '' ? " AFTER `{$afterColumn}`" : '';
+        $connection->query("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}{$afterSql}");
+        $columnCheck = $connection->query("SHOW COLUMNS FROM `{$table}` LIKE '{$column}'");
+        return $columnCheck && $columnCheck->num_rows > 0;
+    } catch (Throwable $e) {
+        error_log("Drive schema check failed for {$table}.{$column}: " . $e->getMessage());
+        return false;
+    }
+};
+
+$classNotesDriveStatusReady = $ensureDriveColumn(
+    $conn,
+    'class_notes',
+    'drive_status',
+    "ENUM('available','missing') NOT NULL DEFAULT 'available'",
+    'approved_by'
+);
+$classNotesDriveDeletedAtReady = $ensureDriveColumn(
+    $conn,
+    'class_notes',
+    'drive_deleted_at',
+    'DATETIME DEFAULT NULL',
+    'drive_status'
+);
+$bookUploadsDriveStatusReady = $ensureDriveColumn(
+    $conn,
+    'book_uploads',
+    'drive_status',
+    "ENUM('available','missing') NOT NULL DEFAULT 'available'",
+    'status'
+);
+$bookUploadsDriveDeletedAtReady = $ensureDriveColumn(
+    $conn,
+    'book_uploads',
+    'drive_deleted_at',
+    'DATETIME DEFAULT NULL',
+    'drive_status'
+);
+
+$driveSyncError = '';
+$driveSyncResult = ['notes_missing' => 0, 'legacy_notes_missing' => 0, 'books_missing' => 0];
+try {
+    $driveSyncResult = (new GoogleDriveContentSyncService())->sync(
+        $conn,
+        (int) ($_SESSION['admin_id'] ?? ($_SESSION['user_id'] ?? 0))
+    );
+} catch (Throwable $e) {
+    // A temporary Drive outage must not make local metadata disappear.
+    error_log('Class notes page Drive sync failed: ' . $e->getMessage());
+    $driveSyncError = 'Google Drive could not be checked right now. Existing records were left unchanged.';
+}
+
+// The sync service may create legacy tables. Re-check the columns before running
+// dashboard counters so an older database or a restricted DB user cannot cause a fatal error.
+$classNotesDriveStatusReady = $ensureDriveColumn(
+    $conn,
+    'class_notes',
+    'drive_status',
+    "ENUM('available','missing') NOT NULL DEFAULT 'available'",
+    'approved_by'
+);
+$classNotesDriveDeletedAtReady = $ensureDriveColumn(
+    $conn,
+    'class_notes',
+    'drive_deleted_at',
+    'DATETIME DEFAULT NULL',
+    'drive_status'
+);
+$bookUploadsDriveStatusReady = $ensureDriveColumn(
+    $conn,
+    'book_uploads',
+    'drive_status',
+    "ENUM('available','missing') NOT NULL DEFAULT 'available'",
+    'status'
+);
+$bookUploadsDriveDeletedAtReady = $ensureDriveColumn(
+    $conn,
+    'book_uploads',
+    'drive_deleted_at',
+    'DATETIME DEFAULT NULL',
+    'drive_status'
+);
+
+if (!$classNotesDriveStatusReady || !$classNotesDriveDeletedAtReady || !$bookUploadsDriveStatusReady || !$bookUploadsDriveDeletedAtReady) {
+    $driveSyncError = $driveSyncError !== ''
+        ? $driveSyncError . ' Drive status columns could not be verified; run the Drive schema migration with a database user that has ALTER permission.'
+        : 'Drive status columns could not be verified; run the Drive schema migration with a database user that has ALTER permission.';
 }
 
 // Handle session messages
@@ -142,6 +253,22 @@ while ($row = $countQuery->fetch_assoc()) {
     $statusCounts[$row['status']] = $row['cnt'];
 }
 $totalCount = array_sum($statusCounts);
+$driveMissingCount = 0;
+$missingCountQuery = null;
+if ($classNotesDriveStatusReady) {
+    $missingCountQuery = $conn->query("SELECT COUNT(*) AS cnt FROM class_notes WHERE drive_status = 'missing'");
+    if ($missingCountQuery && ($missingRow = $missingCountQuery->fetch_assoc())) {
+        $driveMissingCount = (int) $missingRow['cnt'];
+    }
+}
+$driveMissingBooksCount = 0;
+$missingBooksQuery = null;
+if ($bookUploadsDriveStatusReady) {
+    $missingBooksQuery = $conn->query("SELECT COUNT(*) AS cnt FROM book_uploads WHERE drive_status = 'missing'");
+    if ($missingBooksQuery && ($missingBookRow = $missingBooksQuery->fetch_assoc())) {
+        $driveMissingBooksCount = (int) $missingBookRow['cnt'];
+    }
+}
 
 $sourceCounts = ['user' => 0, 'admin' => 0];
 $sourceCountQuery = $conn->query("SELECT uploader_type, COUNT(*) as cnt FROM class_notes GROUP BY uploader_type");
@@ -296,6 +423,9 @@ function adminNotePublicUrl($assetBase, $note) {
                 <p class="mb-0 text-white-50">Review community submissions, manage admin uploads, and keep public study notes organized for students.</p>
             </div>
             <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-success btn-sm" onclick="syncDriveContent()" id="syncDriveContentBtn">
+                    <i class="fas fa-arrows-rotate"></i> Sync Drive
+                </button>
                 <button class="btn btn-light btn-sm" onclick="testDriveConnection()" id="testDriveBtn">
                     <i class="fab fa-google-drive"></i> Test Drive
                 </button>
@@ -312,6 +442,26 @@ function adminNotePublicUrl($assetBase, $note) {
         </div>
     </div>
 
+    <?php if ($driveSyncError !== ''): ?>
+        <div class="alert alert-warning mt-3 mb-0">
+            <i class="fas fa-triangle-exclamation me-2"></i><?= htmlspecialchars($driveSyncError, ENT_QUOTES, 'UTF-8') ?>
+        </div>
+    <?php endif; ?>
+    <?php if ($driveMissingCount > 0 || $driveMissingBooksCount > 0): ?>
+        <div class="alert alert-danger d-flex align-items-start gap-2 mt-3 mb-0">
+            <i class="fas fa-cloud-slash mt-1"></i>
+            <div class="flex-grow-1">
+                <strong>
+                    <?= $driveMissingCount ?> note record(s) and <?= $driveMissingBooksCount ?> book record(s) are marked “Deleted from Google Drive”.
+                </strong>
+                <div class="small mt-1">For notes, use <strong>Edit</strong> to change metadata, then choose <strong>Re-upload</strong> to keep the same record, or remove all missing records permanently below. Textbook recovery is available on the book question generator page.</div>
+                <button type="button" class="btn btn-sm btn-dark mt-2" onclick="purgeMissingDriveRecords()">
+                    <i class="fas fa-trash-can me-1"></i>Remove all missing records from database
+                </button>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-2"><div class="notes-admin-metric"><span>Total Notes</span><strong><?= $totalCount ?></strong></div></div>
         <div class="col-6 col-lg-2"><div class="notes-admin-metric"><span>Pending</span><strong><?= $statusCounts['pending'] ?></strong></div></div>
@@ -319,6 +469,7 @@ function adminNotePublicUrl($assetBase, $note) {
         <div class="col-6 col-lg-2"><div class="notes-admin-metric"><span>Rejected</span><strong><?= $statusCounts['rejected'] ?></strong></div></div>
         <div class="col-6 col-lg-2"><div class="notes-admin-metric"><span>User Uploaded</span><strong><?= $sourceCounts['user'] ?></strong></div></div>
         <div class="col-6 col-lg-2"><div class="notes-admin-metric"><span>Admin Uploaded</span><strong><?= $sourceCounts['admin'] ?></strong></div></div>
+        <div class="col-6 col-lg-2"><div class="notes-admin-metric border-danger"><span>Deleted in Drive</span><strong class="text-danger"><?= $driveMissingCount ?></strong></div></div>
     </div>
 
     <div class="d-none">
@@ -540,13 +691,21 @@ function adminNotePublicUrl($assetBase, $note) {
                             </td>
                             <td>
                                 <?php
+                                $driveMissing = (($note['drive_status'] ?? 'available') === 'missing');
                                 $statusBadges = [
                                     'pending' => 'warning text-dark',
                                     'approved' => 'success',
                                     'rejected' => 'danger'
                                 ];
                                 ?>
-                                <span class="badge bg-<?= $statusBadges[$note['status']] ?? 'secondary' ?>"><?= ucfirst($note['status']) ?></span>
+                                <?php if ($driveMissing): ?>
+                                    <span class="badge bg-danger"><i class="fas fa-cloud-slash me-1"></i>Deleted from Drive</span>
+                                    <?php if (!empty($note['drive_deleted_at'])): ?>
+                                        <br><small class="text-danger">Detected <?= date('M d, Y H:i', strtotime($note['drive_deleted_at'])) ?></small>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="badge bg-<?= $statusBadges[$note['status']] ?? 'secondary' ?>"><?= ucfirst($note['status']) ?></span>
+                                <?php endif; ?>
                                 <?php if ($note['status'] === 'rejected' && !empty($note['rejection_reason'])): ?>
                                     <br><small class="text-danger" title="<?= htmlspecialchars($note['rejection_reason']) ?>">
                                         <i class="fas fa-info-circle"></i> <?= htmlspecialchars(substr($note['rejection_reason'], 0, 25)) ?>...
@@ -556,23 +715,31 @@ function adminNotePublicUrl($assetBase, $note) {
                             <td><small class="text-muted"><?= date('M d, Y', strtotime($note['created_at'])) ?></small></td>
                             <td class="text-end">
                                 <div class="btn-group btn-group-sm">
-                                    <a href="<?= htmlspecialchars($note['drive_url']) ?>" target="_blank" class="btn btn-outline-primary" title="Preview on Google Drive">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
+                                    <?php $driveMissing = (($note['drive_status'] ?? 'available') === 'missing'); ?>
+                                    <?php if (!$driveMissing): ?>
+                                        <a href="<?= htmlspecialchars($note['drive_url']) ?>" target="_blank" class="btn btn-outline-primary" title="Preview on Google Drive">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        <input type="file" id="replace-note-file-<?= (int) $note['id'] ?>" class="d-none" accept=".pdf,.ppt,.pptx,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp" onchange="replaceNoteFile(<?= (int) $note['id'] ?>, this)">
+                                        <button class="btn btn-outline-success" onclick="document.getElementById('replace-note-file-<?= (int) $note['id'] ?>').click()" title="Re-upload and keep this record">
+                                            <i class="fas fa-cloud-arrow-up"></i>
+                                        </button>
+                                    <?php endif; ?>
                                     <button class="btn btn-outline-info" onclick="editNote(<?= $note['id'] ?>)" title="Edit Note Details">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <?php if ($note['status'] !== 'approved'): ?>
+                                    <?php if (!$driveMissing && $note['status'] !== 'approved'): ?>
                                     <button class="btn btn-outline-success" onclick="adminAction(<?= $note['id'] ?>, 'approve')" title="Approve">
                                         <i class="fas fa-check"></i>
                                     </button>
                                     <?php endif; ?>
-                                    <?php if ($note['status'] !== 'rejected'): ?>
+                                    <?php if (!$driveMissing && $note['status'] !== 'rejected'): ?>
                                     <button class="btn btn-outline-warning" onclick="rejectNote(<?= $note['id'] ?>)" title="Reject">
                                         <i class="fas fa-times"></i>
                                     </button>
                                     <?php endif; ?>
-                                    <button class="btn btn-outline-danger" onclick="adminAction(<?= $note['id'] ?>, 'delete')" title="Delete">
+                                    <button class="btn btn-outline-danger" onclick="adminAction(<?= $note['id'] ?>, '<?= $driveMissing ? 'delete_record' : 'delete' ?>')" title="<?= $driveMissing ? 'Delete database record' : 'Delete from DB and Google Drive' ?>">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -813,6 +980,33 @@ const allUniqueSubjects = <?= json_encode($allUniqueSubjects) ?>;
 const csrfToken = '<?= $csrfToken ?>';
 let rejectNoteId = null;
 
+async function syncDriveContent() {
+    const button = document.getElementById('syncDriveContentBtn');
+    const oldHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+
+    const formData = new FormData();
+    formData.append('action', 'sync_drive');
+    formData.append('csrf_token', csrfToken);
+
+    try {
+        const response = await fetch('../google_drive_sync.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!data.ok) {
+            alert(data.error || 'Google Drive sync failed.');
+            return;
+        }
+        alert('Drive sync complete. Imported ' + (data.notes_imported || 0) + ' note file(s) and ' + (data.books_imported || 0) + ' book file(s); marked ' + (data.notes_missing || 0) + ' note record(s) and ' + (data.books_missing || 0) + ' book record(s) as deleted from Drive.');
+        window.location.reload();
+    } catch (error) {
+        alert('Google Drive sync failed. Check the Drive connection.');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = oldHtml;
+    }
+}
+
 // Populate subjects dropdown based on chosen class
 function populateSubjects(classSelectElem, subjectSelectElem, selectedSubject = '', includeAllOption = false) {
     const classId = classSelectElem.value;
@@ -966,8 +1160,35 @@ document.getElementById('selectAll')?.addEventListener('change', function() {
 });
 
 // Admin Note Actions (approve, reject, delete)
+async function replaceNoteFile(noteId, input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('action', 'replace_drive_file');
+    formData.append('note_id', noteId);
+    formData.append('file', file);
+    formData.append('csrf_token', csrfToken);
+
+    try {
+        const response = await fetch('api.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.success) {
+            alert('File re-uploaded to Google Drive. The existing note record was preserved.');
+            location.reload();
+        } else {
+            alert(data.error || 'The file could not be re-uploaded.');
+        }
+    } catch (error) {
+        alert('Network error while re-uploading the note.');
+    } finally {
+        input.value = '';
+    }
+}
+
 function adminAction(noteId, action, extra = {}) {
-    if (action === 'delete' && !confirm('Are you sure you want to permanently delete this note (from DB and Google Drive)?')) return;
+    if (action === 'delete' && !confirm('Are you sure you want to permanently delete this note from the database and Google Drive?')) return;
+    if (action === 'delete_record' && !confirm('This Drive file is already deleted. Remove its database record and metadata permanently?')) return;
     
     const formData = new FormData();
     formData.append('action', action);
@@ -985,6 +1206,33 @@ function adminAction(noteId, action, extra = {}) {
             }
         })
         .catch(() => alert('Network error. Please try again.'));
+}
+
+async function purgeMissingDriveRecords() {
+    if (!confirm('Permanently remove every note and textbook record marked Deleted from Google Drive, including its saved mappings and draft metadata?')) return;
+
+    const postPurge = async (url) => {
+        const formData = new FormData();
+        formData.append('action', 'purge_missing_records');
+        formData.append('csrf_token', csrfToken);
+        const response = await fetch(url, { method: 'POST', body: formData });
+        return response.json();
+    };
+
+    try {
+        const noteResult = await postPurge('api.php');
+        if (!noteResult.success) {
+            throw new Error(noteResult.error || 'Missing note records could not be removed.');
+        }
+        const bookResult = await postPurge('../manageBookQuestions/api.php');
+        if (!bookResult.ok) {
+            throw new Error(bookResult.error || 'Missing textbook records could not be removed.');
+        }
+        alert(`Removed ${noteResult.deleted_count || 0} note record(s) and ${bookResult.deleted_count || 0} textbook record(s) from the database.`);
+        location.reload();
+    } catch (error) {
+        alert(error.message || 'Missing record cleanup failed.');
+    }
 }
 
 // Reject Modal
@@ -1149,7 +1397,7 @@ async function testDriveConnection() {
                         </tr>
                         <tr>
                             <td class="fw-bold bg-light">Auto Organization</td>
-                            <td><span class="badge bg-primary text-white">Active</span> <code>AhmadLearningHub / Class {X} / {Subject}</code></td>
+                            <td><span class="badge bg-primary text-white">Active</span> <code>Notes / Class {X} / Book / Chapter / {Admin|User}</code><br><small class="text-muted">Deleted Drive files are moved to <code>deleteFiles</code>.</small></td>
                         </tr>
                     </tbody>
                 </table>

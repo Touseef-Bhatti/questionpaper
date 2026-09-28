@@ -20,6 +20,7 @@ class BookQuestionGenerator
     private mysqli $conn;
     private string $projectRoot;
     private string $uploadDir;
+    private string $temporaryPdfDir;
     private string $stateDir;
     private string $textDir;
     private array $tableColumnsCache = [];
@@ -29,12 +30,15 @@ class BookQuestionGenerator
     {
         $this->conn = $conn;
         $this->projectRoot = $projectRoot ?: dirname(__DIR__, 2);
-        $this->uploadDir = $this->projectRoot . '/storage/book_uploads';
+        // Source PDFs are kept only in the OS temp directory while a job runs.
+        // The canonical copy always remains in Google Drive.
+        $this->temporaryPdfDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'ahmadlearninghub_book_jobs';
+        $this->uploadDir = $this->temporaryPdfDir;
         $this->stateDir = $this->projectRoot . '/storage/book_generation';
         $this->textDir = $this->projectRoot . '/storage/book_generation/text';
         $this->extractor = new BookChapterExtractor($this->projectRoot);
 
-        foreach ([$this->uploadDir, $this->stateDir, $this->textDir] as $dir) {
+        foreach ([$this->temporaryPdfDir, $this->stateDir, $this->textDir] as $dir) {
             if (!is_dir($dir)) {
                 @mkdir($dir, 0750, true);
             }
@@ -44,6 +48,12 @@ class BookQuestionGenerator
     public function getUploadDir(): string
     {
         return $this->uploadDir;
+    }
+
+    public function getTemporaryPdfPath(string $fileKey): string
+    {
+        $safeKey = preg_replace('/[^A-Za-z0-9_-]/', '_', $fileKey);
+        return $this->temporaryPdfDir . DIRECTORY_SEPARATOR . $safeKey . '.pdf';
     }
 
     /**
@@ -183,7 +193,7 @@ class BookQuestionGenerator
             'chapters' => $preparedChapters,
             'logs' => [],
         ];
-        $this->addLog($state, 'Uploaded PDF saved as ' . basename($storedPdfPath) . '.');
+        $this->addLog($state, 'Drive PDF prepared in a temporary system location for this job.');
         $this->addLog($state, 'Generation job prepared for ' . count($preparedChapters) . ' chapter row(s).');
 
         if (!$this->saveState($jobId, $state)) {
@@ -267,7 +277,15 @@ class BookQuestionGenerator
 
     public function pdfPathFromState(array $state): string
     {
-        return $this->uploadDir . '/' . basename((string) ($state['stored_pdf'] ?? ''));
+        return $this->temporaryPdfDir . DIRECTORY_SEPARATOR . basename((string) ($state['stored_pdf'] ?? ''));
+    }
+
+    public function cleanupTemporaryPdf(array $state): void
+    {
+        $path = $this->pdfPathFromState($state);
+        if (is_file($path)) {
+            @unlink($path);
+        }
     }
 
     /**

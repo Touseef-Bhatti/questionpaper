@@ -500,6 +500,7 @@ include_once '../header.php';
                 const formData = new FormData();
                 formData.append('document', file);
                 formData.append('question_types[]', 'mcqs');
+                formData.append('upload_category', 'mcqs');
                 formData.append('count_mcqs', document.getElementById('hostTextCountMcqs')?.value || 10);
 
                 const res = await fetch('../questionPaperFromTopic/generate_from_upload.php', {

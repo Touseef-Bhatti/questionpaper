@@ -117,6 +117,7 @@ class APIKeyManager {
 
     public function getActiveKeys($provider = 'openai') {
         $keys = [];
+        $environmentKeys = $this->getConfiguredEnvironmentKeys();
         
         // 1. First, check if we need to sync with EnvLoader
         // This ensures new keys added to .env are immediately available
@@ -200,15 +201,43 @@ class APIKeyManager {
                 $finalKeys[] = $k['key'];
             }
             
-            return $finalKeys;
+            return array_values(array_unique(array_filter(array_merge($finalKeys, $environmentKeys))));
         }
         
         // Fallback to EnvLoader if no keys in DB or table missing
-        if (empty($keys) && class_exists('EnvLoader')) {
-            $keys = EnvLoader::getList('OPENAI_API_KEYS');
+        if (empty($keys)) {
+            return $environmentKeys;
         }
-        
-        return $keys;
+
+        return array_values(array_unique(array_filter($keys)));
+    }
+
+    /**
+     * Read both the current OPENAI_API_KEYS format and the legacy KEY_1...
+     * format used by the local question-paper installation. Values are kept
+     * in memory here; callers can still rotate and log database-managed keys.
+     */
+    private function getConfiguredEnvironmentKeys(): array
+    {
+        if (!class_exists('EnvLoader')) {
+            return [];
+        }
+
+        $keys = EnvLoader::getList('OPENAI_API_KEYS');
+        for ($i = 1; $i <= 10; $i++) {
+            $legacyValue = trim((string) EnvLoader::get('KEY_' . $i, ''));
+            if ($legacyValue === '') {
+                continue;
+            }
+            foreach (explode(',', $legacyValue) as $key) {
+                $key = trim($key);
+                if ($key !== '') {
+                    $keys[] = $key;
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter($keys)));
     }
 
     public function addKey($key, $account_name, $provider = 'openai') {

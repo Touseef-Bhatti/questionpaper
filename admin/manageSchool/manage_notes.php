@@ -1,15 +1,21 @@
 <?php
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../security.php';
+require_once __DIR__ . '/../../services/GoogleDriveService.php';
 requireAdminAuth();
 
 // Create table if not exists
 // Schema creation moved to install.php
 
-// File upload configuration
-$uploadDir = __DIR__ . '/../../uploads/notes/';
-if (!file_exists($uploadDir)) {
-    mkdir($uploadDir, 0755, true);
+// Uploaded note files are stored in Google Drive. The database keeps metadata
+// and the Drive link only; no persistent project path is created.
+$driveFileColumnCheck = $conn->query("SHOW COLUMNS FROM uploaded_notes LIKE 'drive_file_id'");
+if (!$driveFileColumnCheck || $driveFileColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE uploaded_notes ADD COLUMN drive_file_id VARCHAR(255) DEFAULT NULL AFTER file_path");
+}
+$driveUrlColumnCheck = $conn->query("SHOW COLUMNS FROM uploaded_notes LIKE 'drive_url'");
+if (!$driveUrlColumnCheck || $driveUrlColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE uploaded_notes ADD COLUMN drive_url VARCHAR(500) DEFAULT NULL AFTER drive_file_id");
 }
 
 // Allowed file types with MIME types
@@ -81,35 +87,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 if (!in_array($mimeType, $allowedTypes[$fileExtension])) {
                     $_SESSION['notes_error'] = 'Invalid file type. File content does not match extension.';
                 } else {
-                    // Generate secure filename
-                    $newFileName = uniqid('note_', true) . '_' . time() . '.' . $fileExtension;
-                    $destination = $uploadDir . $newFileName;
-                    
-                    // Move uploaded file
-                    if (move_uploaded_file($fileTmpPath, $destination)) {
-                        // Insert into database
-                        $stmt = $conn->prepare("INSERT INTO uploaded_notes 
-                            (title, description, file_name, original_file_name, file_path, file_type, file_size, mime_type, class_id, book_id, chapter_id, uploaded_by) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        
-                        $relativePath = 'uploads/notes/' . $newFileName;
-                        $uploadedBy = $_SESSION['user_id'];
-                        
-                        $stmt->bind_param('ssssssisisii', 
-                            $title, $description, $newFileName, $originalFileName, $relativePath, 
-                            $fileExtension, $fileSize, $mimeType, $classId, $bookId, $chapterId, $uploadedBy
-                        );
-                        
-                        if ($stmt->execute()) {
-                            $_SESSION['notes_message'] = 'File uploaded successfully!';
-                            logAdminAction('upload_note', "Uploaded: $title");
-                        } else {
-                            $_SESSION['notes_error'] = 'Database error: ' . $stmt->error;
-                            unlink($destination); // Remove file if DB insert fails
-                        }
-                        $stmt->close();
+                    $taxonomyStmt = $conn->prepare('SELECT c.class_name, b.book_name, ch.chapter_name
+                        FROM class c
+                        INNER JOIN book b ON b.class_id = c.class_id
+                        LEFT JOIN chapter ch ON ch.chapter_id = ? AND ch.book_id = b.book_id AND ch.class_id = c.class_id
+                        WHERE c.class_id = ? AND b.book_id = ? LIMIT 1');
+                    $taxonomyStmt->bind_param('iii', $chapterId, $classId, $bookId);
+                    $taxonomyStmt->execute();
+                    $taxonomy = $taxonomyStmt->get_result()->fetch_assoc();
+                    $taxonomyStmt->close();
+
+                    if (!$taxonomy) {
+                        $_SESSION['notes_error'] = 'Please select a valid class and book.';
                     } else {
-                        $_SESSION['notes_error'] = 'Failed to move uploaded file';
+                        try {
+                            $driveService = new GoogleDriveService();
+                            $driveResult = $driveService->uploadFile(
+                                $fileTmpPath,
+                                $originalFileName,
+                                $mimeType,
+                                (string) $taxonomy['class_name'],
+                                (string) $taxonomy['book_name'],
+                                'admin',
+                                (string) ($taxonomy['chapter_name'] ?? '')
+                            );
+
+                            $stmt = $conn->prepare("INSERT INTO uploaded_notes
+                                (title, description, file_name, original_file_name, file_path, drive_file_id, drive_url, file_type, file_size, mime_type, class_id, book_id, chapter_id, uploaded_by)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                            $newFileName = $originalFileName;
+                            $relativePath = '';
+                            $driveFileId = (string) $driveResult['file_id'];
+                            $driveUrl = (string) $driveResult['url'];
+                            $uploadedBy = (int) ($_SESSION['user_id'] ?? 0);
+                            $stmt->bind_param('ssssssssisisii',
+                                $title,
+                                $description,
+                                $newFileName,
+                                $originalFileName,
+                                $relativePath,
+                                $driveFileId,
+                                $driveUrl,
+                                $fileExtension,
+                                $fileSize,
+                                $mimeType,
+                                $classId,
+                                $bookId,
+                                $chapterId,
+                                $uploadedBy
+                            );
+
+                            if ($stmt->execute()) {
+                                $_SESSION['notes_message'] = 'File uploaded to Google Drive successfully!';
+                                logAdminAction('upload_note', "Uploaded to Drive: $title");
+                            } else {
+                                $_SESSION['notes_error'] = 'Database error: ' . $stmt->error;
+                            }
+                            $stmt->close();
+                        } catch (Throwable $e) {
+                            $_SESSION['notes_error'] = 'Google Drive upload failed. Please try again later.';
+                            error_log('Legacy notes Drive upload error: ' . $e->getMessage());
+                        }
                     }
                 }
             }
@@ -172,26 +210,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         $noteId = validateInt($_POST['note_id'] ?? 0);
         if ($noteId) {
-            // Get file path before deleting
-            $stmt = $conn->prepare("SELECT file_path FROM uploaded_notes WHERE note_id = ? AND is_deleted = 1");
+            // Resolve the Drive file before deleting its metadata.
+            $stmt = $conn->prepare("SELECT file_path, drive_file_id FROM uploaded_notes WHERE note_id = ? AND is_deleted = 1");
             $stmt->bind_param('i', $noteId);
             $stmt->execute();
             $result = $stmt->get_result();
             if ($row = $result->fetch_assoc()) {
                 $filePath = __DIR__ . '/../../' . $row['file_path'];
-                
-                // Delete from database
-                $deleteStmt = $conn->prepare("DELETE FROM uploaded_notes WHERE note_id = ?");
-                $deleteStmt->bind_param('i', $noteId);
-                if ($deleteStmt->execute()) {
-                    // Delete physical file
-                    if (file_exists($filePath)) {
-                        unlink($filePath);
+
+                $driveArchived = true;
+                if (!empty($row['drive_file_id'])) {
+                    try {
+                        $driveArchived = (new GoogleDriveService())->moveFileToDeleteFiles((string) $row['drive_file_id']);
+                    } catch (Throwable $e) {
+                        error_log('Legacy notes Drive archive error: ' . $e->getMessage());
+                        $driveArchived = false;
                     }
-                    $_SESSION['notes_message'] = 'Note permanently deleted';
-                    logAdminAction('permanent_delete_note', "Note ID: $noteId");
                 }
-                $deleteStmt->close();
+                if ($driveArchived) {
+                    // Delete from database only after the Drive archive move succeeds.
+                    $deleteStmt = $conn->prepare("DELETE FROM uploaded_notes WHERE note_id = ?");
+                    $deleteStmt->bind_param('i', $noteId);
+                    if ($deleteStmt->execute()) {
+                        if (empty($row['drive_file_id']) && $row['file_path'] !== '' && file_exists($filePath)) {
+                            // Legacy local record fallback only.
+                            unlink($filePath);
+                        }
+                        $_SESSION['notes_message'] = 'Note permanently deleted';
+                        logAdminAction('permanent_delete_note', "Note ID: $noteId");
+                    }
+                    $deleteStmt->close();
+                } else {
+                    $_SESSION['notes_error'] = 'The Drive file could not be moved to deleteFiles; the record was kept.';
+                }
             }
             $stmt->close();
         }
@@ -679,7 +730,7 @@ include_once __DIR__ . '/../header.php';
                                 <td>
                                     <div class="actions">
                                         <button class="btn btn-warning" onclick="editNote(<?= $note['note_id'] ?>)">✏️ Edit</button>
-                                        <a href="../../<?= htmlspecialchars($note['file_path']) ?>" target="_blank" class="btn btn-success">👁️ View</a>
+                                        <a href="<?= htmlspecialchars(!empty($note['drive_url']) ? $note['drive_url'] : '../../' . $note['file_path']) ?>" target="_blank" class="btn btn-success">👁️ View</a>
                                         <form method="POST" style="display: inline;" onsubmit="return confirm('Move to trash?')">
                                             <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                             <input type="hidden" name="action" value="delete">

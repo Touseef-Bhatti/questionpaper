@@ -1,5 +1,15 @@
 <?php
 include '../db_connect.php';
+require_once __DIR__ . '/../services/GoogleDriveService.php';
+
+$driveStatusColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'drive_status'");
+if (!$driveStatusColumnCheck || $driveStatusColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE class_notes ADD COLUMN drive_status ENUM('available','missing') NOT NULL DEFAULT 'available' AFTER approved_by");
+}
+$driveDeletedAtColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'drive_deleted_at'");
+if (!$driveDeletedAtColumnCheck || $driveDeletedAtColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE class_notes ADD COLUMN drive_deleted_at DATETIME DEFAULT NULL AFTER drive_status");
+}
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -117,6 +127,41 @@ if (!$note) {
     exit;
 }
 
+// Public users should see a stable verified label for administrator material.
+// Approval changes only status/approval metadata; user attribution remains the
+// original uploader stored in uploader_name.
+$isVerifiedNote = strtolower(trim((string) ($note['uploader_type'] ?? ''))) === 'admin';
+$publicUploaderName = $isVerifiedNote
+    ? 'Verified Notes'
+    : trim((string) ($note['uploader_name'] ?? ''));
+
+// Google Drive is the source of truth. Mark stale metadata so an administrator
+// can either replace the file or delete the record from the admin page.
+if (($note['drive_status'] ?? 'available') === 'missing' || !empty($note['drive_file_id'])) {
+    try {
+        $fileAvailable = ($note['drive_status'] ?? 'available') !== 'missing';
+        if ($fileAvailable) {
+            $drive = new GoogleDriveService();
+            $fileAvailable = $drive->isFileAvailable((string) $note['drive_file_id']);
+        }
+        if (!$fileAvailable) {
+            $markMissing = $conn->prepare("UPDATE class_notes SET drive_status = 'missing', drive_deleted_at = COALESCE(drive_deleted_at, NOW()) WHERE id = ?");
+            if ($markMissing) {
+                $markMissing->bind_param('i', $noteId);
+                $markMissing->execute();
+                $markMissing->close();
+            }
+
+            http_response_code(404);
+            header('Location: ' . ($assetBase ?? '/') . 'class-notes');
+            exit;
+        }
+    } catch (Throwable $e) {
+        // Do not delete valid metadata because of a transient Drive/API outage.
+        error_log('Public note Drive availability check failed: ' . $e->getMessage());
+    }
+}
+
 // Count a real page open once. POST actions redirect back to the page and are not counted here.
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     $viewStmt = $conn->prepare("UPDATE class_notes SET views = views + 1 WHERE id = ?");
@@ -215,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch related notes (same class & subject, excluding current)
 $relatedNotes = [];
-$relStmt = $conn->prepare("SELECT id, title, subject, chapter, mime_type FROM class_notes WHERE status = 'approved' AND class = ? AND subject = ? AND id != ? ORDER BY created_at DESC LIMIT 4");
+$relStmt = $conn->prepare("SELECT id, title, subject, chapter, mime_type FROM class_notes WHERE status = 'approved' AND drive_status = 'available' AND class = ? AND subject = ? AND id != ? ORDER BY created_at DESC LIMIT 4");
 $relStmt->bind_param('ssi', $note['class'], $note['subject'], $noteId);
 $relStmt->execute();
 $relResult = $relStmt->get_result();
@@ -1179,14 +1224,14 @@ $commentStmt->close();
                                     <div class="vn-meta-value"><?= $uploadDate ?></div>
                                 </div>
                             </div>
-                            <?php if (!empty($note['uploader_name'])): ?>
+                            <?php if ($publicUploaderName !== ''): ?>
                             <div class="vn-meta-row">
                                 <div class="vn-meta-icon user">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 </div>
                                 <div>
                                     <div class="vn-meta-label">Uploaded By</div>
-                                    <div class="vn-meta-value"><?= htmlspecialchars($note['uploader_name']) ?></div>
+                                    <div class="vn-meta-value"><?= htmlspecialchars($publicUploaderName) ?></div>
                                 </div>
                             </div>
                             <?php endif; ?>

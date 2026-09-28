@@ -162,6 +162,10 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS uploaded_notes (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     file_path VARCHAR(255) NOT NULL,
+    drive_file_id VARCHAR(255) DEFAULT NULL,
+    drive_url VARCHAR(500) DEFAULT NULL,
+    drive_status ENUM('available','missing') NOT NULL DEFAULT 'available',
+    drive_deleted_at DATETIME DEFAULT NULL,
     class_id INT NOT NULL,
     book_id INT NOT NULL,
     chapter_id INT NOT NULL,
@@ -197,11 +201,14 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS class_notes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME DEFAULT NULL,
     approved_by INT DEFAULT NULL,
+    drive_status ENUM('available','missing') NOT NULL DEFAULT 'available',
+    drive_deleted_at DATETIME DEFAULT NULL,
     FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_class (class),
     INDEX idx_status (status),
     INDEX idx_subject (subject),
-    INDEX idx_class_status (class, status)
+    INDEX idx_class_status (class, status),
+    INDEX idx_drive_status (drive_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: class_notes");
 
 $result = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'uploader_email'");
@@ -392,17 +399,20 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS book_uploads (
     drive_file_id VARCHAR(255) NOT NULL,
     drive_url VARCHAR(500) NOT NULL,
     drive_folder_id VARCHAR(255) DEFAULT NULL,
-    local_pdf_path VARCHAR(500) NOT NULL,
+    local_pdf_path VARCHAR(500) NOT NULL DEFAULT '',
     original_filename VARCHAR(255) NOT NULL,
     mime_type VARCHAR(100) NOT NULL DEFAULT 'application/pdf',
     file_size BIGINT DEFAULT 0,
     pdf_page_count INT NOT NULL DEFAULT 0,
     page_offset INT NOT NULL DEFAULT 0,
     status ENUM('active','archived') NOT NULL DEFAULT 'active',
+    drive_status ENUM('available','missing') NOT NULL DEFAULT 'available',
+    drive_deleted_at DATETIME DEFAULT NULL,
     uploaded_by INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_book_uploads_book (class_id, book_id, status),
+    INDEX idx_book_uploads_drive_status (drive_status),
     INDEX idx_book_uploads_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: book_uploads");
 
@@ -513,6 +523,10 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS AIDocumentUploads (
     mime_type VARCHAR(128) NULL,
     file_size INT UNSIGNED NOT NULL DEFAULT 0,
     file_sha256 CHAR(64) NULL,
+    drive_file_id VARCHAR(255) NULL,
+    drive_url VARCHAR(500) NULL,
+    drive_folder_id VARCHAR(255) NULL,
+    drive_category VARCHAR(32) NULL,
     ext VARCHAR(16) NOT NULL,
     prepare_mode VARCHAR(16) NOT NULL DEFAULT 'file',
     topic_id INT NULL,

@@ -100,6 +100,7 @@ if (!function_exists('alh_seo_graph')) {
         $canonical = (string) ($options['canonical'] ?? alh_seo_absolute_url(alh_seo_current_path()));
         $pageType = (string) ($options['page_type'] ?? 'WebPage');
         $image = (string) ($options['image'] ?? alh_seo_absolute_url('/favicon/web-app-manifest-512x512.png'));
+        $audienceType = trim((string) ($options['audience_type'] ?? 'students, teachers, tutors and schools in Pakistan'));
 
         return [
             '@context' => 'https://schema.org',
@@ -145,7 +146,7 @@ if (!function_exists('alh_seo_graph')) {
                     'audience' => [
                         '@type' => 'EducationalAudience',
                         'educationalRole' => 'student',
-                        'audienceType' => 'students, teachers, tutors and schools in Pakistan',
+                         'audienceType' => $audienceType,
                     ],
                 ],
             ],
@@ -169,6 +170,7 @@ if (!function_exists('alh_render_seo_head')) {
         $includeKeywords = (bool) ($options['include_keywords'] ?? true);
         $includeRobots = (bool) ($options['include_robots'] ?? true);
         $includeAuthor = (bool) ($options['include_author'] ?? true);
+        $contentLanguage = trim((string) ($options['content_language'] ?? 'en-PK'));
 
         if ($includeTitle) {
             echo '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</title>\n";
@@ -185,7 +187,7 @@ if (!function_exists('alh_render_seo_head')) {
         if ($includeAuthor) {
             echo '<meta name="author" content="Ahmad Learning Hub">' . "\n";
         }
-        echo '<meta name="content-language" content="en-PK">' . "\n";
+        echo '<meta name="content-language" content="' . htmlspecialchars($contentLanguage, ENT_QUOTES, 'UTF-8') . '">' . "\n";
         echo '<link rel="canonical" href="' . htmlspecialchars($canonical, ENT_QUOTES, 'UTF-8') . '">' . "\n";
         echo '<link rel="alternate" type="text/plain" href="' . htmlspecialchars($siteUrl . '/llms.txt', ENT_QUOTES, 'UTF-8') . '" title="Ahmad Learning Hub AI-readable site guide">' . "\n";
         echo '<meta property="og:type" content="' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '">' . "\n";
@@ -205,6 +207,7 @@ if (!function_exists('alh_render_seo_head')) {
             'canonical' => $canonical,
             'image' => $image,
             'page_type' => $options['page_type'] ?? 'WebPage',
+            'audience_type' => $audienceType,
         ])) . '</script>' . "\n";
     }
 }

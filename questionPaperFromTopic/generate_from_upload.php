@@ -12,6 +12,79 @@ require_once __DIR__ . '/../quiz/mcq_generator.php';
 require_once __DIR__ . '/DocumentContentExtractor.php';
 require_once __DIR__ . '/GeminiClient.php';
 require_once __DIR__ . '/GeminiJsonExtractor.php';
+require_once __DIR__ . '/../services/GoogleDriveService.php';
+
+/**
+ * Add Drive linkage fields to installations created before Drive archiving
+ * was introduced. This is intentionally additive and safe to run per request.
+ */
+function ensureAIDocumentUploadDriveColumns(mysqli $conn): void
+{
+    $columns = [
+        'drive_file_id' => "ALTER TABLE AIDocumentUploads ADD COLUMN drive_file_id VARCHAR(255) NULL AFTER file_sha256",
+        'drive_url' => "ALTER TABLE AIDocumentUploads ADD COLUMN drive_url VARCHAR(500) NULL AFTER drive_file_id",
+        'drive_folder_id' => "ALTER TABLE AIDocumentUploads ADD COLUMN drive_folder_id VARCHAR(255) NULL AFTER drive_url",
+        'drive_category' => "ALTER TABLE AIDocumentUploads ADD COLUMN drive_category VARCHAR(32) NULL AFTER drive_folder_id",
+    ];
+    foreach ($columns as $column => $alterSql) {
+        $safeColumn = $conn->real_escape_string($column);
+        $check = $conn->query("SHOW COLUMNS FROM AIDocumentUploads LIKE '{$safeColumn}'");
+        if (!$check || $check->num_rows === 0) {
+            $conn->query($alterSql);
+        }
+    }
+}
+
+function requestedDriveUploadCategory(array $typesRequested): string
+{
+    $explicit = strtolower(trim((string) ($_POST['upload_category'] ?? '')));
+    if ($explicit === 'mcqs' || $explicit === 'question_paper') {
+        return $explicit;
+    }
+    return count($typesRequested) === 1 && in_array('mcqs', $typesRequested, true)
+        ? 'mcqs'
+        : 'question_paper';
+}
+
+/**
+ * Archive the source in Drive while keeping the existing local processing
+ * pipeline intact. A transient Drive outage must not discard generated work.
+ *
+ * @return array{file_id:string,url:string,folder_id:string,category:string}|array{}
+ */
+function archiveUserUploadToDrive(string $filePath, string $fileName, string $mimeType, string $category): array
+{
+    try {
+        $drive = new GoogleDriveService();
+        $result = $category === 'mcqs'
+            ? $drive->uploadUserMcqFile($filePath, $fileName, $mimeType)
+            : $drive->uploadUserQuestionPaperFile($filePath, $fileName, $mimeType);
+        $result['category'] = $category;
+        return $result;
+    } catch (Throwable $e) {
+        error_log('AI source Drive archive failed: ' . $e->getMessage());
+        return [];
+    }
+}
+
+function attachDriveMetadataToUpload(mysqli $conn, int $uploadId, array $driveMeta): void
+{
+    if ($uploadId <= 0 || empty($driveMeta['file_id'])) {
+        return;
+    }
+    $fileId = (string) $driveMeta['file_id'];
+    $url = (string) ($driveMeta['url'] ?? '');
+    $folderId = (string) ($driveMeta['folder_id'] ?? '');
+    $category = (string) ($driveMeta['category'] ?? 'question_paper');
+    $st = $conn->prepare('UPDATE AIDocumentUploads SET drive_file_id = ?, drive_url = ?, drive_folder_id = ?, drive_category = ? WHERE id = ?');
+    if ($st) {
+        $st->bind_param('ssssi', $fileId, $url, $folderId, $category, $uploadId);
+        $st->execute();
+        $st->close();
+    }
+}
+
+ensureAIDocumentUploadDriveColumns($conn);
 
 /**
  * Retry without JSON mode if the API rejects responseMimeType (older models / edge cases).
@@ -190,7 +263,7 @@ function findReusableUploadByHash(mysqli $conn, string $sha, array $req): ?array
         return null;
     }
     $st = $conn->prepare(
-        "SELECT id, stored_filename, relative_path, mime_type, ext, prepare_mode, topic_id, detected_topic, mcq_ids_json, short_ids_json, long_ids_json, recheck_status, recheck_finished_at
+        "SELECT id, stored_filename, relative_path, mime_type, ext, prepare_mode, topic_id, detected_topic, mcq_ids_json, short_ids_json, long_ids_json, recheck_status, recheck_finished_at, drive_file_id, drive_url, drive_folder_id, drive_category
          FROM AIDocumentUploads
          WHERE file_sha256 = ?
          ORDER BY id DESC
@@ -207,6 +280,7 @@ function findReusableUploadByHash(mysqli $conn, string $sha, array $req): ?array
         return null;
     }
 
+    $partialCandidate = null;
     while ($row = $res->fetch_assoc()) {
         $mcqIds = decodeIdJsonList($row['mcq_ids_json'] ?? null);
         $shortIds = decodeIdJsonList($row['short_ids_json'] ?? null);
@@ -223,9 +297,18 @@ function findReusableUploadByHash(mysqli $conn, string $sha, array $req): ?array
             $st->close();
             return $row;
         }
+
+        // Keep the newest incomplete row so a later request can top it up
+        // without creating another record for the same file hash.
+        if ($partialCandidate === null) {
+            $row['mcq_ids'] = $mcqIds;
+            $row['short_ids'] = $shortIds;
+            $row['long_ids'] = $longIds;
+            $partialCandidate = $row;
+        }
     }
     $st->close();
-    return null;
+    return $partialCandidate;
 }
 
 /**
@@ -296,6 +379,76 @@ function insertUploadRecord(
         $ins->close();
     }
     return $uploadRecordId;
+}
+
+/**
+ * Update the existing hash record when a request tops up missing sections.
+ * Reusing the row keeps one database record per uploaded file.
+ */
+function updateUploadRecord(
+    mysqli $conn,
+    int $uploadId,
+    string $origName,
+    string $storedName,
+    string $relativeStoragePath,
+    string $mimeType,
+    int $size,
+    string $fileSha256,
+    string $ext,
+    string $prepareModeStr,
+    int $topicId,
+    string $detectedTopic,
+    array $mcqIds,
+    array $shortIds,
+    array $longIds,
+    string $recheckStatusUpdate,
+    ?string $recheckFinishedUpdate
+): bool {
+    if ($uploadId <= 0) {
+        return false;
+    }
+
+    $mcqJson = json_encode(array_values(array_unique(array_map('intval', $mcqIds))) ?: []);
+    $shortJson = json_encode(array_values(array_unique(array_map('intval', $shortIds))) ?: []);
+    $longJson = json_encode(array_values(array_unique(array_map('intval', $longIds))) ?: []);
+    if ($mcqJson === false) $mcqJson = '[]';
+    if ($shortJson === false) $shortJson = '[]';
+    if ($longJson === false) $longJson = '[]';
+
+    $st = $conn->prepare(
+        'UPDATE AIDocumentUploads
+         SET original_filename = ?, stored_filename = ?, relative_path = ?, mime_type = ?, file_size = ?,
+             file_sha256 = NULLIF(?, \'\'), ext = ?, prepare_mode = ?, topic_id = ?, detected_topic = ?,
+             mcq_ids_json = ?, short_ids_json = ?, long_ids_json = ?, recheck_status = ?, recheck_finished_at = ?
+         WHERE id = ?'
+    );
+    if (!$st) {
+        return false;
+    }
+
+    $bindTypes = str_repeat('s', 4) . 'i' . str_repeat('s', 3) . 'i' . str_repeat('s', 6) . 'i';
+    $st->bind_param(
+        $bindTypes,
+        $origName,
+        $storedName,
+        $relativeStoragePath,
+        $mimeType,
+        $size,
+        $fileSha256,
+        $ext,
+        $prepareModeStr,
+        $topicId,
+        $detectedTopic,
+        $mcqJson,
+        $shortJson,
+        $longJson,
+        $recheckStatusUpdate,
+        $recheckFinishedUpdate,
+        $uploadId
+    );
+    $updated = $st->execute();
+    $st->close();
+    return $updated;
 }
 
 /**
@@ -421,8 +574,9 @@ $countMcqs  = intval($_POST['count_mcqs'] ?? 5);
 $countShort = intval($_POST['count_short'] ?? 3);
 $countLong  = intval($_POST['count_long'] ?? 2);
 $difficulty = $_POST['difficulty'] ?? 'medium';
+$detectTopicOnly = isset($_POST['detect_topic_only']) && $_POST['detect_topic_only'] == '1';
 
-if (empty($questionTypes)) {
+if (empty($questionTypes) && !$detectTopicOnly) {
     echo json_encode(['success' => false, 'error' => 'Please select at least one question type.']);
     exit;
 }
@@ -441,16 +595,39 @@ if (in_array('short', $questionTypes, true)) {
 if (in_array('long', $questionTypes, true)) {
     $typesRequested[] = 'long';
 }
-if ($typesRequested === []) {
+if ($typesRequested === [] && !$detectTopicOnly) {
     echo json_encode(['success' => false, 'error' => 'Please select at least one valid question type.']);
     exit;
 }
 
+// Topic detection is the first step of the question-paper upload flow and
+// does not generate questions yet. Treat a missing type list as a full-paper
+// request so older/cached clients cannot be rejected unnecessarily.
+if ($detectTopicOnly && $typesRequested === []) {
+    $typesRequested = ['mcqs', 'short', 'long'];
+}
+
 $uidForUpload = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
 $tmpSha256 = @hash_file('sha256', $file['tmp_name']) ?: '';
-$detectTopicOnly = isset($_POST['detect_topic_only']) && $_POST['detect_topic_only'] == '1';
+$driveUploadCategory = requestedDriveUploadCategory($typesRequested);
 
 if ($detectTopicOnly) {
+    $existingDetection = findReusableUploadByHash($conn, $tmpSha256, []);
+    if ($existingDetection) {
+        $existingTopic = trim((string) ($existingDetection['detected_topic'] ?? ''));
+        if ($existingTopic === '') {
+            $existingTopic = 'AI Generated from Upload';
+        }
+        echo json_encode([
+            'success' => true,
+            'detected_topic' => $existingTopic,
+            'file_hash' => $tmpSha256,
+            'ai_upload_id' => (int) ($existingDetection['id'] ?? 0),
+            'reused_existing' => true,
+        ]);
+        exit;
+    }
+
     // If just detecting topic, we still need to store the file to analyze it
     $safeExt = preg_replace('/[^a-z0-9]/i', '', $ext) ?: 'bin';
     $storedName = uniqid('up_', true) . '.' . $safeExt;
@@ -459,6 +636,11 @@ if ($detectTopicOnly) {
         echo json_encode(['success' => false, 'error' => 'Could not store upload.']);
         exit;
     }
+
+    // Topic-detection uploads are question-paper inputs in the web paper
+    // builder. Archive them in the dedicated root even though this request
+    // does not yet create generated-question relationships.
+    $driveArchive = archiveUserUploadToDrive($destPath, $storedName, (string) $detectedMime, $driveUploadCategory);
 
     $prepared = DocumentContentExtractor::prepareForGemini($destPath, $ext);
     
@@ -480,7 +662,7 @@ if ($detectTopicOnly) {
     }
 
     if (empty($gen['ok'])) {
-        echo json_encode(['success' => false, 'error' => 'Topic detection failed.']);
+        echo json_encode(['success' => false, 'error' => 'Please try again.']);
         exit;
     }
 
@@ -496,11 +678,35 @@ if ($detectTopicOnly) {
         $contextCachePath = $contextCacheDir . '/' . $tmpSha256 . '.txt';
         @file_put_contents($contextCachePath, $prepared['text']);
     }
+
+    $detectionTopic = trim((string) ($detectedTopic ?: 'AI Generated from Upload'));
+    $detectionTopicId = getOrCreateTopicId($conn, $detectionTopic);
+    $detectionRecordId = insertUploadRecord(
+        $conn,
+        $uidForUpload,
+        $origName,
+        $storedName,
+        'storage/ai_uploads/' . $storedName,
+        (string) $detectedMime,
+        $size,
+        $tmpSha256,
+        $ext,
+        (string) ($prepared['mode'] ?? 'file'),
+        $detectionTopicId,
+        $detectionTopic,
+        [],
+        [],
+        [],
+        'skipped',
+        date('Y-m-d H:i:s')
+    );
+    attachDriveMetadataToUpload($conn, $detectionRecordId, $driveArchive);
     
     echo json_encode([
         'success' => true,
-        'detected_topic' => $detectedTopic,
-        'file_hash' => $tmpSha256
+        'detected_topic' => $detectionTopic,
+        'file_hash' => $tmpSha256,
+        'ai_upload_id' => $detectionRecordId,
     ]);
     exit;
 }
@@ -567,26 +773,25 @@ if ($reuseCandidate) {
         }
         $reuseFinished = (string) ($reuseCandidate['recheck_finished_at'] ?? '');
         $reuseFinishedAt = ($reuseFinished === '') ? date('Y-m-d H:i:s') : $reuseFinished;
+        $reuseDriveMeta = [
+            'file_id' => (string) ($reuseCandidate['drive_file_id'] ?? ''),
+            'url' => (string) ($reuseCandidate['drive_url'] ?? ''),
+            'folder_id' => (string) ($reuseCandidate['drive_folder_id'] ?? ''),
+            'category' => (string) ($reuseCandidate['drive_category'] ?? ''),
+        ];
+        if ($reuseDriveMeta['file_id'] === '' || $reuseDriveMeta['category'] !== $driveUploadCategory) {
+            $reuseDriveMeta = archiveUserUploadToDrive(
+                $file['tmp_name'],
+                uniqid('up_', true) . '.' . $ext,
+                (string) $detectedMime,
+                $driveUploadCategory
+            );
+        }
 
-        $uploadRecordId = insertUploadRecord(
-            $conn,
-            $uidForUpload,
-            $origName,
-            $reuseStoredName !== '' ? $reuseStoredName : basename($reuseRelPath),
-            $reuseRelPath,
-            $reuseMime,
-            $size,
-            $tmpSha256,
-            $reuseExt !== '' ? $reuseExt : $ext,
-            $reusePrepare,
-            $reuseTopicId,
-            $reuseTopic,
-            array_map(static function ($r) { return intval($r['id'] ?? 0); }, $reuseResult['mcqs'] ?? []),
-            array_map(static function ($r) { return intval($r['id'] ?? 0); }, $reuseResult['short'] ?? []),
-            array_map(static function ($r) { return intval($r['id'] ?? 0); }, $reuseResult['long'] ?? []),
-            $reuseStatus,
-            $reuseFinishedAt
-        );
+        // This hash already has complete generated content. Return its existing
+        // row instead of creating another AIDocumentUploads record.
+        $uploadRecordId = (int) ($reuseCandidate['id'] ?? 0);
+        attachDriveMetadataToUpload($conn, $uploadRecordId, $reuseDriveMeta);
 
         $reuseResult['ai_upload_id'] = $uploadRecordId;
         $reuseResult['recheck_status'] = $reuseStatus;
@@ -609,7 +814,7 @@ if ($reuseCandidate) {
 $apiKey = EnvLoader::get('GEMINIAPIKEY', '');
 $model  = EnvLoader::get('GEMINIMODEL', 'gemini-2.5-flash');
 if (empty($apiKey)) {
-    echo json_encode(['success' => false, 'error' => 'AI service is not configured. Please contact administrator.']);
+    echo json_encode(['success' => false, 'error' => 'Please try again.']);
     exit;
 }
 
@@ -620,6 +825,8 @@ if (!move_uploaded_file($file['tmp_name'], $destPath)) {
     echo json_encode(['success' => false, 'error' => 'Could not store upload.']);
     exit;
 }
+
+$driveArchive = archiveUserUploadToDrive($destPath, $storedName, (string) $detectedMime, $driveUploadCategory);
 
 $fileCleanupName = null;
 $contextCacheDir = __DIR__ . '/../storage/ai_upload_context';
@@ -778,14 +985,14 @@ if (!empty($fileCleanupName)) {
 if (empty($gen['ok'])) {
     @unlink($destPath);
     error_log('Gemini generate_from_upload: ' . ($gen['error'] ?? 'unknown'));
-    echo json_encode(['success' => false, 'error' => $gen['error'] ?? 'AI request failed.']);
+    echo json_encode(['success' => false, 'error' => 'Please try again.']);
     exit;
 }
 
 $content = (string) ($gen['text'] ?? '');
 if ($content === '') {
     @unlink($destPath);
-    echo json_encode(['success' => false, 'error' => 'AI returned empty response. Try another file or format.']);
+    echo json_encode(['success' => false, 'error' => 'Please try again.']);
     exit;
 }
 
@@ -800,7 +1007,7 @@ if (!is_array($parsed)) {
     @unlink($destPath);
     echo json_encode([
         'success' => false,
-        'error' => 'AI response could not be parsed as JSON. Try again, use fewer questions, or a smaller file.' . $hint,
+        'error' => 'Please try again.',
     ]);
     exit;
 }
@@ -974,7 +1181,7 @@ if (!$generationOk) {
     @unlink($destPath);
     echo json_encode([
         'success' => false,
-        'error' => 'AI did not return usable questions for your selections. Try a clearer file or different format.',
+        'error' => 'Please try again.',
     ]);
     exit;
 }
@@ -1012,25 +1219,52 @@ $recheckModelForBg = trim((string) EnvLoader::get('GEMINIMODELFORRECHECK', ''));
 $hasRecheckConfig = ($recheckKeyForBg !== '' && $recheckModelForBg !== '');
 $recheckStatusInsert = $hasRecheckConfig ? 'pending' : 'skipped';
 $recheckFinishedInsert = $hasRecheckConfig ? null : date('Y-m-d H:i:s');
-$uploadRecordId = insertUploadRecord(
-    $conn,
-    $uidForUpload,
-    $origName,
-    $storedName,
-    $relativeStoragePath,
-    (string) $detectedMime,
-    $size,
-    $fileSha256,
-    $ext,
-    $prepareModeStr,
-    $topicId,
-    $detectedTopic,
-    $mcqIdList,
-    $shortIdList,
-    $longIdList,
-    $recheckStatusInsert,
-    $recheckFinishedInsert
-);
+$existingUploadId = (int) ($reuseCandidate['id'] ?? 0);
+if ($existingUploadId > 0) {
+    // Top-up requests update the original hash row rather than inserting a
+    // duplicate record for the same physical file.
+    $uploadRecordId = $existingUploadId;
+    updateUploadRecord(
+        $conn,
+        $uploadRecordId,
+        $origName,
+        $storedName,
+        $relativeStoragePath,
+        (string) $detectedMime,
+        $size,
+        $fileSha256,
+        $ext,
+        $prepareModeStr,
+        $topicId,
+        $detectedTopic,
+        $mcqIdList,
+        $shortIdList,
+        $longIdList,
+        $recheckStatusInsert,
+        $recheckFinishedInsert
+    );
+} else {
+    $uploadRecordId = insertUploadRecord(
+        $conn,
+        $uidForUpload,
+        $origName,
+        $storedName,
+        $relativeStoragePath,
+        (string) $detectedMime,
+        $size,
+        $fileSha256,
+        $ext,
+        $prepareModeStr,
+        $topicId,
+        $detectedTopic,
+        $mcqIdList,
+        $shortIdList,
+        $longIdList,
+        $recheckStatusInsert,
+        $recheckFinishedInsert
+    );
+}
+attachDriveMetadataToUpload($conn, $uploadRecordId, $driveArchive);
 
 $result['ai_upload_id'] = $uploadRecordId;
 $result['recheck_status'] = $recheckStatusInsert;

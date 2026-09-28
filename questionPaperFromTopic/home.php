@@ -3,9 +3,10 @@ session_start();
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../includes/seo.php';
 $appName = EnvLoader::get('APP_NAME', 'Ahmad Learning Hub');
-$pageTitle       = "AI Question Paper Generator | " . $appName;
-$metaDescription = "Create MCQs, short and long questions from any topic for teachers and students. Review each generated paper before using it for class tests or exam preparation.";
-$metaKeywords    = "AI question paper generator, online exam paper generator, MCQ maker, online test maker, question paper generator Pakistan, teacher assessment tool, printable exam papers";
+$pageTitle       = "Online Question Paper & AI Exam Maker | " . $appName;
+$metaDescription = "Free instant exam maker for all grades and subjects. Turn topics, PDFs, images or files into AI question papers with printable MCQs, short and long questions.";
+$metaKeywords    = "online question paper, online question paper generator, instant exam maker, free question paper maker, AI question paper, AI exam paper generator, image to paper, image to question paper, PDF to paper, PDF question paper generator, any file to paper, online exam paper maker, MCQ paper maker, printable question paper PDF, all grades question paper";
+$pageUrl         = alh_seo_absolute_url('/online-question-paper-generator');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -17,33 +18,16 @@ $metaKeywords    = "AI question paper generator, online exam paper generator, MC
     <?php alh_render_seo_head([
         'title' => $pageTitle,
         'description' => $metaDescription,
-        'canonical' => alh_seo_absolute_url('/online-question-paper-generator'),
+        'keywords' => $metaKeywords,
+        'canonical' => $pageUrl,
         'page_type' => 'WebPage',
+        'content_language' => 'en',
+        'audience_type' => 'students, teachers, tutors, schools, colleges and universities worldwide',
+        // header.php owns the title, description and keyword tags for this route.
         'include_title' => false,
         'include_description' => false,
         'include_keywords' => false,
-        'include_robots' => false,
-        'include_author' => false,
     ]); ?>
-
-    <!-- Primary SEO -->
-    <title><?= htmlspecialchars($pageTitle) ?></title>
-    <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
-    <meta name="keywords"    content="<?= htmlspecialchars($metaKeywords) ?>">
-    <meta name="robots"      content="index, follow">
-    <meta name="author"      content="<?= htmlspecialchars($appName) ?>">
-
-    <!-- Open Graph (Social sharing) -->
-    <meta property="og:type"        content="website">
-    <meta property="og:title"       content="<?= htmlspecialchars($pageTitle) ?>">
-    <meta property="og:description" content="<?= htmlspecialchars($metaDescription) ?>">
-    <meta property="og:url"         content="https://<?= $_SERVER['HTTP_HOST'] ?>/questionPaperFromTopic/">
-    <meta property="og:site_name"   content="<?= htmlspecialchars($appName) ?>">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card"        content="summary">
-    <meta name="twitter:title"       content="<?= htmlspecialchars($pageTitle) ?>">
-    <meta name="twitter:description" content="<?= htmlspecialchars($metaDescription) ?>">
 
     <?php
     $only_head = true;
@@ -52,7 +36,7 @@ $metaKeywords    = "AI question paper generator, online exam paper generator, MC
     ?>
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="<?= $assetBase ?>css/mcqs_topic.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="<?= $assetBase ?>css/mcqs_topic.css?v=<?= (int) @filemtime(dirname(__DIR__) . '/css/mcqs_topic.css') ?>">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
     <style>
@@ -469,6 +453,67 @@ $metaKeywords    = "AI question paper generator, online exam paper generator, MC
         margin-bottom: 12px;
     }
 
+    .seo-toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 0 0 30px;
+        padding: 16px 18px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+    }
+    .seo-toc a {
+        color: #4338ca;
+        font-weight: 700;
+        text-decoration: none;
+    }
+    .seo-toc a:hover,
+    .seo-toc a:focus-visible {
+        text-decoration: underline;
+    }
+    .answer-box {
+        margin: 0 0 34px;
+        padding: 28px 30px;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 16px;
+    }
+    .answer-box h2 {
+        margin-top: 0;
+    }
+    .answer-box ul {
+        margin-bottom: 0;
+    }
+    .trust-note {
+        padding: 18px 20px;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 12px;
+        color: #78350f;
+    }
+    .seo-link-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin: 24px 0 36px;
+    }
+    .seo-link-grid a {
+        display: block;
+        padding: 16px;
+        color: #3730a3;
+        background: #ffffff;
+        border: 1px solid #c7d2fe;
+        border-radius: 12px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+    .seo-link-grid a:hover,
+    .seo-link-grid a:focus-visible {
+        border-color: #6366f1;
+        background: #eef2ff;
+    }
+
     @media (max-width: 768px) {
         .seo-blog-section.blog-layout {
             margin: 40px auto;
@@ -497,23 +542,29 @@ $metaKeywords    = "AI question paper generator, online exam paper generator, MC
     </style>
 
     <?php
-    $host = 'https://' . $_SERVER['HTTP_HOST'];
     $jsonLD = [
         "@context"          => "https://schema.org",
         "@type"             => "WebApplication",
-        "name"              => "AI Exam Paper Generator & MCQ Maker – " . $appName,
-        "alternateName"     => ["SAT Question Generator", "GCSE Test Maker", "A-Level Paper Builder", "IB Exam Creator", "MCQ Maker Online"],
-        "description"       => "The #1 AI-powered exam paper generator for teachers and students globally. Create custom MCQs, short questions, and tests for SAT, ACT, GCSE, A-Levels, and IB. Free online assessment builder for USA, UK, Europe, and beyond.",
-        "url"               => $host . "/questionPaperFromTopic/home.php",
+        "@id"               => $pageUrl . "#application",
+        "name"              => "Online Question Paper Generator - Ahmad Learning Hub",
+        "alternateName"     => ["Instant exam maker", "Free question paper maker", "AI question paper", "PDF to paper maker", "Image to paper maker"],
+        "description"       => $metaDescription,
+        "url"               => $pageUrl,
         "applicationCategory" => "EducationalApplication",
         "operatingSystem"   => "Any",
+        "audience"          => [
+            "@type" => "EducationalAudience",
+            "audienceType" => "students, teachers, tutors, schools, colleges and universities worldwide"
+        ],
         "featureList" => [
-            "AI-driven question generation",
-            "Multi-format file upload support (PDF, DOCX, Images)",
-            "Regional curriculum support (USA, UK, Europe)",
-            "Customizable difficulty levels",
-            "Export to PDF and Word"
-        ]
+            "Search topics and chapters to build an online question paper for any grade",
+            "Convert supported PDF, DOCX, PPTX, TXT or image files into paper content",
+            "Generate MCQs, short questions and long questions",
+            "Choose easy, medium or hard difficulty",
+            "Generate a printable PDF question paper instantly"
+        ],
+        "isPartOf"          => ["@id" => alh_seo_site_url() . "#website"],
+        "publisher"         => ["@id" => alh_seo_site_url() . "#organization"]
     ];
     ?>
     <script type="application/ld+json">
@@ -539,9 +590,9 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
     <div class="topic-search-container">
         <!-- TOP AD BANNER -->
 
-        <h1>Free AI Exam Paper Generator & MCQ Maker</h1>
+        <h1>Online Question Paper &amp; Instant Exam Maker</h1>
         <p class="desc">
-            Generate professional assessments for <strong>SAT, GCSE, A-Levels, IB</strong>, and University exams instantly. Search any topic, upload study notes, and get a high-quality exam-ready paper in seconds.
+            Use our <strong>AI question paper maker</strong> to turn a topic, chapter, PDF, image or supported file into <strong>MCQs, short questions and long questions</strong>. Review the paper and download a printable PDF for tests, revision and exam preparation.
         </p>
 
         <!-- MODE SWITCHER -->
@@ -611,14 +662,22 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
                     </button>
                 </div>
                 <div class="text-upload-modal-body">
-                    <div class="text-upload-file-wrapper">
+                    <div class="text-upload-file-wrapper" id="documentUploadWrapper">
                         <label class="text-upload-file-label" for="documentUploadInput">
                             <i class="fas fa-paperclip"></i> Choose file
                         </label>
                         <input type="file" id="documentUploadInput" class="text-upload-file-input" name="document" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.png,.jpg,.jpeg,.webp,.gif,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/*">
                         <div class="text-upload-file-meta">
                             <span id="documentUploadFilename" class="text-upload-filename">No file selected</span>
+                            <span id="documentUploadFileDetails" class="text-upload-file-details">Choose one file to begin.</span>
                             <span class="text-upload-hint" title="Legacy .doc/.ppt may need to be saved as PDF or DOCX/PPTX if upload fails">PDF, DOCX, TXT, PPT, PPTX, PNG, JPG, WEBP, GIF · max 10 MB</span>
+                        </div>
+                        <div class="text-upload-status" id="documentUploadStatus" role="status" aria-live="polite">
+                            <i class="fas fa-info-circle"></i>
+                            <span>
+                                <strong id="documentUploadStatusTitle">Ready when you are</strong>
+                                <small id="documentUploadStatusText">Questions will be generated only from the selected file.</small>
+                            </span>
                         </div>
                     </div>
 
@@ -635,8 +694,8 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
                 </div>
                 <div class="text-upload-modal-footer">
                     <button type="button" class="text-upload-cancel-btn" onclick="closeTextUploadModal()">Cancel</button>
-                    <button type="button" class="text-upload-generate-btn" id="textGenerateBtn" onclick="generateFromFile()">
-                        <i class="fas fa-magic"></i> Analyze File
+                    <button type="button" class="text-upload-generate-btn" id="textGenerateBtn" onclick="generateFromFile()" disabled>
+                        <i class="fas fa-magic"></i> Analyze selected file
                     </button>
                 </div>
             </div>
@@ -704,127 +763,136 @@ $userPlan     = $subscriptionStatus ? $subscriptionStatus['plan_type'] : 'free';
             </div>
         </div>
 </div>
-        <!-- User Guide Section - For First Time Users -->
-        <article class="seo-blog-section blog-layout" style="margin-top: 40px; margin-bottom: 0;">
-            <div class="blog-container" style="background: #fdfdfd; border-left: 5px solid #10b981;">
+        <article class="seo-blog-section blog-layout" style="margin-top: 40px; margin-bottom: 0;" aria-labelledby="generator-guide-title">
+            <div class="blog-container">
+                <nav class="seo-toc" aria-label="Question paper generator guide">
+                    <strong>On this page:</strong>
+                    <a href="#about-generator">Create instantly</a>
+                    <a href="#how-to-use">How it works</a>
+                    <a href="#who-can-use">Use cases</a>
+                    <a href="#generator-faq">FAQs</a>
+                </nav>
+
+                <section class="answer-box" id="about-generator" aria-labelledby="about-generator-title">
+                    <h2 id="about-generator-title">Create a question paper instantly from any topic or file</h2>
+                    <p>Build an <strong>online question paper</strong> in minutes with Ahmad Learning Hub. This <strong>instant exam maker</strong> helps teachers, tutors and students worldwide turn searchable topics, PDF notes, images and supported files into an AI-assisted question paper that can be reviewed and downloaded as a printable PDF.</p>
+                    <ul>
+                        <li><strong>Free question paper maker:</strong> Start with the available online paper-building workflow for class tests, practice and revision.</li>
+                        <li><strong>AI question paper:</strong> Search topics or use AI suggestions to collect relevant question areas.</li>
+                        <li><strong>PDF to paper and image to paper:</strong> Upload supported PDF, DOC/DOCX, PPT/PPTX, TXT or image notes.</li>
+                        <li><strong>Any supported file to paper:</strong> Select MCQs, short questions, long questions and difficulty before PDF generation.</li>
+                        <li><strong>Easy and clean:</strong> Follow the simple browser workflow from topic selection to printable paper.</li>
+                        <li><strong>For every learner:</strong> Use it for primary, middle, high school, college, university and professional learning.</li>
+                    </ul>
+                </section>
+
                 <header class="blog-header">
-                    <h2 class="blog-title" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); -webkit-background-clip: text; background-clip: text;">Quick Start Guide: How to Generate Your First Paper in Seconds</h2>
-                    <p class="lead">Welcome to Ahmad Learning Hub! If you're here for the first time, follow these 5 simple steps to create a professional exam paper using our AI engine.</p>
+                    <h2 class="blog-title" id="generator-guide-title">Build an online question paper in five simple steps</h2>
+                    <div class="blog-meta">
+                        <span class="category">Teacher assessment tool</span>
+                        <span class="read-time">Updated September 28, 2026</span>
+                    </div>
+                    <p class="lead">Create a free question paper draft without starting from a blank document. Search your subject, add the topics you want to assess, select the paper mix and review the final settings before generation.</p>
                 </header>
 
-                <section class="blog-content">
+                <section class="blog-content" id="how-to-use">
                     <div class="step-guide">
                         <div style="margin-bottom: 30px;">
-                            <h3><span style="color: #10b981;">01.</span> Select Your Question Type</h3>
-                            <p>Before doing anything else, click on the mode buttons at the top (<strong>MCQs, Short Q's, or Long Q's</strong>). This tells the AI what specific format you want for your exam paper.</p>
+                            <h3><span style="color: #10b981;">01.</span> Select a question type</h3>
+                            <p>Choose <strong>MCQs</strong>, <strong>short questions</strong> or <strong>long questions</strong>. You can build a paper around one format or select topics for more than one section.</p>
                         </div>
-
                         <div style="margin-bottom: 30px;">
-                            <h3><span style="color: #10b981;">02.</span> Choose Your Method</h3>
-                            <p>Now, enter your subject or topic in the search bar. You can also click the <i class="fas fa-file-upload"></i> icon to <strong>Upload a File</strong> (PDF, Word, or Image) and generate questions directly from your own notes.</p>
+                            <h3><span style="color: #10b981;">02.</span> Search a topic or convert a file</h3>
+                            <p>Search for a subject, chapter or topic. Or sign in and use the <strong>PDF to paper</strong>, <strong>image to paper</strong> and supported-file workflow with one PDF, DOC/DOCX, PPT/PPTX, TXT or image file up to 10 MB.</p>
                         </div>
-
                         <div style="margin-bottom: 30px;">
-                            <h3><span style="color: #10b981;">03.</span> Add Topics to Your List</h3>
-                            <p>Click on the <strong>"Topic Cards"</strong> that appear in the results. Each clicked topic is added to your selection. You can search multiple times to add different topics to the same paper.</p>
+                            <h3><span style="color: #10b981;">03.</span> Add topics to your paper</h3>
+                            <p>Review the matching topic cards and click the topics you want. The selected list shows how many MCQ, short and long-question topics are ready.</p>
                         </div>
-
                         <div style="margin-bottom: 30px;">
-                            <h3><span style="color: #10b981;">04.</span> Topic Not Found? Use AI Search</h3>
-                            <p>If you don't see the exact topic you need, don't worry! Click the <strong>"Explore More Topics (AI)"</strong> button. Our AI will scan its entire knowledge base to find and create relevant topics for you instantly.</p>
+                            <h3><span style="color: #10b981;">04.</span> Add AI question suggestions</h3>
+                            <p>Use <strong>Explore More Topics (AI)</strong> when a search needs broader suggestions. Check every AI-suggested topic before adding it to an assessment.</p>
                         </div>
-
                         <div style="margin-bottom: 30px;">
-                            <h3><span style="color: #10b981;">05.</span> Settings & Generation</h3>
-                            <p>Once your list is ready, click <strong>"Continue to Settings"</strong> to choose the quantity and difficulty level. Finally, hit <strong>"Generate Paper"</strong> to preview, edit, and download your print-ready PDF!</p>
+                            <h3><span style="color: #10b981;">05.</span> Generate the exam paper PDF</h3>
+                            <p>Continue to settings, choose the quantity for each question type and select easy, medium or hard difficulty. Generate the question paper PDF, then review it before printing or sharing.</p>
                         </div>
                     </div>
 
-                    <div class="blog-featured-box" style="background: #ecfdf5; border-left-color: #10b981;">
-                        <h4>💡 Pro Tip for Teachers</h4>
-                        <p>Use the <strong>"Explore More Topics (AI)"</strong> button if you want our AI to suggest related sub-topics that you might have missed. It’s perfect for creating deep, challenging assessments!</p>
-                    </div>
-                </section>
-            </div>
-        </article>
-
-        <!-- Blog Style SEO Section - Premium Layout -->
-        <article class="seo-blog-section blog-layout">
-            <div class="blog-container">
-                <header class="blog-header">
-                    <h1 class="blog-title">The Future of Assessment: AI-Powered Exam Paper Generation & MCQ Making</h1>
-                    <div class="blog-meta">
-                        <span class="category">AI Education 2026</span>
-                        <span class="read-time">10 min read</span>
-                    </div>
-                </header>
-
-                <section class="blog-content">
-                    <p class="lead">
-                        In the rapidly evolving world of education, teachers and students are seeking smarter ways to assess knowledge. Our <strong>AI Exam Paper Generator</strong> is designed to bridge the gap between curriculum standards and high-quality assessments globally.
-                    </p>
-
-                    <div class="blog-featured-box">
-                        <h4>At a Glance: Global Standards Support</h4>
-                        <ul>
-                            <li><strong>SAT & ACT:</strong> Optimized for US college admissions.</li>
-                            <li><strong>GCSE & A-Levels:</strong> Tailored for UK board standards (AQA, Edexcel).</li>
-                            <li><strong>IB Diploma:</strong> Comprehensive support for the International Baccalaureate.</li>
-                            <li><strong>File-to-Paper:</strong> Convert PDF, Word, and Images into tests instantly.</li>
-                        </ul>
+                    <div class="blog-featured-box" id="who-can-use">
+                        <h3>Instant exam maker for tests, worksheets and revision</h3>
+                        <p>Use this online question paper maker for a chapter test, weekly quiz, revision worksheet, academy assessment, college assignment or broader practice paper. It is designed for all grades, subjects and curricula; review every AI-assisted paper against your own course requirements before formal use.</p>
+                        <div class="seo-link-grid">
+                            <a href="<?= $assetBase ?>class-9th-and-10th-online-question-paper-generator">Class 9 and 10 subject paper generator</a>
+                            <a href="<?= $assetBase ?>class-11-and-12-online-question-paper-generator">Class 11 and 12 subject paper generator</a>
+                            <a href="<?= $assetBase ?>class-9-and-10-online-mcqs-prepation-test">Online MCQs tests</a>
+                            <a href="<?= $assetBase ?>study-material-for-board-exam-preparations">Study material and revision notes</a>
+                        </div>
                     </div>
 
-                    <h2>Why Use Our AI MCQ Maker & Test Creator?</h2>
-                    <p>
-                        Traditional paper setting takes hours of manual work. Our platform automates this process using advanced natural language processing. Whether you are a teacher preparing for a semester exam or a student practicing for standardized tests, our <strong>online paper builder</strong> provides instant, accurate, and relevant questions.
-                    </p>
-
+                    <h2>AI question paper maker features</h2>
                     <div class="seo-grid">
                         <div class="seo-card">
-                            <i class="fas fa-flag-usa"></i>
-                            <h4>Optimized for USA</h4>
-                            <p>Tailored for US educators focusing on <strong>SAT, ACT, and AP Exams</strong>. Our AI aligns with Common Core standards to provide rigorous testing materials.</p>
+                            <i class="fas fa-layer-group" aria-hidden="true"></i>
+                            <h3>Online question paper builder</h3>
+                            <p>Combine selected topics and chapters in one assessment instead of copying questions into a document manually.</p>
                         </div>
                         <div class="seo-card">
-                            <i class="fas fa-gbp"></i>
-                            <h4>Mastering UK Exams</h4>
-                            <p>Designed for the British curriculum, supporting <strong>GCSEs, A-Levels, and SATS</strong>. Generate questions that match AQA and OCR board formats.</p>
+                            <i class="fas fa-file-upload" aria-hidden="true"></i>
+                            <h3>PDF to paper and image to paper</h3>
+                            <p>Upload supported PDF, Word, PowerPoint, text or image notes so the file-based workflow can prepare questions from your source.</p>
                         </div>
                         <div class="seo-card">
-                            <i class="fas fa-globe-europe"></i>
-                            <h4>European Standards</h4>
-                            <p>Comprehensive support for the <strong>International Baccalaureate (IB)</strong>. Ideal for international schools across Europe and the Middle East.</p>
+                            <i class="fas fa-sliders-h" aria-hidden="true"></i>
+                            <h3>Free MCQ paper maker</h3>
+                            <p>Set the number of MCQs, short questions and long questions, then choose an easy, medium or hard difficulty level.</p>
+                        </div>
+                        <div class="seo-card">
+                            <i class="fas fa-file-pdf" aria-hidden="true"></i>
+                            <h3>Any supported file to paper</h3>
+                            <p>Generate a paper you can inspect and download as a printable PDF for classroom use, revision or an academy test.</p>
                         </div>
                     </div>
 
-                    <h3>Smart Features for Professional Educators</h3>
-                    <ul>
-                        <li><strong>Instant Topic Extraction:</strong> Simply search a topic or upload your study notes, and our AI identifies core concepts immediately.</li>
-                        <li><strong>Difficulty Customization:</strong> From basic definitions to complex numerical problems, tailor your paper to your students' levels.</li>
-                        <li><strong>Multi-Format Support:</strong> Upload PDF, DOCX, PPTX, or even handwritten notes (JPG/PNG) for automated generation.</li>
-                    </ul>
-
-                    <div class="blog-quote">
-                        "The goal of modern assessment is to test understanding, not just memory. AI allows teachers to create unique, challenging papers that truly reflect student learning."
+                    <div class="trust-note">
+                        <strong>Review before use:</strong> AI-assisted questions can contain errors or may not match the latest textbook, syllabus, curriculum or assessment instructions. A teacher or learner should check the wording, answer choices, difficulty and marks before using a paper in a formal assessment.
                     </div>
 
-                    <h2>How to Generate the Perfect Exam Paper in 3 Steps</h2>
-                    <ol>
-                        <li><strong>Search or Upload:</strong> Enter your topics in the search bar or upload a document to analyze.</li>
-                        <li><strong>Configure Settings:</strong> Select the number of MCQs, short questions, and long questions. Choose your difficulty level.</li>
-                        <li><strong>Edit & Export:</strong> Review the generated paper in our live editor. Remove questions, edit text, and download as PDF or Word.</li>
-                    </ol>
-
-                    <h3>Frequently Asked Questions (FAQs)</h3>
+                    <h2 id="generator-faq">Frequently asked questions</h2>
                     <div class="blog-featured-box" style="background: #f1f5f9; border-left-color: #94a3b8;">
-                        <p><strong>Is this suitable for GCSE and A-Levels?</strong><br>Yes! Our AI is trained on UK curriculum standards, making it perfect for GCSE and A-Level preparation.</p>
-                        <p><strong>Can I generate SAT practice questions?</strong><br>Absolutely. We support SAT and ACT formats, providing realistic MCQs for US high school students.</p>
-                        <p><strong>What file types can I upload?</strong><br>You can upload PDF, DOCX, TXT, PPT/PPTX, and images (JPG/PNG).</p>
+                        <details>
+                            <summary><strong>Can I make a free question paper online?</strong></summary>
+                            <p>Yes. You can start the online paper-building workflow for classroom tests, revision and practice, then review the available settings before generating a paper.</p>
+                        </details>
+                        <details>
+                            <summary><strong>Can I convert a PDF or image to a question paper?</strong></summary>
+                            <p>Yes. Sign in, upload a supported PDF or image up to 10 MB, and use the PDF-to-paper or image-to-paper workflow to prepare questions from its content.</p>
+                        </details>
+                        <details>
+                            <summary><strong>Can I turn any file into an exam paper?</strong></summary>
+                            <p>You can upload supported PDF, DOC/DOCX, PPT/PPTX, TXT and image files. The file-to-paper workflow prepares the source for MCQs, short questions and long questions.</p>
+                        </details>
+                        <details>
+                            <summary><strong>Can AI create MCQs, short and long questions?</strong></summary>
+                            <p>Yes. Select the question type, choose topics or upload source material, then set the quantity and difficulty before generating the AI-assisted paper.</p>
+                        </details>
+                        <details>
+                            <summary><strong>Is this a Punjab Board question paper generator?</strong></summary>
+                            <p>The main tool is a general topic and source-based generator for users worldwide. If you follow a specific board or curriculum, verify every paper against the current official syllabus and assessment pattern.</p>
+                        </details>
+                        <details>
+                            <summary><strong>Can the instant exam maker create a printable PDF?</strong></summary>
+                            <p>Yes. After you select topics, question quantities and difficulty, the next step generates a PDF that you can review and print.</p>
+                        </details>
+                        <details>
+                            <summary><strong>Who can use this online question paper maker?</strong></summary>
+                            <p>Teachers, tutors, academies, school staff and students can use it to prepare classroom tests, revision papers and practice assessments.</p>
+                        </details>
                     </div>
 
                     <div class="blog-cta-box">
-                        <h3>Start Building Your Professional Paper Now</h3>
-                        <p>Join thousands of educators worldwide. Search a topic above or upload your first file to experience the power of AI in education!</p>
+                        <h3>Build your next question paper</h3>
+                        <p>Search a topic above, upload your study notes or turn your next lesson into a clean, printable question paper.</p>
                     </div>
                 </section>
             </div>
@@ -1254,8 +1322,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         });
     }
     document.getElementById('documentUploadInput')?.addEventListener('change', function() {
-        const fn = document.getElementById('documentUploadFilename');
-        if(fn) fn.textContent = (this.files && this.files[0]) ? this.files[0].name : 'No file selected';
+        updateSelectedUpload(this.files && this.files[0] ? this.files[0] : null);
     });
 });
 
@@ -1277,14 +1344,109 @@ function checkLoginAndOpenUpload() {
 function openTextUploadModal() {
     const modal = document.getElementById('textUploadModal');
     const fin = document.getElementById('documentUploadInput');
-    const fn = document.getElementById('documentUploadFilename');
     if(fin) fin.value = '';
-    if(fn) fn.textContent = 'No file selected';
+    resetUploadUi();
     if(modal) {
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         setTimeout(() => modal.classList.add('active'), 10);
     }
+}
+
+const uploadAllowedExtensions = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'png', 'jpg', 'jpeg', 'webp', 'gif']);
+
+function formatUploadSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 1024) return `${bytes || 0} B`;
+    const units = ['KB', 'MB', 'GB'];
+    let size = bytes;
+    let unit = -1;
+    do {
+        size /= 1024;
+        unit++;
+    } while (size >= 1024 && unit < units.length - 1);
+    return `${size.toFixed(size >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
+}
+
+function setUploadStatus(kind, title, detail) {
+    const status = document.getElementById('documentUploadStatus');
+    const titleEl = document.getElementById('documentUploadStatusTitle');
+    const detailEl = document.getElementById('documentUploadStatusText');
+    if (!status) return;
+    status.className = `text-upload-status${kind ? ` ${kind}` : ''}`;
+    if (titleEl) titleEl.textContent = title;
+    if (detailEl) detailEl.textContent = detail;
+    const icon = status.querySelector('i');
+    if (icon) {
+        icon.className = kind === 'success' ? 'fas fa-check-circle' :
+            kind === 'loading' ? 'fas fa-spinner fa-spin' :
+            kind === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle';
+    }
+}
+
+function resetUploadUi() {
+    const wrapper = document.getElementById('documentUploadWrapper');
+    const filename = document.getElementById('documentUploadFilename');
+    const details = document.getElementById('documentUploadFileDetails');
+    const errorEl = document.getElementById('textUploadError');
+    const generateBtn = document.getElementById('textGenerateBtn');
+    if (wrapper) wrapper.classList.remove('has-file', 'has-error');
+    if (filename) filename.textContent = 'No file selected';
+    if (details) details.textContent = 'Choose one file to begin.';
+    if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.style.display = 'none';
+    }
+    if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<i class="fas fa-magic"></i> Analyze selected file';
+    }
+    setUploadStatus('', 'Ready when you are', 'Questions will be generated only from the selected file.');
+}
+
+function updateSelectedUpload(file) {
+    const wrapper = document.getElementById('documentUploadWrapper');
+    const filename = document.getElementById('documentUploadFilename');
+    const details = document.getElementById('documentUploadFileDetails');
+    const errorEl = document.getElementById('textUploadError');
+    const generateBtn = document.getElementById('textGenerateBtn');
+    if (!file) {
+        resetUploadUi();
+        return;
+    }
+
+    const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+    const invalidExtension = !uploadAllowedExtensions.has(extension);
+    const tooLarge = file.size > 10 * 1024 * 1024;
+    if (filename) filename.textContent = file.name;
+    if (details) details.textContent = `${extension ? extension.toUpperCase() : 'FILE'} · ${formatUploadSize(file.size)}`;
+    if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.style.display = 'none';
+    }
+
+    if (invalidExtension || tooLarge) {
+        if (wrapper) {
+            wrapper.classList.remove('has-file');
+            wrapper.classList.add('has-error');
+        }
+        if (generateBtn) generateBtn.disabled = true;
+        const message = invalidExtension
+            ? 'This file type is not supported. Please choose PDF, DOC/DOCX, PPT/PPTX, TXT, or an image.'
+            : 'File is too large. Maximum size is 10 MB.';
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+        setUploadStatus('error', 'File cannot be analyzed', message);
+        return;
+    }
+
+    if (wrapper) {
+        wrapper.classList.remove('has-error');
+        wrapper.classList.add('has-file');
+    }
+    if (generateBtn) generateBtn.disabled = false;
+    setUploadStatus('success', 'File selected successfully', 'Ready to upload and analyze. Questions will use only this file.');
 }
 
 function closeTextUploadModal() {
@@ -1322,11 +1484,13 @@ async function generateFromFile() {
     if(!file) {
         errorEl.textContent = 'Please choose a file to upload.';
         errorEl.style.display = 'block';
+        setUploadStatus('error', 'Choose a file first', 'Select one supported file before starting the analysis.');
         return;
     }
     if(file.size > 10 * 1024 * 1024) {
         errorEl.textContent = 'File is too large. Maximum size is 10 MB.';
         errorEl.style.display = 'block';
+        setUploadStatus('error', 'File cannot be analyzed', 'Maximum file size is 10 MB.');
         return;
     }
 
@@ -1335,15 +1499,17 @@ async function generateFromFile() {
     if(document.getElementById('textTypeShort')?.checked) types.push('short');
     if(document.getElementById('textTypeLong')?.checked) types.push('long');
 
+    // The file-upload modal currently has no separate type checkboxes. A
+    // question-paper upload should therefore analyze the file for every paper
+    // section; the next settings step still controls the final counts.
     if(types.length === 0) {
-        errorEl.textContent = 'Please select at least one question type.';
-        errorEl.style.display = 'block';
-        return;
+        types.push('mcqs', 'short', 'long');
     }
 
     progressEl.style.display = 'block';
     genBtn.disabled = true;
-    genBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+    genBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading & analyzing...';
+    setUploadStatus('loading', 'Uploading file…', 'Reading the file and detecting its topic.');
 
     const progressSteps = [
         'Reading your file...',
@@ -1366,6 +1532,8 @@ async function generateFromFile() {
         const formData = new FormData();
         formData.append('document', file);
         formData.append('detect_topic_only', '1');
+        formData.append('upload_category', 'question_paper');
+        types.forEach(type => formData.append('question_types[]', type));
 
         const base = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
         const res = await fetch(base + '/generate_from_upload.php', {
@@ -1380,6 +1548,7 @@ async function generateFromFile() {
         if(data.success) {
             progressEl.style.display = 'none';
             const topicLabel = (data.detected_topic && String(data.detected_topic).trim()) ? String(data.detected_topic).trim() : 'AI Generated from Upload';
+            setUploadStatus('success', 'File uploaded successfully', `Content analyzed. Preparing questions from “${topicLabel}”.`);
             
             const form = document.createElement('form');
             form.method = 'POST';
@@ -1401,21 +1570,24 @@ async function generateFromFile() {
             }
 
             document.body.appendChild(form);
+            await new Promise(resolve => setTimeout(resolve, 450));
             form.submit();
         } else {
             progressEl.style.display = 'none';
-            errorEl.textContent = data.error || 'Failed to analyze file. Please try again.';
+            errorEl.textContent = 'Please try again.';
             errorEl.style.display = 'block';
+            setUploadStatus('error', 'Please try again', 'The file could not be processed right now.');
         }
     } catch(e) {
         clearInterval(pInterval);
         progressEl.style.display = 'none';
-        errorEl.textContent = 'Network error. Please check your connection and try again.';
+        errorEl.textContent = 'Please try again.';
         errorEl.style.display = 'block';
+        setUploadStatus('error', 'Please try again', 'The file could not be processed right now.');
         console.error('Analyze file error:', e);
     } finally {
         genBtn.disabled = false;
-        genBtn.innerHTML = '<i class="fas fa-magic"></i> Analyze File';
+        genBtn.innerHTML = '<i class="fas fa-magic"></i> Analyze selected file';
     }
 }
 

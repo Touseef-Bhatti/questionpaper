@@ -8,6 +8,7 @@ $metaKeywords = "AI generated paper, exam paper editor, MCQ maker results, test 
 require_once __DIR__ . '/../db_connect.php';
 require_once __DIR__ . '/../quiz/mcq_generator.php';
 require_once __DIR__ . '/../includes/APIKeyManager.php';
+require_once __DIR__ . '/GeminiClient.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_site_review') {
     header('Content-Type: application/json');
@@ -93,14 +94,131 @@ require_once __DIR__ . '/../header.php';
 <!-- SEO: JSON-LD Structured Data -->
 <script type="application/ld+json">
 <?= json_encode($jsonLD, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
-</script>>
+</script>
 <?php
 
-// Get inputs from configure_paper.php or topic search
-$topics = $_POST['topics'] ?? (isset($_GET['topic']) ? [$_GET['topic']] : []);
-$topicsMcqs = $_POST['topics_mcqs'] ?? [];
-$topicsShort = $_POST['topics_short'] ?? [];
-$topicsLong = $_POST['topics_long'] ?? [];
+// Get inputs from configure_paper.php or topic search. Browser forms send
+// arrays for these fields, but scalar values are also valid for direct/retry
+// submissions and must not reach foreach()/implode() un-normalized.
+function normalizePaperTopics($value): array
+{
+    if ($value === null || $value === '') {
+        return [];
+    }
+    $values = is_array($value) ? $value : [$value];
+    $values = array_map(static fn($item): string => trim((string) $item), $values);
+    return array_values(array_filter($values, static fn(string $item): bool => $item !== ''));
+}
+
+function decodeUploadQuestionIds(?string $json): array
+{
+    $decoded = json_decode((string) $json, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    $ids = array_map('intval', $decoded);
+    $ids = array_filter($ids, static fn(int $id): bool => $id > 0);
+    return array_values(array_unique($ids));
+}
+
+function findUploadRecordByHash(mysqli $conn, string $fileHash): ?array
+{
+    if (!preg_match('/^[a-f0-9]{64}$/i', $fileHash)) {
+        return null;
+    }
+    $stmt = $conn->prepare(
+        'SELECT id, mcq_ids_json, short_ids_json, long_ids_json
+         FROM AIDocumentUploads
+         WHERE file_sha256 = ?
+         ORDER BY id DESC
+         LIMIT 25'
+    );
+    if (!$stmt) {
+        return null;
+    }
+    $stmt->bind_param('s', $fileHash);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $fallback = null;
+    $record = null;
+    if ($result) {
+        while ($candidate = $result->fetch_assoc()) {
+            if ($fallback === null) {
+                $fallback = $candidate;
+            }
+            if (
+                trim((string) ($candidate['mcq_ids_json'] ?? '')) !== ''
+                || trim((string) ($candidate['short_ids_json'] ?? '')) !== ''
+                || trim((string) ($candidate['long_ids_json'] ?? '')) !== ''
+            ) {
+                $record = $candidate;
+                break;
+            }
+        }
+    }
+    $stmt->close();
+    return is_array($record ?? $fallback) ? ($record ?? $fallback) : null;
+}
+
+function fetchUploadQuestionsByIds(mysqli $conn, string $type, array $ids, int $limit): array
+{
+    if ($ids === [] || $limit <= 0) {
+        return [];
+    }
+    $tableMap = [
+        'mcqs' => 'SELECT id, topic, question_text AS question, option_a, option_b, option_c, option_d, correct_option FROM AIGeneratedMCQs',
+        'short' => 'SELECT id, question_text AS question, typical_answer FROM AIGeneratedShortQuestions',
+        'long' => 'SELECT id, question_text AS question, typical_answer FROM AIGeneratedLongQuestions',
+    ];
+    if (!isset($tableMap[$type])) {
+        return [];
+    }
+    $ids = array_slice(array_values(array_unique(array_map('intval', $ids))), 0, $limit);
+    if ($ids === []) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $conn->prepare($tableMap[$type] . " WHERE id IN ($placeholders)");
+    if (!$stmt) {
+        return [];
+    }
+    $stmt->bind_param(str_repeat('i', count($ids)), ...$ids);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $rows = [];
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+    }
+    $stmt->close();
+    return $rows;
+}
+
+function updateUploadQuestionIds(mysqli $conn, int $uploadId, array $mcqIds, array $shortIds, array $longIds): void
+{
+    if ($uploadId <= 0) {
+        return;
+    }
+    $mcqJson = json_encode(array_values(array_unique(array_map('intval', $mcqIds))) ?: []);
+    $shortJson = json_encode(array_values(array_unique(array_map('intval', $shortIds))) ?: []);
+    $longJson = json_encode(array_values(array_unique(array_map('intval', $longIds))) ?: []);
+    if ($mcqJson === false || $shortJson === false || $longJson === false) {
+        return;
+    }
+    $stmt = $conn->prepare('UPDATE AIDocumentUploads SET mcq_ids_json = ?, short_ids_json = ?, long_ids_json = ? WHERE id = ?');
+    if (!$stmt) {
+        return;
+    }
+    $stmt->bind_param('sssi', $mcqJson, $shortJson, $longJson, $uploadId);
+    $stmt->execute();
+    $stmt->close();
+}
+
+$topics = normalizePaperTopics($_POST['topics'] ?? ($_GET['topic'] ?? null));
+$topicsMcqs = normalizePaperTopics($_POST['topics_mcqs'] ?? null);
+$topicsShort = normalizePaperTopics($_POST['topics_short'] ?? null);
+$topicsLong = normalizePaperTopics($_POST['topics_long'] ?? null);
 
 $totalMcqs = intval($_POST['total_mcqs'] ?? 0);
 $totalShorts = intval($_POST['total_shorts'] ?? 0);
@@ -109,6 +227,7 @@ $difficulty = $_POST['difficulty'] ?? 'medium';
 $source = $_POST['source'] ?? 'topics';
 $fileHash = $_POST['file_hash'] ?? '';
 $regenerateSection = $_POST['regenerate_section'] ?? ''; // 'mcqs', 'short', 'long', or empty
+$fileUploadRecord = ($source === 'file_upload') ? findUploadRecordByHash($conn, (string) $fileHash) : null;
 
 $generatedContent = [
     'mcqs' => [],
@@ -128,6 +247,7 @@ if ($existingDataJson !== '') {
 }
 $isProcessing = false;
 $error = '';
+$aiFailureReason = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($topics)) {
     $isProcessing = true;
@@ -180,6 +300,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($topics)) {
         }
     }
 
+    // A repeated upload carries the same SHA-256 hash. If the previous paper
+    // already has enough stored questions, render those rows and skip another
+    // AI request entirely.
+    if (!$usedPrecooked && $regenerateSection === '' && is_array($fileUploadRecord)) {
+        $storedMcqs = fetchUploadQuestionsByIds(
+            $conn,
+            'mcqs',
+            decodeUploadQuestionIds($fileUploadRecord['mcq_ids_json'] ?? null),
+            $totalMcqs
+        );
+        $storedShort = fetchUploadQuestionsByIds(
+            $conn,
+            'short',
+            decodeUploadQuestionIds($fileUploadRecord['short_ids_json'] ?? null),
+            $totalShorts
+        );
+        $storedLong = fetchUploadQuestionsByIds(
+            $conn,
+            'long',
+            decodeUploadQuestionIds($fileUploadRecord['long_ids_json'] ?? null),
+            $totalLongs
+        );
+
+        $storedContentReady = ($totalMcqs <= 0 || count($storedMcqs) >= $totalMcqs)
+            && ($totalShorts <= 0 || count($storedShort) >= $totalShorts)
+            && ($totalLongs <= 0 || count($storedLong) >= $totalLongs);
+
+        if ($storedContentReady) {
+            $generatedContent['mcqs'] = $storedMcqs;
+            $generatedContent['short'] = $storedShort;
+            $generatedContent['long'] = $storedLong;
+            $usedPrecooked = true;
+        }
+    }
+
     if (!$usedPrecooked) {
         $fileContext = "";
         if ($source === 'file_upload' && $fileHash !== '') {
@@ -204,10 +359,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($topics)) {
             $useTopics = !empty($topicsLong) ? $topicsLong : $topics;
             $generatedContent['long'] = generateQuestionsByTopicAI('long', $useTopics, $totalLongs, $difficulty, $fileContext);
         }
+
+        if (is_array($fileUploadRecord)) {
+            $generatedMcqIds = array_column($generatedContent['mcqs'], 'id');
+            $generatedShortIds = array_column($generatedContent['short'], 'id');
+            $generatedLongIds = array_column($generatedContent['long'], 'id');
+            updateUploadQuestionIds($conn, (int) ($fileUploadRecord['id'] ?? 0), $generatedMcqIds, $generatedShortIds, $generatedLongIds);
+        }
     }
 
     if (empty($generatedContent['mcqs']) && empty($generatedContent['short']) && empty($generatedContent['long'])) {
-        $error = "Failed to generate your professional paper. Please try again with fewer questions or check your AI connection.";
+        $error = "We could not generate the requested questions right now.";
+        if ($aiFailureReason !== '') {
+            $error .= ' ' . $aiFailureReason;
+        }
     }
     $isProcessing = false;
 }
@@ -245,14 +410,48 @@ function getAvailableApiKey($apiKeys, $cacheManager, $attemptedKeys, $lockDurati
 /**
  * AI Generation Helper
  */
+function getOpenRouterModelForAttempt(int $attemptIndex): string
+{
+    $explicitModel = trim((string) EnvLoader::get('OPENAI_MODEL', ''));
+    if ($explicitModel === '') {
+        $explicitModel = trim((string) EnvLoader::get('AI_DEFAULT_MODEL', ''));
+    }
+    if ($explicitModel !== '') {
+        return $explicitModel;
+    }
+
+    $legacyModel = trim((string) EnvLoader::get('KEY_' . ($attemptIndex + 1) . '_MODEL', ''));
+    if ($legacyModel !== '') {
+        return $legacyModel;
+    }
+
+    $fallbackModel = trim((string) EnvLoader::get('AI_FALLBACK_MODEL', ''));
+    return $fallbackModel !== '' ? $fallbackModel : 'openrouter/free';
+}
+
+function humanizeAiFailure(string $reason): string
+{
+    $message = strtolower($reason);
+    if (str_contains($message, '401') || str_contains($message, 'unauthorized') || str_contains($message, 'user not found') || str_contains($message, 'authentication')) {
+        return 'The AI provider credentials were rejected. Please ask the administrator to refresh the AI keys.';
+    }
+    if (str_contains($message, '429') || str_contains($message, 'quota') || str_contains($message, 'high demand') || str_contains($message, 'overloaded')) {
+        return 'The AI provider is temporarily busy or rate-limited. Please retry in a few seconds.';
+    }
+    if (str_contains($message, 'timeout') || str_contains($message, 'timed out') || str_contains($message, 'network')) {
+        return 'The AI provider did not respond in time. Please retry or use a smaller paper.';
+    }
+    return 'Please verify the AI provider configuration and try again.';
+}
+
 function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'medium', $fileContext = "") {
-    global $conn, $cacheManager, $keyManager;
+    global $conn, $cacheManager, $keyManager, $aiFailureReason;
     
     // Check DB for existing questions first
     $existingQuestions = [];
 
     // Check manual MCQs table if type is mcqs
-    if ($type === 'mcqs' && !empty($topics)) {
+    if ($type === 'mcqs' && !empty($topics) && $fileContext === '') {
         $likes = [];
         $params = [];
         $typesStr = "";
@@ -304,12 +503,12 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
     }
 
     $tableMap = [
-        'mcqs' => ['table' => 'AIGeneratedMCQs', 'cols' => 'question_text as question, option_a, option_b, option_c, option_d, correct_option'],
-        'short' => ['table' => 'AIGeneratedShortQuestions', 'cols' => 'question_text as question, typical_answer'],
-        'long' => ['table' => 'AIGeneratedLongQuestions', 'cols' => 'question_text as question, typical_answer']
+        'mcqs' => ['table' => 'AIGeneratedMCQs', 'cols' => 'id, question_text as question, option_a, option_b, option_c, option_d, correct_option'],
+        'short' => ['table' => 'AIGeneratedShortQuestions', 'cols' => 'id, question_text as question, typical_answer'],
+        'long' => ['table' => 'AIGeneratedLongQuestions', 'cols' => 'id, question_text as question, typical_answer']
     ];
 
-    if (isset($tableMap[$type]) && !empty($topics)) {
+    if (isset($tableMap[$type]) && !empty($topics) && $fileContext === '') {
         $tb = $tableMap[$type];
         $tIds = [];
         $likes = [];
@@ -397,8 +596,10 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
     if (!isset($keyManager)) $keyManager = new APIKeyManager();
     
     $apiKeys = $keyManager->getActiveKeys();
-    $openaiModel = EnvLoader::get('OPENAI_MODEL', '');
-    if (empty($apiKeys)) return $preservedQuestions;
+    if (empty($apiKeys)) {
+        $aiFailureReason = 'No active AI provider key is configured.';
+        error_log('AI paper generation skipped: no active provider keys.');
+    }
 
     $topicsList = implode(', ', $topics);
     
@@ -435,18 +636,46 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
     $attemptedKeys = [];
     $response = null;
     $success = false;
+    $lastFailure = '';
+    $geminiKey = trim((string) EnvLoader::get('GEMINIAPIKEY', ''));
+    $geminiModel = trim((string) EnvLoader::get('GEMINIMODEL', 'gemini-2.5-flash'));
+    $geminiAttempted = false;
+
+    // Uploaded material must stay grounded in its extracted content. Gemini
+    // is the configured document-aware provider, so use it first for this
+    // path instead of spending time rotating stale topic-only API keys.
+    if ($fileContext !== '' && $geminiKey !== '') {
+        $geminiAttempted = true;
+        $gemini = GeminiClient::callGenerateContent(
+            $geminiKey,
+            $geminiModel,
+            [['text' => $prompt]],
+            16000,
+            180,
+            true
+        );
+        if (!empty($gemini['ok']) && !empty($gemini['text'])) {
+            $response = $gemini['text'];
+            $success = true;
+            error_log('AI paper generation used Gemini document provider for type=' . $type);
+        } else {
+            $lastFailure = (string) ($gemini['error'] ?? 'Gemini returned no usable response.');
+            error_log('Gemini document generation failed: ' . substr($lastFailure, 0, 240));
+        }
+    }
 
     // Retry logic across multiple keys - hold locks until processing complete
     $acquiredLocks = [];
     $curlTimeout = 120;
     $lockDuration = $curlTimeout + 30;
 
-    for ($i = 0; $i < count($apiKeys); $i++) {
-            $keyData = getAvailableApiKey($apiKeys, $cacheManager, $attemptedKeys, $lockDuration);
+    for ($i = 0; !$success && $i < count($apiKeys); $i++) {
+        $keyData = getAvailableApiKey($apiKeys, $cacheManager, $attemptedKeys, $lockDuration);
         if (!$keyData) break;
         $apiKey = $keyData['key'];
         $lockKey = $keyData['lockKey'];
         $attemptedKeys[] = $apiKey;
+        $openaiModel = getOpenRouterModelForAttempt($i);
 
         if ($lockKey && $cacheManager) $acquiredLocks[$apiKey] = $lockKey;
 
@@ -483,7 +712,12 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
                 $successfulKey = $apiKey;
                 break;
             }
+            $lastFailure = 'The AI provider returned an empty response.';
+        } else {
+            $decodedError = json_decode((string) $raw, true);
+            $lastFailure = (string) ($decodedError['error']['message'] ?? ($curlError !== '' ? $curlError : 'HTTP ' . $code));
         }
+        error_log('OpenRouter paper generation failed: HTTP ' . $code . ', model=' . $openaiModel . ', reason=' . substr($lastFailure, 0, 240));
         $keyManager->logError($apiKey);
         // release lock on failure so others can try
         if ($lockKey && $cacheManager) {
@@ -501,7 +735,35 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
         }
     }
 
-    if (!$success || !$response) return $preservedQuestions;
+    if (!$success || !$response) {
+        // OpenRouter can be unavailable or overloaded even when its keys are
+        // valid. Use the configured Gemini service as a provider fallback so
+        // one provider outage does not discard the whole paper request.
+        if (!$geminiAttempted && $geminiKey !== '') {
+            $geminiAttempted = true;
+            $gemini = GeminiClient::callGenerateContent(
+                $geminiKey,
+                $geminiModel,
+                [['text' => $prompt]],
+                16000,
+                180,
+                true
+            );
+            if (!empty($gemini['ok']) && !empty($gemini['text'])) {
+                $response = $gemini['text'];
+                $success = true;
+                error_log('AI paper generation recovered with Gemini fallback for type=' . $type);
+            } else {
+                $lastFailure = (string) ($gemini['error'] ?? $lastFailure);
+                error_log('Gemini paper generation fallback failed: ' . substr($lastFailure, 0, 240));
+            }
+        }
+    }
+
+    if (!$success || !$response) {
+        $aiFailureReason = humanizeAiFailure($lastFailure);
+        return $preservedQuestions;
+    }
 
     // Parse JSON from response
     if (preg_match('/\[.*\]/s', $response, $matches)) {
@@ -511,14 +773,18 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
     }
     
     $data = json_decode($jsonStr, true);
-    if (!is_array($data)) return $preservedQuestions;
+    if (!is_array($data)) {
+        $aiFailureReason = 'The AI provider returned an invalid question format.';
+        error_log('AI paper generation returned invalid JSON for type=' . $type);
+        return $preservedQuestions;
+    }
 
     // Persist to Database for future searchability
     $today = date('Y-m-d H:i:s');
     $firstTopicInList = !empty($topics) ? trim($topics[0]) : 'General';
     $topicIdCache = [];
 
-    foreach ($data as $q) {
+    foreach ($data as $index => $q) {
         $topicVal = isset($q['topic']) ? (string) trim($q['topic']) : $firstTopicInList;
         
         // Resolve topic_id (using helper from mcq_generator.php)
@@ -530,7 +796,9 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
         if ($type === 'mcqs') {
             $stmt = $conn->prepare("INSERT INTO AIGeneratedMCQs (topic_id, topic, question_text, option_a, option_b, option_c, option_d, correct_option, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('issssssss', $topicId, $topicVal, $q['question'], $q['option_a'], $q['option_b'], $q['option_c'], $q['option_d'], $q['correct_option'], $today);
-            $stmt->execute();
+            if ($stmt->execute()) {
+                $data[$index]['id'] = (int) $stmt->insert_id;
+            }
 
             // Update MCQ Count
             $countStmt = $conn->prepare("INSERT INTO TopicQuestionCounts (topic_name, question_count) VALUES (?, 1) ON DUPLICATE KEY UPDATE question_count = question_count + 1");
@@ -540,7 +808,9 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
         } elseif ($type === 'short') {
             $stmt = $conn->prepare("INSERT INTO AIGeneratedShortQuestions (topic_id, question_text, typical_answer, generated_at) VALUES (?, ?, ?, ?)");
             $stmt->bind_param('isss', $topicId, $q['question'], $q['typical_answer'], $today);
-            $stmt->execute();
+            if ($stmt->execute()) {
+                $data[$index]['id'] = (int) $stmt->insert_id;
+            }
             
             // Update Short Question Count
             $countStmt = $conn->prepare("INSERT INTO TopicShortQuestionCounts (topic_name, question_count) VALUES (?, 1) ON DUPLICATE KEY UPDATE question_count = question_count + 1");
@@ -550,7 +820,9 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
         } elseif ($type === 'long') {
             $stmt = $conn->prepare("INSERT INTO AIGeneratedLongQuestions (topic_id, question_text, typical_answer, generated_at) VALUES (?, ?, ?, ?)");
             $stmt->bind_param('isss', $topicId, $q['question'], $q['typical_answer'], $today);
-            $stmt->execute();
+            if ($stmt->execute()) {
+                $data[$index]['id'] = (int) $stmt->insert_id;
+            }
             
             // Update Long Question Count
             $countStmt = $conn->prepare("INSERT INTO TopicLongQuestionCounts (topic_name, question_count) VALUES (?, 1) ON DUPLICATE KEY UPDATE question_count = question_count + 1");
@@ -597,6 +869,121 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
 
     .main-content {
         padding-bottom: 100px;
+    }
+
+    .generation-error-card {
+        width: min(680px, calc(100% - 32px));
+        margin: 48px auto;
+        padding: 34px;
+        border: 1px solid #fecaca;
+        border-radius: 24px;
+        background: linear-gradient(145deg, #fff 0%, #fff7f7 100%);
+        box-shadow: 0 20px 55px rgba(127, 29, 29, 0.1);
+        color: #1e293b;
+    }
+
+    .generation-error-heading {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+
+    .generation-error-icon {
+        width: 52px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 52px;
+        border-radius: 16px;
+        background: #fee2e2;
+        color: #dc2626;
+        font-size: 1.35rem;
+    }
+
+    .generation-error-card h1 {
+        margin: 0 0 6px;
+        color: #7f1d1d;
+        font: 800 1.45rem/1.2 Inter, sans-serif;
+    }
+
+    .generation-error-card .generation-error-lead {
+        margin: 0;
+        color: #475569;
+        line-height: 1.55;
+    }
+
+    .generation-error-reason {
+        margin: 0 0 22px;
+        padding: 13px 15px;
+        border: 1px solid #fecaca;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.75);
+        color: #991b1b;
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+
+    .generation-error-help {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 26px;
+        color: #475569;
+        font-size: 0.9rem;
+    }
+
+    .generation-error-help div {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .generation-error-help i { color: #4f46e5; width: 16px; text-align: center; }
+
+    .generation-error-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .generation-error-actions form { display: contents; }
+
+    .generation-error-actions button,
+    .generation-error-actions a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 18px;
+        border-radius: 12px;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+        transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+
+    .generation-error-actions button {
+        border: 0;
+        background: #4f46e5;
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(79,70,229,.22);
+    }
+
+    .generation-error-actions button:hover,
+    .generation-error-actions a:hover { transform: translateY(-1px); }
+
+    .generation-error-actions a {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #334155;
+    }
+
+    @media (max-width: 640px) {
+        .generation-error-card { padding: 24px 20px; margin: 24px auto; }
+        .generation-error-actions button,
+        .generation-error-actions a { width: 100%; }
     }
 
     /* Paper Container - A4 mimic */
@@ -1177,20 +1564,123 @@ function generateQuestionsByTopicAI($type, $topics, $count, $difficulty = 'mediu
             justify-content: space-between;
         }
     }
+
+    /* Site-theme quiz callout and mobile-safe action positioning. */
+    .online-quiz-top {
+        max-width: 210mm;
+        margin: 1.25rem auto 1rem !important;
+        width: min(100%, 210mm);
+        background: var(--primary-light, #eef2ff) !important;
+        padding: 20px 15px;
+        border: 1px solid var(--primary-light, #c7d2fe) !important;
+        border-radius: var(--radius-md, 14px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+        box-shadow: var(--sh-elevate, 0 4px 12px rgba(15,23,42,.08));
+        box-sizing: border-box;
+    }
+    .online-quiz-top h3 {
+        margin: 0;
+        color: var(--primary-dark, #3730a3) !important;
+        font: 800 1.35rem var(--font-heading, 'Outfit', sans-serif) !important;
+    }
+    .online-quiz-top p {
+        margin: 0 0 4px;
+        color: var(--ink-300, #4338ca) !important;
+        font: 400 .95rem/1.5 var(--font-body, 'Inter', sans-serif) !important;
+        max-width: 650px;
+    }
+    .online-quiz-top .btn-icon { display: flex; align-items: center; justify-content: center; }
+    .take-test-btn {
+        background: linear-gradient(135deg, var(--primary, #6366f1), var(--primary-dark, #4f46e5)) !important;
+        box-shadow: 0 4px 15px rgba(79,70,229,.25) !important;
+    }
+    .take-test-btn:hover { background: linear-gradient(135deg, var(--primary-dark, #4f46e5), var(--accent, #7c3aed)) !important; }
+    .action-bar {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        align-items: center;
+        justify-content: center;
+        width: max-content;
+        max-width: min(96vw, 760px);
+        box-sizing: border-box;
+    }
+    .action-bar:hover { bottom: 35px; }
+    @media (max-width: 640px) {
+        .online-quiz-top {
+            width: calc(100% - 24px);
+            margin: 1rem auto .75rem !important;
+            padding: 16px 14px;
+        }
+        .online-quiz-top h3 { font-size: 1.08rem !important; }
+        .online-quiz-top p { font-size: .82rem !important; }
+        .online-quiz-top .take-test-btn { width: 100%; justify-content: center; }
+        .action-bar {
+            bottom: calc(10px + env(safe-area-inset-bottom));
+            width: max-content;
+            max-width: calc(100vw - 20px);
+            padding: 8px;
+            gap: 6px;
+            overflow-x: auto;
+            justify-content: center;
+            -webkit-overflow-scrolling: touch;
+        }
+        .action-bar .btn-float {
+            flex: 0 0 44px;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .action-bar .btn-float span { display: none; }
+        .action-bar .btn-float i { margin: 0; font-size: 1rem; }
+    }
 </style>
 
 
 
 <div class="container-fluid main-content d-flex flex-column align-items-center justify-content-center" style="min-height: calc(100vh - 80px); width: 100%;">
     <?php if ($error): ?>
-        <div class="alert alert-danger shadow-sm border-0 rounded-4 p-4 mt-5 d-flex align-items-center justify-content-center gap-3" style="max-width: 600px; width: 100%;">
-            <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
-            <div>
-                <h5 class="mb-1 fw-bold">Generation Failed</h5>
-                <p class="mb-0"><?= htmlspecialchars($error) ?></p>
+        <section class="generation-error-card" role="alert" aria-live="assertive">
+            <div class="generation-error-heading">
+                <div class="generation-error-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <div>
+                    <h1>Paper generation needs another try</h1>
+                    <p class="generation-error-lead">Please try again.</p>
+                </div>
             </div>
-            <a href="index.php" class="btn btn-danger ms-auto rounded-pill px-4">Retry</a>
-        </div>
+            <div class="generation-error-actions">
+                <form method="POST" action="generate_ai_paper.php">
+                    <?php foreach ($topics as $t): ?><input type="hidden" name="topics[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+                    <?php foreach ($topicsMcqs as $t): ?><input type="hidden" name="topics_mcqs[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+                    <?php foreach ($topicsShort as $t): ?><input type="hidden" name="topics_short[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+                    <?php foreach ($topicsLong as $t): ?><input type="hidden" name="topics_long[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+                    <input type="hidden" name="total_mcqs" value="<?= $totalMcqs ?>">
+                    <input type="hidden" name="total_shorts" value="<?= $totalShorts ?>">
+                    <input type="hidden" name="total_longs" value="<?= $totalLongs ?>">
+                    <input type="hidden" name="difficulty" value="<?= htmlspecialchars($difficulty) ?>">
+                    <input type="hidden" name="source" value="<?= htmlspecialchars($source) ?>">
+                    <input type="hidden" name="file_hash" value="<?= htmlspecialchars($fileHash) ?>">
+                    <button type="submit"><i class="fas fa-redo"></i> Try again</button>
+                </form>
+                <form method="POST" action="finalize_paper.php">
+                    <?php foreach ($topics as $t): ?><input type="hidden" name="topics[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+                    <?php foreach ($topicsMcqs as $t): ?><input type="hidden" name="topics_mcqs[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+                    <?php foreach ($topicsShort as $t): ?><input type="hidden" name="topics_short[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+                    <?php foreach ($topicsLong as $t): ?><input type="hidden" name="topics_long[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+                    <input type="hidden" name="source" value="<?= htmlspecialchars($source) ?>">
+                    <input type="hidden" name="file_hash" value="<?= htmlspecialchars($fileHash) ?>">
+                    <button type="submit"><i class="fas fa-sliders-h"></i> Adjust settings</button>
+                </form>
+                <a href="index.php"><i class="fas fa-arrow-left"></i> Choose another source</a>
+            </div>
+        </section>
 
     <?php elseif (empty($generatedContent['mcqs']) && empty($generatedContent['short']) && empty($generatedContent['long'])): ?>
         

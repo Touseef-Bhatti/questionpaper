@@ -26,7 +26,6 @@ $jsonLD = [
 ?><link rel="stylesheet" href="<?= $assetBase ?>css/paper-builder.css?v=<?= time() . rand(11000, 12000) ?>">
 <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css?v=<?= time() . rand(1, 1000) ?>">
 <link rel="stylesheet" href="<?= $assetBase ?>css/search-results.css?v=<?= time() . rand(1, 1000) ?>">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@600;700;800;900&display=swap" rel="stylesheet">
 
 <style>
 /* ═══════════════════════════════════════════════
@@ -549,6 +548,116 @@ $jsonLD = [
 }
 
 /* ── Responsive ───────────────────────────── */
+.fp-progress {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0 auto 18px;
+    padding: 7px 12px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    background: rgba(15,23,42,0.22);
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+.fp-progress-step { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.fp-progress-step span,
+.fp-progress-step.done i {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(148,163,184,0.2);
+    font-size: 0.62rem;
+}
+.fp-progress-step.done { color: #bbf7d0; }
+.fp-progress-step.done i { background: #16a34a; color: #fff; }
+.fp-progress-step.active { color: #fff; }
+.fp-progress-step.active span { background: var(--fp-primary); color: #fff; }
+.fp-progress-line { width: 22px; height: 1px; background: rgba(148,163,184,0.35); }
+
+.fp-source-status {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+    border: 1px solid #c7d2fe;
+    border-radius: var(--fp-radius-lg);
+    background: linear-gradient(135deg, #eef2ff, #f8fafc);
+    box-shadow: 0 8px 24px rgba(79,70,229,0.07);
+}
+.fp-source-status-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 13px;
+    background: #4f46e5;
+    color: #fff;
+    font-size: 1.05rem;
+}
+.fp-source-status-copy { min-width: 0; flex: 1; }
+.fp-source-status-copy strong,
+.fp-source-status-copy span,
+.fp-source-status-copy small { display: block; }
+.fp-source-status-copy strong { color: #1e1b4b; font-weight: 800; }
+.fp-source-status-copy span { margin-top: 2px; color: #475569; font-size: 0.84rem; }
+.fp-source-status-copy small { margin-top: 4px; color: #6366f1; font-size: 0.76rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-source-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: 1px solid #c7d2fe;
+    border-radius: 999px;
+    color: #4338ca;
+    background: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.fp-topics-step-badge {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--fp-primary), var(--fp-primary-dark));
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+.fp-generation-summary {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.fp-generation-summary > div {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 13px;
+    border: 1px solid var(--fp-border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--fp-text-secondary);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.fp-generation-summary i { color: var(--fp-primary); }
+.fp-generation-summary strong { color: var(--fp-text); }
+.fp-generate-help { margin: 0 auto 16px; color: var(--fp-text-muted); font-size: 0.82rem; }
+
 @media (max-width: 768px) {
     .fp-wrapper { padding: 0 0.75rem 3rem; margin-top: -1.5rem; }
     .fp-card-header { padding: 18px 20px; }
@@ -556,8 +665,201 @@ $jsonLD = [
     .fp-qtype-row { flex-wrap: wrap; gap: 12px; padding: 14px 16px; }
     .fp-stepper { margin-left: auto; }
     .fp-hero { padding: 2.5rem 1rem 2rem; }
+    .fp-source-status { align-items: flex-start; }
+    .fp-source-status-badge { display: none; }
+    .fp-progress { max-width: 100%; }
 }
-</style>
+/* ================================================================
+   Editorial study desk redesign
+   ================================================================ */
+:root {
+    --fp-ink: var(--ink-200, #1e293b);
+    --fp-ink-soft: var(--ink-300, #334155);
+    --fp-paper: var(--surface, #ffffff);
+    --fp-canvas: var(--ink-950, #f8fafc);
+    --fp-line: var(--ink-800, #e2e8f0);
+    --fp-muted: var(--ink-500, #64748b);
+    --fp-coral: var(--primary, #6366f1);
+    --fp-coral-dark: var(--primary-dark, #4f46e5);
+    --fp-teal: var(--accent, #a855f7);
+    --fp-gold: var(--accent-warm, #f59e0b);
+    --fp-shadow: var(--sh-card, 0 10px 30px rgba(15,23,42,.08));
+}
+
+body:has(.fp-hero) { background: var(--fp-canvas); color: var(--fp-ink); font-family: var(--font-body, 'Inter', sans-serif); }
+.fp-hero {
+    min-height: 310px;
+    padding: 42px 24px 104px;
+    text-align: left;
+    background: linear-gradient(160deg, #0f0c29 0%, #1a1145 55%, #302b63 100%);
+    isolation: isolate;
+}
+.fp-hero::before {
+    width: 820px;
+    height: 420px;
+    top: -220px;
+    left: 72%;
+    background: radial-gradient(circle, rgba(99,102,241,.28) 0%, rgba(99,102,241,0) 68%);
+    transform: translateX(-50%);
+}
+.fp-hero::after { height: 120px; background: linear-gradient(to top, var(--fp-canvas), transparent); }
+.fp-hero > * { max-width: 1100px; margin-left: auto; margin-right: auto; }
+.fp-hero-breadcrumb { margin-bottom: 26px; margin-left: auto; margin-right: auto; width: fit-content; align-self: center; }
+.fp-hero-title { font-family: var(--font-heading, 'Outfit', sans-serif); font-size: clamp(2.25rem, 5vw, 4.3rem); line-height: .98; letter-spacing: -.055em; max-width: 1100px; }
+.fp-hero-sub { max-width: 1100px; margin-top: 18px; color: var(--ink-700, #cbd5e1); font-size: 1rem; }
+.fp-progress { margin: 0 0 22px; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.16); }
+.fp-wrapper { max-width: 1100px; margin: -55px auto 0; padding: 0 20px 64px; }
+.fp-source-status { position: relative; z-index: 2; margin-bottom: 20px; border: 1px solid rgba(99,102,241,.2); border-radius: 18px; background: var(--fp-paper); box-shadow: var(--fp-shadow); }
+.fp-source-status-icon { background: var(--fp-coral); }
+.fp-source-status-copy strong { color: var(--fp-ink); font-family: var(--font-heading, 'Outfit', sans-serif); }
+.fp-source-status-copy span { color: var(--ink-400, #475569); }
+.fp-source-status-copy small { color: var(--fp-coral-dark); }
+.fp-source-status-badge { border-color: var(--primary-light, #c7d2fe); color: var(--fp-coral-dark); }
+.fp-builder-form { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; align-items: start; }
+.fp-card, .fp-topics-card, .fp-seo-footer { border-color: var(--fp-line); border-radius: 18px; background: var(--fp-paper); box-shadow: var(--fp-shadow); }
+.fp-card { margin: 0; }
+.fp-quantity-card { grid-column: 1; }
+.fp-difficulty-card { grid-column: 1; }
+.fp-topics-panel { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 82px; }
+.fp-card:hover { box-shadow: 0 22px 50px rgba(15,23,42,.12); transform: translateY(-1px); }
+.fp-card-header { padding: 22px 24px; border-color: var(--fp-line); }
+.fp-card-header-text h3, .fp-topics-header-left span { font-family: var(--font-heading, 'Outfit', sans-serif); }
+.fp-card-header-text h3 { color: var(--fp-ink); }
+.fp-card-header-text p { color: var(--fp-muted); }
+.fp-step-badge, .fp-topics-step-badge { background: var(--fp-ink); box-shadow: none; }
+.fp-card-body { padding: 20px 24px 24px; }
+.fp-qtype-row { padding: 14px 16px; margin-bottom: 10px; border-color: var(--fp-line); border-radius: 14px; background: var(--primary-soft, #f8f8ff); }
+.fp-qtype-row:hover { border-color: var(--primary-light, #a5b4fc); box-shadow: 0 8px 22px rgba(15,23,42,.06); }
+.fp-qtype-info h6 { color: var(--fp-ink); font-family: var(--font-heading, 'Outfit', sans-serif); }
+.fp-qtype-info span { color: var(--fp-muted); }
+.fp-stepper { border-color: var(--fp-line); }
+.fp-stepper-btn:hover { color: var(--fp-coral-dark); background: var(--primary-light, #eef2ff); }
+.fp-stepper-input { color: var(--fp-ink); }
+.fp-diff-grid { gap: 10px; }
+.fp-diff-pill { padding: 16px 10px; border-color: var(--fp-line); background: var(--primary-soft, #f8f8ff); }
+.fp-diff-pill:hover { border-color: var(--primary-light, #a5b4fc); box-shadow: 0 8px 20px rgba(15,23,42,.06); }
+.fp-diff-pill.active[data-diff="medium"] { border-color: var(--fp-coral); background: var(--primary-light, #eef2ff); box-shadow: 0 8px 24px rgba(99,102,241,.14); }
+.fp-topics-header { padding: 17px 20px; background: var(--primary-light, #eef2ff); border-color: var(--fp-line); }
+.fp-topics-header-left { gap: 8px; }
+.fp-topics-header-left i { color: var(--fp-coral); }
+.fp-topics-count { background: var(--fp-coral); }
+.fp-topics-body { padding: 18px 20px; max-height: 430px; }
+.fp-topic-chip { background: var(--primary-soft, #f8f8ff); border-color: transparent; color: var(--fp-ink); }
+.fp-topic-chip:hover { border-color: var(--primary-light, #a5b4fc); }
+.fp-topic-chip .fp-chip-remove { background: var(--ink-800, #e2e8f0); }
+.fp-topic-chip .fp-chip-remove:hover { background: var(--fp-coral); }
+.fp-topics-footer { border-color: var(--fp-line); }
+.fp-back-link:hover { color: var(--fp-coral-dark); background: var(--primary-light, #eef2ff); }
+.fp-generate-section { grid-column: 1 / -1; margin: 0; padding: 6px 0 0; text-align: center; }
+.fp-generation-summary { margin-bottom: 14px; }
+.fp-generation-summary > div { border-color: var(--fp-line); background: var(--fp-paper); }
+.fp-generation-summary i { color: var(--fp-coral); }
+.fp-generate-help { color: var(--fp-muted); }
+.fp-primary-cta {
+    width: min(100%, 580px);
+    min-height: 70px;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 17px;
+    color: #fff;
+    background: var(--fp-coral);
+    box-shadow: 0 14px 28px rgba(99,102,241,.27);
+    cursor: pointer;
+    text-align: left;
+    transition: transform .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.fp-primary-cta:hover { transform: translateY(-2px); background: var(--fp-coral-dark); box-shadow: 0 18px 32px rgba(99,102,241,.34); }
+.fp-primary-cta:focus-visible { outline: 3px solid var(--primary-light, #a5b4fc); outline-offset: 4px; }
+.fp-primary-cta:disabled { opacity: .86; cursor: wait; transform: none; box-shadow: 0 10px 22px rgba(99,102,241,.18); }
+.fp-primary-cta-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: rgba(255,255,255,.18); font-size: 1.1rem; }
+.fp-primary-cta-copy { display: grid; gap: 2px; flex: 1; }
+.fp-primary-cta-copy strong { font: 700 1rem var(--font-heading, 'Outfit', sans-serif); }
+.fp-primary-cta-copy small { color: rgba(255,255,255,.78); font-size: .78rem; }
+.fp-primary-cta-arrow { font-size: .95rem; }
+.fp-legacy-generate-button { display: none !important; }
+.fp-seo-footer { margin-top: 28px; padding: 28px 24px; }
+.fp-seo-footer h3 { font-family: var(--font-heading, 'Outfit', sans-serif); color: var(--fp-ink); }
+
+.fp-generation-overlay { position: fixed; inset: 0; z-index: 11000; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.68); backdrop-filter: blur(7px); opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s ease; }
+.fp-generation-overlay.is-visible { opacity: 1; visibility: visible; }
+.fp-loader-card { width: min(390px, 100%); padding: 30px 26px 25px; border: 1px solid rgba(255,255,255,.55); border-radius: 22px; background: var(--fp-paper); box-shadow: 0 24px 70px rgba(0,0,0,.24); text-align: center; }
+.fp-loader-sheet { position: relative; width: 68px; height: 78px; margin: 0 auto 19px; padding: 18px 13px 10px; border: 2px solid var(--fp-coral); border-radius: 8px; background: #fff; box-shadow: 8px 8px 0 var(--primary-light, #c7d2fe); animation: fpSheetFloat 2.1s ease-in-out infinite; }
+.fp-loader-sheet span { display: block; height: 5px; margin-bottom: 7px; border-radius: 99px; background: var(--ink-800, #e2e8f0); }
+.fp-loader-sheet span:nth-child(2) { width: 78%; }
+.fp-loader-sheet span:nth-child(3) { width: 58%; }
+.fp-loader-sheet i { position: absolute; right: -11px; bottom: -8px; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; background: var(--fp-coral); font-size: .75rem; }
+.fp-loader-card h2 { margin: 0 0 8px; color: var(--fp-ink); font: 700 1.25rem var(--font-heading, 'Outfit', sans-serif); }
+.fp-loader-card p { margin: 0 auto 18px; max-width: 290px; color: var(--fp-muted); font-size: .88rem; line-height: 1.5; }
+.fp-loader-track { height: 6px; overflow: hidden; border-radius: 99px; background: var(--ink-800, #e2e8f0); }
+.fp-loader-track span { display: block; width: 42%; height: 100%; border-radius: inherit; background: var(--fp-coral); animation: fpLoaderProgress 1.45s ease-in-out infinite; }
+.fp-loader-card small { display: block; margin-top: 15px; color: var(--ink-500, #64748b); font-size: .75rem; }
+.fp-loader-card small i { margin-right: 4px; color: var(--fp-teal); }
+body.fp-generation-lock { overflow: hidden; }
+@keyframes fpSheetFloat { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-5px) rotate(1deg); } }
+@keyframes fpLoaderProgress { 0% { transform: translateX(-140%); } 55%,100% { transform: translateX(250%); } }
+
+/* Keep the configuration surface on Ahmad Learning Hub's existing indigo theme. */
+.fp-hero::before { background: radial-gradient(circle, rgba(99,102,241,.28) 0%, rgba(99,102,241,0) 68%); }
+.fp-source-status { border-color: rgba(99,102,241,.2); }
+.fp-source-status-copy span { color: var(--ink-400, #475569); }
+.fp-source-status-badge { border-color: var(--primary-light, #c7d2fe); }
+.fp-generate-section { text-align: left; padding-left: clamp(0px, 2.5vw, 30px); }
+.fp-generation-summary { justify-content: flex-start; }
+.fp-generate-help { margin-left: 0; margin-right: 0; text-align: left; }
+.fp-primary-cta { display: flex; margin-left: 0; }
+.fp-qtype-row, .fp-diff-pill, .fp-topic-chip { background: var(--primary-soft, #f8f8ff); }
+.fp-qtype-row:hover, .fp-diff-pill:hover, .fp-topic-chip:hover { border-color: var(--primary-light, #a5b4fc); }
+.fp-stepper-btn:hover, .fp-back-link:hover { background: var(--primary-light, #eef2ff); }
+.fp-diff-pill.active[data-diff="medium"] { background: var(--primary-light, #eef2ff); box-shadow: 0 8px 24px rgba(99,102,241,.14); }
+.fp-topics-header { background: var(--primary-light, #eef2ff); }
+.fp-topic-chip .fp-chip-remove { background: var(--ink-800, #e2e8f0); }
+.fp-loader-sheet { box-shadow: 8px 8px 0 var(--primary-light, #c7d2fe); }
+.fp-loader-sheet span { background: var(--ink-800, #e2e8f0); }
+.fp-loader-track { background: var(--ink-800, #e2e8f0); }
+.fp-loader-card small { color: var(--ink-500, #64748b); }
+.fp-loader-card small i { color: var(--accent-warm, #f59e0b); }
+
+@media (max-width: 820px) {
+    .fp-hero { min-height: 280px; padding: 30px 18px 90px; }
+    .fp-hero-title { font-size: clamp(2.1rem, 10vw, 3.3rem); }
+    .fp-wrapper { margin-top: -42px; padding: 0 14px 45px; }
+    .fp-builder-form { display: flex; flex-direction: column; gap: 14px; }
+    .fp-quantity-card, .fp-difficulty-card, .fp-topics-panel, .fp-generate-section { width: 100%; }
+    .fp-topics-panel { position: static; order: 3; }
+    .fp-quantity-card { order: 1; }
+    .fp-difficulty-card { order: 2; }
+    .fp-generate-section { order: 4; }
+    .fp-card-header { padding: 18px; }
+    .fp-card-body { padding: 16px 18px 20px; }
+    .fp-source-status { padding: 14px; }
+    .fp-source-status-badge { display: none; }
+    .fp-generate-section { padding-left: 0; text-align: center; }
+    .fp-generation-summary { justify-content: center; }
+    .fp-generate-help { text-align: center; }
+    .fp-primary-cta { margin-left: auto; margin-right: auto; }
+}
+@media (max-width: 520px) {
+    .fp-progress { width: 100%; justify-content: center; gap: 6px; padding: 7px 8px; font-size: .66rem; }
+    .fp-progress-line { width: 12px; }
+    .fp-hero-breadcrumb { font-size: .72rem; padding: 7px 13px; }
+    .fp-source-status { align-items: flex-start; gap: 10px; }
+    .fp-source-status-icon { width: 36px; height: 36px; flex-basis: 36px; border-radius: 10px; }
+    .fp-source-status-copy span { font-size: .78rem; }
+    .fp-qtype-row { display: grid; grid-template-columns: 42px minmax(0,1fr); gap: 10px; }
+    .fp-qtype-icon { width: 42px; height: 42px; }
+    .fp-stepper { grid-column: 2; justify-self: start; }
+    .fp-diff-grid { grid-template-columns: 1fr; }
+    .fp-diff-pill { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; align-items: center; text-align: left; padding: 12px 14px; }
+    .fp-diff-emoji { grid-row: 1 / span 2; }
+    .fp-diff-label, .fp-diff-desc { grid-column: 2; }
+    .fp-primary-cta { min-height: 62px; }
+    .fp-primary-cta-copy strong { font-size: .92rem; }
+}
+
+ </style>
 
 <!-- SEO: JSON-LD Structured Data -->
 <script type="application/ld+json">
@@ -588,6 +890,8 @@ if (!is_array($topicsLong)) $topicsLong = explode(',', $topicsLong);
 $showMcqs = in_array('mcqs', $activeTypes) || empty($activeTypes);
 $showShort = in_array('short', $activeTypes) || empty($activeTypes);
 $showLong = in_array('long', $activeTypes) || empty($activeTypes);
+$isFileUpload = ($_POST['source'] ?? '') === 'file_upload';
+$primaryTopic = trim((string)($topics[0] ?? ''));
 ?>
 
 <!-- ═══ HERO ═══ -->
@@ -598,15 +902,44 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
         <i class="fas fa-chevron-right" style="font-size:0.6rem;"></i>
         <span>Finalize</span>
     </div>
+    <div class="fp-progress fp-fade-up fp-delay-1" aria-label="Paper creation progress">
+        <span class="fp-progress-step done"><i class="fas fa-check"></i> Source</span>
+        <span class="fp-progress-line"></span>
+        <span class="fp-progress-step active"><span>2</span> Configure</span>
+        <span class="fp-progress-line"></span>
+        <span class="fp-progress-step"><span>3</span> Generate</span>
+    </div>
     <h1 class="fp-hero-title fp-fade-up fp-delay-1">Finalize Your Paper</h1>
-    <p class="fp-hero-sub fp-fade-up fp-delay-2">Set quantities, pick difficulty, and generate your PDF.</p>
+    <p class="fp-hero-sub fp-fade-up fp-delay-2">Review your source, set the paper mix, and generate your PDF.</p>
 </div>
 
 <!-- ═══ MAIN CONTENT ═══ -->
 <div class="fp-wrapper">
 
+    <div class="fp-source-status fp-fade-up" role="status">
+        <div class="fp-source-status-icon"><i class="fas <?= $isFileUpload ? 'fa-file-alt' : 'fa-layer-group' ?>"></i></div>
+        <div class="fp-source-status-copy">
+            <strong><?= $isFileUpload ? 'File uploaded successfully' : 'Topic selection ready' ?></strong>
+            <span><?= $isFileUpload ? 'Questions will be generated only from the uploaded file content.' : 'Your selected topics are ready for paper configuration.' ?></span>
+            <?php if ($primaryTopic !== ''): ?><small>Source: <?= htmlspecialchars($primaryTopic) ?></small><?php endif; ?>
+        </div>
+        <span class="fp-source-status-badge"><i class="fas fa-shield-alt"></i> <?= $isFileUpload ? 'File-based' : 'Topic-based' ?></span>
+    </div>
+
     <!-- ── STEP 1: Question Quantities ── -->
-    <div class="fp-card fp-fade-up fp-delay-1">
+    <form action="generate_ai_paper.php" method="POST" id="configForm" class="fp-builder-form">
+        <?php foreach($topics as $t): ?><input type="hidden" name="topics[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+        <?php foreach($topicsMcqs as $t): ?><input type="hidden" name="topics_mcqs[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+        <?php foreach($topicsShort as $t): ?><input type="hidden" name="topics_short[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+        <?php foreach($topicsLong as $t): ?><input type="hidden" name="topics_long[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
+        <input type="hidden" name="source" value="<?= htmlspecialchars($_POST['source'] ?? 'topics') ?>">
+        <input type="hidden" name="file_hash" value="<?= htmlspecialchars($_POST['file_hash'] ?? '') ?>">
+        <input type="hidden" name="class_id" value="0">
+        <input type="hidden" name="book_name" value="Professional Academic Paper">
+        <input type="hidden" name="pattern_mode" value="without">
+        <input type="hidden" name="header_design" value="<?= htmlspecialchars($_POST['header_design'] ?? '1') ?>">
+
+    <div class="fp-card fp-quantity-card fp-fade-up fp-delay-1">
         <div class="fp-card-header">
             <div class="fp-step-badge">1</div>
             <div class="fp-card-header-text">
@@ -615,19 +948,6 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
             </div>
         </div>
         <div class="fp-card-body">
-            <form action="generate_ai_paper.php" method="POST" id="configForm">
-                <!-- Hidden Inputs -->
-                <?php foreach($topics as $t): ?><input type="hidden" name="topics[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
-                <?php foreach($topicsMcqs as $t): ?><input type="hidden" name="topics_mcqs[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
-                <?php foreach($topicsShort as $t): ?><input type="hidden" name="topics_short[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
-                <?php foreach($topicsLong as $t): ?><input type="hidden" name="topics_long[]" value="<?= htmlspecialchars($t) ?>"><?php endforeach; ?>
-                <input type="hidden" name="source" value="<?= htmlspecialchars($_POST['source'] ?? 'topics') ?>">
-                <input type="hidden" name="file_hash" value="<?= htmlspecialchars($_POST['file_hash'] ?? '') ?>">
-                <input type="hidden" name="class_id" value="0">
-                <input type="hidden" name="book_name" value="Professional Academic Paper">
-                <input type="hidden" name="pattern_mode" value="without">
-                <input type="hidden" name="header_design" value="<?= htmlspecialchars($_POST['header_design'] ?? '1') ?>">
-
                 <!-- MCQs -->
                 <div class="fp-qtype-row" style="<?= $showMcqs ? '' : 'display:none;' ?>">
                     <div class="fp-qtype-icon mcq"><i class="fas fa-list-ol"></i></div>
@@ -673,7 +993,7 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
     </div>
 
     <!-- ── STEP 2: Difficulty Level ── -->
-    <div class="fp-card fp-fade-up fp-delay-2">
+    <div class="fp-card fp-difficulty-card fp-fade-up fp-delay-2">
         <div class="fp-card-header">
             <div class="fp-step-badge">2</div>
             <div class="fp-card-header-text">
@@ -704,9 +1024,10 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
     </div>
 
     <!-- ── STEP 3: Selected Topics ── -->
-    <div class="fp-topics-card fp-fade-up fp-delay-3">
+    <div class="fp-topics-card fp-topics-panel fp-fade-up fp-delay-3">
         <div class="fp-topics-header" onclick="toggleTopics()">
             <div class="fp-topics-header-left">
+                <span class="fp-topics-step-badge">3</span>
                 <i class="fas fa-layer-group"></i>
                 <span>Selected Topics</span>
                 <span class="fp-topics-count"><?= count($topics) ?></span>
@@ -766,7 +1087,18 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
 
     <!-- ── Generate Button ── -->
     <div class="fp-generate-section fp-fade-up fp-delay-4">
-        <div class="btn-wrapper" onclick="handleGeneratePaper()">
+        <div class="fp-generation-summary" aria-live="polite">
+            <div><i class="fas fa-list-ol"></i><span><strong id="summaryTotal"><?= (int)(($showMcqs ? 10 : 0) + ($showShort ? 5 : 0) + ($showLong ? 3 : 0)) ?></strong> total questions</span></div>
+            <div><i class="fas fa-sliders-h"></i><span><strong id="summaryDifficulty">Medium</strong> difficulty</span></div>
+            <div><i class="fas fa-file-pdf"></i><span>PDF output</span></div>
+        </div>
+        <p class="fp-generate-help">Everything is ready. Generate your paper when you are happy with the counts and difficulty.</p>
+        <button type="button" class="fp-primary-cta" id="generatePaperButton" onclick="handleGeneratePaper()">
+            <span class="fp-primary-cta-icon"><i class="fas fa-magic"></i></span>
+            <span class="fp-primary-cta-copy"><strong>Generate question paper</strong><small>Create PDF from these settings</small></span>
+            <i class="fas fa-arrow-right fp-primary-cta-arrow"></i>
+        </button>
+        <div class="btn-wrapper fp-legacy-generate-button" onclick="handleGeneratePaper()">
           <button type="button" class="btn">
             <svg class="btn-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"></path>
@@ -785,6 +1117,19 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
     </form>
 
     <!-- ── SEO Footer ── -->
+    <div class="fp-generation-overlay" id="generationOverlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="generationOverlayTitle">
+        <div class="fp-loader-card">
+            <div class="fp-loader-sheet" aria-hidden="true">
+                <span></span><span></span><span></span>
+                <i class="fas fa-magic"></i>
+            </div>
+            <h2 id="generationOverlayTitle">Building your paper</h2>
+            <p id="generationOverlayMessage">Your questions are being prepared. This usually takes a few moments.</p>
+            <div class="fp-loader-track" aria-hidden="true"><span></span></div>
+            <small><i class="fas fa-lock"></i> Keep this tab open while we generate your PDF.</small>
+        </div>
+    </div>
+
     <article class="fp-seo-footer fp-fade-up fp-delay-4">
         <h3>Intelligent Paper Generator for Educators</h3>
         <p>Empower your teaching workflow with our high-precision assessment toolkit. We craft test frameworks syncing <strong>MCQs, Short Answers, and Essays</strong> aligned with Board, ECAT, and MDCAT rubrics.</p>
@@ -799,6 +1144,28 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
 <script>
     const isPremium = <?= json_encode($isPremium) ?>;
     const questionLimits = { inputMcqs: 10, inputShort: 10, inputLong: 3 };
+    let paperGenerationStarted = false;
+
+    function showGenerationLoader() {
+        if (paperGenerationStarted) return;
+
+        paperGenerationStarted = true;
+        const overlay = document.getElementById('generationOverlay');
+        const button = document.getElementById('generatePaperButton');
+
+        if (button) {
+            button.disabled = true;
+            button.setAttribute('aria-disabled', 'true');
+            button.innerHTML = '<span class="fp-primary-cta-icon"><i class="fas fa-spinner fa-spin"></i></span><span class="fp-primary-cta-copy"><strong>Starting generation…</strong><small>Preparing your paper</small></span>';
+        }
+
+        if (overlay) {
+            overlay.classList.add('is-visible');
+            overlay.setAttribute('aria-hidden', 'false');
+        }
+
+        document.body.classList.add('fp-generation-lock');
+    }
 
     function updateQuantity(inputId, change) {
         const input = document.getElementById(inputId);
@@ -813,12 +1180,20 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
         }
 
         input.value = Math.max(min, Math.min(max, newVal));
+        updatePaperSummary();
     }
 
     function handleGeneratePaper() {
+        if (paperGenerationStarted) return;
+
         const mcqs = parseInt(document.getElementById('inputMcqs').value) || 0;
         const shorts = parseInt(document.getElementById('inputShort').value) || 0;
         const longs = parseInt(document.getElementById('inputLong').value) || 0;
+
+        if (mcqs + shorts + longs === 0) {
+            alert('Add at least one question before generating the paper.');
+            return;
+        }
 
         if (!isPremium) {
             if (mcqs > questionLimits.inputMcqs || shorts > questionLimits.inputShort || longs > questionLimits.inputLong) {
@@ -826,7 +1201,9 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
                 return;
             }
         }
-        document.getElementById('configForm').submit();
+
+        showGenerationLoader();
+        window.setTimeout(() => document.getElementById('configForm').submit(), 80);
     }
 
     function showUpgradeModal() {
@@ -847,6 +1224,7 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
                         this.value = questionLimits[id];
                         showUpgradeModal();
                     }
+                    updatePaperSummary();
                 });
             }
         });
@@ -857,6 +1235,16 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
         document.querySelectorAll('.fp-diff-pill').forEach(btn => btn.classList.remove('active'));
         const active = document.querySelector(`.fp-diff-pill[data-diff="${level}"]`);
         if (active) active.classList.add('active');
+        const summaryDifficulty = document.getElementById('summaryDifficulty');
+        if (summaryDifficulty) summaryDifficulty.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+    }
+
+    function updatePaperSummary() {
+        const mcqs = parseInt(document.getElementById('inputMcqs')?.value) || 0;
+        const shorts = parseInt(document.getElementById('inputShort')?.value) || 0;
+        const longs = parseInt(document.getElementById('inputLong')?.value) || 0;
+        const total = document.getElementById('summaryTotal');
+        if (total) total.textContent = mcqs + shorts + longs;
     }
 
     function toggleTopics() {
@@ -865,7 +1253,17 @@ $showLong = in_array('long', $activeTypes) || empty($activeTypes);
         body.classList.toggle('collapsed');
         icon.style.transform = body.classList.contains('collapsed') ? 'rotate(-90deg)' : 'rotate(0)';
     }
-</script>
+
+    document.getElementById('configForm')?.addEventListener('submit', function(event) {
+        if (paperGenerationStarted) {
+            event.preventDefault();
+            return;
+        }
+        event.preventDefault();
+        handleGeneratePaper();
+    });
+
+    updatePaperSummary();
 </script>
 
 <?php include __DIR__ . '/../footer.php'; ?>

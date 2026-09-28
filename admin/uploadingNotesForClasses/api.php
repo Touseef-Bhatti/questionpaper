@@ -14,6 +14,14 @@ $emailColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'uploader_e
 if (!$emailColumnCheck || $emailColumnCheck->num_rows === 0) {
     $conn->query("ALTER TABLE class_notes ADD COLUMN uploader_email VARCHAR(255) DEFAULT NULL AFTER uploader_name");
 }
+$driveStatusColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'drive_status'");
+if (!$driveStatusColumnCheck || $driveStatusColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE class_notes ADD COLUMN drive_status ENUM('available','missing') NOT NULL DEFAULT 'available' AFTER approved_by");
+}
+$driveDeletedAtColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'drive_deleted_at'");
+if (!$driveDeletedAtColumnCheck || $driveDeletedAtColumnCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE class_notes ADD COLUMN drive_deleted_at DATETIME DEFAULT NULL AFTER drive_status");
+}
 
 $action = $_REQUEST['action'] ?? '';
 
@@ -113,8 +121,8 @@ if ($action === 'admin_upload') {
 
     $chapter = trim($_POST['chapter'] ?? '');
     $customChapter = trim($_POST['custom_chapter'] ?? '');
-    if ($chapter === '__custom__' && !empty($customChapter)) {
-        $chapter = $customChapter;
+    if ($chapter === '__custom__') {
+        $chapter = !empty($customChapter) ? $customChapter : '';
     }
 
     $adminId = $_SESSION['admin_id'] ?? ($_SESSION['user_id'] ?? null);
@@ -179,7 +187,7 @@ if ($action === 'admin_upload') {
 
     try {
         $driveService = new GoogleDriveService();
-        $driveResult = $driveService->uploadFile($fileTmpPath, $originalFileName, $mimeType, $class, $subject, 'admin');
+        $driveResult = $driveService->uploadFile($fileTmpPath, $originalFileName, $mimeType, $class, $subject, 'admin', $chapter);
 
         $stmt = $conn->prepare("INSERT INTO class_notes 
             (title, description, subject, class, chapter, drive_file_id, drive_url, original_filename, mime_type, file_size, status, uploaded_by, uploader_name, uploader_email, uploader_type, approved_at, approved_by) 
@@ -338,6 +346,132 @@ switch ($action) {
         echo json_encode(['success' => $success]);
         exit;
 
+    case 'replace_drive_file':
+        $noteId = intval($_POST['note_id'] ?? 0);
+        $noteStmt = $conn->prepare('SELECT * FROM class_notes WHERE id = ? LIMIT 1');
+        $noteStmt->bind_param('i', $noteId);
+        $noteStmt->execute();
+        $note = $noteStmt->get_result()->fetch_assoc();
+        $noteStmt->close();
+        if (!$note) {
+            echo json_encode(['success' => false, 'error' => 'Note record not found.']);
+            exit;
+        }
+        if (($note['drive_status'] ?? 'available') !== 'missing') {
+            echo json_encode(['success' => false, 'error' => 'This note is not marked as missing from Google Drive.']);
+            exit;
+        }
+        if (!isset($_FILES['file']) || !is_array($_FILES['file']) || ($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'error' => 'Choose a replacement file first.']);
+            exit;
+        }
+
+        $replacement = $_FILES['file'];
+        $replacementPath = (string) ($replacement['tmp_name'] ?? '');
+        $replacementName = basename((string) ($replacement['name'] ?? 'replacement'));
+        $replacementExtension = strtolower(pathinfo($replacementName, PATHINFO_EXTENSION));
+        $allowedReplacementExtensions = ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'gif', 'webp'];
+        if ($replacementPath === '' || !is_uploaded_file($replacementPath) || !in_array($replacementExtension, $allowedReplacementExtensions, true)) {
+            echo json_encode(['success' => false, 'error' => 'Unsupported replacement file.']);
+            exit;
+        }
+
+        $replacementFinfo = finfo_open(FILEINFO_MIME_TYPE);
+        $replacementMime = (string) finfo_file($replacementFinfo, $replacementPath);
+        finfo_close($replacementFinfo);
+        try {
+            $driveService = new GoogleDriveService();
+            $driveResult = $driveService->uploadFile(
+                $replacementPath,
+                $replacementName,
+                $replacementMime,
+                (string) $note['class'],
+                (string) $note['subject'],
+                (string) ($note['uploader_type'] ?? 'admin'),
+                (string) ($note['chapter'] ?? '')
+            );
+
+            $replacementSize = (int) filesize($replacementPath);
+            $updateStmt = $conn->prepare("UPDATE class_notes
+                SET drive_file_id = ?, drive_url = ?, original_filename = ?, mime_type = ?, file_size = ?,
+                    drive_status = 'available', drive_deleted_at = NULL
+                WHERE id = ?");
+            $updateStmt->bind_param(
+                'ssssii',
+                $driveResult['file_id'],
+                $driveResult['url'],
+                $replacementName,
+                $replacementMime,
+                $replacementSize,
+                $noteId
+            );
+            $success = $updateStmt->execute();
+            $updateError = $updateStmt->error;
+            $updateStmt->close();
+            if (!$success) {
+                try {
+                    $driveService->deleteFile((string) $driveResult['file_id']);
+                } catch (Throwable $cleanupError) {
+                    error_log('Failed to clean up replacement Drive file: ' . $cleanupError->getMessage());
+                }
+                echo json_encode(['success' => false, 'error' => 'Replacement uploaded, but the note record could not be updated: ' . $updateError]);
+                exit;
+            }
+            echo json_encode(['success' => true]);
+        } catch (Throwable $e) {
+            error_log('Note replacement upload failed: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'error' => 'Replacement upload failed. Check the Google Drive connection.']);
+        } finally {
+            if (is_file($replacementPath)) {
+                @unlink($replacementPath);
+            }
+        }
+        exit;
+
+    case 'purge_missing_records':
+        // Missing Drive files no longer have a remote object to delete. Remove
+        // the note rows and their dependent engagement metadata in one
+        // transaction, limited strictly to records marked missing by sync.
+        $conn->begin_transaction();
+        try {
+            $missingIds = [];
+            $missingRes = $conn->query("SELECT id FROM class_notes WHERE drive_status = 'missing'");
+            while ($missingRes && ($missingRow = $missingRes->fetch_assoc())) {
+                $missingIds[] = (int) $missingRow['id'];
+            }
+
+            foreach (['class_note_likes', 'class_note_comments'] as $relatedTable) {
+                $tableCheck = $conn->query("SHOW TABLES LIKE '" . $conn->real_escape_string($relatedTable) . "'");
+                if (!$tableCheck || $tableCheck->num_rows === 0 || $missingIds === []) {
+                    continue;
+                }
+                $relatedStmt = $conn->prepare("DELETE FROM {$relatedTable} WHERE note_id = ?");
+                if (!$relatedStmt) {
+                    throw new RuntimeException('Could not prepare missing-note cleanup.');
+                }
+                foreach ($missingIds as $missingId) {
+                    $relatedStmt->bind_param('i', $missingId);
+                    $relatedStmt->execute();
+                }
+                $relatedStmt->close();
+            }
+
+            $deleteStmt = $conn->prepare("DELETE FROM class_notes WHERE drive_status = 'missing'");
+            if (!$deleteStmt || !$deleteStmt->execute()) {
+                throw new RuntimeException('Could not remove missing note records.');
+            }
+            $deletedCount = (int) $deleteStmt->affected_rows;
+            $deleteStmt->close();
+            $conn->commit();
+            echo json_encode(['success' => true, 'deleted_count' => $deletedCount]);
+        } catch (Throwable $e) {
+            $conn->rollback();
+            error_log('Missing note record purge failed: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'error' => 'Could not remove missing note records.']);
+        }
+        exit;
+
+    case 'delete_record':
     case 'delete':
         $noteId = intval($_POST['note_id'] ?? 0);
         if ($noteId <= 0) {
@@ -351,13 +485,31 @@ switch ($action) {
         $res = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        if ($res && !empty($res['drive_file_id'])) {
+        if ($action === 'delete' && $res && !empty($res['drive_file_id'])) {
             try {
                 $driveService = new GoogleDriveService();
-                $driveService->deleteFile($res['drive_file_id']);
-            } catch (Exception $e) {
-                error_log("Failed to delete from Drive: " . $e->getMessage());
+                $archived = $driveService->moveFileToDeleteFiles((string) $res['drive_file_id']);
+            } catch (Throwable $e) {
+                error_log('Note Drive archive failed: ' . $e->getMessage());
+                $archived = false;
             }
+            if (!$archived) {
+                echo json_encode(['success' => false, 'error' => 'The Drive file could not be moved to deleteFiles, so the database record was kept.']);
+                exit;
+            }
+        }
+
+        $likeStmt = $conn->prepare('DELETE FROM class_note_likes WHERE note_id = ?');
+        if ($likeStmt) {
+            $likeStmt->bind_param('i', $noteId);
+            $likeStmt->execute();
+            $likeStmt->close();
+        }
+        $commentStmt = $conn->prepare('DELETE FROM class_note_comments WHERE note_id = ?');
+        if ($commentStmt) {
+            $commentStmt->bind_param('i', $noteId);
+            $commentStmt->execute();
+            $commentStmt->close();
         }
 
         $delStmt = $conn->prepare("DELETE FROM class_notes WHERE id = ?");
@@ -401,17 +553,22 @@ switch ($action) {
         }
         $inClause = implode(',', $ids);
 
-        // Fetch drive_file_ids for drive deletion
+        // Archive each active Drive file before removing its database record.
         $dRes = $conn->query("SELECT drive_file_id FROM class_notes WHERE id IN ($inClause)");
         try {
             $driveService = new GoogleDriveService();
             while ($row = $dRes->fetch_assoc()) {
                 if (!empty($row['drive_file_id'])) {
-                    $driveService->deleteFile($row['drive_file_id']);
+                    if (!$driveService->moveFileToDeleteFiles((string) $row['drive_file_id'])) {
+                        echo json_encode(['success' => false, 'error' => 'A Drive file could not be moved to deleteFiles. No database records were removed.']);
+                        exit;
+                    }
                 }
             }
-        } catch (Exception $e) {
-            error_log("Bulk delete Drive error: " . $e->getMessage());
+        } catch (Throwable $e) {
+            error_log("Bulk delete Drive archive error: " . $e->getMessage());
+            echo json_encode(['success' => false, 'error' => 'Drive archive failed. No database records were removed.']);
+            exit;
         }
 
         $conn->query("DELETE FROM class_notes WHERE id IN ($inClause)");

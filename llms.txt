@@ -11,6 +11,7 @@
 
 ## Core services
 
+- [Online AI question paper generator](https://ahmadlearninghub.com.pk/online-question-paper-generator): an easy, free workflow for teachers and learners worldwide to turn topics, PDFs, images or supported files into MCQs, short questions, long questions and printable PDF papers for any grade or subject.
 - [Online question paper generator for Class 9 and 10](https://ahmadlearninghub.com.pk/class-9th-and-10th-online-question-paper-generator): create chapter-wise papers with MCQs, short questions and long questions.
 - [Online question paper generator for Class 11 and 12](https://ahmadlearninghub.com.pk/class-11-and-12-online-question-paper-generator): prepare Intermediate and HSSC practice papers.
 - [Online MCQs tests](https://ahmadlearninghub.com.pk/class-9-and-10-online-mcqs-prepation-test): practise chapter-wise objective questions for Classes 9–12.

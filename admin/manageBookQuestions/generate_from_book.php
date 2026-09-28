@@ -1,7 +1,21 @@
 <?php
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../security.php';
+require_once __DIR__ . '/../../services/GoogleDriveContentSyncService.php';
 requireAdminAuth();
+
+$driveSyncError = '';
+$driveSyncResult = ['books_missing' => 0, 'notes_missing' => 0];
+try {
+    $driveSyncResult = (new GoogleDriveContentSyncService())->sync(
+        $conn,
+        (int) ($_SESSION['admin_id'] ?? ($_SESSION['user_id'] ?? 0))
+    );
+} catch (Throwable $e) {
+    // Keep the page usable during a temporary Drive outage and do not alter DB metadata.
+    error_log('Book question page Drive sync failed: ' . $e->getMessage());
+    $driveSyncError = 'Google Drive could not be checked right now. Existing records were left unchanged.';
+}
 
 $classes = [];
 $res = $conn->query('SELECT class_id, class_name FROM class ORDER BY class_id ASC');
@@ -46,83 +60,237 @@ include_once __DIR__ . '/../header.php';
 ?>
 
 <style>
-/* Scoped responsive styles for Textbook Question Generator */
+/* Scoped responsive styles for the textbook content pipeline. */
 .generator-container {
     width: 100%;
-    max-width: 1440px;
+    max-width: 1480px;
     margin: 0 auto;
-    padding: 1rem 0.75rem 2.5rem;
+    padding: 1.25rem 0.75rem 3rem;
 }
 
 @media (min-width: 768px) {
     .generator-container {
-        padding: 1.5rem 1.25rem 3rem;
+        padding: 1.75rem 1.5rem 4rem;
     }
 }
 
-/* Reset admin.css 24px padding on bootstrap cards */
+/* Editorial operations-console direction: ink, paper, and a single mint accent. */
 .generator-container .card {
     padding: 0 !important;
     overflow: hidden;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 16px;
+    background: #fffdfa;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .generator-container .card::before {
     display: none !important;
 }
 
+.generator-container .card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.09);
+}
+
 .generator-container .card-header {
-    background: #f8fafc;
+    background: #fffdfa;
     border-bottom: 1px solid #e2e8f0;
-    padding: 0.85rem 1.15rem;
-    font-weight: 600;
-    color: #1e293b;
+    padding: 1rem 1.15rem;
+    font-weight: 750;
+    color: #172033;
+    letter-spacing: -0.01em;
 }
 
 .generator-container .card-body {
-    padding: 1rem 1.15rem;
+    padding: 1.15rem;
 }
 
 @media (min-width: 768px) {
     .generator-container .card-header {
-        padding: 1rem 1.35rem;
+        padding: 1.1rem 1.35rem;
     }
     .generator-container .card-body {
-        padding: 1.25rem 1.35rem;
+        padding: 1.35rem;
     }
 }
 
-/* Header & Banner */
 .generator-hero {
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 85% 10%, rgba(62, 207, 142, 0.2), transparent 28%),
+        linear-gradient(135deg, #111827 0%, #1e293b 58%, #263449 100%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 18px;
     color: #ffffff;
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 4px 15px rgba(30, 60, 114, 0.15);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.generator-hero::after {
+    content: "";
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    right: -90px;
+    bottom: -130px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.hero-copy,
+.hero-actions {
+    position: relative;
+    z-index: 1;
+}
+
+.hero-kicker,
+.card-kicker {
+    color: #6ee7b7;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
 }
 
 .generator-hero h1 {
-    font-size: 1.35rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
+    font-size: clamp(1.45rem, 2.5vw, 2.2rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    margin: 0;
     color: #ffffff;
 }
 
-@media (min-width: 768px) {
-    .generator-hero h1 {
-        font-size: 1.65rem;
-    }
+.hero-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    margin: 0.35rem 0 0.45rem;
 }
 
 .generator-hero p {
-    font-size: 0.9rem;
+    max-width: 720px;
+    font-size: 0.92rem;
+    line-height: 1.65;
     color: rgba(255, 255, 255, 0.85);
     margin-bottom: 0;
+}
+
+.hero-route {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    color: rgba(255,255,255,0.72);
+    font-size: 0.76rem;
+}
+
+.hero-route code,
+.drive-route-preview code {
+    color: #d1fae5;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(110, 231, 183, 0.28);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.74rem;
+}
+
+.hero-route-label {
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.55);
+}
+
+.pipeline-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
+    margin-top: 1.35rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.14);
+}
+
+.pipeline-step {
+    color: rgba(255,255,255,0.58);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.pipeline-step span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    margin-right: 0.35rem;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 50%;
+    color: rgba(255,255,255,0.72);
+    font-size: 0.65rem;
+}
+
+.pipeline-step.active { color: #d1fae5; }
+.pipeline-step.active span { background: #34d399; border-color: #34d399; color: #10231d; }
+
+.step-marker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    margin-right: 0.55rem;
+    border-radius: 8px;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 0.68rem;
+    font-weight: 850;
+    letter-spacing: 0.04em;
+}
+
+.upload-card { border-top: 3px solid #34d399 !important; }
+
+.drive-route-preview {
+    padding: 0.85rem;
+    margin-top: 1rem;
+    border: 1px solid #d1fae5;
+    border-radius: 12px;
+    background: #f0fdf4;
+}
+
+.drive-route-preview .route-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #065f46;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.drive-route-preview code {
+    display: block;
+    overflow-wrap: anywhere;
+    margin-top: 0.55rem;
+    color: #065f46;
+    background: #dcfce7;
+    border-color: #bbf7d0;
+    border-radius: 8px;
+}
+
+.drive-route-preview small { display: block; margin-top: 0.5rem; color: #3f6656; line-height: 1.45; }
+
+.section-note {
+    color: #64748b;
+    font-size: 0.78rem;
+    line-height: 1.5;
 }
 
 /* Saved Drafts List */
@@ -209,32 +377,73 @@ include_once __DIR__ . '/../header.php';
 
 /* Touch targets and form controls */
 .form-control, .form-select, .btn {
-    min-height: 40px;
-    border-radius: 7px;
+    min-height: 42px;
+    border-radius: 9px;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #34d399;
+    box-shadow: 0 0 0 0.2rem rgba(52, 211, 153, 0.16);
+}
+
+.generator-container .btn-primary {
+    background: #0f766e;
+    border-color: #0f766e;
+}
+
+.generator-container .btn-primary:hover,
+.generator-container .btn-primary:focus {
+    background: #115e59;
+    border-color: #115e59;
+}
+
+.generator-container .card-header > span,
+.generator-container .card-header > div {
+    display: inline-flex;
+    align-items: center;
 }
 
 @media (max-width: 575.98px) {
     .btn-mobile-full {
         width: 100% !important;
     }
+    .pipeline-steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 0.8rem;
+    }
 }
 </style>
 
 <div class="generator-container">
-    <!-- Hero Banner with responsive actions -->
     <div class="generator-hero d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-        <div>
-            <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+        <div class="hero-copy">
+            <div class="hero-kicker">Admin workspace / Book intelligence</div>
+            <div class="hero-title-row">
                 <h1><i class="fa-solid fa-book-bookmark me-2"></i>Textbook Question Generator</h1>
                 <?php if ($apiKeyConfigured): ?>
-                    <span class="badge bg-success text-white py-1 px-2" style="font-size: 0.75rem;"><i class="fa-solid fa-check-circle me-1"></i>AI Key Active</span>
+                    <span class="badge bg-success text-white py-1 px-2"><i class="fa-solid fa-check-circle me-1"></i>AI key active</span>
                 <?php else: ?>
-                    <span class="badge bg-warning text-dark py-1 px-2" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i>AI Key Missing</span>
+                    <span class="badge bg-warning text-dark py-1 px-2"><i class="fa-solid fa-triangle-exclamation me-1"></i>AI key missing</span>
                 <?php endif; ?>
             </div>
-            <p>Store textbooks in Google Drive, map chapter page ranges, and generate AI questions for instant review.</p>
+            <p>Build a reliable question source from a textbook: upload once, map printed pages, generate a focused chapter draft, and send it to review.</p>
+            <div class="hero-route" aria-label="Google Drive storage routing">
+                <span class="hero-route-label">Books</span>
+                <code>AhmadLearningHub / Books / Class X / BookName</code>
+                <span class="hero-route-label">Notes</span>
+                <code>AhmadLearningHub / Notes / Class X / Book / Chapter / Admin|User</code>
+            </div>
+            <div class="pipeline-steps" aria-label="Textbook workflow steps">
+                <div class="pipeline-step active"><span>01</span>Upload</div>
+                <div class="pipeline-step"><span>02</span>Map pages</div>
+                <div class="pipeline-step"><span>03</span>Generate</div>
+                <div class="pipeline-step"><span>04</span>Review</div>
+            </div>
         </div>
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="hero-actions d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-success" id="syncDriveBtn" title="Import Drive files into the database">
+                <i class="fa-solid fa-arrows-rotate me-1"></i>Sync Drive
+            </button>
             <button type="button" class="btn btn-info text-white" id="testDriveBtn" title="Test Google Drive connection">
                 <i class="fa-brands fa-google-drive me-1"></i>Test Drive
             </button>
@@ -247,15 +456,32 @@ include_once __DIR__ . '/../header.php';
     <?php if (!$apiKeyConfigured): ?>
         <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
             <i class="fa-solid fa-triangle-exclamation fs-5 flex-shrink-0"></i>
-            <div>
+            <div class="flex-grow-1">
                 <strong>Gemini API Key Required:</strong> Add <code>GEMINIAPIKEYFORBOOKQUESTIONS</code> to your environment file to enable question generation.
+            </div>
+        </div>
+    <?php endif; ?>
+    <?php if ($driveSyncError !== ''): ?>
+        <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+            <i class="fa-solid fa-triangle-exclamation fs-5 flex-shrink-0"></i>
+            <div><?= htmlspecialchars($driveSyncError, ENT_QUOTES, 'UTF-8') ?></div>
+        </div>
+    <?php endif; ?>
+    <?php if (($driveSyncResult['books_missing'] ?? 0) > 0): ?>
+        <div class="alert alert-danger d-flex align-items-start gap-2 mb-3">
+            <i class="fa-solid fa-cloud-slash fs-5 flex-shrink-0"></i>
+            <div>
+                <strong><?= (int) $driveSyncResult['books_missing'] ?> textbook record(s) are marked “Deleted from Google Drive”.</strong>
+                <div class="small mt-1">Select a marked book below to re-upload a PDF and preserve its record and chapter mappings.</div>
+                <button type="button" class="btn btn-sm btn-dark mt-2" id="purgeMissingBooksBtn">
+                    <i class="fa-solid fa-trash-can me-1"></i>Remove missing textbook records from database
+                </button>
             </div>
         </div>
     <?php endif; ?>
 
     <div id="alertBox" class="alert d-none mb-3" role="alert"></div>
 
-    <!-- Saved Draft Reviews Section -->
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Saved Draft Reviews</span>
@@ -270,13 +496,12 @@ include_once __DIR__ . '/../header.php';
         </div>
     </div>
 
-    <!-- Two-column responsive layout: Left = Upload, Right = Manage & Generate -->
     <div class="row g-3 g-xl-4">
-        <!-- Step 1: Upload Book -->
         <div class="col-12 col-xl-4">
-            <div class="card h-100">
+            <div class="card h-100 upload-card">
                 <div class="card-header">
-                    <i class="fa-solid fa-cloud-arrow-up me-2 text-primary"></i>1. Store Book PDF
+                    <span class="step-marker">01</span>
+                    <div><span class="card-kicker d-block">Storage</span><strong><i class="fa-solid fa-cloud-arrow-up me-2 text-primary"></i>Upload textbook</strong></div>
                 </div>
                 <div class="card-body">
                     <form id="uploadBookForm" enctype="multipart/form-data">
@@ -304,9 +529,15 @@ include_once __DIR__ . '/../header.php';
                             <label class="form-label fw-semibold small text-secondary" for="bookFile">Textbook PDF</label>
                             <input type="file" class="form-control" id="bookFile" name="book_file" accept=".pdf,application/pdf" required>
                             <div class="form-text small d-flex justify-content-between align-items-center mt-1">
-                                <span>Drive + local storage</span>
+                                <span>Google Drive only</span>
                                 <span class="badge bg-light text-dark border">Limit: <?= (int) $uploadLimitMb ?> MB</span>
                             </div>
+                        </div>
+
+                        <div class="drive-route-preview" aria-live="polite">
+                            <div class="route-heading"><i class="fa-brands fa-google-drive"></i>Book destination</div>
+                            <code id="bookDrivePath">AhmadLearningHub / Books / Class X / Select book</code>
+                            <small>Textbooks use Books; class notes use the separate Notes root with Chapter/Admin or User folders.</small>
                         </div>
 
                         <button class="btn btn-primary w-100 mt-2" type="submit" id="uploadSubmitBtn">
@@ -317,12 +548,11 @@ include_once __DIR__ . '/../header.php';
             </div>
         </div>
 
-        <!-- Right Column: Step 2, 3, 4 -->
         <div class="col-12 col-xl-8 d-flex flex-column gap-3 gap-xl-4">
-            <!-- Step 2: Uploaded Books Selection -->
             <div class="card">
                 <div class="card-header">
-                    <i class="fa-solid fa-folder-open me-2 text-primary"></i>2. Uploaded Books
+                    <span class="step-marker">02</span>
+                    <div><span class="card-kicker d-block">Library</span><strong><i class="fa-solid fa-folder-open me-2 text-primary"></i>Uploaded books</strong></div>
                 </div>
                 <div class="card-body">
                     <div class="row g-2 align-items-center">
@@ -339,14 +569,25 @@ include_once __DIR__ . '/../header.php';
                         </div>
                     </div>
                     <div class="mt-2" id="storedBookMeta"></div>
+                    <div class="d-none mt-3" id="replaceBookWrap">
+                        <div class="alert alert-danger d-flex align-items-start gap-2 mb-2">
+                            <i class="fa-solid fa-cloud-slash mt-1"></i>
+                            <div><strong>This textbook was deleted from Google Drive.</strong><div class="small">Re-upload a PDF to keep this book record and its chapter mappings.</div></div>
+                        </div>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="replaceBookFile" accept=".pdf,application/pdf">
+                            <button class="btn btn-outline-success" type="button" id="replaceBookBtn"><i class="fa-solid fa-cloud-arrow-up me-1"></i>Re-upload</button>
+                            <button class="btn btn-outline-danger" type="button" id="deleteMissingBookBtn"><i class="fa-solid fa-trash me-1"></i>Delete record</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Step 3: Chapter Page Ranges -->
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-2">
-                        <span><i class="fa-solid fa-list-ol me-2 text-primary"></i>3. Chapter Page Ranges</span>
+                        <span class="step-marker">03</span>
+                        <span><span class="card-kicker d-block">Mapping</span><strong><i class="fa-solid fa-list-ol me-2 text-primary"></i>Chapter page ranges</strong></span>
                         <span class="badge bg-light text-secondary border d-none d-sm-inline" id="chapterCountBadge">0 chapters</span>
                     </div>
                     <button type="button" class="btn btn-sm btn-success" id="saveRangesBtn">
@@ -384,10 +625,10 @@ include_once __DIR__ . '/../header.php';
                 </div>
             </div>
 
-            <!-- Step 4: Generate One Chapter for Review -->
             <div class="card">
                 <div class="card-header">
-                    <i class="fa-solid fa-wand-magic-sparkles me-2 text-primary"></i>4. Generate One Chapter for Review
+                    <span class="step-marker">04</span>
+                    <div><span class="card-kicker d-block">AI draft</span><strong><i class="fa-solid fa-wand-magic-sparkles me-2 text-primary"></i>Generate for review</strong></div>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -485,6 +726,7 @@ include_once __DIR__ . '/../header.php';
 <script>
 const csrfToken = <?= json_encode($csrfToken) ?>;
 const apiUrl = 'api.php';
+const driveSyncUrl = '../google_drive_sync.php';
 const bookData = <?= json_encode($books, JSON_UNESCAPED_UNICODE) ?>;
 const maxUploadBytes = <?= (int) $uploadLimitBytes ?>;
 let uploads = [];
@@ -542,6 +784,7 @@ function populateBooks(classSelect, bookSelect) {
     bookSelect.innerHTML = '<option value="">Select book</option>';
     if (!classId) {
         bookSelect.disabled = true;
+        updateBookDrivePath();
         return;
     }
     const filtered = bookData.filter(b => parseInt(b.class_id, 10) === classId);
@@ -552,6 +795,20 @@ function populateBooks(classSelect, bookSelect) {
         bookSelect.appendChild(opt);
     });
     bookSelect.disabled = filtered.length === 0;
+    updateBookDrivePath();
+}
+
+function updateBookDrivePath() {
+    const classSelect = document.getElementById('uploadClass');
+    const bookSelect = document.getElementById('uploadBook');
+    const path = document.getElementById('bookDrivePath');
+    if (!classSelect || !bookSelect || !path) return;
+
+    const classOption = classSelect.options[classSelect.selectedIndex];
+    const classValue = (classOption?.textContent || '').trim().replace(/^class\s*/i, '');
+    const classFolder = classValue ? `Class ${classValue.replace(/[^0-9A-Za-z_-]/g, '')}` : 'Class X';
+    const bookName = bookSelect.options[bookSelect.selectedIndex]?.textContent?.trim() || 'Select book';
+    path.textContent = `AhmadLearningHub / Books / ${classFolder} / ${bookName}`;
 }
 
 function renderUploads() {
@@ -561,7 +818,8 @@ function renderUploads() {
     uploads.forEach(upload => {
         const opt = document.createElement('option');
         opt.value = upload.id;
-        opt.textContent = `${upload.class_name} - ${upload.book_name} (${upload.mapped_chapters || 0} mapped, ${upload.pdf_page_count} pages)`;
+        const driveState = upload.drive_status === 'missing' ? ' — DELETED FROM DRIVE' : '';
+        opt.textContent = upload.class_name + ' - ' + upload.book_name + ' (' + (upload.mapped_chapters || 0) + ' mapped, ' + upload.pdf_page_count + ' pages)' + driveState;
         select.appendChild(opt);
     });
     if (selected) select.value = selected;
@@ -636,7 +894,8 @@ async function loadUploadDetails(uploadId) {
 
     const driveLink = document.getElementById('driveLink');
     driveLink.href = currentUpload.drive_url || '#';
-    driveLink.classList.toggle('disabled', !currentUpload.drive_url);
+    driveLink.classList.toggle('disabled', !currentUpload.drive_url || currentUpload.drive_status === 'missing');
+    document.getElementById('replaceBookWrap').classList.toggle('d-none', currentUpload.drive_status !== 'missing');
     
     const metaContainer = document.getElementById('storedBookMeta');
     metaContainer.innerHTML = `
@@ -645,6 +904,91 @@ async function loadUploadDetails(uploadId) {
             <span class="badge bg-light text-dark border"><i class="fa-solid fa-file-lines me-1"></i>${currentUpload.pdf_page_count} PDF Pages</span>
             ${currentUpload.page_offset ? `<span class="badge bg-light text-dark border">Offset: ${currentUpload.page_offset}</span>` : ''}
         </div>`;
+    metaContainer.insertAdjacentHTML('beforeend', currentUpload.drive_status === 'missing'
+        ? '<span class="badge bg-danger ms-1"><i class="fa-solid fa-cloud-slash me-1"></i>Deleted from Drive</span>'
+        : '<span class="badge bg-success ms-1"><i class="fa-solid fa-cloud-check me-1"></i>Drive file available</span>');
+}
+
+async function replaceBookFile() {
+    if (!currentUpload) {
+        showAlert('Select a stored book first.', 'warning');
+        return;
+    }
+    const input = document.getElementById('replaceBookFile');
+    if (!input.files || !input.files[0]) {
+        showAlert('Choose a replacement PDF first.', 'warning');
+        return;
+    }
+    const btn = document.getElementById('replaceBookBtn');
+    btn.disabled = true;
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Uploading...';
+    const fd = new FormData();
+    fd.append('action', 'replace_book');
+    fd.append('upload_id', currentUpload.id);
+    fd.append('book_file', input.files[0]);
+    fd.append('csrf_token', csrfToken);
+    try {
+        const data = await postForm(fd);
+        if (data?.ok) {
+            uploads = data.uploads || uploads;
+            renderUploads();
+            document.getElementById('storedBookSelect').value = currentUpload.id;
+            await loadUploadDetails(currentUpload.id);
+            showAlert('Textbook re-uploaded to Google Drive. The existing book record was preserved.', 'success');
+        }
+    } finally {
+        input.value = '';
+        btn.disabled = false;
+        btn.innerHTML = oldText;
+    }
+}
+
+async function deleteMissingBookRecord() {
+    if (!currentUpload || currentUpload.drive_status !== 'missing') return;
+    if (!confirm('This textbook is already deleted from Google Drive. Delete its database record and chapter mappings?')) return;
+    const fd = new FormData();
+    fd.append('action', 'delete_book_record');
+    fd.append('upload_id', currentUpload.id);
+    fd.append('csrf_token', csrfToken);
+    const data = await postForm(fd);
+    if (data?.ok) {
+        currentUpload = null;
+        uploads = data.uploads || [];
+        renderUploads();
+        document.getElementById('storedBookSelect').value = '';
+        document.getElementById('storedBookMeta').innerHTML = '';
+        document.getElementById('replaceBookWrap').classList.add('d-none');
+        showAlert('Deleted textbook record and its chapter mappings.', 'success');
+    }
+}
+
+async function purgeMissingBookRecords() {
+    if (!confirm('Permanently remove every textbook record marked Deleted from Google Drive, including chapter mappings and generated drafts?')) return;
+    const btn = document.getElementById('purgeMissingBooksBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Removing...';
+    }
+    const fd = new FormData();
+    fd.append('action', 'purge_missing_records');
+    try {
+        const data = await postForm(fd);
+        if (data?.ok) {
+            currentUpload = null;
+            uploads = data.uploads || [];
+            renderUploads();
+            document.getElementById('storedBookSelect').value = '';
+            document.getElementById('storedBookMeta').innerHTML = '';
+            document.getElementById('replaceBookWrap').classList.add('d-none');
+            showAlert(`Removed ${data.deleted_count || 0} missing textbook record(s) from the database.`, 'success');
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-trash-can me-1"></i>Remove missing textbook records from database';
+        }
+    }
 }
 
 function renderRangeRows() {
@@ -810,6 +1154,7 @@ function escapeHtml(value) {
 }
 
 document.getElementById('uploadClass').addEventListener('change', () => populateBooks(document.getElementById('uploadClass'), document.getElementById('uploadBook')));
+document.getElementById('uploadBook').addEventListener('change', updateBookDrivePath);
 
 document.getElementById('uploadBookForm').addEventListener('submit', async event => {
     event.preventDefault();
@@ -838,10 +1183,17 @@ document.getElementById('storedBookSelect').addEventListener('change', event => 
         loadUploadDetails(event.target.value);
     }
 });
+document.getElementById('replaceBookBtn').addEventListener('click', replaceBookFile);
+document.getElementById('deleteMissingBookBtn').addEventListener('click', deleteMissingBookRecord);
+document.getElementById('purgeMissingBooksBtn')?.addEventListener('click', purgeMissingBookRecords);
 
 document.getElementById('saveRangesBtn').addEventListener('click', async () => {
     if (!currentUpload) {
         showAlert('Select an uploaded book first.', 'warning');
+        return;
+    }
+    if (currentUpload.drive_status === 'missing') {
+        showAlert('This textbook was deleted from Google Drive. Re-upload it before saving chapter ranges.', 'warning');
         return;
     }
     const fd = new FormData();
@@ -859,6 +1211,10 @@ document.getElementById('saveRangesBtn').addEventListener('click', async () => {
 document.getElementById('startGenerateBtn').addEventListener('click', async () => {
     if (!currentUpload) {
         showAlert('Select an uploaded book first.', 'warning');
+        return;
+    }
+    if (currentUpload.drive_status === 'missing') {
+        showAlert('This textbook was deleted from Google Drive. Re-upload it before generating questions.', 'warning');
         return;
     }
     const chapterId = document.getElementById('generateChapter').value;
@@ -912,6 +1268,32 @@ document.getElementById('testDriveBtn').addEventListener('click', async () => {
     
     if (data?.success || data?.status === 'ok') {
         showAlert('Google Drive connection is verified and operational.', 'success');
+    }
+});
+
+document.getElementById('syncDriveBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('syncDriveBtn');
+    const oldHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Syncing...';
+
+    const fd = new FormData();
+    fd.append('action', 'sync_drive');
+    fd.append('csrf_token', csrfToken);
+    try {
+        const response = await fetch(driveSyncUrl, { method: 'POST', body: fd });
+        const data = await response.json();
+        if (!data.ok) {
+            showAlert(data.error || 'Google Drive sync failed.', 'danger');
+        } else {
+            showAlert('Drive sync complete: ' + (data.books_imported || 0) + ' book file(s), ' + (data.notes_imported || 0) + ' note file(s) imported; marked ' + (data.books_missing || 0) + ' book record(s) and ' + (data.notes_missing || 0) + ' note record(s) as deleted from Drive.', 'success');
+            await refreshData();
+        }
+    } catch (error) {
+        showAlert('Google Drive sync failed. Check the Drive connection.', 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
     }
 });
 

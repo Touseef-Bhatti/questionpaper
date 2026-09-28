@@ -5,7 +5,9 @@
  * Uses raw cURL calls (no Composer/SDK) for shared hosting compatibility.
  * Features:
  * - Resilient Folder ID resolution (ID, full URL, or auto-discovery by folder name "AhmadLearningHub")
- * - Automatic subfolder creation (e.g., AhmadLearningHub -> Notes -> Class9 -> Physics -> Users)
+ * - Notes stored below Notes/Class X/Book/Chapter/{Admin|User}
+ * - Textbooks stored below Books/Class X/BookName at the configured root
+ * - User question-paper and MCQ source files use separate configured roots
  * - Self-healing diagnostics for debugging connection, permissions, and quota
  * - Public share link generation
  */
@@ -16,6 +18,8 @@ class GoogleDriveService
 {
     private string $keyFilePath;
     private string $rawFolderConfig;
+    /** @var array<string,string> */
+    private array $layoutFolderConfig = [];
     private ?string $resolvedFolderId = null;
     private ?string $accessToken = null;
     private int $tokenExpiry = 0;
@@ -30,6 +34,17 @@ class GoogleDriveService
     {
         $this->keyFilePath = __DIR__ . '/../config/google_service_account.json';
         $this->rawFolderConfig = EnvLoader::get('GOOGLE_DRIVE_FOLDER_ID', '');
+        $this->layoutFolderConfig = [
+            'books' => trim((string) EnvLoader::get('GOOGLE_DRIVE_BOOKS_FOLDER_ID', '')),
+            'notes' => trim((string) EnvLoader::get('GOOGLE_DRIVE_NOTES_FOLDER_ID', '')),
+            'question_paper' => trim((string) EnvLoader::get('GOOGLE_DRIVE_QUESTION_PAPER_FOLDER_ID', '')),
+            'mcqs' => trim((string) EnvLoader::get('GOOGLE_DRIVE_MCQS_FOLDER_ID', '')),
+            'deleted_files' => trim((string) EnvLoader::get('GOOGLE_DRIVE_DELETED_FILES_FOLDER_ID', '')),
+            'class_9' => trim((string) EnvLoader::get('GOOGLE_DRIVE_CLASS_9_FOLDER_ID', '')),
+            'class_10' => trim((string) EnvLoader::get('GOOGLE_DRIVE_CLASS_10_FOLDER_ID', '')),
+            'class_11' => trim((string) EnvLoader::get('GOOGLE_DRIVE_CLASS_11_FOLDER_ID', '')),
+            'class_12' => trim((string) EnvLoader::get('GOOGLE_DRIVE_CLASS_12_FOLDER_ID', '')),
+        ];
         $this->tokenCacheFile = __DIR__ . '/../storage/gdrive_token_cache.json';
         $this->oauthTokenFile = __DIR__ . '/../storage/gdrive_oauth_token.json';
         $this->authMode = strtolower((string) EnvLoader::get('GOOGLE_DRIVE_AUTH_MODE', 'auto'));
@@ -148,6 +163,43 @@ class GoogleDriveService
     }
 
     /**
+     * Return folder metadata, including parents, without exposing credentials.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function getFolderMetadata(string $folderId, string $token): ?array
+    {
+        if (!preg_match('/^[A-Za-z0-9_-]+$/', $folderId)) {
+            return null;
+        }
+        $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($folderId)
+            . '?fields=id,name,mimeType,parents,trashed&supportsAllDrives=true';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => ["Authorization: Bearer {$token}"],
+            CURLOPT_TIMEOUT => 15,
+        ]);
+        $response = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($response === false || $code !== 200) {
+            return null;
+        }
+        $data = json_decode($response, true);
+        return is_array($data) ? $data : null;
+    }
+
+    private function extractFolderId(string $value): string
+    {
+        $value = trim($value);
+        if (preg_match('#folders/([A-Za-z0-9_-]+)#', $value, $matches)) {
+            return $matches[1];
+        }
+        return preg_match('/^[A-Za-z0-9_-]+$/', $value) ? $value : '';
+    }
+
+    /**
      * Resolve the Root Folder ID (supporting raw ID, Google Drive URL, or auto-discovery)
      */
     public function getRootFolderId(?string $token = null): string
@@ -231,7 +283,7 @@ class GoogleDriveService
 
         // Check if subfolder already exists in parent
         $q = "mimeType = 'application/vnd.google-apps.folder' and name = '" . addslashes($cleanName) . "' and '{$parentId}' in parents and trashed = false";
-        $url = "https://www.googleapis.com/drive/v3/files?q=" . urlencode($q) . "&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true";
+        $url = "https://www.googleapis.com/drive/v3/files?q=" . urlencode($q) . "&fields=files(id,name)&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true";
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -270,16 +322,324 @@ class GoogleDriveService
         curl_close($ch);
 
         $created = json_decode($createResp, true);
-        if ($code === 200 && !empty($created['id'])) {
+        if (($code === 200 || $code === 201) && !empty($created['id'])) {
             return $created['id'];
+        }
+
+        // A concurrent request may have created the same child between the
+        // lookup and create calls. Re-read the parent before failing instead
+        // of creating another branch or reporting a false failure.
+        $existingUrl = "https://www.googleapis.com/drive/v3/files?q=" . urlencode($q) . "&fields=files(id,name)&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true";
+        $retry = curl_init($existingUrl);
+        curl_setopt_array($retry, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => ["Authorization: Bearer {$token}"],
+            CURLOPT_TIMEOUT => 15,
+        ]);
+        $retryResponse = curl_exec($retry);
+        curl_close($retry);
+        $retryData = json_decode((string) $retryResponse, true);
+        if (!empty($retryData['files'][0]['id'])) {
+            return (string) $retryData['files'][0]['id'];
         }
 
         throw new Exception("Failed to auto-create subfolder '{$cleanName}' in Google Drive (HTTP $code)");
     }
 
     /**
-     * Upload a file with automatic subfolder organization.
-     * Files are stored under Notes/Class{9|10|11|12}/{Subject}/{Admin|Users}.
+     * Resolve a configured folder only when it is the expected child of the
+     * configured parent. Invalid/stale IDs fall back to a parent-scoped lookup
+     * and automatic creation, preventing folders in unrelated Drive locations.
+     */
+    private function resolveLayoutFolder(string $key, string $folderName, string $parentId, string $token): string
+    {
+        $configuredId = $this->extractFolderId($this->layoutFolderConfig[$key] ?? '');
+        if ($configuredId !== '') {
+            $metadata = $this->getFolderMetadata($configuredId, $token);
+            $parents = is_array($metadata['parents'] ?? null) ? $metadata['parents'] : [];
+            if ($metadata !== null
+                && empty($metadata['trashed'])
+                && ($metadata['mimeType'] ?? '') === 'application/vnd.google-apps.folder'
+                && in_array($parentId, $parents, true)) {
+                return $configuredId;
+            }
+        }
+
+        return $this->getOrCreateSubfolder($parentId, $folderName, $token);
+    }
+
+    public function getBooksRootFolderId(?string $token = null): string
+    {
+        $token = $token ?? $this->getAccessToken();
+        return $this->resolveLayoutFolder('books', 'Books', $this->getRootFolderId($token), $token);
+    }
+
+    public function getNotesRootFolderId(?string $token = null): string
+    {
+        $token = $token ?? $this->getAccessToken();
+        return $this->resolveLayoutFolder('notes', 'Notes', $this->getRootFolderId($token), $token);
+    }
+
+    public function getQuestionPaperRootFolderId(?string $token = null): string
+    {
+        $token = $token ?? $this->getAccessToken();
+        return $this->resolveLayoutFolder('question_paper', 'QuestionPaperUpload', $this->getRootFolderId($token), $token);
+    }
+
+    public function getMcqsRootFolderId(?string $token = null): string
+    {
+        $token = $token ?? $this->getAccessToken();
+        return $this->resolveLayoutFolder('mcqs', 'McqsUploads', $this->getRootFolderId($token), $token);
+    }
+
+    public function getDeletedFilesFolderId(?string $token = null): string
+    {
+        $token = $token ?? $this->getAccessToken();
+        return $this->resolveLayoutFolder('deleted_files', 'deleteFiles', $this->getRootFolderId($token), $token);
+    }
+
+    public function getClassFolderId(string $classLabel, ?string $token = null): string
+    {
+        $token = $token ?? $this->getAccessToken();
+        return $this->getClassFolderIdUnderRoot($classLabel, $this->getBooksRootFolderId($token), $token);
+    }
+
+    private function getClassFolderIdUnderRoot(string $classLabel, string $parentId, string $token): string
+    {
+        $classNumber = preg_replace('/[^0-9]/', '', trim($classLabel));
+        $classNumber = in_array($classNumber, ['9', '10', '11', '12'], true) ? $classNumber : 'unknown';
+        $key = 'class_' . $classNumber;
+        return $this->resolveLayoutFolder($key, $this->classFolderName($classNumber), $parentId, $token);
+    }
+
+    /**
+     * Create/resolve the stable top-level layout. Book, chapter, and owner
+     * folders remain dynamic and are created only when the corresponding file
+     * is uploaded.
+     *
+     * @return array<string,string|array<string,string>>
+     */
+    public function ensureStandardFolderStructure(): array
+    {
+        $token = $this->getAccessToken();
+        $rootId = $this->getRootFolderId($token);
+        $classFolders = [];
+        foreach (['9', '10', '11', '12'] as $classNumber) {
+            $classFolders[$classNumber] = $this->getClassFolderId($classNumber, $token);
+        }
+
+        return [
+            'root' => $rootId,
+            'books' => $this->getBooksRootFolderId($token),
+            'notes' => $this->getNotesRootFolderId($token),
+            'classes' => $classFolders,
+            'question_paper' => $this->getQuestionPaperRootFolderId($token),
+            'mcqs' => $this->getMcqsRootFolderId($token),
+            'delete_files' => $this->getDeletedFilesFolderId($token),
+        ];
+    }
+
+    /**
+     * List files below the configured AhmadLearningHub root with their relative
+     * Drive folder path. This is intentionally read-only; sync decides which
+     * paths are managed and how they map into application tables.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function listManagedFiles(): array
+    {
+        $token = $this->getAccessToken();
+        $rootId = $this->getRootFolderId($token);
+        $files = [];
+        $this->walkDriveFolder($rootId, [], $token, $files);
+        return $files;
+    }
+
+    /**
+     * Download a known Drive file to the operating-system temp directory.
+     * Persistent application storage is deliberately rejected here.
+     */
+    public function downloadFileToTemp(string $fileId, string $destination): int
+    {
+        if (!preg_match('/^[A-Za-z0-9_-]+$/', $fileId)) {
+            throw new InvalidArgumentException('Invalid Google Drive file ID.');
+        }
+
+        $tempRoot = realpath(sys_get_temp_dir());
+        $destinationDirectory = dirname($destination);
+        if (!is_dir($destinationDirectory) && !@mkdir($destinationDirectory, 0700, true)) {
+            throw new Exception('Could not create the temporary Drive download directory.');
+        }
+        $resolvedDirectory = realpath($destinationDirectory);
+        if ($tempRoot === false || $resolvedDirectory === false || !$this->isWithinDirectory($resolvedDirectory, $tempRoot)) {
+            throw new InvalidArgumentException('Drive downloads must remain outside application storage.');
+        }
+
+        $token = $this->getAccessToken();
+        $handle = @fopen($destination, 'wb');
+        if ($handle === false) {
+            throw new Exception('Could not open the temporary Drive download file.');
+        }
+
+        $ch = curl_init('https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?alt=media&supportsAllDrives=true');
+        curl_setopt_array($ch, [
+            CURLOPT_FILE => $handle,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_TIMEOUT => 300,
+            CURLOPT_HTTPHEADER => ["Authorization: Bearer {$token}"],
+        ]);
+        $ok = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        fclose($handle);
+
+        if ($ok === false || $httpCode !== 200) {
+            @unlink($destination);
+            throw new Exception('Google Drive download failed' . ($curlError !== '' ? ': ' . $curlError : " (HTTP {$httpCode})"));
+        }
+
+        $size = (int) filesize($destination);
+        if ($size <= 0) {
+            @unlink($destination);
+            throw new Exception('Google Drive returned an empty file.');
+        }
+
+        return $size;
+    }
+
+    public function isFileAvailable(string $fileId): bool
+    {
+        if (!preg_match('/^[A-Za-z0-9_-]+$/', $fileId)) {
+            throw new InvalidArgumentException('Invalid Google Drive file ID.');
+        }
+
+        $token = $this->getAccessToken();
+        $ch = curl_init('https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?fields=id,trashed&supportsAllDrives=true');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTPHEADER => ["Authorization: Bearer {$token}"],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            throw new Exception('Google Drive file check failed: ' . $curlError);
+        }
+        if ($httpCode === 404) {
+            return false;
+        }
+        if ($httpCode !== 200) {
+            throw new Exception("Google Drive file check failed (HTTP {$httpCode})");
+        }
+
+        $data = json_decode($response, true);
+        return is_array($data) && empty($data['trashed']);
+    }
+
+    /**
+     * @param string[] $pathSegments
+     * @param array<int,array<string,mixed>> $files
+     */
+    private function walkDriveFolder(string $folderId, array $pathSegments, string $token, array &$files, int $depth = 0): void
+    {
+        if ($depth > 6) {
+            return;
+        }
+
+        foreach ($this->listDriveChildren($folderId, $token) as $item) {
+            $name = trim((string) ($item['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            if (($item['mimeType'] ?? '') === 'application/vnd.google-apps.folder') {
+                $this->walkDriveFolder((string) $item['id'], array_merge($pathSegments, [$name]), $token, $files, $depth + 1);
+                continue;
+            }
+
+            $files[] = [
+                'file_id' => (string) ($item['id'] ?? ''),
+                'name' => $name,
+                'mime_type' => (string) ($item['mimeType'] ?? 'application/octet-stream'),
+                'size' => (int) ($item['size'] ?? 0),
+                'modified_time' => (string) ($item['modifiedTime'] ?? ''),
+                'web_url' => (string) ($item['webViewLink'] ?? ''),
+                'folder_id' => $folderId,
+                'path_segments' => $pathSegments,
+                'relative_path' => implode('/', array_merge($pathSegments, [$name])),
+            ];
+        }
+    }
+
+    /**
+     * @return array<int,array<string,mixed>>
+     */
+    private function listDriveChildren(string $folderId, string $token): array
+    {
+        $files = [];
+        $pageToken = '';
+
+        do {
+            $query = "'{$folderId}' in parents and trashed = false";
+            $params = [
+                'q' => $query,
+                'pageSize' => 1000,
+                'fields' => 'nextPageToken,files(id,name,mimeType,size,modifiedTime,webViewLink)',
+                'supportsAllDrives' => 'true',
+                'includeItemsFromAllDrives' => 'true',
+                'orderBy' => 'folder,name',
+            ];
+            if ($pageToken !== '') {
+                $params['pageToken'] = $pageToken;
+            }
+
+            $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query($params);
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 15,
+                CURLOPT_TIMEOUT => 45,
+                CURLOPT_HTTPHEADER => ["Authorization: Bearer {$token}"],
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($response === false || $httpCode !== 200) {
+                throw new Exception('Google Drive listing failed' . ($curlError !== '' ? ': ' . $curlError : " (HTTP {$httpCode})"));
+            }
+
+            $data = json_decode($response, true);
+            if (!is_array($data)) {
+                throw new Exception('Google Drive returned an invalid file listing.');
+            }
+            if (!empty($data['files']) && is_array($data['files'])) {
+                $files = array_merge($files, $data['files']);
+            }
+            $pageToken = (string) ($data['nextPageToken'] ?? '');
+        } while ($pageToken !== '');
+
+        return $files;
+    }
+
+    private function isWithinDirectory(string $path, string $directory): bool
+    {
+        $path = rtrim(strtolower(str_replace('\\', '/', $path)), '/') . '/';
+        $directory = rtrim(strtolower(str_replace('\\', '/', $directory)), '/') . '/';
+        return str_starts_with($path, $directory);
+    }
+
+    /**
+     * Upload a class note with automatic subfolder organization.
+     * Files are stored under Notes/Class {9|10|11|12}/{Book}/{Chapter}/{Admin|User}.
      * 
      * @param string $filePath Local file path
      * @param string $fileName Desired file name on Drive
@@ -287,6 +647,7 @@ class GoogleDriveService
      * @param string|null $classLabel Optional class (e.g. "9", "Class 9")
      * @param string|null $subjectLabel Optional subject (e.g. "Physics")
      * @param string $uploaderType Whether the uploader is an admin or a user
+     * @param string|null $chapterLabel Optional chapter; empty values use General
      * @return array ['file_id' => string, 'url' => string, 'folder_id' => string]
      */
     public function uploadFile(
@@ -295,7 +656,8 @@ class GoogleDriveService
         string $mimeType,
         ?string $classLabel = null,
         ?string $subjectLabel = null,
-        string $uploaderType = 'user'
+        string $uploaderType = 'user',
+        ?string $chapterLabel = null
     ): array
     {
         if (!file_exists($filePath)) {
@@ -303,28 +665,119 @@ class GoogleDriveService
         }
 
         $token = $this->getAccessToken();
-        $targetFolderId = $this->getRootFolderId($token);
+        $targetFolderId = $this->getNotesRootFolderId($token);
 
-        // Keep all class notes below one dedicated folder in the configured Drive root.
-        $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, 'Notes', $token);
-
-        // Auto-create/navigate into Class subfolder (e.g. "Class9").
+        // Auto-create/navigate into Class subfolder (e.g. "Class 9").
         if (!empty($classLabel)) {
-            $normalizedClass = preg_replace('/^class\s*/i', '', trim($classLabel));
-            $folderName = 'Class' . $normalizedClass;
-            $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, $folderName, $token);
+            $targetFolderId = $this->getClassFolderIdUnderRoot(
+                $classLabel,
+                $this->getNotesRootFolderId($token),
+                $token
+            );
 
-            // Auto-create/navigate into Subject subfolder (e.g. "Physics").
-            if (!empty($subjectLabel) && $subjectLabel !== 'Other') {
-                $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, $subjectLabel, $token);
-            }
+            // The note subject is the dynamic book folder in the shared
+            // Books hierarchy. Keep "Other" as a valid fallback folder.
+            $bookFolder = $this->cleanFolderName((string) ($subjectLabel ?? ''), 'Book');
+            $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, $bookFolder, $token);
 
-            // Separate administrator material from community submissions.
-            $ownerFolder = strtolower(trim($uploaderType)) === 'admin' ? 'Admin' : 'Users';
+            $chapterFolder = $this->cleanFolderName((string) ($chapterLabel ?? ''), 'General');
+            $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, $chapterFolder, $token);
+
+            // Separate administrator material from community submissions. The
+            // singular User name is part of the stable Drive contract.
+            $ownerFolder = strtolower(trim($uploaderType)) === 'admin' ? 'Admin' : 'User';
             $targetFolderId = $this->getOrCreateSubfolder($targetFolderId, $ownerFolder, $token);
         }
 
         $fileSize = filesize($filePath);
+        return $this->uploadToFolder($filePath, $fileName, $mimeType, $targetFolderId, $token, $fileSize);
+    }
+
+    /**
+     * Upload a textbook directly into AhmadLearningHub/Books/Class X/BookName.
+     * Textbooks intentionally do not use the chapter or Admin/User branches.
+     *
+     * @return array ['file_id' => string, 'url' => string, 'folder_id' => string]
+     */
+    public function uploadBookFile(
+        string $filePath,
+        string $fileName,
+        string $mimeType,
+        string $classLabel,
+        string $bookLabel
+    ): array
+    {
+        if (!file_exists($filePath)) {
+            throw new Exception("File not found: $filePath");
+        }
+
+        $token = $this->getAccessToken();
+        $classFolder = $this->getClassFolderId($classLabel, $token);
+        $bookFolder = $this->getOrCreateSubfolder($classFolder, $this->cleanFolderName($bookLabel, 'Book'), $token);
+
+        return $this->uploadToFolder(
+            $filePath,
+            $fileName,
+            $mimeType,
+            $bookFolder,
+            $token,
+            (int) filesize($filePath)
+        );
+    }
+
+    /**
+     * Store user-provided source material outside the Books hierarchy.
+     * These roots are intentionally flat: application metadata keeps the
+     * original filename and generated-question relationships.
+     *
+     * @return array{file_id:string,url:string,folder_id:string}
+     */
+    public function uploadUserQuestionPaperFile(string $filePath, string $fileName, string $mimeType): array
+    {
+        return $this->uploadUserSourceFile($filePath, $fileName, $mimeType, 'question_paper');
+    }
+
+    /**
+     * @return array{file_id:string,url:string,folder_id:string}
+     */
+    public function uploadUserMcqFile(string $filePath, string $fileName, string $mimeType): array
+    {
+        return $this->uploadUserSourceFile($filePath, $fileName, $mimeType, 'mcqs');
+    }
+
+    /**
+     * @return array{file_id:string,url:string,folder_id:string}
+     */
+    private function uploadUserSourceFile(string $filePath, string $fileName, string $mimeType, string $category): array
+    {
+        if (!file_exists($filePath)) {
+            throw new Exception("File not found: $filePath");
+        }
+
+        $token = $this->getAccessToken();
+        $targetFolderId = $category === 'mcqs'
+            ? $this->getMcqsRootFolderId($token)
+            : $this->getQuestionPaperRootFolderId($token);
+
+        return $this->uploadToFolder(
+            $filePath,
+            $this->cleanFolderName($fileName, 'uploaded-file'),
+            $mimeType !== '' ? $mimeType : 'application/octet-stream',
+            $targetFolderId,
+            $token,
+            (int) filesize($filePath)
+        );
+    }
+
+    private function uploadToFolder(
+        string $filePath,
+        string $fileName,
+        string $mimeType,
+        string $targetFolderId,
+        string $token,
+        int $fileSize
+    ): array
+    {
         $metadata = [
             'name' => $fileName,
             'parents' => [$targetFolderId]
@@ -338,6 +791,27 @@ class GoogleDriveService
 
         $result['folder_id'] = $targetFolderId;
         return $result;
+    }
+
+    private function classFolderName(string $classLabel): string
+    {
+        $normalizedClass = preg_replace('/^class\s*/i', '', trim($classLabel));
+        $normalizedClass = preg_replace('/[^0-9A-Za-z_-]/', '', (string) $normalizedClass);
+        return 'Class ' . ($normalizedClass !== '' ? $normalizedClass : 'Unknown');
+    }
+
+    private function cleanFolderName(string $value, string $fallback): string
+    {
+        $clean = preg_replace('/[\\x00-\\x1F\\x7F]+/u', ' ', trim($value));
+        $clean = preg_replace('/\s+/u', ' ', (string) $clean);
+        $clean = trim((string) $clean, '. ');
+        if ($clean === '') {
+            return $fallback;
+        }
+
+        return function_exists('mb_substr')
+            ? mb_substr($clean, 0, 120)
+            : substr($clean, 0, 120);
     }
 
     /**
@@ -496,7 +970,83 @@ class GoogleDriveService
     }
 
     /**
-     * Delete a file from Google Drive
+     * Move a file into the protected deleteFiles archive below the configured
+     * AhmadLearningHub root. This keeps an admin deletion recoverable while
+     * removing it from the active Books/notes/source locations.
+     */
+    public function moveFileToDeleteFiles(string $fileId): bool
+    {
+        if (!preg_match('/^[A-Za-z0-9_-]+$/', $fileId)) {
+            return false;
+        }
+
+        try {
+            $token = $this->getAccessToken();
+            $archiveFolderId = $this->getDeletedFilesFolderId($token);
+            $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId)
+                . '?fields=id,parents,trashed&supportsAllDrives=true';
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => ["Authorization: Bearer {$token}"],
+                CURLOPT_TIMEOUT => 20,
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($response === false || $httpCode !== 200) {
+                // A file already absent from Drive is not an archive failure
+                // for callers that are cleaning an already-missing record.
+                return $httpCode === 404;
+            }
+
+            $file = json_decode($response, true);
+            if (!is_array($file) || !empty($file['trashed'])) {
+                return false;
+            }
+            $parents = array_values(array_filter(array_map('strval', (array) ($file['parents'] ?? []))));
+            if (in_array($archiveFolderId, $parents, true)) {
+                return true;
+            }
+
+            $query = http_build_query([
+                'addParents' => $archiveFolderId,
+                'supportsAllDrives' => 'true',
+                'fields' => 'id,parents',
+            ]);
+            if ($parents !== []) {
+                $query .= '&removeParents=' . rawurlencode(implode(',', $parents));
+            }
+            $moveCh = curl_init('https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?' . $query);
+            curl_setopt_array($moveCh, [
+                CURLOPT_CUSTOMREQUEST => 'PATCH',
+                CURLOPT_POSTFIELDS => '{}',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 15,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTPHEADER => [
+                    "Authorization: Bearer {$token}",
+                    'Content-Type: application/json',
+                ],
+            ]);
+            $moveResponse = curl_exec($moveCh);
+            $moveCode = curl_getinfo($moveCh, CURLINFO_HTTP_CODE);
+            $moveError = curl_error($moveCh);
+            curl_close($moveCh);
+            if ($moveCode !== 200) {
+                error_log('Google Drive deleteFiles archive move failed' . ($moveError !== '' ? ': ' . $moveError : " (HTTP {$moveCode})"));
+                return false;
+            }
+            return is_array(json_decode((string) $moveResponse, true));
+        } catch (Throwable $e) {
+            error_log('Google Drive deleteFiles archive error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Permanently delete a file from Google Drive. This remains available for
+     * failed-upload cleanup; admin-facing deletes use moveFileToDeleteFiles().
      */
     public function deleteFile(string $fileId): bool
     {
@@ -550,11 +1100,11 @@ class GoogleDriveService
             'can_upload' => false,
             'can_add_children' => false,
             'subfolders' => [],
-            'auto_organization' => 'Active (AhmadLearningHub -> Class {X} -> {Subject})',
+            'auto_organization' => 'Active (Books -> Class X -> Book; Notes -> Class X -> Book -> Chapter -> Admin/User; separate QuestionPaperUpload and McqsUploads roots)',
             'errors' => [],
             'fix_instructions' => [
                 'step_1' => "Open the admin Google Drive OAuth page: /google_drive_callback.php",
-                'step_2' => "Connect the Google account that should own uploaded notes.",
+                'step_2' => "Connect the Google account that should own uploaded notes and textbooks.",
                 'step_3' => "Create or locate a folder named 'AhmadLearningHub'.",
                 'step_4' => "Copy its folder ID into config/.env as GOOGLE_DRIVE_FOLDER_ID, or leave it empty if the folder is named exactly AhmadLearningHub.",
                 'step_5' => "Click 'Test Connection' again to verify."
