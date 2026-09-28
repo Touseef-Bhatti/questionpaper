@@ -46,6 +46,9 @@ dump/
 backup/
 backups/
 
+# Migration source files are versioned; ad-hoc database dumps remain ignored.
+!/migrations/**/*.sql
+
 # 📦 Dependencies
 vendor/
 node_modules/
@@ -69,22 +72,28 @@ coverage/
 
 /storage/ai_uploads/*
 !/storage/ai_uploads/.gitkeep
+!/storage/ai_uploads/.htaccess
 
 /storage/ai_upload_context/*
 !/storage/ai_upload_context/.gitkeep
+!/storage/ai_upload_context/.htaccess
 
 /storage/book_uploads/*
 !/storage/book_uploads/.gitkeep
+!/storage/book_uploads/.htaccess
 
 /storage/book_generation/*
 !/storage/book_generation/.gitkeep
 !/storage/book_generation/**/.gitkeep
+!/storage/book_generation/.htaccess
 
 /storage/pdf_extraction_cache/*
 !/storage/pdf_extraction_cache/.gitkeep
+!/storage/pdf_extraction_cache/.htaccess
 
 /storage/temp/*
 !/storage/temp/.gitkeep
+!/storage/temp/.htaccess
 
 # Keep storage htaccess protected
 !/storage/.htaccess
