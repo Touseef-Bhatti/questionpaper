@@ -70,6 +70,9 @@ $adminUrl = $baseUrl . 'admin/';
                 <li class="nav-dropdown">
                     <a href="#" class="nav-link-dropdown">🏫 School</a>
                     <ul class="admin-dropdown-menu">
+                        <?php if (in_array((string) ($_SESSION['role'] ?? ''), ['superadmin', 'super_admin'], true)): ?>
+                            <li><a href="<?= $adminUrl ?>cleanup_book_data.php">Remove Old Book Data</a></li>
+                        <?php endif; ?>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_classes.php">🏛️ Classes</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_books.php">📖 Books</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_chapters.php">📝 Chapters</a></li>

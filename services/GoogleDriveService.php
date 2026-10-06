@@ -923,24 +923,44 @@ class GoogleDriveService
             throw new Exception("Could not get resumable upload URI from Google Drive");
         }
 
-        // Step 2: Upload file body
-        $fileContent = file_get_contents($filePath);
+        // Step 2: Upload the file body directly from disk. Loading a complete
+        // textbook into PHP memory can exhaust the memory_limit on shared
+        // hosting before the request reaches the exception handler.
+        $fileHandle = @fopen($filePath, 'rb');
+        if ($fileHandle === false) {
+            throw new Exception('Could not open the file for resumable upload.');
+        }
+
+        $fileSize = filesize($filePath);
+        if ($fileSize === false) {
+            fclose($fileHandle);
+            throw new Exception('Could not determine the file size for resumable upload.');
+        }
+
         $ch = curl_init($uploadUri);
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => 'PUT',
-            CURLOPT_POSTFIELDS => $fileContent,
+            CURLOPT_UPLOAD => true,
+            CURLOPT_INFILE => $fileHandle,
+            CURLOPT_INFILESIZE => $fileSize,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 15,
             CURLOPT_TIMEOUT => 300,
             CURLOPT_HTTPHEADER => [
                 "Content-Type: {$mimeType}",
-                "Content-Length: " . strlen($fileContent)
+                "Content-Length: {$fileSize}"
             ]
         ]);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
+        fclose($fileHandle);
+
+        if ($response === false) {
+            throw new Exception("cURL error during resumable upload: {$curlError}");
+        }
 
         if ($httpCode !== 200 && $httpCode !== 201) {
             throw new Exception("Failed to complete file upload (HTTP $httpCode)");

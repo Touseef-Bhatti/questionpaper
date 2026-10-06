@@ -27,6 +27,9 @@ $stats = [
         </div>
 
         <div class="nav">
+            <?php if (in_array((string) ($_SESSION['role'] ?? ''), ['superadmin', 'super_admin'], true)): ?>
+                <a href="cleanup_book_data.php">Remove Old Book Data</a>
+            <?php endif; ?>
             <a href="manageSchool/manage_classes.php">Manage Classes</a>
             <a href="manageSchool/manage_books.php">Manage Books</a>
             <a href="manageSchool/manage_chapters.php">Manage Chapters</a>
