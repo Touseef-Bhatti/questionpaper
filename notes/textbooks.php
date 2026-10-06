@@ -1,567 +1,455 @@
 <?php
-// Require authentication before accessing this page
-// require_once 'auth/auth_check.php';
+require_once dirname(__DIR__) . '/db_connect.php';
 require_once dirname(__DIR__) . '/includes/seo.php';
+
+$booksByClass = [];
+$books = [];
+$libraryError = false;
+
+try {
+    // book_uploads is maintained by the textbook uploader and Drive sync job.
+    // Only the newest available upload for each book is exposed to students.
+    $librarySql = "
+        SELECT
+            u.id AS upload_id,
+            u.drive_file_id,
+            u.drive_url,
+            u.file_size,
+            b.book_id,
+            b.book_name,
+            c.class_id,
+            c.class_name
+        FROM book_uploads u
+        INNER JOIN book b ON b.book_id = u.book_id
+        INNER JOIN class c ON c.class_id = u.class_id
+        WHERE u.status = 'active'
+          AND u.drive_status = 'available'
+          AND u.drive_file_id <> ''
+          AND NOT EXISTS (
+              SELECT 1
+              FROM book_uploads newer
+              WHERE newer.book_id = u.book_id
+                AND newer.class_id = u.class_id
+                AND newer.status = 'active'
+                AND newer.drive_status = 'available'
+                AND newer.drive_file_id <> ''
+                AND newer.id > u.id
+          )
+        ORDER BY c.class_id ASC, b.book_name ASC, u.id DESC
+    ";
+
+    $libraryResult = $conn->query($librarySql);
+    if (!$libraryResult) {
+        throw new RuntimeException('Textbook library query failed.');
+    }
+
+    while ($row = $libraryResult->fetch_assoc()) {
+        $classId = (int) $row['class_id'];
+        $book = [
+            'id' => (int) $row['book_id'],
+            'uploadId' => (int) $row['upload_id'],
+            'title' => trim((string) $row['book_name']),
+            'classId' => $classId,
+            'className' => trim((string) $row['class_name']),
+            'driveId' => trim((string) $row['drive_file_id']),
+            'driveUrl' => trim((string) $row['drive_url']),
+            'fileSize' => (int) $row['file_size'],
+        ];
+
+        $books[] = $book;
+        $booksByClass[$classId]['name'] = $book['className'];
+        $booksByClass[$classId]['books'][] = $book;
+    }
+} catch (Throwable $e) {
+    $libraryError = true;
+    error_log('Textbook library load failed: ' . $e->getMessage());
+}
+
+ksort($booksByClass);
+
+function textbookFormatBytes(int $bytes): string
+{
+    if ($bytes <= 0) {
+        return '';
+    }
+
+    $units = ['B', 'KB', 'MB', 'GB'];
+    $power = min((int) floor(log($bytes, 1024)), count($units) - 1);
+    return number_format($bytes / (1024 ** $power), $power === 0 ? 0 : 1) . ' ' . $units[$power];
+}
+
+function textbookDriveUrl(array $book): string
+{
+    $driveUrl = trim((string) ($book['driveUrl'] ?? ''));
+    if (preg_match('#^https://drive\.google\.com/#i', $driveUrl)) {
+        return $driveUrl;
+    }
+
+    return 'https://drive.google.com/file/d/' . rawurlencode((string) ($book['driveId'] ?? '')) . '/view';
+}
+
+$bookCount = count($books);
+$classCount = count($booksByClass);
+$pageTitle = 'Digital Textbooks by Class in Pakistan | Ahmad Learning Hub';
+$metaDescription = 'Browse official Punjab Board textbooks by class on Ahmad Learning Hub. Syllabus-aligned PDF books are sourced from the Punjab Curriculum and Textbook Board.';
+$officialSourceUrl = 'https://pctb.punjab.gov.pk';
+$canonicalUrl = alh_seo_absolute_url('/textbooks');
+$textbookItems = [];
+foreach ($books as $position => $book) {
+    $textbookItems[] = [
+        '@type' => 'ListItem',
+        'position' => $position + 1,
+        'item' => [
+            '@type' => 'Book',
+            '@id' => $canonicalUrl . '#book-' . $book['id'],
+            'name' => $book['title'],
+            'url' => textbookDriveUrl($book),
+            'isBasedOn' => $officialSourceUrl,
+            'educationalLevel' => $book['className'],
+            'inLanguage' => 'en-PK',
+        ],
+    ];
+}
+$textbookStructuredData = [
+    '@context' => 'https://schema.org',
+    '@graph' => [
+        [
+            '@type' => 'BreadcrumbList',
+            '@id' => $canonicalUrl . '#breadcrumb',
+            'itemListElement' => [
+                [
+                    '@type' => 'ListItem',
+                    'position' => 1,
+                    'name' => 'Home',
+                    'item' => alh_seo_absolute_url('/'),
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 2,
+                    'name' => 'Study materials',
+                    'item' => alh_seo_absolute_url('/study-material-for-board-exam-preparations'),
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 3,
+                    'name' => 'Digital textbooks',
+                    'item' => $canonicalUrl,
+                ],
+            ],
+        ],
+        [
+            '@type' => 'ItemList',
+            '@id' => $canonicalUrl . '#textbook-list',
+            'name' => 'Digital textbooks by class',
+            'description' => $metaDescription,
+            'mainEntityOfPage' => ['@id' => $canonicalUrl . '#webpage'],
+            'numberOfItems' => $bookCount,
+            'itemListOrder' => 'https://schema.org/ItemListOrderAscending',
+            'itemListElement' => $textbookItems,
+        ],
+    ],
+];
 ?>
 <!DOCTYPE html>
 <html lang="en-PK">
 <head>
     <?php include_once dirname(__DIR__) . '/includes/google_analytics.php'; ?>
-<?php // AdSense review: third-party ads disabled. include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php alh_render_seo_head([
-        'title' => 'Free Digital Textbooks for Class 9 & 10 | Punjab Board',
-        'description' => 'Read free digital textbooks for Class 9 and 10 Punjab Board subjects including Physics, Chemistry, Biology, Mathematics and Computer Science.',
-        'canonical' => alh_seo_absolute_url('/textbooks'),
+        'title' => $pageTitle,
+        'description' => $metaDescription,
+        'canonical' => $canonicalUrl,
         'page_type' => 'CollectionPage',
-        'include_title' => false,
-        'include_description' => false,
-        'include_keywords' => false,
-        'include_robots' => false,
-        'include_author' => false,
     ]); ?>
-    <meta name="description" content="Read free digital textbooks for Class 9 and 10 Punjab Board subjects including Physics, Chemistry, Biology, Mathematics and Computer Science.">
-    <meta name="keywords" content="textbooks, digital textbooks, 9th class books, 10th class books, Punjab Board textbooks, online books, physics textbook, chemistry textbook, biology textbook, free textbooks, study materials">
-    <meta name="author" content="Ahmad Learning Hub">
-    <meta property="og:title" content="Digital Textbooks - Ahmad Learning Hub">
-    <meta property="og:description" content="Access free digital textbooks for Punjab Board 9th and 10th class students. Study online with our comprehensive textbook collection.">
-    <meta property="og:type" content="website">
-    <title>Free Digital Textbooks for Class 9 &amp; 10 | Punjab Board</title>
-
-    
-    <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
-    <link rel="stylesheet" href="<?= $assetBase ?>css/notes.css">
-    <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css">
-    <link rel="stylesheet" href="<?= $assetBase ?>css/textbook.css">
-  
+    <script type="application/ld+json"><?= alh_seo_json($textbookStructuredData) ?></script>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/notes.css">
+    <link rel="stylesheet" href="../css/buttons.css">
+    <link rel="stylesheet" href="../css/textbook.css">
 </head>
 <body>
     <?php include '../header.php'; ?>
 
-    <div class="main-content">
+    <main class="main-content textbook-page">
         <div class="textbooks-container">
-            <div class="textbooks-header">
-                <h1>📖 Digital Textbooks</h1>
-                <p>Access your textbooks online and study in a comfortable environment</p>
-            </div>
-            
-            <!-- Books View (Initial View) -->
-            <div class="books-view" id="booksView">
-                <div class="books-container">
-                    <div class="search-container">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" class="search-bar" id="searchBar" placeholder="Search textbooks by title or subject...">
-                    </div>
-                    
-                    <h2 style="text-align: center; margin: 2rem 0 1rem; color: #333;">Available Books</h2>
-                    
-                    <div class="books-grid" id="booksGrid">
-                        <!-- Books will be populated here -->
+            <section class="library-hero" aria-labelledby="libraryTitle">
+                <div class="library-hero-copy">
+                    <p class="library-kicker"><i class="fa-solid fa-book-open" aria-hidden="true"></i> Punjab Board study library</p>
+                    <h1 id="libraryTitle">Digital textbooks by class</h1>
+                    <p class="library-hero-text">Find official Punjab Board PDF textbooks aligned with the relevant syllabus. Books are grouped by class so students can choose a shelf, search a title, and start reading online.</p>
+                    <div class="library-route" aria-label="Book storage route">
+                        <span><i class="fa-solid fa-landmark" aria-hidden="true"></i> Punjab Board</span>
+                        <span class="route-divider">/</span>
+                        <span>Official textbooks</span>
+                        <span class="route-divider">/</span>
+                        <span>Class</span>
                     </div>
                 </div>
-                
-                <!-- SEO Content -->
-                <div class="seo-content">
-                    <h2>Free Digital Textbooks for 9th and 10th Class Students</h2>
-                    <p>
-                        Welcome to Ahmad Learning Hub's comprehensive digital textbook library. Access free online textbooks 
-                        for all subjects including Physics, Chemistry, Biology, Mathematics, and Computer Science. Our 
-                        collection is specifically curated for Punjab Board 9th and 10th class students to support their 
-                        exam preparation and learning journey.
-                    </p>
-                    
-                    <h3>Why Choose Our Digital Textbooks?</h3>
-                    <ul>
-                        <li><strong>Free Access:</strong> All textbooks are available completely free of charge</li>
-                        <li><strong>Online Reading:</strong> Read your textbooks anywhere, anytime without downloading</li>
-                        <li><strong>Study Tools:</strong> Built-in zoom, dark mode, timer, and bookmarking features</li>
-                        <li><strong>Punjab Board Aligned:</strong> All books follow the official Punjab Board curriculum</li>
-                        <li><strong>Mobile Friendly:</strong> Access textbooks on any device - phone, tablet, or computer</li>
-                        <li><strong>No Registration Required:</strong> Start reading immediately without sign-up</li>
-                    </ul>
-                    
-                    <h3>Available Subjects</h3>
-                    <p>
-                        Our digital textbook collection includes comprehensive study materials for:
-                    </p>
-                    <ul>
-                        <li><strong>Physics:</strong> Complete physics textbooks with diagrams and solved examples</li>
-                        <li><strong>Chemistry:</strong> Detailed chemistry books covering all chapters and topics</li>
-                        <li><strong>Biology:</strong> Biology textbooks with illustrations and important concepts</li>
-                        <li><strong>Mathematics:</strong> Math textbooks with step-by-step problem solutions</li>
-                        <li><strong>Computer Science:</strong> Computer science books with programming concepts</li>
-                    </ul>
-                    
-                    <h3>How to Use Our Digital Textbooks</h3>
-                    <p>
-                        Simply browse through our available books, click on any textbook to start reading. Use our 
-                        advanced study tools including zoom controls, dark mode for comfortable night reading, study 
-                        timer to track your learning time, and bookmark feature to save your progress. All features 
-                        are designed to enhance your study experience and help you prepare effectively for your exams.
-                    </p>
-                    
-                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1.5rem; margin-top: 2rem; border-radius: 8px;">
-                        <h3 style="color: #856404; margin-top: 0;">📚 Copyright & Attribution</h3>
-                        <p style="color: #856404; margin-bottom: 1rem;">
-                            <strong>Important Notice:</strong> All textbooks displayed on this platform are official publications 
-                            of the <strong>Punjab Curriculum and Textbook Board (PCTB)</strong>, Government of Punjab, Pakistan. 
-                            These digital textbooks are provided for educational purposes only.
-                        </p>
-                        <p style="color: #856404; margin-bottom: 1rem;">
-                            <strong>Copyright Ownership:</strong> All content, including text, images, diagrams, and educational 
-                            materials within these textbooks, are the exclusive property of the Punjab Curriculum and Textbook 
-                            Board (PCTB). Ahmad Learning Hub does not claim any copyright ownership over these materials.
-                        </p>
-                        <p style="color: #856404; margin-bottom: 1rem;">
-                            <strong>Educational Use:</strong> These textbooks are made available for students and educators 
-                            for non-commercial, educational purposes. The content is used in accordance with fair use principles 
-                            for educational access and learning support.
-                        </p>
-                        <p style="color: #856404; margin-bottom: 0;">
-                            <strong>Official Source:</strong> For official downloads and the latest editions, please visit the 
-                            official Punjab Curriculum and Textbook Board website at 
-                            <a href="https://pctb.punjab.gov.pk" target="_blank" style="color: #856404; text-decoration: underline;">pctb.punjab.gov.pk</a>. 
-                            All rights reserved by Punjab Curriculum and Textbook Board (PCTB).
-                        </p>
-                    </div>
+                <div class="library-hero-stats" aria-label="Library statistics">
+                    <div class="hero-stat-number"><?= $bookCount ?></div>
+                    <div class="hero-stat-label">Official<br>titles</div>
+                    <div class="hero-stat-rule"></div>
+                    <div class="hero-stat-meta"><strong><?= $classCount ?></strong> <?= $classCount === 1 ? 'class shelf' : 'class shelves' ?></div>
                 </div>
-            </div>
-            
-            <!-- Book Viewer View (After Selection) -->
-            <div class="book-viewer-view" id="bookViewerView">
-                <button class="back-to-books" onclick="showBooksView()">← Back to Books</button>
-                
-                <div class="textbooks-layout" id="textbooksLayout">
-                    <!-- Book Viewer -->
-                    <div class="book-viewer-container">
-                        <div class="book-viewer-header">
-                            <div class="book-viewer-title" id="viewerTitle">Select a book to start reading</div>
-                            <div class="book-controls" id="bookControls">
-                                <div class="control-btn-group">
-                                    <div class="zoom-controls">
-                                        <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out">−</button>
-                                        <span class="zoom-level" id="zoomLevel">100%</span>
-                                        <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">+</button>
-                                        <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom">⌂</button>
-                                    </div>
+            </section>
+
+            <section class="library-toolbar" aria-label="Textbook filters">
+                <div class="toolbar-heading">
+                    <p class="section-kicker">Your shelves</p>
+                    <h2>Choose a class</h2>
+                </div>
+                <div class="class-tabs" id="classTabs" role="tablist" aria-label="Filter textbooks by class">
+                    <button type="button" class="class-tab is-active" data-class-filter="all" role="tab" aria-selected="true">All classes <span><?= $bookCount ?></span></button>
+                    <?php foreach ($booksByClass as $classId => $classShelf): ?>
+                        <button type="button" class="class-tab" data-class-filter="<?= (int) $classId ?>" role="tab" aria-selected="false">
+                            <?= htmlspecialchars($classShelf['name'], ENT_QUOTES, 'UTF-8') ?> <span><?= count($classShelf['books']) ?></span>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+                <label class="library-search">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <span class="visually-hidden">Search textbooks</span>
+                    <input type="search" id="bookSearch" placeholder="Search by book name or subject" autocomplete="off">
+                </label>
+            </section>
+
+            <?php if ($libraryError): ?>
+                <section class="library-empty library-empty-error" role="alert">
+                    <span class="empty-icon"><i class="fa-solid fa-cloud-exclamation" aria-hidden="true"></i></span>
+                    <h2>The library is taking a short pause.</h2>
+                    <p>We could not load the textbook collection right now. Please refresh in a moment.</p>
+                    <button type="button" class="library-action" onclick="window.location.reload()">Try again</button>
+                </section>
+            <?php elseif ($bookCount === 0): ?>
+                <section class="library-empty">
+                    <span class="empty-icon"><i class="fa-solid fa-books" aria-hidden="true"></i></span>
+                    <h2>No textbooks have landed yet.</h2>
+                    <p>Once a book is uploaded through the textbook workspace, it will appear here automatically under its class.</p>
+                    <a class="library-action" href="../study-material-for-board-exam-preparations">Explore study notes</a>
+                </section>
+            <?php else: ?>
+                <p class="library-result-count" id="libraryResultCount" aria-live="polite">Showing <?= $bookCount ?> <?= $bookCount === 1 ? 'title' : 'titles' ?> across <?= $classCount ?> <?= $classCount === 1 ? 'class shelf' : 'class shelves' ?>.</p>
+                <div class="class-shelves" id="classShelves">
+                    <?php foreach ($booksByClass as $classId => $classShelf): ?>
+                        <section class="class-shelf" data-class-section="<?= (int) $classId ?>" data-class-name="<?= htmlspecialchars($classShelf['name'], ENT_QUOTES, 'UTF-8') ?>" aria-labelledby="classHeading<?= (int) $classId ?>">
+                            <div class="shelf-heading">
+                                <div>
+                                    <p class="section-kicker">Class shelf</p>
+                                    <h2 id="classHeading<?= (int) $classId ?>"><?= htmlspecialchars($classShelf['name'], ENT_QUOTES, 'UTF-8') ?></h2>
                                 </div>
-                                <button class="control-btn" onclick="toggleDarkMode()" id="darkModeBtn" title="Toggle Dark Mode">🌙</button>
-                                <button class="control-btn" onclick="openInNewTab()" title="Open in New Tab">🔗</button>
-                                <button class="control-btn" onclick="fullscreenMode()" title="Fullscreen">⛶</button>
-                                <button class="control-btn" onclick="printBook()" title="Print">🖨️</button>
+                                <span class="shelf-count"><?= count($classShelf['books']) ?> <?= count($classShelf['books']) === 1 ? 'book' : 'books' ?></span>
                             </div>
-                        </div>
-                        <div id="bookViewer" >
-                            <div class="no-book-selected">
-                                Loading book...
+                            <div class="books-grid">
+                                <?php foreach ($classShelf['books'] as $book): ?>
+                                    <?php $fileSize = textbookFormatBytes($book['fileSize']); ?>
+                                    <a class="library-book-card" href="<?= htmlspecialchars(textbookDriveUrl($book), ENT_QUOTES, 'UTF-8') ?>" data-book-id="<?= (int) $book['id'] ?>" data-class-id="<?= (int) $classId ?>" aria-label="Open <?= htmlspecialchars($book['title'], ENT_QUOTES, 'UTF-8') ?> textbook for <?= htmlspecialchars($book['className'], ENT_QUOTES, 'UTF-8') ?>">
+                                        <span class="book-card-topline">
+                                            <span class="book-card-mark"><i class="fa-solid fa-book-open" aria-hidden="true"></i></span>
+                                            <span class="drive-badge"><i class="fa-solid fa-certificate" aria-hidden="true"></i> Punjab Board</span>
+                                        </span>
+                                        <span class="book-card-title"><?= htmlspecialchars($book['title'], ENT_QUOTES, 'UTF-8') ?></span>
+                                        <span class="book-card-file"><?= htmlspecialchars($book['className'] . ' · Punjab Board textbook', ENT_QUOTES, 'UTF-8') ?></span>
+                                        <span class="book-card-footer">
+                                            <span><?= $fileSize !== '' ? htmlspecialchars($fileSize, ENT_QUOTES, 'UTF-8') : 'PDF' ?></span>
+                                            <span class="book-card-open">Read <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></span>
+                                        </span>
+                                    </a>
+                                <?php endforeach; ?>
                             </div>
-                        </div>
-                        <div class="study-tools" id="studyTools">
-                            <div class="study-timer">
-                                <span>⏱️ Study Time:</span>
-                                <span class="timer-display" id="timerDisplay">00:00:00</span>
-                                <div class="timer-controls">
-                                    <button class="timer-btn" onclick="startTimer()" id="startTimerBtn">Start</button>
-                                    <button class="timer-btn" onclick="pauseTimer()" id="pauseTimerBtn" style="display: none;">Pause</button>
-                                    <button class="timer-btn" onclick="resetTimer()">Reset</button>
-                                </div>
-                            </div>
-                            <div class="bookmark-section">
-                                <button class="bookmark-btn" onclick="toggleBookmark()" id="bookmarkBtn" title="Bookmark this page">🔖 Bookmark</button>
-                            </div>
-                        </div>
-                        <div class="reading-progress" id="readingProgress">
-                            <div class="reading-progress-bar" id="progressBar"></div>
-                        </div>
+                        </section>
+                    <?php endforeach; ?>
+                </div>
+                <section class="library-note">
+                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    <p>All textbooks listed here are sourced from the <a href="<?= htmlspecialchars($officialSourceUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">official Punjab Curriculum and Textbook Board website</a> and organized according to the relevant Punjab Board syllabus. Check the official source for the latest edition and board instructions.</p>
+                </section>
+            <?php endif; ?>
+
+            <section class="library-seo-copy" aria-labelledby="libraryAnswerTitle">
+                <p class="section-kicker">Digital textbook guide</p>
+                <h2 id="libraryAnswerTitle">How to use these online textbooks</h2>
+                <p>Ahmad Learning Hub's digital textbook library gives students a simple way to find official Punjab Board books online. Each available title is grouped under its class shelf and aligned with the relevant syllabus. Use the class filters to narrow the library, search by book name or subject, then select Read to open the book on your phone, tablet, or computer. All listed textbooks are sourced from the official Punjab Curriculum and Textbook Board website; this page organizes them for convenient revision and classroom preparation. Always compare textbook editions, syllabus requirements, and board notices with the official source before an examination. After reading, continue to class notes, chapter-wise MCQs, or the question paper generator for focused exam preparation.</p>
+                <nav aria-label="Related study resources">
+                    <a href="../study-material-for-board-exam-preparations">Class notes</a>
+                    <a href="../class-9-10-11-12-mcqs-for-board-exams">Chapter-wise MCQs</a>
+                    <a href="../online-question-paper-generator">Question paper generator</a>
+                </nav>
+            </section>
+        </div>
+    </main>
+
+    <section class="book-viewer-view" id="bookViewerView" aria-hidden="true">
+        <div class="reader-shell">
+            <div class="reader-topbar">
+                <button type="button" class="reader-back" id="backToBooks"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Library</button>
+                <div class="reader-heading">
+                    <p class="section-kicker">Now reading</p>
+                    <h1 id="viewerTitle">Select a book to start reading</h1>
+                    <p id="viewerMeta">Select a book · Punjab Board</p>
+                </div>
+                <div class="reader-actions">
+                    <div class="reader-zoom" aria-label="Zoom controls">
+                        <button type="button" class="reader-control" id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
+                        <span id="zoomLevel">100%</span>
+                        <button type="button" class="reader-control" id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
                     </div>
+                    <button type="button" class="reader-control" id="darkModeBtn" title="Toggle reading contrast" aria-label="Toggle reading contrast"><i class="fa-solid fa-moon" aria-hidden="true"></i></button>
+                    <button type="button" class="reader-control" id="openDriveBtn" title="Open source PDF" aria-label="Open source PDF"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></button>
+                    <button type="button" class="reader-control" id="fullscreenBtn" title="Fullscreen" aria-label="Fullscreen"><i class="fa-solid fa-expand" aria-hidden="true"></i></button>
                 </div>
             </div>
-            
-            <div class="go-back-section">
-                <a href="note.php" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center;">⬅ Go Back</a>
+            <div class="reader-frame-wrap" id="bookViewer">
+                <div class="no-book-selected">Select a title from the library to begin.</div>
             </div>
         </div>
-    </div>
+    </section>
 
     <?php include '../footer.php'; ?>
-    
+
     <script>
-        // Books data - you can expand this array with more books
-        const books = [
-            {
-                id: 1,
-                title: "Physics ",
-                class:10,
-                subject: "Physics",
-                driveId: "1ZUhUAkGyAxbVAWIWNF6G3m1q4HTWk604"
-            },
-            // Add more books here as needed
-            {
-                id: 2,
-                title: "Chemistry ",
-                class:10,
-                subject: "Chemistry",
-                driveId: "1Dc3uLt6sUFRPqOeIiHpGKkubOMPOxsz5"
-            },
-            {
-                id: 3,
-                title: "Biology ",
-                class:10,
-                subject: "Biology",
-                driveId: "1_ZseEY6DSDJZ70bY-xwzNcvDt27jJ3fY",
-            },
-            {
-                id: 4,
-                title: "Computer Science",
-                class:10,
-                subject: "Computer Science",
-                driveId: "1yKlB9hKd9tkz00xkmnNhzPD75mTYDzuF",
-            }
-            
-            ];
-        
+        const textbookBooks = <?= alh_seo_json($books) ?>;
+        const bookById = new Map(textbookBooks.map((book) => [String(book.id), book]));
+        let activeClass = 'all';
+        let searchTerm = '';
         let currentBook = null;
         let zoomLevel = 100;
-        let isDarkMode = false;
-        let isSidebarHidden = false;
-        let timerInterval = null;
-        let timerSeconds = 0;
-        let isTimerRunning = false;
-        let bookmarks = JSON.parse(localStorage.getItem('bookBookmarks') || '{}');
-        
-        // Initialize books list
-        function initializeBooks() {
-            const booksGrid = document.getElementById('booksGrid');
-            booksGrid.innerHTML = '';
-            
-            displayBooks(books);
-            
-            // Setup search functionality
-            const searchBar = document.getElementById('searchBar');
-            searchBar.addEventListener('input', (e) => {
-                const searchTerm = e.target.value.toLowerCase();
-                const filteredBooks = books.filter(book => 
-                    book.title.toLowerCase().includes(searchTerm) || 
-                    book.subject.toLowerCase().includes(searchTerm) ||
-                    book.class.toString().includes(searchTerm)
-                );
-                displayBooks(filteredBooks);
+
+        const booksView = document.querySelector('.textbook-page');
+        const viewerView = document.getElementById('bookViewerView');
+        const searchInput = document.getElementById('bookSearch');
+        const resultCount = document.getElementById('libraryResultCount');
+
+        function applyLibraryFilters() {
+            let visibleCount = 0;
+            document.querySelectorAll('.class-shelf').forEach((shelf) => {
+                const classMatches = activeClass === 'all' || shelf.dataset.classSection === activeClass;
+                let visibleInShelf = 0;
+
+                shelf.querySelectorAll('.library-book-card').forEach((card) => {
+                    const book = bookById.get(card.dataset.bookId);
+                    const haystack = `${book?.title || ''} ${book?.className || ''}`.toLowerCase();
+                    const matches = classMatches && haystack.includes(searchTerm);
+                    card.hidden = !matches;
+                    if (matches) {
+                        visibleInShelf += 1;
+                        visibleCount += 1;
+                    }
+                });
+
+                shelf.hidden = visibleInShelf === 0;
             });
-            
-            // Load dark mode preference
-            if (localStorage.getItem('darkMode') === 'true') {
-                toggleDarkMode();
+
+            if (resultCount) {
+                resultCount.textContent = visibleCount === 0
+                    ? 'No titles match your search.'
+                    : `Showing ${visibleCount} ${visibleCount === 1 ? 'title' : 'titles'} in the library.`;
             }
         }
-        
-        // Display books in grid
-        function displayBooks(booksToShow) {
-            const booksGrid = document.getElementById('booksGrid');
-            booksGrid.innerHTML = '';
-            
-            if (booksToShow.length === 0) {
-                booksGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #999; padding: 2rem;">No books found matching your search.</p>';
-                return;
-            }
-            
-            booksToShow.forEach(book => {
-                const bookCard = document.createElement('div');
-                bookCard.className = 'book-card';
-                bookCard.onclick = () => loadBook(book);
-                
-                const icon = getBookIcon(book.subject);
-                const bookmarkIcon = bookmarks[book.id] ? '🔖' : '';
-                
-                bookCard.innerHTML = `
-                    <div class="book-card-icon">${icon}</div>
-                    <div class="book-card-title">${book.title} ${book.class} ${bookmarkIcon}</div>
-                    <div class="book-card-subject">${book.subject}</div>
-                `;
-                booksGrid.appendChild(bookCard);
+
+        document.querySelectorAll('.class-tab').forEach((tab) => {
+            tab.addEventListener('click', () => {
+                activeClass = tab.dataset.classFilter || 'all';
+                document.querySelectorAll('.class-tab').forEach((item) => {
+                    const selected = item === tab;
+                    item.classList.toggle('is-active', selected);
+                    item.setAttribute('aria-selected', selected ? 'true' : 'false');
+                });
+                applyLibraryFilters();
             });
+        });
+
+        searchInput?.addEventListener('input', (event) => {
+            searchTerm = event.target.value.trim().toLowerCase();
+            applyLibraryFilters();
+        });
+
+        function showLibrary() {
+            viewerView.classList.remove('is-active');
+            viewerView.setAttribute('aria-hidden', 'true');
+            booksView.hidden = false;
+            document.body.classList.remove('reader-open');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-        
-        // Get icon based on subject
-        function getBookIcon(subject) {
-            const icons = {
-                'Physics': '⚛️',
-                'Chemistry': '🧪',
-                'Biology': '🧬',
-                'Mathematics': '📐',
-                'Math': '📐',
-                'Computer': '💻',
-                'Computer Science': '💻',
-                'English': '📚',
-                'Urdu': '📖',
-                'Islamiat': '🕌',
-                'Pak Studies': '🇵🇰'
-            };
-            return icons[subject] || '📖';
-        }
-        
-        // Show books view
-        function showBooksView() {
-            document.getElementById('booksView').classList.remove('hidden');
-            document.getElementById('bookViewerView').classList.remove('active');
-            document.body.classList.remove('book-viewer-active');
-        }
-        
-        // Load book in viewer
-        function loadBook(book) {
+
+        function showReader(book) {
             currentBook = book;
-            
-            // Switch to book viewer view
-            document.getElementById('booksView').classList.add('hidden');
-            document.getElementById('bookViewerView').classList.add('active');
-            document.body.classList.add('book-viewer-active');
-            
-            // Update viewer title
+            booksView.hidden = true;
+            viewerView.classList.add('is-active');
+            viewerView.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('reader-open');
+
             document.getElementById('viewerTitle').textContent = book.title;
-            
-            // Show controls and tools
-            document.getElementById('bookControls').style.display = 'flex';
-            document.getElementById('studyTools').style.display = 'flex';
-            document.getElementById('readingProgress').style.display = 'block';
-            
-            // Update bookmark button
-            updateBookmarkButton();
-            
-            // Create iframe
+            document.getElementById('viewerMeta').textContent = `${book.className} · ${book.title} · Punjab Board`;
             const viewer = document.getElementById('bookViewer');
-            const embedUrl = `https://drive.google.com/file/d/${book.driveId}/preview`;
-            
-            viewer.innerHTML = `
-                <iframe 
-                    class="book-viewer-iframe" 
-                    id="bookIframe"
-                    src="${embedUrl}"
-                    allow="autoplay"
-                    allowfullscreen
-                ></iframe>
-            `;
-            
-            // Reset zoom
-            resetZoom();
-            
-            // Track reading progress
-            trackReadingProgress();
-            
-            // Scroll to top
-            window.scrollTo(0, 0);
-        }
-        
-        // Zoom functions
-        function zoomIn() {
-            if (zoomLevel < 200) {
-                zoomLevel += 10;
-                applyZoom();
-            }
-        }
-        
-        function zoomOut() {
-            if (zoomLevel > 50) {
-                zoomLevel -= 10;
-                applyZoom();
-            }
-        }
-        
-        function resetZoom() {
+            viewer.replaceChildren();
+            const iframe = document.createElement('iframe');
+            iframe.className = 'book-viewer-iframe';
+            iframe.id = 'bookIframe';
+            iframe.src = `https://drive.google.com/file/d/${encodeURIComponent(book.driveId)}/preview`;
+            iframe.title = book.title;
+            iframe.allow = 'autoplay';
+            iframe.allowFullscreen = true;
+            viewer.appendChild(iframe);
             zoomLevel = 100;
             applyZoom();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-        
+
         function applyZoom() {
             const iframe = document.getElementById('bookIframe');
+            const zoomLabel = document.getElementById('zoomLevel');
             if (iframe) {
                 iframe.style.transform = `scale(${zoomLevel / 100})`;
                 iframe.style.width = `${100 / (zoomLevel / 100)}%`;
-                iframe.style.height = `${600 / (zoomLevel / 100)}px`;
-                document.getElementById('zoomLevel').textContent = zoomLevel + '%';
             }
+            if (zoomLabel) zoomLabel.textContent = `${zoomLevel}%`;
         }
-        
-        // Dark mode toggle
-        function toggleDarkMode() {
-            isDarkMode = !isDarkMode;
-            document.body.classList.toggle('dark-mode', isDarkMode);
-            document.getElementById('darkModeBtn').textContent = isDarkMode ? '☀️' : '🌙';
-            localStorage.setItem('darkMode', isDarkMode);
-        }
-        
-        
-        // Timer functions
-        function startTimer() {
-            if (!isTimerRunning) {
-                isTimerRunning = true;
-                timerInterval = setInterval(() => {
-                    timerSeconds++;
-                    updateTimerDisplay();
-                    
-                    // Break reminder every 25 minutes (Pomodoro technique)
-                    if (timerSeconds % 1500 === 0 && timerSeconds > 0) {
-                        alert('⏰ Take a 5-minute break! You\'ve been studying for 25 minutes.');
-                    }
-                }, 1000);
-                document.getElementById('startTimerBtn').style.display = 'none';
-                document.getElementById('pauseTimerBtn').style.display = 'inline-block';
-            }
-        }
-        
-        function pauseTimer() {
-            if (isTimerRunning) {
-                isTimerRunning = false;
-                clearInterval(timerInterval);
-                document.getElementById('startTimerBtn').style.display = 'inline-block';
-                document.getElementById('pauseTimerBtn').style.display = 'none';
-            }
-        }
-        
-        function resetTimer() {
-            pauseTimer();
-            timerSeconds = 0;
-            updateTimerDisplay();
-        }
-        
-        function updateTimerDisplay() {
-            const hours = Math.floor(timerSeconds / 3600);
-            const minutes = Math.floor((timerSeconds % 3600) / 60);
-            const seconds = timerSeconds % 60;
-            document.getElementById('timerDisplay').textContent = 
-                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        }
-        
-        // Bookmark functions
-        function toggleBookmark() {
-            if (!currentBook) return;
-            
-            if (bookmarks[currentBook.id]) {
-                delete bookmarks[currentBook.id];
-                document.getElementById('bookmarkBtn').classList.remove('active');
-            } else {
-                bookmarks[currentBook.id] = {
-                    title: currentBook.title,
-                    timestamp: new Date().toISOString()
-                };
-                document.getElementById('bookmarkBtn').classList.add('active');
-            }
-            
-            localStorage.setItem('bookBookmarks', JSON.stringify(bookmarks));
-            initializeBooks(); // Refresh book list to show bookmark icons
-        }
-        
-        function updateBookmarkButton() {
-            const bookmarkBtn = document.getElementById('bookmarkBtn');
-            if (bookmarks[currentBook.id]) {
-                bookmarkBtn.classList.add('active');
-            } else {
-                bookmarkBtn.classList.remove('active');
-            }
-        }
-        
-        // Reading progress tracking
-        function trackReadingProgress() {
-            const iframe = document.getElementById('bookIframe');
-            if (iframe) {
-                // Simulate progress (you can enhance this with actual scroll tracking)
-                let progress = 0;
-                const progressInterval = setInterval(() => {
-                    if (progress < 100) {
-                        progress += 0.1;
-                        document.getElementById('progressBar').style.width = progress + '%';
-                    } else {
-                        clearInterval(progressInterval);
-                    }
-                }, 1000);
-            }
-        }
-        
-        // Open book in new tab
-        function openInNewTab() {
-            if (currentBook) {
-                const url = `https://drive.google.com/file/d/${currentBook.driveId}/view`;
-                window.open(url, '_blank');
-            }
-        }
-        
-        // Print function
-        function printBook() {
-            if (currentBook) {
-                const url = `https://drive.google.com/file/d/${currentBook.driveId}/view`;
-                const printWindow = window.open(url, '_blank');
-                printWindow.onload = () => {
-                    setTimeout(() => {
-                        printWindow.print();
-                    }, 1000);
-                };
-            }
-        }
-        
-        // Fullscreen mode
-        function fullscreenMode() {
-            const viewer = document.getElementById('bookViewer');
-            const iframe = viewer.querySelector('iframe');
-            
-            if (!iframe) return;
-            
-            if (!document.fullscreenElement) {
-                if (viewer.requestFullscreen) {
-                    viewer.requestFullscreen();
-                } else if (viewer.webkitRequestFullscreen) {
-                    viewer.webkitRequestFullscreen();
-                } else if (viewer.mozRequestFullScreen) {
-                    viewer.mozRequestFullScreen();
-                } else if (viewer.msRequestFullscreen) {
-                    viewer.msRequestFullscreen();
+
+        document.querySelectorAll('.library-book-card').forEach((card) => {
+            card.addEventListener('click', (event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                const book = bookById.get(card.dataset.bookId);
+                if (book) {
+                    event.preventDefault();
+                    showReader(book);
                 }
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                } else if (document.mozCancelFullScreen) {
-                    document.mozCancelFullScreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
-                }
-            }
-        }
-        
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Only apply shortcuts when in book viewer view
-            if (!document.getElementById('bookViewerView').classList.contains('active')) {
-                return;
-            }
-            
-            // Zoom with Ctrl/Cmd + Plus/Minus
-            if ((e.ctrlKey || e.metaKey) && e.key === '=') {
-                e.preventDefault();
-                zoomIn();
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === '-') {
-                e.preventDefault();
-                zoomOut();
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-                e.preventDefault();
-                resetZoom();
-            }
-            // Toggle dark mode with 'D'
-            if (e.key === 'd' && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault();
-                toggleDarkMode();
-            }
-            // Go back to books with 'B'
-            if (e.key === 'b' && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault();
-                showBooksView();
+            });
+        });
+
+        document.getElementById('backToBooks')?.addEventListener('click', showLibrary);
+        document.getElementById('zoomIn')?.addEventListener('click', () => {
+            zoomLevel = Math.min(150, zoomLevel + 10);
+            applyZoom();
+        });
+        document.getElementById('zoomOut')?.addEventListener('click', () => {
+            zoomLevel = Math.max(70, zoomLevel - 10);
+            applyZoom();
+        });
+        document.getElementById('openDriveBtn')?.addEventListener('click', () => {
+            if (currentBook) {
+                const fallbackUrl = `https://drive.google.com/file/d/${encodeURIComponent(currentBook.driveId)}/view`;
+                const driveUrl = /^https:\/\/drive\.google\.com\//i.test(currentBook.driveUrl) ? currentBook.driveUrl : fallbackUrl;
+                window.open(driveUrl, '_blank', 'noopener');
             }
         });
-        
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', initializeBooks);
+        document.getElementById('fullscreenBtn')?.addEventListener('click', () => {
+            document.getElementById('bookViewer')?.requestFullscreen?.();
+        });
+        document.getElementById('darkModeBtn')?.addEventListener('click', () => {
+            document.body.classList.toggle('reader-contrast');
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && viewerView.classList.contains('is-active')) showLibrary();
+            if (event.key === '/' && !viewerView.classList.contains('is-active') && document.activeElement !== searchInput) {
+                event.preventDefault();
+                searchInput?.focus();
+            }
+        });
+
+        applyLibraryFilters();
     </script>
 </body>
 </html>

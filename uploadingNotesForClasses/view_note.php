@@ -260,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch related notes (same class & subject, excluding current)
 $relatedNotes = [];
-$relStmt = $conn->prepare("SELECT id, title, subject, chapter, mime_type FROM class_notes WHERE status = 'approved' AND drive_status = 'available' AND class = ? AND subject = ? AND id != ? ORDER BY created_at DESC LIMIT 4");
+$relStmt = $conn->prepare("SELECT id, title, subject, class, chapter, mime_type FROM class_notes WHERE status = 'approved' AND drive_status = 'available' AND class = ? AND subject = ? AND id != ? ORDER BY created_at DESC LIMIT 4");
 $relStmt->bind_param('ssi', $note['class'], $note['subject'], $noteId);
 $relStmt->execute();
 $relResult = $relStmt->get_result();
@@ -316,11 +316,15 @@ $uploadDate = date('F j, Y', strtotime($note['created_at']));
 $subjectName = !empty($note['subject']) ? htmlspecialchars($note['subject']) : 'General';
 $chapterName = !empty($note['chapter']) ? htmlspecialchars($note['chapter']) : '';
 $noteTitle = htmlspecialchars($note['title']);
-$noteDesc = !empty($note['description']) ? htmlspecialchars($note['description']) : "Free {$classShort} {$subjectName} study notes for board exam preparation.";
+$noteDescriptionText = trim((string) ($note['description'] ?? ''));
+$noteDesc = $noteDescriptionText !== ''
+    ? $noteDescriptionText
+    : "Free {$classShort} {$subjectName} study notes for board exam preparation.";
 
 // SEO
 $pageTitle = "{$noteTitle} - {$classShort} {$subjectName} Notes | Ahmad Learning Hub";
-$pageDescription = "View and study {$noteTitle} for {$classLabel}. Free {$subjectName}" . ($chapterName ? " {$chapterName}" : "") . " {$fileTypeLabel} notes for Punjab board exam preparation 2026. Download free study materials.";
+$fallbackPageDescription = "View and study {$noteTitle} for {$classLabel}. Free {$subjectName}" . ($chapterName ? " {$chapterName}" : "") . " {$fileTypeLabel} notes for Punjab board exam preparation 2026. Download free study materials.";
+$pageDescription = $noteDescriptionText !== '' ? $noteDescriptionText : $fallbackPageDescription;
 $metaKeywords = "{$classShort} notes, {$subjectName} notes, {$classLabel} study material, " . ($chapterName ? "{$chapterName} notes, " : "") . "board exam preparation, Punjab board notes, free study material, {$classShort} {$subjectName} {$fileTypeBadge}, matric notes, intermediate notes, online notes Pakistan";
 
 // Google Drive embed URL
@@ -381,18 +385,19 @@ $commentStmt->close();
     <meta property="og:description" content="<?= htmlspecialchars($pageDescription) ?>">
     <meta property="og:type" content="article">
     <meta property="og:url" content="<?= htmlspecialchars($canonicalUrl) ?>">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="<?= htmlspecialchars($pageTitle) ?>">
+    <meta name="twitter:description" content="<?= htmlspecialchars($pageDescription) ?>">
 
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/notes.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-    <!-- JSON-LD Structured Data -->
+<!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@type": "DigitalDocument",
         "name": "<?= addslashes($noteTitle) ?>",
-        "description": "<?= addslashes($noteDesc) ?>",
+        "description": <?= json_encode($noteDesc, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
         "encodingFormat": "<?= htmlspecialchars($note['mime_type']) ?>",
         "datePublished": "<?= date('Y-m-d', strtotime($note['created_at'])) ?>",
         "inLanguage": "en",

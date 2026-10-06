@@ -70,7 +70,6 @@ $dailyQuizSessions =
     <title>About Ahmad Learning Hub | Pakistan Exam Preparation</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/about.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <?php include 'header.php'; ?>

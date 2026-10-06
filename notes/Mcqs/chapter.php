@@ -210,8 +210,7 @@ $faqSchema = [
     <meta property="og:url" content="<?= htmlspecialchars($canonicalUrl) ?>">
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <?php include __DIR__ . '/style.php'; ?>
+<?php include __DIR__ . '/style.php'; ?>
     <script type="application/ld+json"><?= json_encode($quizSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
     <script type="application/ld+json"><?= json_encode($breadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
     <script type="application/ld+json"><?= json_encode($faqSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>

@@ -16,6 +16,7 @@
 - [Online question paper generator for Class 11 and 12](https://ahmadlearninghub.com.pk/class-11-and-12-online-question-paper-generator): prepare Intermediate and HSSC practice papers.
 - [Online MCQs tests](https://ahmadlearninghub.com.pk/class-9-and-10-online-mcqs-prepation-test): practise chapter-wise objective questions for Classes 9–12.
 - [Study materials and class notes](https://ahmadlearninghub.com.pk/study-material-for-board-exam-preparations): browse notes, textbooks and revision resources.
+- [Digital textbooks by class](https://ahmadlearninghub.com.pk/textbooks): browse official Punjab Board PDF textbooks grouped by class, aligned with the relevant syllabus and sourced from the Punjab Curriculum and Textbook Board website.
 - [Board exam preparation and test series](https://ahmadlearninghub.com.pk/class-9-10-11-12-test-series-for-board-exams): select a class and subject for online tests and revision.
 - [Online quiz hosting](https://ahmadlearninghub.com.pk/online-quiz-hosting): teachers can create timed live MCQ rooms, share a code and review participation and results.
 - [About Ahmad Learning Hub](https://ahmadlearninghub.com.pk/about): organization and product context.

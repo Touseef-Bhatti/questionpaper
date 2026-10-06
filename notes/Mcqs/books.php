@@ -55,8 +55,7 @@ if ($requestPath !== '' && rtrim('/' . ltrim($requestPath, '/'), '/') !== rtrim(
     <link rel="canonical" href="<?= htmlspecialchars($canonicalUrl) ?>">
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/buttons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <?php include __DIR__ . '/style.php'; ?>
+<?php include __DIR__ . '/style.php'; ?>
 </head>
 <body>
 <?php include '../../header.php'; ?>

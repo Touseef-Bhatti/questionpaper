@@ -27,7 +27,7 @@ if (file_exists(__DIR__ . '/../services/CacheManager.php')) {
 /**
  * Make OpenRouter API call - returns [response_text, http_code] or [null, code]
  */
-function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 2048, $timeout = 60, $temperature = 0.3, $topP = 0.9) {
+function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 2048, $timeout = 60, $temperature = 0.3, $topP = 0.9, $reasoning = null) {
     $connectTimeout = max(3, min(15, (int) floor($timeout / 4)));
     $payload = [
         'model' => $model,
@@ -37,6 +37,9 @@ function callOpenRouter($apiKey, $model, $prompt, $maxTokens = 2048, $timeout = 
         'max_tokens' => $maxTokens,
         'stream' => false,
     ];
+    if (is_array($reasoning) && !empty($reasoning)) {
+        $payload['reasoning'] = $reasoning;
+    }
 
     $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
     curl_setopt_array($ch, [
@@ -1232,19 +1235,23 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '', $s
     $maxTokens = estimateMcqMaxTokens($neededFromAi);
     $timeout   = estimateMcqTimeout($neededFromAi);
 
-    // --- Retry loop: try up to 3 different API keys before giving up ---
-    $resp      = null;
+    // Try the configured key pool until a provider returns valid MCQ JSON.
+    $aiMcqs    = [];
     $triedKeys = [];
-    for ($attempt = 0; $attempt < 3; $attempt++) {
-        $rotator = new AIKeyRotator($cacheManager);
+    $rotator = new AIKeyRotator($cacheManager);
+    $maxAttempts = count($rotator->getAllKeys());
+    for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
         $keyItem = $rotator->getNextKey($triedKeys);
         if (!$keyItem) break;
 
         $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL', '');
-        if (!$model) break;
+        if (!$model) {
+            $triedKeys[] = $keyItem['key'];
+            continue;
+        }
 
         $triedKeys[] = $keyItem['key'];
-        list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, $timeout, 0.25, 0.9);
+        list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, $timeout, 0.25, 0.9, ['enabled' => false]);
 
         if ($code === 429 || $code === 402 || $code === 503) {
             // Rate-limited or quota exceeded — mark exhausted and try next key
@@ -1260,14 +1267,26 @@ function generateMCQsBulkWithGemini($topicOrTopics, $count = 10, $level = '', $s
             continue;
         }
         if ($resp) {
+            $candidateMcqs = sanitizeGeneratedMcqs(parseMcqJson($resp), $topics, $neededFromAi);
+            if (empty($candidateMcqs)) {
+                error_log('MCQ gen: provider returned no valid MCQs, trying next key. Model: ' . $model);
+                $resp = null;
+            } else {
+                if (count($candidateMcqs) > count($aiMcqs)) {
+                    $aiMcqs = $candidateMcqs;
+                }
+                if (count($candidateMcqs) < $neededFromAi) {
+                    error_log('MCQ gen: provider returned too few MCQs, trying next key. Model: ' . $model);
+                    $resp = null;
+                }
+            }
+        }
+        if ($resp) {
             $rotator->logSuccess($keyItem['key']);
             break; // Success — stop retrying
         }
     }
 
-    if (!$resp) return $dbMcqs;
-
-    $aiMcqs = sanitizeGeneratedMcqs(parseMcqJson($resp), $topics, $neededFromAi);
     if (empty($aiMcqs)) return $dbMcqs;
 
     $savedAiMcqs = saveGeneratedMcqs($conn, $aiMcqs, $topics[0], $cacheManager, null, $skipVerify);
@@ -1348,25 +1367,44 @@ function generateMCQsWithGemini($topic, $count = 10, $level = '', $skipVerify = 
     $maxTokens = estimateMcqMaxTokens($neededFromAi);
     $timeout   = estimateMcqTimeout($neededFromAi);
 
-    // Retry loop: try up to 3 keys
-    $resp      = null;
+    // Try the configured key pool until a provider returns valid MCQ JSON.
+    $aiMcqs    = [];
     $triedKeys = [];
-    for ($attempt = 0; $attempt < 3; $attempt++) {
-        $rotator = new AIKeyRotator($cacheManager);
+    $rotator = new AIKeyRotator($cacheManager);
+    $maxAttempts = count($rotator->getAllKeys());
+    for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
         $keyItem = $rotator->getNextKey($triedKeys);
         if (!$keyItem) break;
         $model = $keyItem['model'] ?: EnvLoader::get('AI_DEFAULT_MODEL', '');
-        if (!$model) break;
+        if (!$model) {
+            $triedKeys[] = $keyItem['key'];
+            continue;
+        }
         $triedKeys[] = $keyItem['key'];
-        list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, $timeout, 0.25, 0.9);
+        list($resp, $code) = callOpenRouter($keyItem['key'], $model, $prompt, $maxTokens, $timeout, 0.25, 0.9, ['enabled' => false]);
         if ($code === 429 || $code === 402 || $code === 503) { $rotator->markExhausted($keyItem['key']); $resp = null; continue; }
         if ($code === 400) { $resp = null; continue; }
-        if ($resp) { $rotator->logSuccess($keyItem['key']); break; }
-    }
-    if (!$resp) return $dbMcqs;
+        if ($resp) {
+            $candidateMcqs = sanitizeGeneratedMcqs(parseMcqJson($resp), [$topic], $neededFromAi);
+            if (empty($candidateMcqs)) {
+                error_log('MCQ gen: provider returned no valid MCQs, trying next key. Model: ' . $model);
+                $resp = null;
+                continue;
+            }
 
-    $rotator->logSuccess($keyItem['key']);
-    $aiMcqs = sanitizeGeneratedMcqs(parseMcqJson($resp), [$topic], $neededFromAi);
+            if (count($candidateMcqs) > count($aiMcqs)) {
+                $aiMcqs = $candidateMcqs;
+            }
+            if (count($candidateMcqs) < $neededFromAi) {
+                error_log('MCQ gen: provider returned too few MCQs, trying next key. Model: ' . $model);
+                $resp = null;
+                continue;
+            }
+
+            $rotator->logSuccess($keyItem['key']);
+            break;
+        }
+    }
     if (empty($aiMcqs)) {
         return $dbMcqs;
     }

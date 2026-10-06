@@ -50,6 +50,8 @@ Options -Indexes
     # directly to the HTTPS, non-www landing pages in one hop.
     RewriteRule ^questionPaperFromTopic/?$ https://ahmadlearninghub.com.pk/online-question-paper-generator [R=301,L,NE,QSD,NC]
     RewriteRule ^notes/?$ https://ahmadlearninghub.com.pk/study-material-for-board-exam-preparations [R=301,L,NE,QSD,NC]
+    RewriteCond %{THE_REQUEST} \s/+notes/textbooks\.php(?:[?\s]|$) [NC]
+    RewriteRule ^notes/textbooks\.php$ /textbooks [R=301,L,NE,QSD,NC]
 
     # Retire legacy MCQ URLs and malformed crawl candidates.
     RewriteRule ^class-([0-9]+)-([a-zA-Z0-9-]+)-mcqs-2026/?$ https://ahmadlearninghub.com.pk/class-$1-$2-mcqs-test-2026 [R=301,L,NE,QSD,NC]

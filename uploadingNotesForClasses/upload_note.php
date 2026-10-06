@@ -164,9 +164,7 @@ $siteUrl = $protocol . "://" . $_SERVER['HTTP_HOST'];
     <title><?= htmlspecialchars($pageTitle) ?></title>
     
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <style>
+<style>
         .upload-page { background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); min-height: 100vh; }
         .upload-container { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
         

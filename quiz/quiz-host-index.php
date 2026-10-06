@@ -83,8 +83,7 @@ $integrityFaqs = [
     <meta name="twitter:description" content="<?= htmlspecialchars($metaDescription) ?>">
     <script type="application/ld+json"><?= json_encode($structuredData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?></script>
     <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/main.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <style>
+<style>
         .host-index { background: linear-gradient(145deg, #f8fbff 0%, #eef2ff 52%, #f8fafc 100%); color: #172033; padding: 3.5rem 1rem 5rem; }
         .host-index__wrap { max-width: 1120px; margin: 0 auto; }
         .host-index__hero { display: grid; grid-template-columns: 1.15fr .85fr; gap: 2.5rem; align-items: center; }

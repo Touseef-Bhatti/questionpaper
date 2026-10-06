@@ -30,12 +30,19 @@ $adminUrl = $baseUrl . 'admin/';
     <title>Admin Panel - Question Paper Generator</title>
     
     <!-- Core CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>css/local-fonts.css?v=1.1">
+    <link rel="stylesheet" href="<?= $baseUrl ?>fonts/fontawesome/css/all.min.css">
+    <?php if (basename($_SERVER['SCRIPT_NAME'] ?? '') !== 'search_queries.php'): ?>
+        <!-- Legacy admin screens still use Bootstrap utilities; smart-search is self-contained. -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <?php endif; ?>
     <link rel="stylesheet" href="<?= $baseUrl ?>css/main.css">
     <link rel="stylesheet" href="<?= $baseUrl ?>css/admin.css">
     <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-header.css">
     <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-footer.css">
+    <?php if (basename($_SERVER['SCRIPT_NAME'] ?? '') === 'search_queries.php'): ?>
+        <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-search.css">
+    <?php endif; ?>
 
     <!-- Favicons -->
     <?php include_once dirname(__DIR__) . '/includes/favicons.php'; ?>
@@ -98,7 +105,7 @@ $adminUrl = $baseUrl . 'admin/';
                 <li><a href="<?= $adminUrl ?>deleted_questions.php" class="nav-link-deleted">🗑️ Deleted</a></li>
                 <li><a href="<?= $adminUrl ?>contact_messages.php" class="nav-link-contact">💌 Contact Messages</a></li>
                 <li><a href="<?= $adminUrl ?>manage_reviews.php" class="nav-link-contact">⭐ Reviews</a></li>
-                <li><a href="<?= $adminUrl ?>search_queries.php" class="nav-link-search-queries">🔍 Search Logs</a></li>
+                <li><a href="<?= $adminUrl ?>search_queries.php" class="nav-link-search-queries">🔍 Smart Search</a></li>
                 <li><a href="<?= $adminUrl ?>promotional_emails.php" class="nav-link-promotional">📣 Promotion Email</a></li>
                 <li><a href="<?= $adminUrl ?>manage_admins.php" class="nav-link-users">👥 Admins</a></li>
                 <li><a href="<?= $adminUrl ?>settings.php" class="nav-link-settings">⚙️ Settings</a></li>

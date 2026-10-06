@@ -128,3 +128,7 @@ pnpm-debug.log*
 ads.php
 *.bak
 *.tmp
+
+# 🔤 Font helper scripts (temporary, not needed in production)
+/fonts/download_fonts.ps1
+/fonts/fix_font_links.ps1

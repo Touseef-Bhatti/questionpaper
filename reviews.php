@@ -163,8 +163,7 @@ function renderStars(int $rating): string {
     <title>Ahmad Learning Hub Reviews | Question Papers, MCQs &amp; Quiz Tools</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/index.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
+<style>
         body {
             font-family: 'Inter', sans-serif;
             background: #f8fafc;

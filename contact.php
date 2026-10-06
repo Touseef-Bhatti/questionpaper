@@ -29,7 +29,6 @@ if (session_status() === PHP_SESSION_NONE) session_start();
     <title>Contact Ahmad Learning Hub | Pakistan Education Support</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/contact.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <?php include 'header.php'; ?>

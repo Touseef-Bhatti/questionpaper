@@ -5,7 +5,7 @@ if (defined('ALH_QUIZ_AD_GATE_RENDERED')) {
 define('ALH_QUIZ_AD_GATE_RENDERED', true);
 ?>
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');
+    /* Fredoka loaded via css/local-fonts.css */
 
     .quiz-ad-modal {
         position: fixed;

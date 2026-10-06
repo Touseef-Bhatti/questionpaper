@@ -55,8 +55,7 @@ $redirectUri = is_array($diagnostics) ? ($diagnostics['oauth_redirect_uri'] ?? '
     <meta name="robots" content="noindex, nofollow">
     <title>Google Drive OAuth Setup | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="css/main.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <style>
+<style>
         body { margin: 0; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f6f8fb; color: #172033; }
         .oauth-shell { max-width: 860px; margin: 0 auto; padding: 32px 20px 56px; }
         .oauth-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }

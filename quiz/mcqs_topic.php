@@ -515,7 +515,6 @@ if (isset($_POST['start_quiz'])) {
 
     <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/main.css">
     <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/mcqs_topic.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <?php include_once '../header.php'; ?>
@@ -648,7 +647,7 @@ if (isset($_POST['start_quiz'])) {
         <i class="fas fa-arrow-up"></i>
     </button>
 </div>
-<?php if (!empty($suggestedTopics)): ?>
+<?php if (empty($searchQuery) && !empty($suggestedTopics)): ?>
     <div class="topic-suggestions" aria-label="Suggested topics">
         <span class="topic-suggestions-label">Try:</span>
         <?php foreach ($suggestedTopics as $suggestion):
@@ -675,6 +674,7 @@ if (isset($_POST['start_quiz'])) {
             </form>
         </div>
 
+        <?php if (empty($searchQuery)): ?>
         <!-- FILE UPLOAD TRIGGER CARD -->
         <div class="text-upload-trigger" id="textUploadTrigger" onclick="checkLoginAndOpenUpload()">
             <div class="text-upload-trigger-icon">
@@ -688,6 +688,7 @@ if (isset($_POST['start_quiz'])) {
                 <i class="fas fa-arrow-right"></i>
             </div>
         </div>
+        <?php endif; ?>
 
         <!-- FILE UPLOAD MODAL (MCQs only for quiz page) -->
         <div class="text-upload-modal" id="textUploadModal">
@@ -747,7 +748,19 @@ if (isset($_POST['start_quiz'])) {
             </div>
         </div>
 
-        <?php include __DIR__ . '/../includes/ai_loader.php'; ?>
+        <!-- MCQs generation loader (matches finalize_paper.php) -->
+        <div class="fp-generation-overlay" id="generationOverlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="generationOverlayTitle">
+            <div class="fp-loader-card">
+                <div class="fp-loader-sheet" aria-hidden="true">
+                    <span></span><span></span><span></span>
+                    <i class="fas fa-magic"></i>
+                </div>
+                <h2 id="generationOverlayTitle">Building your quiz</h2>
+                <p id="generationOverlayMessage">Your MCQs are being prepared. This usually takes a few moments.</p>
+                <div class="fp-loader-track" aria-hidden="true"><span></span></div>
+                <small><i class="fas fa-lock"></i> Keep this tab open while we generate your quiz.</small>
+            </div>
+        </div>
 
         <!-- Simple Search Loader -->
         <div id="inlineLoader">
@@ -960,6 +973,15 @@ function showLoader(title = 'Processing...', subtitle = '') {
     }
 }
 
+function showGenerationLoader() {
+    const overlay = document.getElementById('generationOverlay');
+    if (!overlay) return;
+
+    overlay.classList.add('is-visible');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('fp-generation-lock');
+}
+
 function selectLevel(level, button) {
     event.preventDefault();
     document.getElementById('study_level').value = level;
@@ -1153,34 +1175,8 @@ function submitSelectedTopicsQuiz(form) {
         form.appendChild(hiddenSubmit);
     }
 
-    form.submit();
-
-    if (typeof showAILoader === 'function') {
-        if (isHost) {
-            showAILoader(
-                [
-                    { label: 'Saving selection',    duration: 3000 },
-                    { label: 'Redirecting to Host', duration: 3000 }
-                ],
-                'Syncing topics with your dashboard...',
-                'Topic Sync',
-                null
-            );
-        } else {
-            showAILoader(
-                [
-                    { label: 'Analyzing topics',        duration: 3500 },
-                    { label: 'Extracting key concepts', duration: 3500 },
-                    { label: 'Designing MCQs',          duration: 3500 },
-                    { label: 'Validating difficulty',   duration: 3500 },
-                    { label: 'Finalizing paper',        duration: 3500 }
-                ],
-                'Our AI is preparing questions for the selected topics...',
-                'Quiz Generation Engine',
-                null
-            );
-        }
-    }
+    showGenerationLoader();
+    window.setTimeout(() => form.submit(), 80);
 }
 
 document.getElementById('startQuizForm')?.addEventListener('submit', function(e) {
@@ -1477,20 +1473,8 @@ function submitTextQuizForm(form, topicName) {
     let seoTopic = topicName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (!seoTopic) seoTopic = 'General';
     form.action = `${seoTopic}-MCQs-Quiz`;
-    form.submit();
-
-    if (typeof showAILoader === 'function') {
-        const isHost = (document.querySelector('input[name="source"]')?.value === 'host');
-        const steps = isHost
-            ? [{ label: 'Saving topics', duration: 3000 }, { label: 'Syncing with dashboard', duration: 3000 }]
-            : [{ label: 'Preparing quiz', duration: 3000 }, { label: 'Loading questions', duration: 3000 }];
-        showAILoader(
-            steps,
-            isHost ? 'Updating your host dashboard...' : 'Setting up your quiz...',
-            isHost ? 'Topic Selection' : 'Quiz Setup',
-            null
-        );
-    }
+    showGenerationLoader();
+    window.setTimeout(() => form.submit(), 80);
 }
 
 function startTextQuiz() {

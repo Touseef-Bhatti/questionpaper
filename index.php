@@ -2,6 +2,15 @@
 session_start();
 include 'db_connect.php';
 require_once __DIR__ . '/includes/seo.php';
+require_once __DIR__ . '/includes/home_search.php';
+
+$homeSearchItems = homeSearchItems($conn);
+$homeSearchQuickLinks = array_slice(array_values(array_filter($homeSearchItems, static fn(array $item): bool => !empty($item['is_quick_link']))), 0, 8);
+$homeSearchSettings = homeSearchSettings($conn);
+if (empty($_SESSION['home_search_csrf'])) {
+    $_SESSION['home_search_csrf'] = bin2hex(random_bytes(24));
+}
+$homeSearchToken = $_SESSION['home_search_csrf'];
 
 $latestReviews = [];
 $reviewsTableExists = false;
@@ -21,9 +30,9 @@ function homeReviewStars(int $rating): string {
     return str_repeat('★', $full) . str_repeat('☆', 5 - $full);
 }
 
-$pageTitle = 'Online Question Paper Generator | Ahmad Learning Hub';
-$metaDescription = 'Create Class 9, 10, 11 and 12 question papers, practise chapter-wise MCQs, find board exam notes and host live quizzes for Pakistani classrooms.';
-$metaKeywords = 'online question paper generator Pakistan, class 9 question paper generator, class 10 question paper generator, class 11 MCQs test, class 12 MCQs test, Punjab Board notes, board exam preparation, online quiz hosting';
+$pageTitle = 'Online Question Paper Generator | Class 9–12 & University';
+$metaDescription = 'Create printable question papers for Class 9–12, college and university subjects. Practise MCQs, revise chapters and prepare for Pakistani board exams with Ahmad Learning Hub.';
+$metaKeywords = 'online question paper generator Pakistan, exam paper maker, Class 9 question paper generator, Class 10 question paper generator, Class 11 question paper generator, Class 12 question paper generator, college exam maker, university exam maker, board exam preparation, MCQs practice';
 ?>
 
 <!DOCTYPE html>
@@ -39,23 +48,13 @@ $metaKeywords = 'online question paper generator Pakistan, class 9 question pape
         'description' => $metaDescription,
         'keywords' => $metaKeywords,
         'canonical' => alh_seo_absolute_url('/'),
-        'include_title' => false,
-        'include_description' => false,
-        'include_keywords' => false,
-        'include_robots' => false,
-        'include_author' => false,
+        'page_type' => 'EducationalWebPage',
+        'audience_type' => 'Class 9–12 students, college and university students, teachers, tutors and schools in Pakistan',
     ]); ?>
-    <meta name="description" content="Create Class 9, 10, 11 and 12 question papers, practise chapter-wise MCQs, find board exam notes and host live quizzes for Pakistani classrooms.">
 
-    
-    <title>Online Question Paper Generator | Ahmad Learning Hub</title>
-    
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/index.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-
-    <?php include_once __DIR__ . '/includes/favicons.php'; ?>
+    <link rel="stylesheet" href="css/main.css?v=1.1">
+    <link rel="stylesheet" href="css/index.css?v=1.1">
+<?php include_once __DIR__ . '/includes/favicons.php'; ?>
 
 </head>
 <body>
@@ -69,13 +68,19 @@ $metaKeywords = 'online question paper generator Pakistan, class 9 question pape
                <div class="hero-content">
 
     <h1 class="hero-title">
-        Online Question Paper Generator & MCQs Practice for Pakistan
+        Free Online Question Paper Generator &amp; MCQs Practice
     </h1>
     
     <p class="subtitle">
-        Create Class 9, 10, 11 and 12 question papers, practise chapter-wise MCQs, revise with study notes, and prepare board-oriented tests online. Built for students, teachers and academies in Pakistan.
+        Create printable exam papers, practise chapter-wise MCQs, and prepare for board, college, and university exams.
     </p>
 </div>
+
+                    <button class="home-smart-search-trigger" type="button" data-home-search-open aria-haspopup="dialog" aria-controls="homeSmartSearch" aria-label="Open smart website search">
+                        <i class="fas fa-search" aria-hidden="true"></i>
+                        <span><?= htmlspecialchars($homeSearchSettings['placeholder'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <kbd>Ctrl K</kbd>
+                    </button>
 
                     <div class="hero-actions">
                         <br>
@@ -89,28 +94,67 @@ $metaKeywords = 'online question paper generator Pakistan, class 9 question pape
             </div>
         </section>
 
+        <div class="home-search-overlay" id="homeSmartSearch" data-search-token="<?= htmlspecialchars($homeSearchToken, ENT_QUOTES, 'UTF-8') ?>" hidden>
+            <div class="home-search-backdrop" data-home-search-close></div>
+            <section class="home-search-dialog" role="dialog" aria-modal="true" aria-labelledby="homeSearchTitle">
+                <h2 id="homeSearchTitle" class="sr-only">Search Ahmad Learning Hub</h2>
+                <div class="home-search-input-row">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <input id="homeSearchInput" type="search" autocomplete="off" maxlength="120" spellcheck="true" placeholder="<?= htmlspecialchars($homeSearchSettings['placeholder'], ENT_QUOTES, 'UTF-8') ?>" aria-label="Search website features" aria-controls="homeSearchResults">
+                    <span class="home-search-esc" aria-hidden="true">ESC</span>
+                    <button type="button" class="home-search-close" data-home-search-close aria-label="Close search"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="home-search-content">
+                    <div class="home-search-heading-row">
+                        <p class="home-search-eyebrow" id="homeSearchSectionTitle">Quick links</p>
+                        <span class="home-search-status" id="homeSearchStatus" role="status" aria-live="polite"></span>
+                    </div>
+                    <div class="home-search-results" id="homeSearchResults" role="listbox">
+                        <?php foreach ($homeSearchQuickLinks as $item): ?>
+                            <?php $publicItem = homeSearchPublicItem($item); ?>
+                            <a class="home-search-result" href="<?= htmlspecialchars($publicItem['url'], ENT_QUOTES, 'UTF-8') ?>" role="option" data-search-item-id="<?= $publicItem['id'] ?>" data-search-kind="quick_link">
+                                <span class="home-search-result-icon"><i class="<?= htmlspecialchars($publicItem['icon'], ENT_QUOTES, 'UTF-8') ?>"></i></span>
+                                <span><strong><?= htmlspecialchars($publicItem['title'], ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($publicItem['description'], ENT_QUOTES, 'UTF-8') ?></small></span>
+                                <i class="fas fa-arrow-right home-search-result-arrow" aria-hidden="true"></i>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="home-search-empty" id="homeSearchEmpty" hidden>
+                        <strong><?= htmlspecialchars($homeSearchSettings['no_results_title'], ENT_QUOTES, 'UTF-8') ?></strong>
+                        <span><?= htmlspecialchars($homeSearchSettings['no_results_message'], ENT_QUOTES, 'UTF-8') ?></span>
+                    </div>
+                </div>
+                <footer class="home-search-footer">
+                    <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+                    <span><kbd>Enter</kbd> Open</span>
+                    <span><kbd>Esc</kbd> Close</span>
+                    <span class="home-search-smart-note"><i class="fas fa-magic"></i> Understands related words & typos</span>
+                </footer>
+            </section>
+        </div>
+
       
 
         <div class="container">
             <div class="hero-prep-section" role="region" aria-label="Exam preparation categories">
-                <h2 class="hero-prep-title">Professional Exam Preparation for School, Board, College & University</h2>
+                <h2 class="hero-prep-title">Question Paper Maker and Exam Preparation for Every Level</h2>
                <br>
                 <p class="hero-prep-description">
-                    Start focused exam preparation with class-wise papers, board-pattern practice, and chapter-wise MCQs for class 9, class 10, and advanced levels.
+                    Choose a class or study level to generate a question paper, practise a test, or prepare for board, college, and university exams. Ahmad Learning Hub supports Class 9 and 10, Intermediate Class 11 and 12, and higher-education assessment workflows.
                 </p>
 
                 <div class="hero-prep-grid">
-                    <a href="class-9-10-11-12-test-series-for-board-exams" class="hero-prep-card bypass-user-type">
+                    <a href="class-9th-and-10th-online-question-paper-generator" class="hero-prep-card bypass-user-type" aria-label="Open the Class 9 and 10 online question paper generator">
                         <span class="hero-prep-icon"><i class="fas fa-graduation-cap"></i></span>
                         <h3>Class 9 & 10 Exam Preparation</h3>
-                        <p>Build strong fundamentals with chapter-wise tests, model papers, and comprehensive board practice.</p>
-                        <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
+                        <p>Generate Class 9 and 10 question papers, build strong fundamentals with chapter-wise tests, model papers, and comprehensive board practice.</p>
+                        <span class="prep-card-cta">Open Class 9 & 10 Paper Generator <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="class-9-10-11-12-test-series-for-board-exams" class="hero-prep-card bypass-user-type">
+                    <a href="class-11-and-12-online-question-paper-generator" class="hero-prep-card bypass-user-type" aria-label="Open the Class 11 and 12 online question paper generator">
                         <span class="hero-prep-icon"><i class="fas fa-university"></i></span>
                         <h3>Class 11 & 12 Exam Preparation</h3>
-                        <p>Master your subjects with expert-curated chapter tests, short questions, and final revision papers.</p>
-                        <span class="prep-card-cta">Explore Now <i class="fas fa-arrow-right"></i></span>
+                        <p>Create Intermediate and HSSC question papers while mastering subjects with chapter tests, short questions, and final revision papers.</p>
+                        <span class="prep-card-cta">Open Class 11 & 12 Paper Generator <i class="fas fa-arrow-right"></i></span>
                     </a>
                     <a href="quiz_setup" class="hero-prep-card bypass-user-type ALH_cct" data-action="online_mcqs">
                         <span class="hero-prep-icon"><i class="fas fa-clipboard-check"></i></span>
@@ -118,17 +162,17 @@ $metaKeywords = 'online question paper generator Pakistan, class 9 question pape
                         <p>Take topic-wise MCQs tests with instant scoring and smart performance tracking.</p>
                         <span class="prep-card-cta">Start Test <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="class-9-10-11-12-test-series-for-board-exams" class="hero-prep-card bypass-user-type">
+                    <a href="class-9-10-11-12-test-series-for-board-exams" class="hero-prep-card bypass-user-type" aria-label="Explore Class 9 to 12 board exam test series">
                         <span class="hero-prep-icon"><i class="fas fa-file-signature"></i></span>
                         <h3>Board Exam Preparation</h3>
                         <p>Prepare with board-oriented formats, realistic paper structure, and balanced difficulty.</p>
                         <span class="prep-card-cta">Generate Paper <i class="fas fa-arrow-right"></i></span>
                     </a>
-                    <a href="online-question-paper-generator" class="hero-prep-card bypass-user-type">
+                    <a href="online-question-paper-generator" class="hero-prep-card bypass-user-type" aria-label="Open the college and university online question paper generator">
                         <span class="hero-prep-icon"><i class="fas fa-university"></i></span>
                         <h3>College & University Exams</h3>
-                        <p>Create professional tests for intermediate, college, and university exam preparation.</p>
-                        <span class="prep-card-cta">Get Started <i class="fas fa-arrow-right"></i></span>
+                        <p>Create professional question papers and exams for college, university, intermediate, and higher-education subjects.</p>
+                        <span class="prep-card-cta">Open College & University Exam Maker <i class="fas fa-arrow-right"></i></span>
                     </a>
                     <a href="topic-wise-mcqs-test" class="hero-prep-card bypass-user-type ALH_cct" data-action="online_mcqs">
                         <span class="hero-prep-icon"><i class="fas fa-brain"></i></span>
@@ -139,12 +183,13 @@ $metaKeywords = 'online question paper generator Pakistan, class 9 question pape
                 </div>
 
                 <ul class="hero-keywords" aria-label="Popular exam preparation topics">
-                    <li><a href="class-9th-and-10th-online-question-paper-generator" class="bypass-user-type"><i class="fas fa-book-open"></i> Exam Preparation</a></li>
+                    <li><a href="class-9th-and-10th-online-question-paper-generator" class="bypass-user-type"><i class="fas fa-book-open"></i> Class 9 & 10 Question Paper Generator</a></li>
                     <li><a href="select_book.php?class_id=9" class="bypass-user-type"><i class="fas fa-school"></i> Class 9 Exam Preparation</a></li>
                     <li><a href="select_book.php?class_id=10" class="bypass-user-type"><i class="fas fa-graduation-cap"></i> Class 10 Exam Preparation</a></li>
+                    <li><a href="class-11-and-12-online-question-paper-generator" class="bypass-user-type"><i class="fas fa-university"></i> Class 11 & 12 Question Paper Generator</a></li>
                     <li><a href="quiz_setup" class="bypass-user-type ALH_cct" data-action="online_mcqs"><i class="fas fa-check-circle"></i> Class 9 & 10 MCQs Preparation</a></li>
-                    <li><a href="class-9th-and-10th-online-question-paper-generator" class="bypass-user-type ALH_cct" data-action="generate_paper"><i class="fas fa-file-alt"></i> Board Exam Preparation</a></li>
-                    <li><a href="online-question-paper-generator" class="bypass-user-type ALH_cct" data-action="generate_paper"><i class="fas fa-university"></i> College University Exam Preparation</a></li>
+                    <li><a href="class-9-10-11-12-test-series-for-board-exams" class="bypass-user-type"><i class="fas fa-file-alt"></i> Board Exam Test Series</a></li>
+                    <li><a href="online-question-paper-generator" class="bypass-user-type"><i class="fas fa-university"></i> College & University Exam Maker</a></li>
                     <li><a href="topic-wise-mcqs-test" class="bypass-user-type ALH_cct" data-action="online_mcqs"><i class="fas fa-pencil-alt"></i> MCQs Practice</a></li>
                 </ul>
             </div>

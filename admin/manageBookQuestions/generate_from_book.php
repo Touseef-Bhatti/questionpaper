@@ -1,20 +1,20 @@
 <?php
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../security.php';
-require_once __DIR__ . '/../../services/GoogleDriveContentSyncService.php';
 requireAdminAuth();
 
-$driveSyncError = '';
 $driveSyncResult = ['books_missing' => 0, 'notes_missing' => 0];
-try {
-    $driveSyncResult = (new GoogleDriveContentSyncService())->sync(
-        $conn,
-        (int) ($_SESSION['admin_id'] ?? ($_SESSION['user_id'] ?? 0))
-    );
-} catch (Throwable $e) {
-    // Keep the page usable during a temporary Drive outage and do not alter DB metadata.
-    error_log('Book question page Drive sync failed: ' . $e->getMessage());
-    $driveSyncError = 'Google Drive could not be checked right now. Existing records were left unchanged.';
+// Drive reconciliation is intentionally manual. Only read the locally stored
+// missing count here so an unavailable Drive cannot delay the page response.
+$bookUploadsTableCheck = $conn->query("SHOW TABLES LIKE 'book_uploads'");
+if ($bookUploadsTableCheck && $bookUploadsTableCheck->num_rows > 0) {
+    $driveStatusColumnCheck = $conn->query("SHOW COLUMNS FROM book_uploads LIKE 'drive_status'");
+    if ($driveStatusColumnCheck && $driveStatusColumnCheck->num_rows > 0) {
+        $missingBooksQuery = $conn->query("SELECT COUNT(*) AS cnt FROM book_uploads WHERE drive_status = 'missing'");
+        if ($missingBooksQuery && ($missingBooksRow = $missingBooksQuery->fetch_assoc())) {
+            $driveSyncResult['books_missing'] = (int) $missingBooksRow['cnt'];
+        }
+    }
 }
 
 $classes = [];
@@ -459,12 +459,6 @@ include_once __DIR__ . '/../header.php';
             <div class="flex-grow-1">
                 <strong>Gemini API Key Required:</strong> Add <code>GEMINIAPIKEYFORBOOKQUESTIONS</code> to your environment file to enable question generation.
             </div>
-        </div>
-    <?php endif; ?>
-    <?php if ($driveSyncError !== ''): ?>
-        <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
-            <i class="fa-solid fa-triangle-exclamation fs-5 flex-shrink-0"></i>
-            <div><?= htmlspecialchars($driveSyncError, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
     <?php endif; ?>
     <?php if (($driveSyncResult['books_missing'] ?? 0) > 0): ?>
@@ -1287,7 +1281,7 @@ document.getElementById('syncDriveBtn').addEventListener('click', async () => {
             showAlert(data.error || 'Google Drive sync failed.', 'danger');
         } else {
             showAlert('Drive sync complete: ' + (data.books_imported || 0) + ' book file(s), ' + (data.notes_imported || 0) + ' note file(s) imported; marked ' + (data.books_missing || 0) + ' book record(s) and ' + (data.notes_missing || 0) + ' note record(s) as deleted from Drive.', 'success');
-            await refreshData();
+            window.location.reload();
         }
     } catch (error) {
         showAlert('Google Drive sync failed. Check the Drive connection.', 'danger');

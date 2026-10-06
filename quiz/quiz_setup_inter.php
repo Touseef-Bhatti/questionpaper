@@ -82,7 +82,6 @@ function createSlug($string) {
 
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/quiz_setup.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <?php include_once '../header.php'; ?>

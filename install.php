@@ -755,6 +755,68 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS question_paper_topic_search_history 
     INDEX idx_question_paper_search_user (user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: question_paper_topic_search_history");
 
+// Homepage smart search destinations, display configuration, and analytics.
+runQuery($conn, "CREATE TABLE IF NOT EXISTS home_search_items (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(120) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    url VARCHAR(500) NOT NULL,
+    icon VARCHAR(80) NOT NULL DEFAULT 'fas fa-search',
+    keywords TEXT NOT NULL,
+    synonyms TEXT NOT NULL,
+    is_quick_link TINYINT(1) NOT NULL DEFAULT 0,
+    is_fallback TINYINT(1) NOT NULL DEFAULT 0,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 100,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_home_search_display (is_active, is_quick_link, sort_order),
+    INDEX idx_home_search_fallback (is_active, is_fallback, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: home_search_items");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS home_search_settings (
+    setting_key VARCHAR(60) PRIMARY KEY,
+    setting_value VARCHAR(500) NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: home_search_settings");
+
+runQuery($conn, "CREATE TABLE IF NOT EXISTS home_search_logs (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    query_text VARCHAR(120) NOT NULL,
+    normalized_query VARCHAR(120) NOT NULL,
+    matched_item_id INT UNSIGNED NULL,
+    match_type ENUM('result', 'quick_link', 'fallback', 'no_match') NOT NULL DEFAULT 'result',
+    results_count TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    user_id INT NULL,
+    session_hash CHAR(64) NOT NULL,
+    ip_hash CHAR(64) NOT NULL,
+    user_agent VARCHAR(255) NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_home_search_log_item FOREIGN KEY (matched_item_id) REFERENCES home_search_items(id) ON DELETE SET NULL,
+    CONSTRAINT fk_home_search_log_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_home_search_log_created (created_at),
+    INDEX idx_home_search_log_query_date (normalized_query, created_at),
+    INDEX idx_home_search_log_match_date (matched_item_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: home_search_logs");
+
+runQuery($conn, "INSERT IGNORE INTO home_search_settings (setting_key, setting_value) VALUES
+    ('placeholder', 'Search question papers, MCQs, notes and more...'),
+    ('no_results_title', 'We could not find an exact match'),
+    ('no_results_message', 'Try a shorter phrase, or choose one of these popular destinations.')", "Default: home search settings");
+
+// Seed only when the table is empty, so reinstalling never overwrites admin choices.
+$homeSearchCountResult = $conn->query("SELECT COUNT(*) AS total FROM home_search_items");
+$homeSearchCount = $homeSearchCountResult ? (int) ($homeSearchCountResult->fetch_assoc()['total'] ?? 0) : 0;
+if ($homeSearchCount === 0) {
+    runQuery($conn, "INSERT INTO home_search_items (title, description, url, icon, keywords, synonyms, is_quick_link, is_fallback, sort_order) VALUES
+        ('Question Paper Generator', 'Create printable papers for school, college and university.', 'class-9th-and-10th-online-question-paper-generator', 'fas fa-file-alt', 'question paper, paper generator, exam maker, create test, board paper', 'paper builder, test maker, exam creator', 1, 1, 10),
+        ('Online MCQs Test', 'Practise multiple-choice questions with instant results.', 'online-mcqs-test-for-9th-and-10th-board-exams', 'fas fa-check-circle', 'mcqs, quiz, online test, objective questions, practice', 'multiple choice questions, objective test, mock quiz', 1, 1, 20),
+        ('Math & Class Notes', 'Browse class notes and study material by subject.', 'class-notes', 'fas fa-square-root-alt', 'math notes, maths notes, study notes, class notes, physics notes, chemistry notes', 'mathematics notes, study material, revision notes', 1, 1, 30),
+        ('Board Exam Test Series', 'Prepare with chapter-wise tests and past-paper practice.', 'class-9-10-11-12-test-series-for-board-exams', 'fas fa-clipboard-list', 'past papers, test series, board exam, exam preparation', 'old papers, mock exams, practice papers', 1, 1, 40),
+        ('Host a Live Quiz', 'Create an interactive quiz room for your class.', 'online-quiz-hosting', 'fas fa-broadcast-tower', 'host quiz, live quiz, classroom game, quiz room', 'create live test, teacher quiz', 1, 0, 50),
+        ('Study Materials', 'Explore learning resources for board exam preparation.', 'study-material-for-board-exam-preparations', 'fas fa-book-open', 'study material, books, notes, learning resources', 'revision resources, educational material', 1, 0, 60)", "Defaults: home search items");
+}
+
 runQuery($conn, "CREATE TABLE IF NOT EXISTS promotional_email_campaigns (
     id INT AUTO_INCREMENT PRIMARY KEY,
     subject VARCHAR(255) NOT NULL,

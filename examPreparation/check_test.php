@@ -328,7 +328,6 @@ $stmt->close();
 $assetBase = '../';
 include '../header.php';
 ?>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
     :root {
         --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);

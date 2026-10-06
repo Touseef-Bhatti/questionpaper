@@ -80,8 +80,7 @@ function h($str) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Lobby - <?= h($room['room_code']) ?> | Ahmad Learning Hub</title>
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
+<style>
         :root {
             --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
             --glass: rgba(255, 255, 255, 0.95);

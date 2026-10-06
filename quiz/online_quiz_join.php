@@ -194,8 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </script>
 
   <link rel="stylesheet" href="<?= ($assetBase ?? '') ?>css/main.css">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
+<style>
     :root {
       --primary: #4F46E5;
       --primary-dark: #3730A3;

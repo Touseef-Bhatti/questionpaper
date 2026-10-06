@@ -72,6 +72,8 @@ if (!function_exists('alh_seo_current_path')) {
             '/quiz/quiz-host-index.php' => '/online-quiz-hosting',
             '/quiz/mcqs_topic.php' => '/topic-wise-mcqs-test',
             '/notes/note.php' => '/study-material-for-board-exam-preparations',
+            '/notes/textbooks.php' => '/textbooks',
+            '/notes/textbooks' => '/textbooks',
             '/mcqs.php' => '/class-9-10-11-12-mcqs-for-board-exams',
             '/notes/mcqs.php' => '/class-9-10-11-12-mcqs-for-board-exams',
             '/examPreparation/select_class_for_test.php' => '/class-9-10-11-12-test-series-for-board-exams',
@@ -171,6 +173,7 @@ if (!function_exists('alh_render_seo_head')) {
         $includeRobots = (bool) ($options['include_robots'] ?? true);
         $includeAuthor = (bool) ($options['include_author'] ?? true);
         $contentLanguage = trim((string) ($options['content_language'] ?? 'en-PK'));
+        $audienceType = trim((string) ($options['audience_type'] ?? 'students, teachers, tutors and schools in Pakistan'));
 
         if ($includeTitle) {
             echo '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</title>\n";

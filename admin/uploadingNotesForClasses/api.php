@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../security.php';
 require_once __DIR__ . '/../../services/GoogleDriveService.php';
+require_once __DIR__ . '/../../services/NoteDescriptionGenerator.php';
 require_once __DIR__ . '/../../email/phpmailer_mailer.php';
 
 requireAdminAuth();
@@ -224,6 +225,55 @@ header('Content-Type: application/json');
 $adminId = $_SESSION['admin_id'] ?? ($_SESSION['user_id'] ?? null);
 
 switch ($action) {
+    case 'generate_description':
+        header('Content-Type: application/json; charset=utf-8');
+
+        $lastRequestAt = (float) ($_SESSION['note_description_last_request_at'] ?? 0);
+        if ($lastRequestAt > 0 && (microtime(true) - $lastRequestAt) < 3) {
+            http_response_code(429);
+            echo json_encode(['success' => false, 'error' => 'Please wait a moment before generating another description.']);
+            exit;
+        }
+
+        $title = trim((string) ($_POST['title'] ?? ''));
+        $class = trim((string) ($_POST['class'] ?? ''));
+        $subject = trim((string) ($_POST['subject'] ?? ''));
+        $chapter = trim((string) ($_POST['chapter'] ?? ''));
+        if ($subject === 'Other') {
+            $subject = trim((string) ($_POST['custom_subject'] ?? ''));
+        }
+        if ($chapter === '__custom__') {
+            $chapter = trim((string) ($_POST['custom_chapter'] ?? ''));
+        }
+
+        if (!in_array($class, ['9', '10', '11', '12'], true) || $subject === '') {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Select a valid class and book/subject first.']);
+            exit;
+        }
+        if (strlen($title) > 255 || strlen($subject) > 100 || strlen($chapter) > 255) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'One or more note fields are too long.']);
+            exit;
+        }
+
+        $_SESSION['note_description_last_request_at'] = microtime(true);
+        $generated = NoteDescriptionGenerator::generate([
+            'title' => $title !== '' ? $title : 'Study notes',
+            'class' => 'Class ' . $class,
+            'subject' => $subject,
+            'chapter' => $chapter,
+        ]);
+
+        if (!($generated['ok'] ?? false)) {
+            http_response_code(502);
+            echo json_encode(['success' => false, 'error' => $generated['error'] ?? 'Description generation failed.']);
+            exit;
+        }
+
+        echo json_encode(['success' => true, 'description' => $generated['description']], JSON_UNESCAPED_UNICODE);
+        exit;
+
     case 'test_drive':
         try {
             $drive = new GoogleDriveService();

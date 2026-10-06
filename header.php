@@ -1,9 +1,30 @@
 <?php
 include_once __DIR__ . '/db_connect.php';
 require_once __DIR__ . '/includes/seo.php';
+require_once __DIR__ . '/includes/home_search.php';
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) session_start();
 
+// The smart search is shared by every public page. The homepage prepares
+// these values before including the header; other pages prepare them here.
+if (!isset($homeSearchItems) || !is_array($homeSearchItems)) {
+    $homeSearchItems = homeSearchItems($conn);
+}
+if (!isset($homeSearchQuickLinks) || !is_array($homeSearchQuickLinks)) {
+    $homeSearchQuickLinks = array_slice(array_values(array_filter(
+        $homeSearchItems,
+        static fn(array $item): bool => !empty($item['is_quick_link'])
+    )), 0, 8);
+}
+if (!isset($homeSearchSettings) || !is_array($homeSearchSettings)) {
+    $homeSearchSettings = homeSearchSettings($conn);
+}
+if (empty($_SESSION['home_search_csrf'])) {
+    $_SESSION['home_search_csrf'] = bin2hex(random_bytes(24));
+}
+$homeSearchToken = $homeSearchToken ?? $_SESSION['home_search_csrf'];
+
 $current_page = $_SERVER['SCRIPT_NAME'];
+$alh_is_home_page = in_array(basename($current_page), ['index.php', ''], true);
 if (!isset($pageTitle)) {
     $pageTitle = 'Ahmad Learning Hub | Online Exam Preparation';
 }
@@ -38,12 +59,12 @@ $alh_render_shell = !isset($skip_shell) && !isset($only_navbar) && !$alh_has_pri
 <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
 <?php endif; ?>
 
+<?php if ($alh_render_shell): ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'Ahmad Learning Hub | Online Exam Preparation' ?></title>
 <?php if (isset($metaDescription)): ?><meta name="description" content="<?= htmlspecialchars($metaDescription) ?>"><?php endif; ?>
 <?php if (isset($metaKeywords)): ?><meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>"><?php endif; ?>
-<?php if ($alh_render_shell): ?>
 <?php alh_render_seo_head([
     'title' => $pageTitle ?? 'Ahmad Learning Hub',
     'description' => $metaDescription ?? 'Online question paper generation, MCQs practice, study notes, exam preparation and live quiz hosting for students and teachers in Pakistan.',
@@ -63,6 +84,7 @@ $alh_render_shell = !isset($skip_shell) && !isset($only_navbar) && !$alh_has_pri
     if(t==='School'||t===null) document.documentElement.classList.add('alh-school','school-mode');
 })();
 </script>
+<script src="<?= $assetBase ?? '' ?>js/home-search.js?v=1.2" defer></script>
 
 <style>
 /* ============================================================
@@ -70,7 +92,7 @@ $alh_render_shell = !isset($skip_shell) && !isset($only_navbar) && !$alh_has_pri
    ALL selectors prefixed .ALH_ — zero collision with page CSS
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+/* Plus Jakarta Sans is loaded via css/local-fonts.css */
 
 .ALH_root {
     --ap: #4f46e5;
@@ -111,6 +133,7 @@ html.alh-dark .ALH_root {
 .ALH_nav {
     position:fixed; inset:0 0 auto 0; z-index:10000;
     height:var(--ah);
+    max-width:100vw; overflow:visible;
     background:var(--abg);
     backdrop-filter:blur(24px) saturate(180%);
     -webkit-backdrop-filter:blur(24px) saturate(180%);
@@ -126,7 +149,7 @@ html.alh-dark .ALH_root {
 html.alh-dark .ALH_nav.ALH_scrolled { background:rgba(15,23,42,0.85); }
 
 .ALH_inner {
-    max-width:1400px; width:100%; margin:0 auto; height:100%;
+    max-width:1400px; width:100%; min-width:0; margin:0 auto; height:100%;
     display:flex; align-items:center; justify-content:space-between;
     padding:0 1.5rem; gap:1rem;
 }
@@ -136,7 +159,8 @@ html.alh-dark .ALH_nav.ALH_scrolled { background:rgba(15,23,42,0.85); }
     font-weight:800; font-size:1.2rem; letter-spacing:-.04em;
     background:linear-gradient(135deg,#4f46e5,#0ea5e9);
     -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    background-clip:text; white-space:nowrap; flex-shrink:0;
+    background-clip:text; white-space:nowrap; min-width:0; flex-shrink:1;
+    overflow:hidden; text-overflow:ellipsis;
     transition:opacity .2s;
 }
 .ALH_logo:hover { opacity:.75; }
@@ -144,8 +168,9 @@ html.alh-dark .ALH_nav.ALH_scrolled { background:rgba(15,23,42,0.85); }
 /* ── MENU LIST ── */
 .ALH_menu {
     display:flex; align-items:center; gap:2px;
-    height:100%; flex:1; justify-content:center;
+    height:100%; min-width:0; flex:1 1 auto; justify-content:center;
 }
+.ALH_menu > li { min-width:0; }
 
 /* ── BASE LINK ── */
 .ALH_link {
@@ -201,7 +226,7 @@ html.alh-dark .ALH_nav.ALH_scrolled { background:rgba(15,23,42,0.85); }
     border:1px solid var(--abdr);
     border-radius:var(--ar3);
     box-shadow:0 24px 60px rgba(0,0,0,0.15), 0 4px 12px rgba(79,70,229,0.08);
-    min-width:210px; padding:6px;
+    min-width:210px; max-width:calc(100vw - 24px); padding:6px;
     opacity:0; visibility:hidden;
     transform:translateY(10px) scale(.97); transform-origin:top left;
     transition:opacity .2s, visibility .2s, transform .2s;
@@ -229,7 +254,7 @@ html.alh-dark .ALH_panel { box-shadow:0 24px 60px rgba(0,0,0,0.5); }
 
 /* ── MEGA PANEL ── */
 .ALH_mega {
-    min-width:500px; left:50%;
+    width:min(500px, calc(100vw - 24px)); min-width:0; left:50%;
     transform:translateX(-50%) translateY(10px) scale(.97);
     transform-origin:top center;
 }
@@ -285,6 +310,18 @@ html.alh-dark .ALH_panel { box-shadow:0 24px 60px rgba(0,0,0,0.5); }
 .ALH_ac:active { transform:translateY(0); }
 .ALH_ac i { font-size:1.15rem; }
 
+/* Compact desktop: keep every navbar control inside the viewport. */
+@media (min-width:1025px) and (max-width:1180px) {
+    .ALH_inner { padding:0 1rem; gap:.55rem; }
+    .ALH_logo { max-width:190px; font-size:1.05rem; }
+    .ALH_menu { gap:0; justify-content:flex-end; }
+    .ALH_link, .ALH_dbtn { padding:7px 8px; gap:5px; font-size:.78rem; }
+    .ALH_join { padding:7px 12px; font-size:.76rem; }
+    .ALH_nav_search { min-height:38px; padding:5px 7px; gap:5px; }
+    .ALH_nav_search > i { width:25px; height:25px; font-size:.72rem; }
+    .ALH_nav_search kbd { display:none; }
+}
+
 /* Profile drop right-align */
 .ALH_pdrop .ALH_panel { left:auto; right:0; transform-origin:top right; }
 .ALH_pdrop .ALH_panel.ALH_popen, .ALH_pdrop:hover .ALH_panel { transform:translateY(0) scale(1); }
@@ -327,6 +364,48 @@ html.alh-dark .ALH_panel { box-shadow:0 24px 60px rgba(0,0,0,0.5); }
 
 /* ── RIGHT CLUSTER ── */
 .ALH_right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.ALH_nav_search {
+    position:relative; isolation:isolate; overflow:hidden;
+    display:inline-flex; align-items:center; gap:8px;
+    min-height:42px; padding:6px 9px 6px 7px;
+    color:var(--atxt);
+    background:linear-gradient(var(--asurf),var(--asurf)) padding-box,
+               linear-gradient(115deg,#4f46e5,#0ea5e9,#10b981) border-box;
+    border:1px solid transparent; border-radius:13px;
+    font-size:.82rem; font-weight:800; letter-spacing:.01em; white-space:nowrap;
+    box-shadow:0 5px 16px rgba(79,70,229,.14), inset 0 1px 0 rgba(255,255,255,.7);
+    transition:transform .22s cubic-bezier(.16,1,.3,1), box-shadow .22s ease, filter .22s ease;
+}
+.ALH_nav_search::before {
+    content:''; position:absolute; inset:0; z-index:-1;
+    background:linear-gradient(105deg,transparent 18%,rgba(255,255,255,.5) 48%,transparent 78%);
+    transform:translateX(-130%); transition:transform .55s cubic-bezier(.16,1,.3,1);
+}
+.ALH_nav_search::after {
+    content:''; width:7px; height:7px; margin-left:-3px;
+    border-radius:50%; background:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,.13);
+}
+.ALH_nav_search:hover,
+.ALH_nav_search:focus-visible {
+    color:var(--ap); outline:none; transform:translateY(-2px);
+    box-shadow:0 9px 22px rgba(79,70,229,.2), inset 0 1px 0 rgba(255,255,255,.85);
+    filter:saturate(1.08);
+}
+.ALH_nav_search:hover::before,
+.ALH_nav_search:focus-visible::before { transform:translateX(130%); }
+.ALH_nav_search:active { transform:translateY(0) scale(.98); }
+.ALH_nav_search > i {
+    display:grid; place-items:center; width:28px; height:28px;
+    color:#fff; background:linear-gradient(135deg,#4f46e5,#0ea5e9);
+    border-radius:9px; font-size:.78rem;
+    box-shadow:0 4px 10px rgba(79,70,229,.28);
+}
+.ALH_nav_search kbd {
+    margin-left:2px; padding:4px 6px; color:var(--atxt2);
+    background:var(--asurf2); border:1px solid var(--abdr);
+    border-bottom-width:2px; border-radius:6px;
+    font:800 .6rem/1 var(--afont); letter-spacing:.03em;
+}
 
 /* ── HAMBURGER ── */
 .ALH_burger {
@@ -358,7 +437,7 @@ html.alh-dark .ALH_panel { box-shadow:0 24px 60px rgba(0,0,0,0.5); }
 /* ============================================================
    MOBILE SIDEBAR — completely self-contained & opaque
    ============================================================ */
-@media (max-width:768px) {
+@media (max-width:1024px) {
 
     .ALH_burger { display:flex; }
 
@@ -402,6 +481,34 @@ html.alh-dark .ALH_panel { box-shadow:0 24px 60px rgba(0,0,0,0.5); }
         opacity:0; transform:translateX(-20px);
         transition:opacity .4s ease, transform .4s ease;
     }
+
+    .ALH_mobile_search {
+        width:100%; min-height:58px; padding:9px 10px;
+        display:flex; align-items:center; gap:10px;
+        color:var(--atxt); text-align:left;
+        background:linear-gradient(135deg,rgba(79,70,229,.1),rgba(14,165,233,.08)) !important;
+        border:1px solid rgba(79,70,229,.18) !important;
+        border-radius:16px !important;
+        transition:transform .2s, border-color .2s, background .2s !important;
+    }
+    .ALH_mobile_search:hover,
+    .ALH_mobile_search:focus-visible {
+        transform:translateY(-1px);
+        border-color:rgba(79,70,229,.48) !important;
+        background:linear-gradient(135deg,rgba(79,70,229,.16),rgba(14,165,233,.12)) !important;
+        outline:none;
+    }
+    .ALH_mobile_search:focus-visible { box-shadow:0 0 0 3px rgba(79,70,229,.18); }
+    .ALH_mobile_search_icon {
+        width:38px; height:38px; flex:0 0 38px;
+        display:grid; place-items:center; border-radius:11px;
+        color:#fff; background:linear-gradient(135deg,var(--ap),var(--ask));
+        box-shadow:0 6px 16px rgba(79,70,229,.3);
+    }
+    .ALH_mobile_search_copy { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
+    .ALH_mobile_search_copy strong { font-size:.9rem; line-height:1.2; }
+    .ALH_mobile_search_copy small { color:var(--atxt2); font-size:.7rem; line-height:1.25; }
+    .ALH_mobile_search_arrow { color:var(--ap); font-size:.78rem; }
 
     /* Section Label for Mobile */
     .ALH_menu::after {
@@ -464,6 +571,7 @@ html.alh-dark .ALH_panel { box-shadow:0 24px 60px rgba(0,0,0,0.5); }
 
     /* hide desktop plan chip in top-right, show inside menu */
     .ALH_right .ALH_chip { display:none; }
+    .ALH_nav_search { display:none; }
     .ALH_deskonly { display:none !important; }
     .ALH_mobonly { display:block !important; }
 
@@ -471,7 +579,7 @@ html.alh-dark .ALH_panel { box-shadow:0 24px 60px rgba(0,0,0,0.5); }
     .ALH_dbtn.ALH_dopen .ALH_caret { transform:rotate(180deg); }
 }
 
-@media (min-width:769px) { .ALH_mobonly { display:none !important; } }
+@media (min-width:1025px) { .ALH_mobonly { display:none !important; } }
 
 @media (max-width:400px) {
     .ALH_inner { padding:0 .85rem; }
@@ -615,7 +723,9 @@ body { padding-top:var(--ah, 66px); }
 
 <?php alh_navbar_start: ?>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+<link rel="stylesheet" href="<?= $assetBase ?? '' ?>fonts/fontawesome/css/all.min.css?v=6.4.0">
+<link rel="stylesheet" href="<?= $assetBase ?? '' ?>css/local-fonts.css?v=1.1">
+<link rel="stylesheet" href="<?= $assetBase ?? '' ?>css/home-search.css?v=1.2">
 
 <div class="ALH_root">
 
@@ -634,6 +744,17 @@ body { padding-top:var(--ah, 66px); }
         <a href="<?= $assetBase ?>index" class="ALH_link <?= (basename($current_page)=='index.php'||basename($current_page)=='') ? 'alh-active' : '' ?>">
           <i class="fas fa-home"></i> Home
         </a>
+      </li>
+
+      <li class="ALH_mobonly ALH_mobile_search_item">
+        <button class="ALH_mobile_search" type="button" data-home-search-open aria-haspopup="dialog" aria-controls="homeSmartSearch" aria-label="Search Ahmad Learning Hub">
+          <span class="ALH_mobile_search_icon"><i class="fas fa-search" aria-hidden="true"></i></span>
+          <span class="ALH_mobile_search_copy">
+            <strong>Search</strong>
+            <small>Papers, MCQs, notes &amp; more </small>
+          </span>
+          <i class="fas fa-chevron-right ALH_mobile_search_arrow" aria-hidden="true"></i>
+        </button>
       </li>
 
       <!-- Generate Paper MEGA -->
@@ -759,24 +880,7 @@ body { padding-top:var(--ah, 66px); }
       </li>
 
       <?php if(isset($_SESSION['user_id'])): ?>
-        <?php
-        if(file_exists(__DIR__.'/middleware/SubscriptionCheck.php')){
-            require_once __DIR__.'/middleware/SubscriptionCheck.php';
-            $subInfo = getSubscriptionInfo($_SESSION['user_id']);
-        }
-        ?>
-
-        <!-- Plan chip (mobile only inside sidebar) -->
-        <?php if(isset($subInfo)&&$subInfo): ?>
-        <li class="ALH_mobonly" style="padding:4px 10px 2px;">
-          <a href="<?= $subInfo['is_premium']?($assetBase.'subscription'):'javascript:void(0)' ?>"
-             onclick="<?= $subInfo['is_premium']?'':'showAlhUpgradeModal(\'general\')' ?>"
-             class="ALH_chip <?= $subInfo['is_premium']?'premium':'basic' ?>" style="display:inline-flex;">
-            <span class="ALH_dot"></span>
-            <span><?= htmlspecialchars($subInfo['plan_name']) ?></span>
-          </a>
-        </li>
-        <?php endif; ?>
+        <?php /* Subscription plan navigation option intentionally hidden. */ ?>
 
         <!-- Profile dropdown -->
         <li class="ALH_drop ALH_pdrop" id="ALH_profdrop">
@@ -822,14 +926,9 @@ body { padding-top:var(--ah, 66px); }
 
     <!-- Right cluster (desktop only) -->
     <div class="ALH_right">
-      <?php if(isset($_SESSION['user_id'])&&isset($subInfo)&&$subInfo): ?>
-        <a href="<?= $subInfo['is_premium']?($assetBase.'subscription'):'javascript:void(0)' ?>"
-           onclick="<?= $subInfo['is_premium']?'':'showAlhUpgradeModal(\'general\')' ?>"
-           class="ALH_chip <?= $subInfo['is_premium']?'premium':'basic' ?> ALH_deskonly">
-          <span class="ALH_dot"></span>
-          <span><?= htmlspecialchars($subInfo['plan_name']) ?></span>
-        </a>
-      <?php endif; ?>
+      <button class="ALH_nav_search" type="button" data-home-search-open aria-haspopup="dialog" aria-controls="homeSmartSearch" aria-label="Search Ahmad Learning Hub">
+        <i class="fas fa-search" aria-hidden="true"></i><span>Search</span><kbd></kbd>
+      </button>
       <button class="ALH_burger" id="ALH_burger" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
@@ -895,6 +994,55 @@ body { padding-top:var(--ah, 66px); }
 
 </div><!-- /ALH_root -->
 
+<!-- Shared smart search dialog. It lives in the header so every page can open it. -->
+<?php if (!$alh_is_home_page): ?>
+<div class="home-search-overlay" id="homeSmartSearch"
+     data-search-base="<?= htmlspecialchars($assetBase ?? '', ENT_QUOTES, 'UTF-8') ?>"
+     data-search-token="<?= htmlspecialchars($homeSearchToken, ENT_QUOTES, 'UTF-8') ?>"
+     hidden>
+  <div class="home-search-backdrop" data-home-search-close></div>
+  <section class="home-search-dialog" role="dialog" aria-modal="true" aria-labelledby="homeSearchTitle">
+    <h2 id="homeSearchTitle" class="sr-only">Search Ahmad Learning Hub</h2>
+    <div class="home-search-input-row">
+      <i class="fas fa-search" aria-hidden="true"></i>
+      <input id="homeSearchInput" type="search" autocomplete="off" maxlength="120" spellcheck="true"
+             placeholder="<?= htmlspecialchars($homeSearchSettings['placeholder'], ENT_QUOTES, 'UTF-8') ?>"
+             aria-label="Search website features" aria-controls="homeSearchResults">
+      <span class="home-search-esc" aria-hidden="true">ESC</span>
+      <button type="button" class="home-search-close" data-home-search-close aria-label="Close search"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="home-search-content">
+      <div class="home-search-heading-row">
+        <p class="home-search-eyebrow" id="homeSearchSectionTitle">Quick links</p>
+        <span class="home-search-status" id="homeSearchStatus" role="status" aria-live="polite"></span>
+      </div>
+      <div class="home-search-results" id="homeSearchResults" role="listbox">
+        <?php foreach ($homeSearchQuickLinks as $item): ?>
+          <?php $publicItem = homeSearchPublicItem($item); ?>
+          <?php $searchUrl = ($assetBase ?? '') . ltrim($publicItem['url'], '/'); ?>
+          <a class="home-search-result" href="<?= htmlspecialchars($searchUrl, ENT_QUOTES, 'UTF-8') ?>"
+             role="option" data-search-item-id="<?= htmlspecialchars((string) $publicItem['id'], ENT_QUOTES, 'UTF-8') ?>" data-search-kind="quick_link">
+            <span class="home-search-result-icon"><i class="<?= htmlspecialchars($publicItem['icon'], ENT_QUOTES, 'UTF-8') ?>"></i></span>
+            <span><strong><?= htmlspecialchars($publicItem['title'], ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($publicItem['description'], ENT_QUOTES, 'UTF-8') ?></small></span>
+            <i class="fas fa-arrow-right home-search-result-arrow" aria-hidden="true"></i>
+          </a>
+        <?php endforeach; ?>
+      </div>
+      <div class="home-search-empty" id="homeSearchEmpty" hidden>
+        <strong><?= htmlspecialchars($homeSearchSettings['no_results_title'], ENT_QUOTES, 'UTF-8') ?></strong>
+        <span><?= htmlspecialchars($homeSearchSettings['no_results_message'], ENT_QUOTES, 'UTF-8') ?></span>
+      </div>
+    </div>
+    <footer class="home-search-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+      <span><kbd>Enter</kbd> Open</span>
+      <span><kbd>Esc</kbd> Close</span>
+      <span class="home-search-smart-note"><i class="fas fa-magic"></i> Understands related words &amp; typos</span>
+    </footer>
+  </section>
+</div>
+<?php endif; ?>
+
 <!-- ════════════════════════════════════
      JAVASCRIPT
      ════════════════════════════════════ -->
@@ -938,7 +1086,7 @@ document.addEventListener('click',function(e){
 });
 
 const burger=$('ALH_burger'), menu=$('ALH_menu'), overlay=$('ALH_overlay'), nav=$('ALH_nav');
-const isMob=()=>window.innerWidth<=768;
+const isMob=()=>window.innerWidth<=1024;
 
 /* scroll effect */
 window.addEventListener('scroll',()=>nav.classList.toggle('ALH_scrolled',scrollY>20),{passive:true});
@@ -970,7 +1118,7 @@ document.addEventListener('keydown',e=>e.key==='Escape'&&closeSB());
 window.addEventListener('resize',()=>!isMob()&&closeSB());
 
 /* close sidebar on plain link click */
-menu.querySelectorAll('a.ALH_link,a.ALH_join,a.ALH_ditem,a.ALH_ac').forEach(a=>{
+menu.querySelectorAll('a.ALH_link,a.ALH_join,a.ALH_ditem,a.ALH_ac,button.ALH_mobile_search').forEach(a=>{
     a.addEventListener('click',()=>isMob()&&closeSB());
 });
 
@@ -1056,7 +1204,7 @@ function syncMode(){
     const t=localStorage.getItem('user_type_preference')||'School', s=t==='School';
     document.documentElement.classList.toggle('alh-school',s);
     document.documentElement.classList.toggle('school-mode',s);
-    const lbl=$('ALH_modelabel'); if(lbl) lbl.textContent=s?'Switch to Advance Mode':'Switch to School Mode';
+    const lbl=$('ALH_modelabel'); if(lbl) lbl.textContent=s?'Switch to University Mode':'Switch to School Mode';
     const bS=document.getElementById('btnSchoolMode'),bA=document.getElementById('btnAdvanceMode');
     if(bS&&bA){ bS.classList.toggle('active',s); bA.classList.toggle('active',!s); }
 }

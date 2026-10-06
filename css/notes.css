@@ -1,5 +1,5 @@
 /* notes.css - Redesigned Study Materials Hub */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* Inter loaded via css/local-fonts.css */
 
 .notes-content {
     max-width: 800px;

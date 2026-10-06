@@ -37,9 +37,7 @@ $pageUrl         = alh_seo_absolute_url('/online-question-paper-generator');
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="<?= $assetBase ?>css/mcqs_topic.css?v=<?= (int) @filemtime(dirname(__DIR__) . '/css/mcqs_topic.css') ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
-    <style>
+<style>
     /* Universal Box Sizing to prevent layout overflow */
     *, *::before, *::after {
         box-sizing: border-box;

@@ -5,7 +5,6 @@
  */
 require_once __DIR__ . '/../../db_connect.php';
 require_once __DIR__ . '/../security.php';
-require_once __DIR__ . '/../../services/GoogleDriveContentSyncService.php';
 requireAdminAuth();
 
 // Ensure class_notes table exists
@@ -107,55 +106,9 @@ $bookUploadsDriveDeletedAtReady = $ensureDriveColumn(
     'drive_status'
 );
 
-$driveSyncError = '';
-$driveSyncResult = ['notes_missing' => 0, 'legacy_notes_missing' => 0, 'books_missing' => 0];
-try {
-    $driveSyncResult = (new GoogleDriveContentSyncService())->sync(
-        $conn,
-        (int) ($_SESSION['admin_id'] ?? ($_SESSION['user_id'] ?? 0))
-    );
-} catch (Throwable $e) {
-    // A temporary Drive outage must not make local metadata disappear.
-    error_log('Class notes page Drive sync failed: ' . $e->getMessage());
-    $driveSyncError = 'Google Drive could not be checked right now. Existing records were left unchanged.';
-}
-
-// The sync service may create legacy tables. Re-check the columns before running
-// dashboard counters so an older database or a restricted DB user cannot cause a fatal error.
-$classNotesDriveStatusReady = $ensureDriveColumn(
-    $conn,
-    'class_notes',
-    'drive_status',
-    "ENUM('available','missing') NOT NULL DEFAULT 'available'",
-    'approved_by'
-);
-$classNotesDriveDeletedAtReady = $ensureDriveColumn(
-    $conn,
-    'class_notes',
-    'drive_deleted_at',
-    'DATETIME DEFAULT NULL',
-    'drive_status'
-);
-$bookUploadsDriveStatusReady = $ensureDriveColumn(
-    $conn,
-    'book_uploads',
-    'drive_status',
-    "ENUM('available','missing') NOT NULL DEFAULT 'available'",
-    'status'
-);
-$bookUploadsDriveDeletedAtReady = $ensureDriveColumn(
-    $conn,
-    'book_uploads',
-    'drive_deleted_at',
-    'DATETIME DEFAULT NULL',
-    'drive_status'
-);
-
-if (!$classNotesDriveStatusReady || !$classNotesDriveDeletedAtReady || !$bookUploadsDriveStatusReady || !$bookUploadsDriveDeletedAtReady) {
-    $driveSyncError = $driveSyncError !== ''
-        ? $driveSyncError . ' Drive status columns could not be verified; run the Drive schema migration with a database user that has ALTER permission.'
-        : 'Drive status columns could not be verified; run the Drive schema migration with a database user that has ALTER permission.';
-}
+$driveSyncError = (!$classNotesDriveStatusReady || !$classNotesDriveDeletedAtReady || !$bookUploadsDriveStatusReady || !$bookUploadsDriveDeletedAtReady)
+    ? 'Drive status columns could not be verified; run the Drive schema migration with a database user that has ALTER permission.'
+    : '';
 
 // Handle session messages
 $message = $_SESSION['cn_message'] ?? '';
@@ -833,8 +786,14 @@ function adminNotePublicUrl($assetBase, $note) {
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Description</label>
-                        <textarea name="description" class="form-control" rows="2" placeholder="Key topics covered, highlights, author notes..."></textarea>
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                            <label for="modalDescription" class="form-label fw-bold mb-0">Description</label>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="generateNoteDescriptionBtn">
+                                <i class="fas fa-wand-magic-sparkles me-1"></i> Generate SEO + GEO Description
+                            </button>
+                        </div>
+                        <textarea name="description" id="modalDescription" class="form-control" rows="6" maxlength="2500" placeholder="Write manually or generate a 5-6 line description for this note page..."></textarea>
+                        <small class="text-muted" id="generateNoteDescriptionStatus" aria-live="polite">The generated text is editable and will be used on the public note page.</small>
                     </div>
 
                     <div class="mb-3">
@@ -1152,7 +1111,61 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Setup Edit Modal
     setupDependentDropdowns('edit', false);
+
+    document.getElementById('generateNoteDescriptionBtn')?.addEventListener('click', generateNoteDescription);
 });
+
+async function generateNoteDescription() {
+    const button = document.getElementById('generateNoteDescriptionBtn');
+    const status = document.getElementById('generateNoteDescriptionStatus');
+    const classValue = document.getElementById('modalClass')?.value || '';
+    const subjectSelect = document.getElementById('modalSubject');
+    const chapterSelect = document.getElementById('modalChapter');
+    const subjectValue = subjectSelect?.value || '';
+    const chapterValue = chapterSelect?.value === '__custom__'
+        ? (document.getElementById('modalCustomChapter')?.value || '')
+        : (chapterSelect?.value || '');
+    const customSubject = document.getElementById('modalCustomSubject')?.value || '';
+
+    if (!classValue || !subjectValue || (subjectValue === 'Other' && !customSubject.trim())) {
+        status.textContent = 'Select a class and book/subject first.';
+        status.className = 'text-danger';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('action', 'generate_description');
+    formData.append('csrf_token', csrfToken);
+    formData.append('title', document.querySelector('#uploadModal [name="title"]')?.value || 'Study notes');
+    formData.append('class', classValue);
+    formData.append('subject', subjectValue);
+    formData.append('custom_subject', customSubject);
+    formData.append('chapter', chapterValue);
+    formData.append('custom_chapter', document.getElementById('modalCustomChapter')?.value || '');
+
+    const originalHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Generating...';
+    status.textContent = 'Generating a note-specific SEO and GEO description...';
+    status.className = 'text-muted';
+
+    try {
+        const response = await fetch('api.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Description generation failed.');
+        }
+        document.getElementById('modalDescription').value = data.description || '';
+        status.textContent = 'Generated successfully. Review or edit it before uploading.';
+        status.className = 'text-success';
+    } catch (error) {
+        status.textContent = error.message || 'Could not generate the description. Please try again.';
+        status.className = 'text-danger';
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalHtml;
+    }
+}
 
 // Select All Checkbox
 document.getElementById('selectAll')?.addEventListener('change', function() {
