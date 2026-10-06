@@ -55,21 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $optionC = trim($optionCs[$i] ?? '');
             $optionD = trim($optionDs[$i] ?? '');
             $correctOptionLetter = strtoupper(trim($correctOptions[$i] ?? ''));
-            $correctOptionText = '';
-            switch ($correctOptionLetter) {
-                case 'A': $correctOptionText = $optionA; break;
-                case 'B': $correctOptionText = $optionB; break;
-                case 'C': $correctOptionText = $optionC; break;
-                case 'D': $correctOptionText = $optionD; break;
-            }
+            $correctOptionText = in_array($correctOptionLetter, ['A', 'B', 'C', 'D'], true) ? $correctOptionLetter : '';
             if ($classId > 0 && $chapterId > 0 && $text !== '') {
                 $bookEsc = $conn->real_escape_string($bookName);
-                $textEsc = $conn->real_escape_string($text);
-                $typeEsc = $conn->real_escape_string($type);
-                if ($type === 'mcq' && $optionA !== '' && $optionB !== '' && $optionC !== '' && $optionD !== '') {
+                if ($type === 'mcq' && $optionA !== '' && $optionB !== '' && $optionC !== '' && $optionD !== '' && $correctOptionText !== '') {
                     $mcqStmt = $conn->prepare("INSERT INTO mcqs (class_id, book_id, chapter_id, topic, question, option_a, option_b, option_c, option_d, correct_option) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     if ($mcqStmt) {
-                        $mcqStmt->bind_param('iiiississs', $classId, $bookId, $chapterId, $topic, $text, $optionA, $optionB, $optionC, $optionD, $correctOptionText);
+                        $mcqStmt->bind_param('iiisssssss', $classId, $bookId, $chapterId, $topic, $text, $optionA, $optionB, $optionC, $optionD, $correctOptionText);
                         if ($mcqStmt->execute()) {
                             $inserted++;
                         }
@@ -109,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } else {
                             $qStmt = $conn->prepare("INSERT INTO questions (class_id, book_id, chapter_id, $typeCol, $textCol, topic) VALUES (?, ?, ?, ?, ?, ?)");
                             if ($qStmt) {
-                                $qStmt->bind_param('iiiss', $classId, $bookId, $chapterId, $type, $text, $topic);
+                                $qStmt->bind_param('iiisss', $classId, $bookId, $chapterId, $type, $text, $topic);
                                 if ($qStmt->execute()) {
                                     $inserted++;
                                 }
@@ -130,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: manage_questions.php?msg=created');
             exit;
         }
+        $message = 'No questions were added. Check the selected location and required fields.';
     }
     elseif ($action === 'update') {
         $id = intval($_POST['id'] ?? 0);
@@ -145,25 +138,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $optionB = trim($_POST['option_b'] ?? '');
         $optionC = trim($_POST['option_c'] ?? '');
         $optionD = trim($_POST['option_d'] ?? '');
-        // We accept a letter (A/B/C/D) but store the actual option text in DB
         $correctOptionLetter = strtoupper(trim($_POST['correct_option'] ?? ''));
-        $correctOptionText = '';
-        switch ($correctOptionLetter) {
-            case 'A': $correctOptionText = $optionA; break;
-            case 'B': $correctOptionText = $optionB; break;
-            case 'C': $correctOptionText = $optionC; break;
-            case 'D': $correctOptionText = $optionD; break;
-        }
+        $correctOptionText = in_array($correctOptionLetter, ['A', 'B', 'C', 'D'], true) ? $correctOptionLetter : '';
         $mcqId = intval($_POST['mcq_id'] ?? 0);
         
         if ($id > 0 && $classId > 0 && $chapterId > 0 && $text !== '') {
             // If type is mcq and we have options
-            if ($type === 'mcq' && $optionA !== '' && $optionB !== '' && $optionC !== '' && $optionD !== '') {
+            if ($type === 'mcq' && $optionA !== '' && $optionB !== '' && $optionC !== '' && $optionD !== '' && $correctOptionText !== '') {
                 // If mcq_id exists, update the mcq record
                 if ($mcqId > 0) {
                     $updateStmt = $conn->prepare("UPDATE mcqs SET class_id=?, book_id=?, chapter_id=?, topic=?, question=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=? WHERE mcq_id=?");
                     if ($updateStmt) {
-                        $updateStmt->bind_param('iiiisssssi', $classId, $bookId, $chapterId, $topic, $text, $optionA, $optionB, $optionC, $optionD, $correctOptionText, $mcqId);
+                        $updateStmt->bind_param('iiisssssssi', $classId, $bookId, $chapterId, $topic, $text, $optionA, $optionB, $optionC, $optionD, $correctOptionText, $mcqId);
                         if ($updateStmt->execute()) {
                             $updateStmt->close();
                             header('Location: manage_questions.php?msg=updated');
@@ -175,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Insert new MCQ record
                     $insertStmt = $conn->prepare("INSERT INTO mcqs (class_id, book_id, chapter_id, topic, question, option_a, option_b, option_c, option_d, correct_option) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     if ($insertStmt) {
-                        $insertStmt->bind_param('iiiississs', $classId, $bookId, $chapterId, $topic, $text, $optionA, $optionB, $optionC, $optionD, $correctOptionText);
+                        $insertStmt->bind_param('iiisssssss', $classId, $bookId, $chapterId, $topic, $text, $optionA, $optionB, $optionC, $optionD, $correctOptionText);
                         if ($insertStmt->execute()) {
                             // Delete the original question if it exists
                             $delStmt = $conn->prepare("DELETE FROM questions WHERE id=?");
@@ -217,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     $updateStmt = $conn->prepare("UPDATE questions SET class_id=?, book_name=?, book_id=?, chapter_id=?, $typeCol=?, $textCol=?, topic=? WHERE id=?");
                     if ($updateStmt) {
-                        $updateStmt->bind_param('iiiisssi', $classId, $bookNameUpd, $bookId, $chapterId, $type, $text, $topic, $id);
+                        $updateStmt->bind_param('isiisssi', $classId, $bookNameUpd, $bookId, $chapterId, $type, $text, $topic, $id);
                         if ($updateStmt->execute()) {
                             $updateStmt->close();
                             header('Location: manage_questions.php?msg=updated');
@@ -312,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($mcqId > 0 && $classId > 0 && $chapterId > 0 && $question !== '' && $optionA !== '' && $optionB !== '' && $optionC !== '' && $optionD !== '') {
             $updateStmt = $conn->prepare("UPDATE mcqs SET class_id=?, book_id=?, chapter_id=?, topic=?, question=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=?, explanation=? WHERE mcq_id=?");
             if ($updateStmt) {
-                $updateStmt->bind_param('iiiisssssssi', $classId, $bookId, $chapterId, $topic, $question, $optionA, $optionB, $optionC, $optionD, $correctOptionText, $explanation, $mcqId);
+                        $updateStmt->bind_param('iiissssssssi', $classId, $bookId, $chapterId, $topic, $question, $optionA, $optionB, $optionC, $optionD, $correctOptionText, $explanation, $mcqId);
                 if ($updateStmt->execute()) {
                     $updateStmt->close();
                     header('Location: manage_questions.php?msg=mcq_updated');
@@ -346,8 +332,16 @@ if (isset($_GET['msg'])) {
     }
 }
 
-$classes = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC");
-$chapters = $conn->query("SELECT chapter_id, chapter_name, class_id, book_name FROM chapter ORDER BY chapter_id ASC");
+$classOptions = [];
+$classResult = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC");
+if ($classResult) {
+    while ($classRow = $classResult->fetch_assoc()) { $classOptions[] = $classRow; }
+}
+$chapterOptions = [];
+$chapterResult = $conn->query("SELECT chapter_id, chapter_name, chapter_no, class_id, book_name FROM chapter ORDER BY chapter_no ASC, chapter_id ASC");
+if ($chapterResult) {
+    while ($chapterRow = $chapterResult->fetch_assoc()) { $chapterOptions[] = $chapterRow; }
+}
 $books = $conn->query("SELECT book_id, book_name, class_id FROM book ORDER BY book_name ASC");
 $bookOptions = [];
 if ($books) { while ($bk = $books->fetch_assoc()) { $bookOptions[] = $bk; } }
@@ -482,707 +476,201 @@ if ($hasBookName) {
 }
 include_once __DIR__ . '/../header.php';
 ?>
-<style>
-        .mcq-options-display {
-            margin-top: 8px;
-            padding: 8px;
-            background-color: #f5f5f5;
-            border-radius: 4px;
-            border-left: 3px solid #007bff;
-        }
-        .mcq-options-display div {
-            margin-bottom: 4px;
-        }
-        .mcq-options-display strong {
-            display: inline-block;
-            width: 20px;
-            color: #007bff;
-        }
-    </style>
-    
+<main class="school-workspace" id="main-content">
+    <a class="school-breadcrumb" href="../dashboard.php">â† Back to dashboard</a>
 
-    <div class="wrap">
-        <div class="nav">
-            <a href="../dashboard.php">← Back to Dashboard</a>
+    <section class="school-hero" aria-labelledby="questions-page-title">
+        <div>
+            <span class="school-kicker">Question bank studio</span>
+            <h1 id="questions-page-title">Manage questions</h1>
+            <p>Build, review, and update questions with the class â†’ book â†’ chapter path always visible.</p>
         </div>
-        <h1>Manage Questions</h1>
-        <?php if ($message): ?><p class="msg"><?= htmlspecialchars($message) ?></p><?php endif; ?>
+        <div class="school-hero-mark" aria-hidden="true">Q?</div>
+    </section>
 
-            <div style="margin-top:24px; text-align: center;">
-            <a href="../deleted_questions.php" class="btn" style="display: inline-block; padding: 12px 24px; font-size: 16px; text-decoration: none; background: #28a745; color: white; border-radius: 8px; transition: background 0.3s;">
-                🗑️ View Recently Deleted Questions
-            </a>
-        </div>
-        <h3>Create New Question</h3>
-        <form method="POST" class="row" id="create-question-form">
-            <input type="hidden" name="action" value="create">
-            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
-            <select name="class_id" id="cq_class" required>
-                <option value="">Select class</option>
-                <?php if ($classes) while ($c = $classes->fetch_assoc()): ?>
-                    <option value="<?= (int)$c['class_id'] ?>"><?= htmlspecialchars($c['class_name']) ?></option>
-                <?php endwhile; ?>
-            </select>
-            <?php if ($hasBookName): ?>
-                <select name="book_id" id="cq_book">
-                    <option value="">Select book</option>
-                    <?php foreach ($bookOptions as $bk): ?>
-                        <option value="<?= (int)$bk['book_id'] ?>" data-class="<?= (int)$bk['class_id'] ?>" data-book-name="<?= htmlspecialchars($bk['book_name']) ?>"><?= htmlspecialchars($bk['book_name']) ?> (Class <?= (int)$bk['class_id'] ?>)</option>
-                    <?php endforeach; ?>
-                </select>
-            <?php endif; ?>
-            <select name="chapter_id" id="cq_chapter" required>
-                <option value="">Select chapter</option>
-                <?php if ($chapters) while ($ch = $chapters->fetch_assoc()): ?>
-                    <option value="<?= (int)$ch['chapter_id'] ?>" data-class="<?= (int)$ch['class_id'] ?>" data-book-name="<?= htmlspecialchars($ch['book_name']) ?>"><?= htmlspecialchars($ch['chapter_name']) ?></option>
-                <?php endwhile; ?>
-            </select>
-            <select name="type" id="question_type" required>
-                <option value="mcq">MCQ</option>
-                <option value="short" selected>Short</option>
-                <option value="long">Long</option>
-            </select>
-            
-            <br><br>
-            <div id="question-sets">
-                <div class="question-set">
-                    <textarea name="text[]" placeholder="Question text" required></textarea>
-                    <input type="text" name="topic[]" placeholder="Topic" required>
-                    <div class="mcq_options" style="display: none;">
-                        <input type="text" name="option_a[]" placeholder="Option A">
-                        <input type="text" name="option_b[]" placeholder="Option B">
-                        <input type="text" name="option_c[]" placeholder="Option C">
-                        <input type="text" name="option_d[]" placeholder="Option D">
-                        <select name="correct_option[]">
-                            <option value="">Select Correct Option</option>
-                            <option value="A">Option A</option>
-                            <option value="B">Option B</option>
-                            <option value="C">Option C</option>
-                            <option value="D">Option D</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <button type="button" id="add-next-question" style="margin:10px 0;">Add Next Question</button>
-            <button type="submit">Add All</button>
-            <script>
-            (function(){
-                const questionType = document.getElementById('question_type');
-                function toggleMcqOptions(set) {
-                    const typeSel = questionType;
-                    const mcqDiv = set.querySelector('.mcq_options');
-                    if (!typeSel || !mcqDiv) return;
-                    mcqDiv.style.display = typeSel.value === 'mcq' ? 'block' : 'none';
-                }
-                function addQuestionSet() {
-                    const sets = document.getElementById('question-sets');
-                    const first = sets.querySelector('.question-set');
-                    const clone = first.cloneNode(true);
-                    // Clear values
-                    clone.querySelectorAll('textarea, input, select').forEach(el => {
-                        if (el.tagName === 'SELECT') el.selectedIndex = 0;
-                        else el.value = '';
-                    });
-                    sets.appendChild(clone);
-                    toggleMcqOptions(clone);
-                }
-                document.getElementById('add-next-question').addEventListener('click', addQuestionSet);
-                // Toggle MCQ options for all sets on type change
-                questionType.addEventListener('change', function(){
-                    document.querySelectorAll('.question-set').forEach(set => toggleMcqOptions(set));
-                });
-                // Initial toggle
-                document.querySelectorAll('.question-set').forEach(set => toggleMcqOptions(set));
-            })();
-            </script>
-        </form>
-        <script>
-        (function(){
-            const classSel = document.getElementById('cq_class');
-            const bookSel = document.getElementById('cq_book');
-            const chapterSel = document.getElementById('cq_chapter');
-            const questionType = document.getElementById('question_type');
-            const mcqOptions = document.getElementById('mcq_options');
-            
-            function filterBooks() {
-                if (!bookSel || !classSel) return;
-                const cls = classSel.value;
-                Array.from(bookSel.options).forEach(opt => {
-                    if (!opt.value) { opt.hidden = false; return; }
-                    const c = opt.getAttribute('data-class');
-                    opt.hidden = (cls && c !== cls);
-                });
-            }
-            
-            function filterChapters() {
-                if (!chapterSel || !classSel) return;
-                const cls = classSel.value;
-                const selectedBookName = bookSel ? (bookSel.options[bookSel.selectedIndex]?.getAttribute('data-book-name') || '') : '';
-                Array.from(chapterSel.options).forEach(opt => {
-                    if (!opt.value) { opt.hidden = false; return; }
-                    const c = opt.getAttribute('data-class');
-                    const bn = opt.getAttribute('data-book-name') || '';
-                    const classMismatch = (cls && c !== cls);
-                    const bookMismatch = (bookSel && selectedBookName) ? (bn !== selectedBookName) : false;
-                    opt.hidden = classMismatch || bookMismatch;
-                });
-            }
-            
-            function toggleMcqOptions() {
-                if (!questionType || !mcqOptions) return;
-                mcqOptions.style.display = questionType.value === 'mcq' ? 'block' : 'none';
-            }
-            
-            classSel?.addEventListener('change', () => { filterBooks(); filterChapters(); });
-            bookSel?.addEventListener('change', () => { filterChapters(); });
-            questionType?.addEventListener('change', toggleMcqOptions);
-            
-            // initialize
-            filterBooks(); filterChapters();
-            toggleMcqOptions();
-            
-            // Handle edit form MCQ options toggle
-            document.querySelectorAll('.edit-question-type').forEach(select => {
-                select.addEventListener('change', function() {
-                    const mcqOptionsDiv = this.closest('form').querySelector('.mcq-options-edit');
-                    if (mcqOptionsDiv) {
-                        mcqOptionsDiv.style.display = this.value === 'mcq' ? 'block' : 'none';
-                    }
-                });
-            });
-        })();
-        </script>
+    <?php if ($message): ?><div class="school-alert success" role="status">âœ“ <span><?= htmlspecialchars($message) ?></span></div><?php endif; ?>
 
-        <script>
-        // MCQ filter form auto-submit
-        (function(){
-            const mcqForm = document.getElementById('mcq-filter-form');
-            if (!mcqForm) return;
-            // auto submit on change for selects
-            mcqForm.querySelectorAll('select').forEach(sel => {
-                sel.addEventListener('change', () => mcqForm.submit());
-            });
-            // submit on Enter in search
-            const search = mcqForm.querySelector('input[name="search"]');
-            if (search) {
-                search.addEventListener('keydown', (e) => { if (e.key === 'Enter') mcqForm.submit(); });
-            }
-        })();
-        </script>
-
-        <h3>Latest Questions
-        <?php if ($questionSearch !== ''): ?>
-            <span style="font-size: 14px; color: #6c757d; font-weight: normal;">
-                - Search results for "<?= htmlspecialchars($questionSearch) ?>" (<?= $questionTotalCount ?> found)
-            </span>
-        <?php endif; ?>
-        </h3>
-        <form method="GET" class="row" id="question-filter-form" style="margin-bottom:8px; background: #f8f9fa; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                <input type="text" name="question_search" placeholder="🔍 Search questions by ID, class, chapter, book, type, or text..." value="<?= htmlspecialchars($questionSearch) ?>" style="flex: 1; padding: 10px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px;">
-                <select name="question_match" style="padding: 10px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px;">
-                    <option value="contains" <?= $questionMatch==='contains'?'selected':'' ?>>Contains</option>
-                    <option value="exact" <?= $questionMatch==='exact'?'selected':'' ?>>Exact Match</option>
-                </select>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <select name="question_filter_class_id">
-                <option value="0">All classes</option>
-                <?php
-                $clsRes2 = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC");
-                while ($cc = $clsRes2->fetch_assoc()): ?>
-                    <option value="<?= (int)$cc['class_id'] ?>" <?= $questionFilterClassId===(int)$cc['class_id']?'selected':'' ?>><?= htmlspecialchars($cc['class_name']) ?></option>
-                <?php endwhile; ?>
-            </select>
-            <select name="question_filter_book_id" id="qf_book">
-                <option value="0">All books</option>
-                <?php foreach ($bookOptions as $bk): ?>
-                    <?php if ($questionFilterClassId > 0 && (int)$bk['class_id'] !== (int)$questionFilterClassId) continue; ?>
-                    <option value="<?= (int)$bk['book_id'] ?>" <?= $questionFilterBookId===(int)$bk['book_id']?'selected':'' ?>><?= htmlspecialchars($bk['book_name']) ?> (Class <?= (int)$bk['class_id'] ?>)</option>
-                <?php endforeach; ?>
-            </select>
-            <select name="question_filter_chapter_id">
-                <option value="0">All chapters</option>
-                <?php
-                // Build chapter list filtered by selected class and book
-                $chWhere = [];
-                if ($questionFilterClassId > 0) { $chWhere[] = 'class_id='.(int)$questionFilterClassId; }
-                if ($questionFilterBookId > 0) {
-                    $bnResSel = $conn->query('SELECT book_name FROM book WHERE book_id='.(int)$questionFilterBookId.' LIMIT 1');
-                    if ($bnResSel && ($bnRowSel = $bnResSel->fetch_assoc())) {
-                        $bnSafe = $conn->real_escape_string($bnRowSel['book_name']);
-                        $chWhere[] = "book_name='$bnSafe'";
-                    }
-                }
-                $chapQuery2 = 'SELECT chapter_id, chapter_name FROM chapter' . (count($chWhere)? (' WHERE '.implode(' AND ', $chWhere)) : '') . ' ORDER BY chapter_id ASC';
-                $chapRes2 = $conn->query($chapQuery2);
-                while ($ch2 = $chapRes2->fetch_assoc()): ?>
-                    <option value="<?= (int)$ch2['chapter_id'] ?>" <?= $questionFilterChapterId===(int)$ch2['chapter_id']?'selected':'' ?>><?= htmlspecialchars($ch2['chapter_name']) ?></option>
-                <?php endwhile; ?>
-            </select>
-           
-            <select name="question_type_filter" style="margin-left:10px;">
-                <option value="">All Types</option>
-                <option value="short" <?= (isset($_GET['question_type_filter']) && $_GET['question_type_filter']==='short')?'selected':'' ?>>Short</option>
-                <option value="long" <?= (isset($_GET['question_type_filter']) && $_GET['question_type_filter']==='long')?'selected':'' ?>>Long</option>
-            </select>
-            </select>
-            <select name="sort_dir">
-                <option value="asc" <?= strtolower($sortDir)==='asc'?'selected':'' ?>>ASC</option>
-                <option value="desc" <?= strtolower($sortDir)==='desc'?'selected':'' ?>>DESC</option>
-            </select>
-            <select name="questions_per_page">
-                <option value="10" <?= $questionsPerPage==10?'selected':'' ?>>10 per page</option>
-                <option value="20" <?= $questionsPerPage==20?'selected':'' ?>>20 per page</option>
-                <option value="50" <?= $questionsPerPage==50?'selected':'' ?>>50 per page</option>
-                <option value="all" <?= $questionsPerPage==='all'?'selected':'' ?>>View All</option>
-            </select>
-            <button type="submit" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Apply Filters</button>
-            <?php if ($questionSearch !== '' || $questionFilterClassId > 0 || $questionFilterChapterId > 0 || $questionFilterBookId > 0): ?>
-                <a href="?" style="background: #6c757d; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px;">Clear Search</a>
-            <?php endif; ?>
-        </form>
-        <script>
-        (function(){
-            const form = document.getElementById('question-filter-form');
-            if (!form) return;
-            // auto submit on change for selects
-            form.querySelectorAll('select').forEach(sel => {
-                sel.addEventListener('change', () => form.submit());
-            });
-            // submit on Enter in search
-            const search = form.querySelector('input[name="search"]');
-            if (search) {
-                search.addEventListener('keydown', (e) => { if (e.key === 'Enter') form.submit(); });
-            }
-        })();
-        </script>
-
-        <script>
-        // Dynamic filtering for edit forms
-        function setupEditFormFiltering(questionId) {
-            const classSel = document.getElementById('edit-class-' + questionId);
-            const bookSel = document.getElementById('edit-book-' + questionId);
-            const chapterSel = document.getElementById('edit-chapter-' + questionId);
-            
-            if (!classSel || !chapterSel) return;
-            
-            const allChapters = Array.from(chapterSel.options).map(opt => ({
-                value: opt.value,
-                text: opt.textContent,
-                classId: opt.getAttribute('data-class'),
-                bookName: opt.getAttribute('data-book-name')
-            }));
-
-            function filterEditOptions() {
-                const selectedClassId = classSel.value;
-                const selectedBookName = bookSel ? (bookSel.options[bookSel.selectedIndex]?.getAttribute('data-book-name') || '') : '';
-
-                // Filter Books
-                if (bookSel) {
-                    Array.from(bookSel.options).forEach(opt => {
-                        if (!opt.value) { opt.hidden = false; return; }
-                        const classId = opt.getAttribute('data-class');
-                        opt.hidden = (selectedClassId && classId !== selectedClassId);
-                    });
-                    if (bookSel.selectedOptions[0] && bookSel.selectedOptions[0].hidden) {
-                        bookSel.value = '';
-                    }
-                }
-
-                // Filter Chapters
-                chapterSel.innerHTML = '<option value="">Select chapter</option>';
-                allChapters.forEach(chap => {
-                    if (!chap.value) return;
-                    const matchesClass = !selectedClassId || (chap.classId === selectedClassId);
-                    const matchesBook = !selectedBookName || (chap.bookName === selectedBookName);
-
-                    if (matchesClass && matchesBook) {
-                        const opt = document.createElement('option');
-                        opt.value = chap.value;
-                        opt.textContent = chap.text;
-                        opt.setAttribute('data-class', chap.classId);
-                        opt.setAttribute('data-book-name', chap.bookName);
-                        if (chap.value === chapterSel.getAttribute('data-original-value')) {
-                            opt.selected = true;
-                        }
-                        chapterSel.appendChild(opt);
-                    }
-                });
-            }
-
-            classSel.addEventListener('change', filterEditOptions);
-            if (bookSel) bookSel.addEventListener('change', filterEditOptions);
-            
-            // Store original chapter value for restoration
-            chapterSel.setAttribute('data-original-value', chapterSel.value);
-            filterEditOptions();
-        }
-
-        // Setup filtering for all edit forms when they're shown
-        document.addEventListener('click', function(e) {
-            if (e.target.matches('button[onclick*="edit-"]')) {
-                const questionId = e.target.onclick.toString().match(/edit-(\d+)/)[1];
-                setTimeout(() => setupEditFormFiltering(questionId), 100);
-            }
-        });
-        </script>
-
-        <table>
-            <thead><tr>
-                <th><a href="?<?= http_build_query(['search'=>$search,'sort_by'=>'id','sort_dir'=> strtolower($sortDir)==='asc'?'desc':'asc']) ?>">ID</a></th>
-                <th><a href="?<?= http_build_query(['search'=>$search,'sort_by'=>'class_id','sort_dir'=> strtolower($sortDir)==='asc'?'desc':'asc']) ?>">Class</a></th>
-                <th><a href="?<?= http_build_query(['search'=>$search,'sort_by'=>'book_name','sort_dir'=> strtolower($sortDir)==='asc'?'desc':'asc']) ?>">Book</a></th>
-                <th><a href="?<?= http_build_query(['search'=>$search,'sort_by'=>'chapter_id','sort_dir'=> strtolower($sortDir)==='asc'?'desc':'asc']) ?>">Chapter</a></th>
-                <th><a href="?<?= http_build_query(['search'=>$search,'sort_by'=>'type','sort_dir'=> strtolower($sortDir)==='asc'?'desc':'asc']) ?>">Type</a></th>
-                <th><a href="?<?= http_build_query(['search'=>$search,'sort_by'=>'topic','sort_dir'=> strtolower($sortDir)==='asc'?'desc':'asc']) ?>">Topic</a></th>
-                <th><a href="?<?= http_build_query(['search'=>$search,'sort_by'=>'text','sort_dir'=> strtolower($sortDir)==='asc'?'desc':'asc']) ?>">Text</a></th>
-                <th>Actions</th>
-            </tr></thead>
-            <tbody>
-            <?php while ($row = $questions->fetch_assoc()): ?>
-                <tr>
-                    <td><?= (int)$row['id'] ?></td>
-                    <td><?= (int)$row['class_id'] ?></td>
-                    <td><?= htmlspecialchars($row['book_name']) ?></td>
-                    <td><?= htmlspecialchars($row['chapter_name'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($row['question_type']) ?></td>
-                    <td><?= htmlspecialchars($row['topic'] ?? '') ?></td>
-                    <td>
-                        <?= htmlspecialchars($row['question_text']) ?>
-                        <?php if (strcasecmp($row['question_type'], 'mcq') === 0): 
-                            $mcqKey = $row['class_id'] . '-' . $row['chapter_id'] . '-' . $row['question_text'];
-                            if (isset($mcqsData[$mcqKey])):
-                                $mcqData = $mcqsData[$mcqKey];
-                        ?>
-                            <div class="mcq-options-display">
-                                <div><strong>A:</strong> <?= htmlspecialchars($mcqData['option_a'] ?? '') ?></div>
-                                <div><strong>B:</strong> <?= htmlspecialchars($mcqData['option_b'] ?? '') ?></div>
-                                <div><strong>C:</strong> <?= htmlspecialchars($mcqData['option_c'] ?? '') ?></div>
-                                <div><strong>D:</strong> <?= htmlspecialchars($mcqData['option_d'] ?? '') ?></div>
-                                <?php if (!empty($mcqData['explanation'])): ?>
-                                    <div style="margin-top: 5px; font-style: italic; color: #666; border-top: 1px solid #eee; padding-top: 3px;">
-                                        <strong>Why:</strong> <?= htmlspecialchars($mcqData['explanation']) ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; endif; ?>
-                    </td>
-                    <td>
-                        <!-- Delete button commented out -->
-                         
-                        <form method="POST" class="inline" onsubmit="return confirm('Delete this question?');">
-                            <input type="hidden" name="action" value="delete">
-                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
-                            <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
-                            <button type="submit">Delete</button>
-                        </form>
-                       
-                        <button type="button" onclick="document.getElementById('edit-<?= (int)$row['id'] ?>').style.display='table-row'">Edit</button>
-                    </td>
-                </tr>
-                <tr id="edit-<?= (int)$row['id'] ?>" style="display:none; background:#fafafa;">
-                    <td colspan="7">
-                        <form method="POST" class="row">
-                            <input type="hidden" name="action" value="update">
-                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
-                            <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
-                            <select name="class_id" required id="edit-class-<?= (int)$row['id'] ?>">
-                                <?php $clsRes3 = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC"); while ($cc = $clsRes3->fetch_assoc()): ?>
-                                    <option value="<?= (int)$cc['class_id'] ?>" <?= ((int)$cc['class_id']===(int)$row['class_id'])?'selected':'' ?>><?= htmlspecialchars($cc['class_name']) ?></option>
-                                <?php endwhile; ?>
-                            </select>
-                                                         <?php if ($hasBookName): ?>
-                                 <select name="book_id" id="edit-book-<?= (int)$row['id'] ?>">
-                                     <option value="">Select book</option>
-                                     <?php foreach ($bookOptions as $bk): ?>
-                                         <option value="<?= (int)$bk['book_id'] ?>" data-class="<?= (int)$bk['class_id'] ?>" <?= ((int)$bk['book_id']===(int)$row['book_id']) ? 'selected' : '' ?>><?= htmlspecialchars($bk['book_name']) ?> (Class <?= (int)$bk['class_id'] ?>)</option>
-                                     <?php endforeach; ?>
-                                 </select>
-                             <?php else: ?>
-                                 <select name="book_id" id="edit-book-<?= (int)$row['id'] ?>">
-                                     <option value="">Select book</option>
-                                     <?php foreach ($bookOptions as $bk): ?>
-                                         <option value="<?= (int)$bk['book_id'] ?>" data-class="<?= (int)$bk['class_id'] ?>" <?= ((int)$bk['book_id']===(int)$row['book_id']) ? 'selected' : '' ?>><?= htmlspecialchars($bk['book_name']) ?> (Class <?= (int)$bk['class_id'] ?>)</option>
-                                     <?php endforeach; ?>
-                                 </select>
-                             <?php endif; ?>
-                             <input type="hidden" name="chapter_id" value="<?= (int)$row['chapter_id'] ?>">
-                            <select name="type" class="edit-question-type" required>
-                                <?php $types = ['mcq','short','long']; foreach ($types as $t): ?>
-                                    <option value="<?= $t ?>" <?= (strcasecmp($row['question_type'], $t)===0 ? 'selected' : '') ?>><?= strtoupper($t) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <input type="text" name="topic" value="<?= htmlspecialchars($row['topic'] ?? '') ?>" placeholder="Topic" />
-                            <textarea name="text" required><?= htmlspecialchars($row['question_text']) ?></textarea>
-                            
-                            <?php 
-                            // Check if this is an MCQ in the mcqs table
-                            $mcqData = null;
-                            if (strcasecmp($row['question_type'], 'mcq') === 0) {
-                                $mcqKey = $row['class_id'] . '-' . $row['chapter_id'] . '-' . $row['question_text'];
-                                if (isset($mcqsData[$mcqKey])) {
-                                    $mcqData = $mcqsData[$mcqKey];
-                                }
-                            }
-                            ?>
-                            
-                            <?php if ($mcqData): ?>
-                                <input type="hidden" name="mcq_id" value="<?= (int)$mcqData['mcq_id'] ?>">
-                            <?php endif; ?>
-                            
-                            <div class="mcq-options-edit" style="display: <?= strcasecmp($row['question_type'], 'mcq')===0 ? 'block' : 'none' ?>">
-                                <input type="text" name="option_a" placeholder="Option A" value="<?= htmlspecialchars($mcqData['option_a'] ?? '') ?>">
-                                <input type="text" name="option_b" placeholder="Option B" value="<?= htmlspecialchars($mcqData['option_b'] ?? '') ?>">
-                                <input type="text" name="option_c" placeholder="Option C" value="<?= htmlspecialchars($mcqData['option_c'] ?? '') ?>">
-                                <input type="text" name="option_d" placeholder="Option D" value="<?= htmlspecialchars($mcqData['option_d'] ?? '') ?>">
-                                <?php 
-                                    $coText = trim($mcqData['correct_option'] ?? '');
-                                    $selA = (strcasecmp($coText, $mcqData['option_a'] ?? '') === 0) ? 'selected' : '';
-                                    $selB = (strcasecmp($coText, $mcqData['option_b'] ?? '') === 0) ? 'selected' : '';
-                                    $selC = (strcasecmp($coText, $mcqData['option_c'] ?? '') === 0) ? 'selected' : '';
-                                    $selD = (strcasecmp($coText, $mcqData['option_d'] ?? '') === 0) ? 'selected' : '';
-                                ?>
-                                    <select name="correct_option">
-                                        <option value="">Select Correct Option</option>
-                                        <option value="A" <?= $selA ?>>Option A</option>
-                                        <option value="B" <?= $selB ?>>Option B</option>
-                                        <option value="C" <?= $selC ?>>Option C</option>
-                                        <option value="D" <?= $selD ?>>Option D</option>
-                                    </select>
-                                    <textarea name="explanation" placeholder="Explanation (Why this is correct)" style="margin-top: 5px;"><?= htmlspecialchars($mcqData['explanation'] ?? '') ?></textarea>
-                                </div>
-                            <button type="submit">Save</button>
-                            <button type="button" onclick="document.getElementById('edit-<?= (int)$row['id'] ?>').style.display='none'">Cancel</button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endwhile; ?>
-            </tbody>
-        </table>
-
-        <!-- Questions Pagination -->
-        <?php if ($questionsPerPage === 'all'): ?>
-        <div class="pagination" style="margin: 20px 0; text-align: center;">
-            <p><strong>Viewing all <?= $questionTotalCount ?> questions</strong></p>
-        </div>
-        <?php elseif ($questionTotalPages > 1): ?>
-        <div class="pagination" style="margin: 20px 0; text-align: center;">
-            <p>Showing <?= $questionsOffset + 1 ?>-<?= min($questionsOffset + $questionsPerPage, $questionTotalCount) ?> of <?= $questionTotalCount ?> questions</p>
-            <div style="margin: 10px 0;">
-                <?php if ($questionsPage > 1): ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['questions_page' => $questionsPage - 1])) ?>" class="btn" style="margin: 0 5px;">← Previous</a>
-                <?php endif; ?>
-                
-                <?php for ($i = max(1, $questionsPage - 2); $i <= min($questionTotalPages, $questionsPage + 2); $i++): ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['questions_page' => $i])) ?>" 
-                       class="btn <?= $i == $questionsPage ? 'active' : '' ?>" 
-                       style="margin: 0 2px; <?= $i == $questionsPage ? 'background: #007bff; color: white;' : '' ?>">
-                        <?= $i ?>
-                    </a>
-                <?php endfor; ?>
-                
-                <?php if ($questionsPage < $questionTotalPages): ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['questions_page' => $questionsPage + 1])) ?>" class="btn" style="margin: 0 5px;">Next →</a>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- MCQ Section -->
-        <h3>MCQ Questions
-        <?php if ($mcqSearch !== ''): ?>
-            <span style="font-size: 14px; color: #6c757d; font-weight: normal;">
-                - Search results for "<?= htmlspecialchars($mcqSearch) ?>" (<?= $mcqTotalCount ?> found)
-            </span>
-        <?php endif; ?>
-        </h3>
-        <form method="GET" class="row" id="mcq-filter-form" style="margin-bottom:8px; background: #f8f9fa; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                <input type="text" name="mcq_search" placeholder="🔍 Search MCQs by ID, class, chapter, question, or options..." value="<?= htmlspecialchars($mcqSearch) ?>" style="flex: 1; padding: 10px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px;">
-                <select name="mcq_match" style="padding: 10px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px;">
-                    <option value="contains" <?= $mcqMatch==='contains'?'selected':'' ?>>Contains</option>
-                    <option value="exact" <?= $mcqMatch==='exact'?'selected':'' ?>>Exact Match</option>
-                </select>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <select name="mcq_filter_class_id">
-                <option value="0">All classes</option>
-                <?php
-                $clsRes3 = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC");
-                while ($cc = $clsRes3->fetch_assoc()): ?>
-                    <option value="<?= (int)$cc['class_id'] ?>" <?= $mcqFilterClassId===(int)$cc['class_id']?'selected':'' ?>><?= htmlspecialchars($cc['class_name']) ?></option>
-                <?php endwhile; ?>
-            </select>
-            <select name="mcq_filter_book_id" id="mcq_qf_book">
-                <option value="0">All books</option>
-                <?php foreach ($bookOptions as $bk): ?>
-                    <?php if ($mcqFilterClassId > 0 && (int)$bk['class_id'] !== (int)$mcqFilterClassId) continue; ?>
-                    <option value="<?= (int)$bk['book_id'] ?>" <?= $mcqFilterBookId===(int)$bk['book_id']?'selected':'' ?>><?= htmlspecialchars($bk['book_name']) ?> (Class <?= (int)$bk['class_id'] ?>)</option>
-                <?php endforeach; ?>
-            </select>
-            <select name="mcq_filter_chapter_id">
-                <option value="0">All chapters</option>
-                <?php
-                // Build chapter list filtered by selected class and book
-                $chWhere = [];
-                if ($mcqFilterClassId > 0) { $chWhere[] = 'class_id='.(int)$mcqFilterClassId; }
-                if ($mcqFilterBookId > 0) {
-                    $bnResSel = $conn->query('SELECT book_name FROM book WHERE book_id='.(int)$mcqFilterBookId.' LIMIT 1');
-                    if ($bnResSel && ($bnRowSel = $bnResSel->fetch_assoc())) {
-                        $bnSafe = $conn->real_escape_string($bnRowSel['book_name']);
-                        $chWhere[] = "book_name='$bnSafe'";
-                    }
-                }
-                $chapQuery3 = 'SELECT chapter_id, chapter_name FROM chapter' . (count($chWhere)? (' WHERE '.implode(' AND ', $chWhere)) : '') . ' ORDER BY chapter_id ASC';
-                $chapRes3 = $conn->query($chapQuery3);
-                while ($ch3 = $chapRes3->fetch_assoc()): ?>
-                    <option value="<?= (int)$ch3['chapter_id'] ?>" <?= $mcqFilterChapterId===(int)$ch3['chapter_id']?'selected':'' ?>><?= htmlspecialchars($ch3['chapter_name']) ?></option>
-                <?php endwhile; ?>
-            </select>
-            <select name="mcqs_per_page">
-                <option value="10" <?= $mcqsPerPage==10?'selected':'' ?>>10 per page</option>
-                <option value="20" <?= $mcqsPerPage==20?'selected':'' ?>>20 per page</option>
-                <option value="50" <?= $mcqsPerPage==50?'selected':'' ?>>50 per page</option>
-                <option value="all" <?= $mcqsPerPage==='all'?'selected':'' ?>>View All</option>
-            </select>
-            <button type="submit" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Apply Filters</button>
-            <?php if ($mcqSearch !== '' || $mcqFilterClassId > 0 || $mcqFilterChapterId > 0 || $mcqFilterBookId > 0): ?>
-                <a href="?" style="background: #6c757d; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px;">Clear Search</a>
-            <?php endif; ?>
-        </form>
-
-        <table>
-            <thead><tr>
-                <th>MCQ ID</th>
-                <th>Class</th>
-                <th>Book</th>
-                <th>Chapter</th>
-                <th>Topic</th>
-                <th>Question</th>
-                <th>Options</th>
-                <th>Correct Answer</th>
-                <th>Actions</th>
-            </tr></thead>
-            <tbody>
-            <?php 
-            // Use the already fetched MCQs data
-            $mcqs->data_seek(0); // Reset the result pointer to the beginning
-            while ($mcq = $mcqs->fetch_assoc()): ?>
-                <tr>
-                    <td><?= (int)$mcq['mcq_id'] ?></td>
-                    <td><?= (int)$mcq['class_id'] ?></td>
-                    <td><?= htmlspecialchars($mcq['book_name'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($mcq['chapter_name'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($mcq['topic'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($mcq['question']) ?></td>
-                    <td>
-                        <div class="mcq-options-display">
-                            <div><strong>A:</strong> <?= htmlspecialchars($mcq['option_a'] ?? '') ?></div>
-                            <div><strong>B:</strong> <?= htmlspecialchars($mcq['option_b'] ?? '') ?></div>
-                            <div><strong>C:</strong> <?= htmlspecialchars($mcq['option_c'] ?? '') ?></div>
-                                <div><strong>D:</strong> <?= htmlspecialchars($mcq['option_d'] ?? '') ?></div>
-                                <?php if (!empty($mcq['explanation'])): ?>
-                                    <div style="margin-top: 5px; font-style: italic; color: #666; border-top: 1px solid #eee; padding-top: 3px;">
-                                        <strong>Why:</strong> <?= htmlspecialchars($mcq['explanation']) ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                    </td>
-                    <td style="text-align: center; font-weight: bold; color: #28a745;"><?= htmlspecialchars($mcq['correct_option'] ?? 'Not Set') ?></td>
-                    <td>
-                        <form method="POST" class="inline" onsubmit="return confirm('Delete this MCQ?');">
-                            <input type="hidden" name="action" value="delete_mcq">
-                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
-                            <input type="hidden" name="mcq_id" value="<?= (int)$mcq['mcq_id'] ?>">
-                            <button type="submit">Delete</button>
-                        </form>
-                        <button type="button" onclick="document.getElementById('edit-mcq-<?= (int)$mcq['mcq_id'] ?>').style.display='table-row'">Edit</button>
-                    </td>
-                </tr>
-                <tr id="edit-mcq-<?= (int)$mcq['mcq_id'] ?>" style="display:none; background:#fafafa;">
-                    <td colspan="9">
-                        <form method="POST" class="row">
-                            <input type="hidden" name="action" value="update_mcq">
-                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
-                            <input type="hidden" name="mcq_id" value="<?= (int)$mcq['mcq_id'] ?>">
-                            <select name="class_id" required>
-                                <?php $clsRes4 = $conn->query("SELECT class_id, class_name FROM class ORDER BY class_id ASC"); while ($cc = $clsRes4->fetch_assoc()): ?>
-                                    <option value="<?= (int)$cc['class_id'] ?>" <?= ((int)$cc['class_id']===(int)$mcq['class_id'])?'selected':'' ?>><?= htmlspecialchars($cc['class_name']) ?></option>
-                                <?php endwhile; ?>
-                            </select>
-                            <select name="book_id">
-                                <option value="">Select book</option>
-                                <?php foreach ($bookOptions as $bk): ?>
-                                    <option value="<?= (int)$bk['book_id'] ?>" data-class="<?= (int)$bk['class_id'] ?>" <?= ((int)$bk['book_id']===(int)$mcq['book_id'])?'selected':'' ?>><?= htmlspecialchars($bk['book_name']) ?> (Class <?= (int)$bk['class_id'] ?>)</option>
-                                <?php endforeach; ?>
-                            </select>
-                            <select name="chapter_id" required>
-                                <option value="">Select chapter</option>
-                                <?php $chapRes4 = $conn->query("SELECT chapter_id, chapter_name, class_id FROM chapter ORDER BY chapter_id ASC"); while ($ch4 = $chapRes4->fetch_assoc()): ?>
-                                    <option value="<?= (int)$ch4['chapter_id'] ?>" data-class="<?= (int)$ch4['class_id'] ?>" <?= ((int)$ch4['chapter_id']===(int)$mcq['chapter_id'])?'selected':'' ?>><?= htmlspecialchars($ch4['chapter_name']) ?></option>
-                                <?php endwhile; ?>
-                            </select>
-                            <input type="text" name="topic" value="<?= htmlspecialchars($mcq['topic'] ?? '') ?>" placeholder="Topic" />
-                            <textarea name="question" required><?= htmlspecialchars($mcq['question']) ?></textarea>
-                            <input type="text" name="option_a" placeholder="Option A" value="<?= htmlspecialchars($mcq['option_a'] ?? '') ?>">
-                            <input type="text" name="option_b" placeholder="Option B" value="<?= htmlspecialchars($mcq['option_b'] ?? '') ?>">
-                            <input type="text" name="option_c" placeholder="Option C" value="<?= htmlspecialchars($mcq['option_c'] ?? '') ?>">
-                            <input type="text" name="option_d" placeholder="Option D" value="<?= htmlspecialchars($mcq['option_d'] ?? '') ?>">
-                            <?php 
-                                $coText = trim($mcq['correct_option'] ?? '');
-                                $selA = (strcasecmp($coText, $mcq['option_a'] ?? '') === 0) ? 'selected' : '';
-                                $selB = (strcasecmp($coText, $mcq['option_b'] ?? '') === 0) ? 'selected' : '';
-                                $selC = (strcasecmp($coText, $mcq['option_c'] ?? '') === 0) ? 'selected' : '';
-                                $selD = (strcasecmp($coText, $mcq['option_d'] ?? '') === 0) ? 'selected' : '';
-                            ?>
-                            <select name="correct_option">
-                                <option value="">Select Correct Option</option>
-                                <option value="A" <?= $selA ?>>Option A</option>
-                                <option value="B" <?= $selB ?>>Option B</option>
-                                <option value="C" <?= $selC ?>>Option C</option>
-                                <option value="D" <?= $selD ?>>Option D</option>
-                            </select>
-                            <textarea name="explanation" placeholder="Explanation (Why this is correct)" style="margin-top: 5px;"><?= htmlspecialchars($mcq['explanation'] ?? '') ?></textarea>
-                            <button type="submit">Save</button>
-                            <button type="button" onclick="document.getElementById('edit-mcq-<?= (int)$mcq['mcq_id'] ?>').style.display='none'">Cancel</button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endwhile; ?>
-            </tbody>
-        </table>
-
-        <!-- MCQ Pagination -->
-        <?php if ($mcqsPerPage === 'all'): ?>
-        <div class="pagination" style="margin: 20px 0; text-align: center;">
-            <p><strong>Viewing all <?= $mcqTotalCount ?> MCQs</strong></p>
-        </div>
-        <?php elseif ($mcqTotalPages > 1): ?>
-        <div class="pagination" style="margin: 20px 0; text-align: center;">
-            <p>Showing <?= $mcqsOffset + 1 ?>-<?= min($mcqsOffset + $mcqsPerPage, $mcqTotalCount) ?> of <?= $mcqTotalCount ?> MCQs</p>
-            <div style="margin: 10px 0;">
-                <?php if ($mcqsPage > 1): ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['mcqs_page' => $mcqsPage - 1])) ?>" class="btn" style="margin: 0 5px;">← Previous</a>
-                <?php endif; ?>
-                
-                <?php for ($i = max(1, $mcqsPage - 2); $i <= min($mcqTotalPages, $mcqsPage + 2); $i++): ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['mcqs_page' => $i])) ?>" 
-                       class="btn <?= $i == $mcqsPage ? 'active' : '' ?>" 
-                       style="margin: 0 2px; <?= $i == $mcqsPage ? 'background: #007bff; color: white;' : '' ?>">
-                        <?= $i ?>
-                    </a>
-                <?php endfor; ?>
-                
-                <?php if ($mcqsPage < $mcqTotalPages): ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['mcqs_page' => $mcqsPage + 1])) ?>" class="btn" style="margin: 0 5px;">Next →</a>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
+    <div class="school-stats" aria-label="Question bank summary">
+        <div class="school-stat"><span class="school-stat-value"><?= (int) $questionTotalCount ?></span><span class="school-stat-label">Text questions</span></div>
+        <div class="school-stat"><span class="school-stat-value"><?= (int) $mcqTotalCount ?></span><span class="school-stat-label">MCQs</span></div>
+        <div class="school-stat"><span class="school-stat-value"><?= count($chapterOptions) ?></span><span class="school-stat-label">Chapters to use</span></div>
     </div>
 
+    <nav class="school-tabs" aria-label="Question bank sections" role="tablist">
+        <button class="school-tab" type="button" role="tab" aria-selected="true" aria-controls="questions-panel" data-tab-target="questions-panel">Text questions <span>(<?= (int) $questionTotalCount ?>)</span></button>
+        <button class="school-tab" type="button" role="tab" aria-selected="false" aria-controls="mcqs-panel" data-tab-target="mcqs-panel">MCQs <span>(<?= (int) $mcqTotalCount ?>)</span></button>
+    </nav>
 
+    <section class="school-tab-panel" id="questions-panel" role="tabpanel">
+        <div class="school-layout">
+            <section class="school-panel" aria-labelledby="question-builder-heading">
+                <div class="school-panel-header">
+                    <div><h2 id="question-builder-heading">Add questions</h2><p>Set the location once, then add several questions before saving.</p></div>
+                    <span class="question-type-pill">Batch ready</span>
+                </div>
+                <div class="school-panel-body">
+                    <form method="POST" id="create-question-form">
+                        <input type="hidden" name="action" value="create">
+                        <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
+                        <div class="school-grid-3">
+                            <div class="school-field"><label for="cq-class">Class</label><select class="school-select" name="class_id" id="cq-class" required><option value="">Choose class</option><?php foreach ($classOptions as $class): ?><option value="<?= (int) $class['class_id'] ?>"><?= htmlspecialchars($class['class_name']) ?></option><?php endforeach; ?></select></div>
+                            <div class="school-field"><label for="cq-book">Book</label><select class="school-select" name="book_id" id="cq-book" required disabled><option value="">Choose class first</option><?php foreach ($bookOptions as $book): ?><option value="<?= (int) $book['book_id'] ?>" data-class-id="<?= (int) $book['class_id'] ?>" data-book-name="<?= htmlspecialchars($book['book_name']) ?>"><?= htmlspecialchars($book['book_name']) ?></option><?php endforeach; ?></select></div>
+                            <div class="school-field"><label for="cq-chapter">Chapter</label><select class="school-select" name="chapter_id" id="cq-chapter" required disabled><option value="">Choose book first</option><?php foreach ($chapterOptions as $chapter): ?><option value="<?= (int) $chapter['chapter_id'] ?>" data-class-id="<?= (int) $chapter['class_id'] ?>" data-book-name="<?= htmlspecialchars($chapter['book_name']) ?>"><?= htmlspecialchars($chapter['chapter_name']) ?></option><?php endforeach; ?></select></div>
+                        </div>
+                        <div class="school-grid-2" style="margin-top:12px">
+                            <div class="school-field"><label for="question-type">Question type</label><select class="school-select" name="type" id="question-type" required><option value="short" selected>Short answer</option><option value="long">Long answer</option><option value="mcq">MCQ</option></select></div>
+                            <div class="school-field"><label>Workflow</label><div class="school-hint" style="margin-top:0">Use â€œAdd questionâ€ to keep building this batch. Save once when the set is complete.</div></div>
+                        </div>
+                        <div class="question-builder" id="question-sets">
+                            <div class="question-set" data-question-set>
+                                <div class="question-set-head"><strong class="question-set-title"><span class="question-set-number">Question 01</span></strong><button class="school-button-quiet" type="button" data-remove-question hidden>Remove</button></div>
+                                <div class="school-field"><label>Question text</label><textarea class="school-textarea" name="text[]" placeholder="Write the question clearly" required></textarea></div>
+                                <div class="school-grid-2"><div class="school-field"><label>Topic</label><input class="school-input" type="text" name="topic[]" placeholder="e.g. Algebra" required></div><div class="school-field"><label>Type reminder</label><div class="school-hint" style="margin-top:0">All cards use the selected question type.</div></div></div>
+                                <div class="mcq_options" hidden>
+                                    <div class="school-grid-2"><div class="school-field"><label>Option A</label><input class="school-input" type="text" name="option_a[]" placeholder="Option A"></div><div class="school-field"><label>Option B</label><input class="school-input" type="text" name="option_b[]" placeholder="Option B"></div><div class="school-field"><label>Option C</label><input class="school-input" type="text" name="option_c[]" placeholder="Option C"></div><div class="school-field"><label>Option D</label><input class="school-input" type="text" name="option_d[]" placeholder="Option D"></div></div>
+                                    <div class="correct-row"><label class="school-filter-label" for="correct-option-0">Correct answer</label><select class="school-select" name="correct_option[]" id="correct-option-0"><option value="">Select option</option><option value="A">Option A</option><option value="B">Option B</option><option value="C">Option C</option><option value="D">Option D</option></select></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="school-actions"><button class="school-button-secondary" type="button" id="add-next-question">ï¼‹ Add question</button><button class="school-button" type="submit">Save all questions</button></div>
+                    </form>
+                </div>
+            </section>
+            <aside class="school-panel">
+                <div class="school-panel-header"><div><h2>Fast review</h2><p>Use filters below to narrow the bank before editing.</p></div></div>
+                <div class="school-panel-body">
+                    <div class="school-sidebar-note"><strong>Deletion is disabled</strong>Question delete buttons are commented out on this page. Existing records remain safe while you clean up wording or move content.</div>
+                    <div class="school-hint">â‘  Filter by class, book, chapter, or type.</div>
+                    <div class="school-hint">â‘¡ Open Edit to update the question in context.</div>
+                    <div class="school-hint">â‘¢ MCQs have their own workspace tab so long option sets stay readable.</div>
+                    <a class="school-button-quiet" style="margin-top:14px" href="../deleted_questions.php">View archived questions</a>
+                </div>
+            </aside>
+        </div>
 
+        <section class="school-panel" style="margin-top:22px" aria-labelledby="latest-questions-heading">
+            <div class="school-panel-header"><div><h2 id="latest-questions-heading">Text question library</h2><p><?= (int) $questionTotalCount ?> result<?= $questionTotalCount === 1 ? '' : 's' ?> Â· Latest content is listed first.</p></div></div>
+            <form method="GET" class="school-filter" id="question-filter-form" aria-label="Filter text questions">
+                <div class="school-filter-row"><div><label class="school-filter-label" for="question-search">Search</label><input id="question-search" type="search" name="question_search" placeholder="ID, chapter, topic, or question text" value="<?= htmlspecialchars($questionSearch) ?>"></div><div><label class="school-filter-label" for="question-match">Match</label><select id="question-match" name="question_match"><option value="contains" <?= $questionMatch === 'contains' ? 'selected' : '' ?>>Contains</option><option value="exact" <?= $questionMatch === 'exact' ? 'selected' : '' ?>>Exact</option></select></div><div><label class="school-filter-label" for="question-class-filter">Class</label><select id="question-class-filter" name="question_filter_class_id"><option value="0">All classes</option><?php foreach ($classOptions as $class): ?><option value="<?= (int) $class['class_id'] ?>" <?= $questionFilterClassId === (int) $class['class_id'] ? 'selected' : '' ?>><?= htmlspecialchars($class['class_name']) ?></option><?php endforeach; ?></select></div></div>
+                <div class="school-filter-row"><div><label class="school-filter-label" for="question-book-filter">Book</label><select id="question-book-filter" name="question_filter_book_id"><option value="0">All books</option><?php foreach ($bookOptions as $book): ?><option value="<?= (int) $book['book_id'] ?>" data-class-id="<?= (int) $book['class_id'] ?>" <?= $questionFilterBookId === (int) $book['book_id'] ? 'selected' : '' ?>><?= htmlspecialchars($book['book_name']) ?></option><?php endforeach; ?></select></div><div><label class="school-filter-label" for="question-chapter-filter">Chapter</label><select id="question-chapter-filter" name="question_filter_chapter_id"><option value="0">All chapters</option><?php foreach ($chapterOptions as $chapter): if ($questionFilterClassId > 0 && $questionFilterClassId !== (int) $chapter['class_id']) continue; ?><option value="<?= (int) $chapter['chapter_id'] ?>" data-class-id="<?= (int) $chapter['class_id'] ?>" data-book-name="<?= htmlspecialchars($chapter['book_name']) ?>" <?= $questionFilterChapterId === (int) $chapter['chapter_id'] ? 'selected' : '' ?>><?= htmlspecialchars($chapter['chapter_name']) ?></option><?php endforeach; ?></select></div><div><label class="school-filter-label" for="question-type-filter">Type</label><select id="question-type-filter" name="question_type_filter"><option value="">All types</option><option value="short" <?= $questionTypeFilter === 'short' ? 'selected' : '' ?>>Short</option><option value="long" <?= $questionTypeFilter === 'long' ? 'selected' : '' ?>>Long</option></select></div><div class="school-filter-actions" style="align-items:end"><button class="school-button" type="submit">Apply filters</button><a class="school-button-quiet" href="manage_questions.php">Reset</a></div></div>
+            </form>
+            <div class="school-question-list">
+                <?php if (!$questions || $questionTotalCount === 0): ?><div class="school-empty">No text questions match these filters yet.</div><?php endif; ?>
+                <?php while ($questions && ($row = $questions->fetch_assoc())): ?>
+                    <?php $mcqData = null; if (strcasecmp($row['question_type'], 'mcq') === 0) { $mcqKey = $row['class_id'] . '-' . $row['chapter_id'] . '-' . $row['question_text']; $mcqData = $mcqsData[$mcqKey] ?? null; } ?>
+                    <article class="question-card">
+                        <div class="question-card-id">#<?= (int) $row['id'] ?></div>
+                        <div><h3><?= htmlspecialchars($row['question_text']) ?></h3><p><?= $row['topic'] ? htmlspecialchars($row['topic']) : 'No topic added yet.' ?></p><div class="question-card-meta"><span><?= htmlspecialchars(strtoupper($row['question_type'])) ?></span><span><?= htmlspecialchars($row['book_name']) ?></span><span><?= htmlspecialchars($row['chapter_name'] ?? 'Chapter') ?></span></div><?php if ($mcqData): ?><div class="mcq-options-display"><div><strong>A</strong> <?= htmlspecialchars($mcqData['option_a'] ?? '') ?></div><div><strong>B</strong> <?= htmlspecialchars($mcqData['option_b'] ?? '') ?></div><div><strong>C</strong> <?= htmlspecialchars($mcqData['option_c'] ?? '') ?></div><div><strong>D</strong> <?= htmlspecialchars($mcqData['option_d'] ?? '') ?></div></div><?php endif; ?></div>
+                        <div class="question-card-actions"><button class="school-button-quiet" type="button" data-edit-question="<?= (int) $row['id'] ?>">Edit</button><!-- <button type="submit" class="school-button-quiet">Delete</button> --><span class="school-disabled-action" title="Delete is disabled">Delete disabled</span></div>
+                        <div class="edit-row" id="edit-question-<?= (int) $row['id'] ?>">
+                            <form method="POST" class="edit-form"><input type="hidden" name="action" value="update"><input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+                                <div class="school-grid-3"><div class="school-field"><label>Class</label><select class="school-select edit-class" name="class_id" required><?php foreach ($classOptions as $class): ?><option value="<?= (int) $class['class_id'] ?>" <?= (int) $class['class_id'] === (int) $row['class_id'] ? 'selected' : '' ?>><?= htmlspecialchars($class['class_name']) ?></option><?php endforeach; ?></select></div><div class="school-field"><label>Book</label><select class="school-select edit-book" name="book_id" required><?php foreach ($bookOptions as $book): ?><option value="<?= (int) $book['book_id'] ?>" data-class-id="<?= (int) $book['class_id'] ?>" data-book-name="<?= htmlspecialchars($book['book_name']) ?>" <?= (int) $book['book_id'] === (int) $row['book_id'] ? 'selected' : '' ?>><?= htmlspecialchars($book['book_name']) ?></option><?php endforeach; ?></select></div><div class="school-field"><label>Chapter</label><select class="school-select edit-chapter" name="chapter_id" required><?php foreach ($chapterOptions as $chapter): ?><option value="<?= (int) $chapter['chapter_id'] ?>" data-class-id="<?= (int) $chapter['class_id'] ?>" data-book-name="<?= htmlspecialchars($chapter['book_name']) ?>" <?= (int) $chapter['chapter_id'] === (int) $row['chapter_id'] ? 'selected' : '' ?>><?= htmlspecialchars($chapter['chapter_name']) ?></option><?php endforeach; ?></select></div></div>
+                                <div class="school-grid-2"><div class="school-field"><label>Type</label><select class="school-select edit-question-type" name="type" required><?php foreach (['short','long','mcq'] as $type): ?><option value="<?= $type ?>" <?= strcasecmp($row['question_type'], $type) === 0 ? 'selected' : '' ?>><?= strtoupper($type) ?></option><?php endforeach; ?></select></div><div class="school-field"><label>Topic</label><input class="school-input" type="text" name="topic" value="<?= htmlspecialchars($row['topic'] ?? '') ?>"></div></div>
+                                <div class="school-field"><label>Question text</label><textarea class="school-textarea" name="text" required><?= htmlspecialchars($row['question_text']) ?></textarea></div>
+                                <?php if ($mcqData): ?><input type="hidden" name="mcq_id" value="<?= (int) $mcqData['mcq_id'] ?>"><?php endif; ?>
+                                <?php if ($mcqData): ?><div class="mcq-options-edit"><div class="school-grid-2"><div class="school-field"><label>Option A</label><input class="school-input" type="text" name="option_a" value="<?= htmlspecialchars($mcqData['option_a'] ?? '') ?>"></div><div class="school-field"><label>Option B</label><input class="school-input" type="text" name="option_b" value="<?= htmlspecialchars($mcqData['option_b'] ?? '') ?>"></div><div class="school-field"><label>Option C</label><input class="school-input" type="text" name="option_c" value="<?= htmlspecialchars($mcqData['option_c'] ?? '') ?>"></div><div class="school-field"><label>Option D</label><input class="school-input" type="text" name="option_d" value="<?= htmlspecialchars($mcqData['option_d'] ?? '') ?>"></div></div><div class="school-field" style="margin-top:10px"><label>Correct option</label><select class="school-select" name="correct_option"><option value="">Select option</option><?php $coText = trim($mcqData['correct_option'] ?? ''); foreach (['A','B','C','D'] as $letter): $optionKey = 'option_' . strtolower($letter); ?><option value="<?= $letter ?>" <?= $coText === $letter || strcasecmp($coText, $mcqData[$optionKey] ?? '') === 0 ? 'selected' : '' ?>>Option <?= $letter ?></option><?php endforeach; ?></select></div></div><?php endif; ?>
+                                <div class="form-actions"><button class="school-button" type="submit">Save changes</button><button class="school-button-quiet" type="button" data-close-question="<?= (int) $row['id'] ?>">Cancel</button></div>
+                            </form>
+                        </div>
+                    </article>
+                <?php endwhile; ?>
+            </div>
+            <?php if ($questionsPerPage === 'all'): ?><div class="school-pagination"><span>Viewing all <?= (int) $questionTotalCount ?> questions</span></div><?php elseif ($questionTotalPages > 1): ?><div class="school-pagination"><span>Showing <?= $questionsOffset + 1 ?>â€“<?= min($questionsOffset + $questionsPerPage, $questionTotalCount) ?> of <?= (int) $questionTotalCount ?></span><div class="school-pagination-links"><?php if ($questionsPage > 1): ?><a class="school-button-quiet" href="?<?= htmlspecialchars(http_build_query(array_merge($_GET, ['questions_page' => $questionsPage - 1]))) ?>">â† Prev</a><?php endif; ?><?php for ($i = max(1, $questionsPage - 2); $i <= min($questionTotalPages, $questionsPage + 2); $i++): ?><a class="school-button-quiet <?= $i === $questionsPage ? 'active' : '' ?>" href="?<?= htmlspecialchars(http_build_query(array_merge($_GET, ['questions_page' => $i]))) ?>"><?= $i ?></a><?php endfor; ?><?php if ($questionsPage < $questionTotalPages): ?><a class="school-button-quiet" href="?<?= htmlspecialchars(http_build_query(array_merge($_GET, ['questions_page' => $questionsPage + 1]))) ?>">Next â†’</a><?php endif; ?></div></div><?php endif; ?>
+        </section>
+    </section>
 
+    <section class="school-tab-panel" id="mcqs-panel" role="tabpanel" hidden>
+        <section class="school-panel" aria-labelledby="mcq-library-heading">
+            <div class="school-panel-header"><div><h2 id="mcq-library-heading">MCQ library</h2><p>Keep options and correct answers visible while reviewing each item.</p></div><span class="question-type-pill">MCQ</span></div>
+            <form method="GET" class="school-filter" id="mcq-filter-form" aria-label="Filter MCQs">
+                <div class="school-filter-row"><div><label class="school-filter-label" for="mcq-search">Search</label><input id="mcq-search" type="search" name="mcq_search" placeholder="Question, option, topic, or ID" value="<?= htmlspecialchars($mcqSearch) ?>"></div><div><label class="school-filter-label" for="mcq-match">Match</label><select id="mcq-match" name="mcq_match"><option value="contains" <?= $mcqMatch === 'contains' ? 'selected' : '' ?>>Contains</option><option value="exact" <?= $mcqMatch === 'exact' ? 'selected' : '' ?>>Exact</option></select></div><div><label class="school-filter-label" for="mcq-class-filter">Class</label><select id="mcq-class-filter" name="mcq_filter_class_id"><option value="0">All classes</option><?php foreach ($classOptions as $class): ?><option value="<?= (int) $class['class_id'] ?>" <?= $mcqFilterClassId === (int) $class['class_id'] ? 'selected' : '' ?>><?= htmlspecialchars($class['class_name']) ?></option><?php endforeach; ?></select></div></div>
+                <div class="school-filter-row"><div><label class="school-filter-label" for="mcq-book-filter">Book</label><select id="mcq-book-filter" name="mcq_filter_book_id"><option value="0">All books</option><?php foreach ($bookOptions as $book): ?><option value="<?= (int) $book['book_id'] ?>" data-class-id="<?= (int) $book['class_id'] ?>" <?= $mcqFilterBookId === (int) $book['book_id'] ? 'selected' : '' ?>><?= htmlspecialchars($book['book_name']) ?></option><?php endforeach; ?></select></div><div><label class="school-filter-label" for="mcq-chapter-filter">Chapter</label><select class="school-select" id="mcq-chapter-filter" name="mcq_filter_chapter_id"><option value="0">All chapters</option><?php foreach ($chapterOptions as $chapter): if ($mcqFilterClassId > 0 && $mcqFilterClassId !== (int) $chapter['class_id']) continue; ?><option value="<?= (int) $chapter['chapter_id'] ?>" data-class-id="<?= (int) $chapter['class_id'] ?>" data-book-name="<?= htmlspecialchars($chapter['book_name']) ?>" <?= $mcqFilterChapterId === (int) $chapter['chapter_id'] ? 'selected' : '' ?>><?= htmlspecialchars($chapter['chapter_name']) ?></option><?php endforeach; ?></select></div><div><label class="school-filter-label" for="mcqs-per-page">Per page</label><select id="mcqs-per-page" name="mcqs_per_page"><option value="10" <?= $mcqsPerPage === 10 ? 'selected' : '' ?>>10</option><option value="20" <?= $mcqsPerPage === 20 ? 'selected' : '' ?>>20</option><option value="50" <?= $mcqsPerPage === 50 ? 'selected' : '' ?>>50</option><option value="all" <?= $mcqsPerPage === 'all' ? 'selected' : '' ?>>All</option></select></div><div class="school-filter-actions" style="align-items:end"><button class="school-button" type="submit">Apply filters</button><a class="school-button-quiet" href="manage_questions.php">Reset</a></div></div>
+            </form>
+            <div class="school-question-list">
+                <?php if (!$mcqs || $mcqTotalCount === 0): ?><div class="school-empty">No MCQs match these filters yet.</div><?php endif; ?>
+                <?php if ($mcqs) { $mcqs->data_seek(0); while ($mcq = $mcqs->fetch_assoc()): ?>
+                    <article class="question-card">
+                        <div class="question-card-id">#<?= (int) $mcq['mcq_id'] ?></div>
+                        <div><h3><?= htmlspecialchars($mcq['question']) ?></h3><p><?= $mcq['topic'] ? htmlspecialchars($mcq['topic']) : 'No topic added yet.' ?></p><div class="question-card-meta"><span><?= htmlspecialchars($mcq['book_name'] ?? 'Book') ?></span><span><?= htmlspecialchars($mcq['chapter_name'] ?? 'Chapter') ?></span><span>Correct: <?= htmlspecialchars($mcq['correct_option'] ?? 'Not set') ?></span></div><div class="mcq-options-display"><div><strong>A</strong> <?= htmlspecialchars($mcq['option_a'] ?? '') ?></div><div><strong>B</strong> <?= htmlspecialchars($mcq['option_b'] ?? '') ?></div><div><strong>C</strong> <?= htmlspecialchars($mcq['option_c'] ?? '') ?></div><div><strong>D</strong> <?= htmlspecialchars($mcq['option_d'] ?? '') ?></div><?php if (!empty($mcq['explanation'])): ?><div style="grid-column:1/-1"><strong>Why</strong> <?= htmlspecialchars($mcq['explanation']) ?></div><?php endif; ?></div></div>
+                        <div class="question-card-actions"><button class="school-button-quiet" type="button" data-edit-mcq="<?= (int) $mcq['mcq_id'] ?>">Edit</button><!-- <button type="submit" class="school-button-quiet">Delete</button> --><span class="school-disabled-action" title="Delete is disabled">Delete disabled</span></div>
+                        <div class="edit-row" id="edit-mcq-<?= (int) $mcq['mcq_id'] ?>"><form method="POST" class="edit-form"><input type="hidden" name="action" value="update_mcq"><input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>"><input type="hidden" name="mcq_id" value="<?= (int) $mcq['mcq_id'] ?>"><div class="school-grid-3"><div class="school-field"><label>Class</label><select class="school-select edit-class" name="class_id" required><?php foreach ($classOptions as $class): ?><option value="<?= (int) $class['class_id'] ?>" <?= (int) $class['class_id'] === (int) $mcq['class_id'] ? 'selected' : '' ?>><?= htmlspecialchars($class['class_name']) ?></option><?php endforeach; ?></select></div><div class="school-field"><label>Book</label><select class="school-select edit-book" name="book_id" required><?php foreach ($bookOptions as $book): ?><option value="<?= (int) $book['book_id'] ?>" data-class-id="<?= (int) $book['class_id'] ?>" <?= (int) $book['book_id'] === (int) $mcq['book_id'] ? 'selected' : '' ?>><?= htmlspecialchars($book['book_name']) ?></option><?php endforeach; ?></select></div><div class="school-field"><label>Chapter</label><select class="school-select edit-chapter" name="chapter_id" required><?php foreach ($chapterOptions as $chapter): ?><option value="<?= (int) $chapter['chapter_id'] ?>" data-class-id="<?= (int) $chapter['class_id'] ?>" data-book-name="<?= htmlspecialchars($chapter['book_name']) ?>" <?= (int) $chapter['chapter_id'] === (int) $mcq['chapter_id'] ? 'selected' : '' ?>><?= htmlspecialchars($chapter['chapter_name']) ?></option><?php endforeach; ?></select></div></div><div class="school-field"><label>Topic</label><input class="school-input" type="text" name="topic" value="<?= htmlspecialchars($mcq['topic'] ?? '') ?>"></div><div class="school-field"><label>Question</label><textarea class="school-textarea" name="question" required><?= htmlspecialchars($mcq['question']) ?></textarea></div><div class="school-grid-2"><div class="school-field"><label>Option A</label><input class="school-input" type="text" name="option_a" value="<?= htmlspecialchars($mcq['option_a'] ?? '') ?>" required></div><div class="school-field"><label>Option B</label><input class="school-input" type="text" name="option_b" value="<?= htmlspecialchars($mcq['option_b'] ?? '') ?>" required></div><div class="school-field"><label>Option C</label><input class="school-input" type="text" name="option_c" value="<?= htmlspecialchars($mcq['option_c'] ?? '') ?>" required></div><div class="school-field"><label>Option D</label><input class="school-input" type="text" name="option_d" value="<?= htmlspecialchars($mcq['option_d'] ?? '') ?>" required></div></div><div class="school-grid-2"><div class="school-field"><label>Correct option</label><select class="school-select" name="correct_option" required><?php $coText = trim($mcq['correct_option'] ?? ''); foreach (['A','B','C','D'] as $letter): $optionKey = 'option_' . strtolower($letter); ?><option value="<?= $letter ?>" <?= $coText === $letter || strcasecmp($coText, $mcq[$optionKey] ?? '') === 0 ? 'selected' : '' ?>>Option <?= $letter ?></option><?php endforeach; ?></select></div><div class="school-field"><label>Explanation</label><textarea class="school-textarea" name="explanation"><?= htmlspecialchars($mcq['explanation'] ?? '') ?></textarea></div></div><div class="form-actions"><button class="school-button" type="submit">Save changes</button><button class="school-button-quiet" type="button" data-close-mcq="<?= (int) $mcq['mcq_id'] ?>">Cancel</button></div></form></div>
+                    </article>
+                <?php endwhile; } ?>
+            </div>
+            <?php if ($mcqsPerPage === 'all'): ?><div class="school-pagination"><span>Viewing all <?= (int) $mcqTotalCount ?> MCQs</span></div><?php elseif ($mcqTotalPages > 1): ?><div class="school-pagination"><span>Showing <?= $mcqsOffset + 1 ?>â€“<?= min($mcqsOffset + $mcqsPerPage, $mcqTotalCount) ?> of <?= (int) $mcqTotalCount ?></span><div class="school-pagination-links"><?php if ($mcqsPage > 1): ?><a class="school-button-quiet" href="?<?= htmlspecialchars(http_build_query(array_merge($_GET, ['mcqs_page' => $mcqsPage - 1]))) ?>">â† Prev</a><?php endif; ?><?php for ($i = max(1, $mcqsPage - 2); $i <= min($mcqTotalPages, $mcqsPage + 2); $i++): ?><a class="school-button-quiet <?= $i === $mcqsPage ? 'active' : '' ?>" href="?<?= htmlspecialchars(http_build_query(array_merge($_GET, ['mcqs_page' => $i]))) ?>"><?= $i ?></a><?php endfor; ?><?php if ($mcqsPage < $mcqTotalPages): ?><a class="school-button-quiet" href="?<?= htmlspecialchars(http_build_query(array_merge($_GET, ['mcqs_page' => $mcqsPage + 1]))) ?>">Next â†’</a><?php endif; ?></div></div><?php endif; ?>
+        </section>
+    </section>
+</main>
+
+<script>
+(function () {
+    const books = <?= json_encode($bookOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const chapters = <?= json_encode($chapterOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+    function filterLocation(form, preserveChapter) {
+        const classSelect = form.querySelector('.edit-class, #cq-class');
+        const bookSelect = form.querySelector('.edit-book, #cq-book');
+        const chapterSelect = form.querySelector('.edit-chapter, #cq-chapter');
+        if (!classSelect || !bookSelect || !chapterSelect) return;
+        const classId = classSelect.value;
+        const currentBook = bookSelect.value;
+        const currentChapter = chapterSelect.value;
+        bookSelect.innerHTML = '<option value="">Choose book</option>';
+        books.filter(book => !classId || String(book.class_id) === String(classId)).forEach(book => {
+            const option = new Option(book.book_name, book.book_id);
+            option.dataset.classId = book.class_id;
+            option.dataset.bookName = book.book_name;
+            option.selected = String(book.book_id) === String(currentBook);
+            bookSelect.add(option);
+        });
+        bookSelect.disabled = !classId;
+        const bookName = bookSelect.selectedOptions[0]?.dataset.bookName || '';
+        chapterSelect.innerHTML = '<option value="">Choose chapter</option>';
+        chapters.filter(chapter => (!classId || String(chapter.class_id) === String(classId)) && (!bookName || chapter.book_name === bookName)).forEach(chapter => {
+            const option = new Option(chapter.chapter_name, chapter.chapter_id);
+            option.dataset.classId = chapter.class_id;
+            option.dataset.bookName = chapter.book_name;
+            option.selected = String(chapter.chapter_id) === String(currentChapter) || String(chapter.chapter_id) === String(preserveChapter || '');
+            chapterSelect.add(option);
+        });
+        chapterSelect.disabled = !bookSelect.value;
+    }
+
+    const createForm = document.getElementById('create-question-form');
+    createForm?.querySelector('#cq-class')?.addEventListener('change', () => filterLocation(createForm));
+    createForm?.querySelector('#cq-book')?.addEventListener('change', () => filterLocation(createForm));
+    if (createForm) filterLocation(createForm);
+
+    function toggleMcq(set, isMcq) {
+        const options = set.querySelector('.mcq_options, .mcq-options-edit');
+        if (!options) return;
+        options.hidden = !isMcq;
+        options.querySelectorAll('input, select').forEach(input => {
+            input.required = isMcq && input.name !== 'explanation';
+        });
+    }
+    const typeSelect = document.getElementById('question-type');
+    function updateQuestionSets() { document.querySelectorAll('#question-sets [data-question-set]').forEach(set => toggleMcq(set, typeSelect?.value === 'mcq')); }
+    typeSelect?.addEventListener('change', updateQuestionSets);
+    const questionSets = document.getElementById('question-sets');
+    function updateSetLabels() { questionSets?.querySelectorAll('[data-question-set]').forEach((set, index) => { set.querySelector('.question-set-number').textContent = 'Question ' + String(index + 1).padStart(2, '0'); const remove = set.querySelector('[data-remove-question]'); if (remove) remove.hidden = questionSets.children.length === 1; }); }
+    document.getElementById('add-next-question')?.addEventListener('click', () => { const clone = questionSets.firstElementChild.cloneNode(true); clone.querySelectorAll('textarea, input').forEach(input => { input.value = ''; }); clone.querySelectorAll('select').forEach(select => { select.selectedIndex = 0; }); questionSets.appendChild(clone); updateSetLabels(); updateQuestionSets(); clone.querySelector('textarea').focus(); });
+    questionSets?.addEventListener('click', event => { const remove = event.target.closest('[data-remove-question]'); if (remove && questionSets.children.length > 1) { remove.closest('[data-question-set]').remove(); updateSetLabels(); } });
+    updateSetLabels(); updateQuestionSets();
+
+    document.querySelectorAll('[data-edit-question]').forEach(button => { button.addEventListener('click', () => { const row = document.getElementById('edit-question-' + button.dataset.editQuestion); row?.classList.toggle('is-open'); if (row?.classList.contains('is-open')) { const form = row.querySelector('form'); filterLocation(form); const type = form.querySelector('.edit-question-type'); toggleMcq(form, type?.value === 'mcq'); type?.addEventListener('change', () => toggleMcq(form, type.value === 'mcq')); form.querySelector('.edit-class')?.addEventListener('change', () => filterLocation(form)); form.querySelector('.edit-book')?.addEventListener('change', () => filterLocation(form)); } }); });
+    document.querySelectorAll('[data-close-question]').forEach(button => button.addEventListener('click', () => document.getElementById('edit-question-' + button.dataset.closeQuestion)?.classList.remove('is-open')));
+    document.querySelectorAll('[data-edit-mcq]').forEach(button => { button.addEventListener('click', () => { const row = document.getElementById('edit-mcq-' + button.dataset.editMcq); row?.classList.toggle('is-open'); if (row?.classList.contains('is-open')) { const form = row.querySelector('form'); filterLocation(form); form.querySelector('.edit-class')?.addEventListener('change', () => filterLocation(form)); form.querySelector('.edit-book')?.addEventListener('change', () => filterLocation(form)); } }); });
+    document.querySelectorAll('[data-close-mcq]').forEach(button => button.addEventListener('click', () => document.getElementById('edit-mcq-' + button.dataset.closeMcq)?.classList.remove('is-open')));
+
+    document.querySelectorAll('[data-tab-target]').forEach(tab => tab.addEventListener('click', () => { document.querySelectorAll('[data-tab-target]').forEach(item => item.setAttribute('aria-selected', String(item === tab))); document.querySelectorAll('.school-tab-panel').forEach(panel => { panel.hidden = panel.id !== tab.dataset.tabTarget; }); }));
+    const query = new URLSearchParams(window.location.search);
+    if (query.has('mcq_search') || query.has('mcq_filter_class_id') || query.has('mcq_filter_book_id') || query.has('mcq_filter_chapter_id')) {
+        document.querySelector('[data-tab-target="mcqs-panel"]')?.click();
+    }
+
+    [['question-class-filter', 'question-book-filter'], ['mcq-class-filter', 'mcq-book-filter']].forEach(([classId, bookId]) => { const classSelect = document.getElementById(classId); const bookSelect = document.getElementById(bookId); classSelect?.addEventListener('change', () => { if (!bookSelect) return; Array.from(bookSelect.options).forEach(option => { option.hidden = option.value !== '0' && classSelect.value !== '0' && option.dataset.classId !== classSelect.value; }); if (bookSelect.selectedOptions[0]?.hidden) bookSelect.value = '0'; }); classSelect?.dispatchEvent(new Event('change')); });
+})();
+</script>
+
+<?php include_once __DIR__ . '/../footer.php'; ?>

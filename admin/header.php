@@ -40,6 +40,9 @@ $adminUrl = $baseUrl . 'admin/';
     <link rel="stylesheet" href="<?= $baseUrl ?>css/admin.css">
     <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-header.css">
     <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-footer.css">
+    <?php if (in_array(basename($_SERVER['SCRIPT_NAME'] ?? ''), ['manage_chapters.php', 'manage_questions.php'], true)): ?>
+        <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-school-manage.css?v=1.0">
+    <?php endif; ?>
     <?php if (basename($_SERVER['SCRIPT_NAME'] ?? '') === 'search_queries.php'): ?>
         <link rel="stylesheet" href="<?= $baseUrl ?>css/admin-search.css">
     <?php endif; ?>
