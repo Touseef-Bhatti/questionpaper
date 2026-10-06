@@ -425,6 +425,41 @@ if (!verifyCSRFToken($csrf)) {
 }
 
 $action = trim((string) ($_POST['action'] ?? ''));
+
+if ($action === 'download_book_source') {
+    $uploadId = intval($_POST['upload_id'] ?? 0);
+    $upload = fetchUpload($conn, $uploadId);
+    $driveFileId = trim((string) ($upload['drive_file_id'] ?? ''));
+    if (!$upload || ($upload['drive_status'] ?? 'available') !== 'available' || !preg_match('/^[A-Za-z0-9_-]+$/', $driveFileId)) {
+        jsonResponse(['ok' => false, 'error' => 'The stored Google Drive textbook is not available.']);
+    }
+
+    try {
+        $drive = new GoogleDriveService();
+        if (!$drive->isFileAvailable($driveFileId)) {
+            jsonResponse(['ok' => false, 'error' => 'The stored Google Drive textbook could not be found.']);
+        }
+
+        global $bookQuestionJsonResponseSent;
+        $bookQuestionJsonResponseSent = true;
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="book-source.pdf"');
+        header('Cache-Control: private, no-store, max-age=0');
+        header('X-Content-Type-Options: nosniff');
+        $drive->streamFileToOutput($driveFileId);
+        exit;
+    } catch (Throwable $e) {
+        error_log('Book source stream failed for upload ' . $uploadId . ': ' . $e->getMessage());
+        if (!headers_sent()) {
+            jsonResponse(['ok' => false, 'error' => 'The stored textbook could not be loaded from Google Drive.'], 502);
+        }
+        exit;
+    }
+}
+
 $generator = new BookQuestionGenerator($conn);
 
 if ($action === 'list_data') {

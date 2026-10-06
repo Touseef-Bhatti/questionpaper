@@ -523,6 +523,51 @@ class GoogleDriveService
         return $bytesWritten;
     }
 
+    /**
+     * Stream a known Drive file directly to the current HTTP response.
+     * This lets browser-side PDF.js read a stored book without a writable
+     * server temporary directory.
+     */
+    public function streamFileToOutput(string $fileId): int
+    {
+        if (!preg_match('/^[A-Za-z0-9_-]+$/', $fileId)) {
+            throw new InvalidArgumentException('Invalid Google Drive file ID.');
+        }
+
+        $token = $this->getAccessToken();
+        $bytesWritten = 0;
+        $ch = curl_init('https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?alt=media&supportsAllDrives=true');
+        curl_setopt_array($ch, [
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_TIMEOUT => 300,
+            CURLOPT_HTTPHEADER => ["Authorization: Bearer {$token}"],
+            CURLOPT_WRITEFUNCTION => static function ($curlHandle, string $chunk) use (&$bytesWritten): int {
+                $chunkLength = strlen($chunk);
+                echo $chunk;
+                if (function_exists('flush')) {
+                    flush();
+                }
+                $bytesWritten += $chunkLength;
+                return $chunkLength;
+            },
+        ]);
+        $ok = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($ok === false || $httpCode !== 200) {
+            throw new Exception('Google Drive stream failed' . ($curlError !== '' ? ': ' . $curlError : " (HTTP {$httpCode})"));
+        }
+        if ($bytesWritten <= 0) {
+            throw new Exception('Google Drive returned an empty file.');
+        }
+
+        return $bytesWritten;
+    }
+
     public function isFileAvailable(string $fileId): bool
     {
         if (!preg_match('/^[A-Za-z0-9_-]+$/', $fileId)) {

@@ -63,7 +63,7 @@ include_once __DIR__ . '/../header.php';
 /* Scoped responsive styles for the textbook content pipeline. */
 .generator-container {
     width: 100%;
-    max-width: 1480px;
+    max-width: 100%;
     margin: 0 auto;
     padding: 1.25rem 0.75rem 3rem;
 }
@@ -377,6 +377,7 @@ include_once __DIR__ . '/../header.php';
 
 /* Section 04: focused generation control room. */
 .generator-container .generation-panel {
+    width: 100%;
     position: relative;
     overflow: hidden;
     border-color: #b7e4d0;
@@ -487,6 +488,18 @@ include_once __DIR__ . '/../header.php';
     grid-template-columns: minmax(250px, 1.35fr) minmax(280px, 1fr) minmax(190px, 0.7fr);
     gap: 1rem;
     align-items: end;
+}
+
+@media (min-width: 1200px) {
+    .generation-controls {
+        grid-template-columns: minmax(220px, 1.15fr) minmax(280px, 1.35fr) minmax(300px, 1.5fr) minmax(190px, 0.8fr);
+    }
+}
+
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    .generation-controls {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .generation-field,
@@ -859,6 +872,9 @@ include_once __DIR__ . '/../header.php';
                 </div>
             </div>
 
+        </div>
+
+        <div class="col-12">
             <div class="card generation-panel">
                 <div class="card-header generation-panel-header">
                     <div class="generation-heading">
@@ -884,9 +900,9 @@ include_once __DIR__ . '/../header.php';
                         </div>
 
                         <div class="generation-field">
-                            <label class="generation-label" for="generationSourceFile">Source PDF for this generation</label>
+                            <label class="generation-label" for="generationSourceFile">Source PDF (optional fallback)</label>
                             <input type="file" class="form-control" id="generationSourceFile" accept=".pdf,application/pdf">
-                            <span class="generation-field-note"><i class="fa-solid fa-circle-info me-1"></i>Select the same PDF used for the stored book. The browser reads only the selected chapter pages; scanned pages are sent as images.</span>
+                            <span class="generation-field-note"><i class="fa-solid fa-cloud-arrow-down me-1"></i>The stored Google Drive copy loads automatically. Select a local PDF only if Drive loading fails; the browser reads only the selected chapter pages.</span>
                         </div>
 
                         <div class="generation-targets">
@@ -1429,6 +1445,49 @@ function getBrowserSourceFile() {
     return null;
 }
 
+async function loadStoredBookPdf(uploadId) {
+    if (browserSourceFile && browserSourceUploadId === Number(uploadId)) {
+        return browserSourceFile;
+    }
+
+    const fd = new FormData();
+    fd.append('action', 'download_book_source');
+    fd.append('upload_id', String(uploadId));
+    fd.append('csrf_token', csrfToken);
+
+    const response = await fetch(apiUrl, { method: 'POST', body: fd });
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    if (!response.ok || !contentType.includes('application/pdf')) {
+        let message = 'The stored textbook could not be loaded from Google Drive.';
+        try {
+            const payload = await response.json();
+            message = payload.error || message;
+        } catch (error) {
+            // Keep the user-facing message stable when the server returned an HTML error page.
+        }
+        throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    if (!blob.size) {
+        throw new Error('Google Drive returned an empty textbook file.');
+    }
+
+    const filename = currentUpload?.original_filename || 'book-source.pdf';
+    browserSourceFile = new File([blob], filename, { type: 'application/pdf' });
+    browserSourceUploadId = Number(uploadId);
+    return browserSourceFile;
+}
+
+async function resolveBrowserSourceFile() {
+    const selectedFile = getBrowserSourceFile();
+    if (selectedFile) return selectedFile;
+    if (!currentUpload?.id) {
+        throw new Error('Select an uploaded book first.');
+    }
+    return loadStoredBookPdf(currentUpload.id);
+}
+
 function renderPdfPageToJpeg(page, pageNumber) {
     const scale = 1.35;
     const viewport = page.getViewport({ scale });
@@ -1644,11 +1703,6 @@ document.getElementById('startGenerateBtn').addEventListener('click', async () =
     const selectedRange = currentRanges[chapterId] || {};
     const pdfStartPage = Number(selectedRange.pdf_start_page || 0);
     const pdfEndPage = Number(selectedRange.pdf_end_page || 0);
-    const sourceFile = getBrowserSourceFile();
-    if (!sourceFile) {
-        showAlert('Select the same textbook PDF in "Source PDF for this generation".', 'warning');
-        return;
-    }
     if (!pdfStartPage || !pdfEndPage) {
         showAlert('The selected chapter does not have a valid saved PDF page range.', 'warning');
         return;
@@ -1657,9 +1711,11 @@ document.getElementById('startGenerateBtn').addEventListener('click', async () =
     const startButton = document.getElementById('startGenerateBtn');
     const originalButtonText = startButton.innerHTML;
     startButton.disabled = true;
-    startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Preparing chapter pages...';
+    startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading stored book...';
     let browserSource;
     try {
+        const sourceFile = await resolveBrowserSourceFile();
+        startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Preparing chapter pages...';
         browserSource = await prepareBrowserChapterSource(sourceFile, pdfStartPage, pdfEndPage);
     } catch (error) {
         startButton.disabled = false;
