@@ -182,6 +182,10 @@ $effectiveMax = min(diagnosticIniBytes($uploadMax), diagnosticIniBytes($postMax)
         .result.ok { background: #eaf8f0; }
         .result.bad { background: #fff0ef; }
         .warning { background: #fff8e5; border-left: 4px solid #c58a00; padding: 12px; }
+        .range-fields { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+        .range-fields label { display: grid; gap: 5px; font-weight: 700; }
+        .range-fields input { width: 100px; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; }
+        pre { white-space: pre-wrap; max-height: 360px; overflow: auto; background: #f7f9fc; padding: 12px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -232,6 +236,111 @@ $effectiveMax = min(diagnosticIniBytes($uploadMax), diagnosticIniBytes($postMax)
         </form>
         <p class="muted">Use a small PDF first. The uploaded temporary file is only inspected for MIME type and page count, then PHP removes it automatically.</p>
     </div>
+
+    <div class="card">
+        <h2>Browser PDF.js alternative test</h2>
+        <p class="muted">This test stays entirely in your browser. The PDF is not sent to PHP, Google Drive, or Gemini. It checks whether the browser can count pages and extract selectable text without <code>shell_exec()</code>, <code>pdfinfo</code>, or <code>pdftotext</code>.</p>
+        <input type="file" id="browserPdf" accept="application/pdf,.pdf">
+        <div class="range-fields">
+            <label>Start page <input type="number" id="browserStart" min="1" value="1" disabled></label>
+            <label>End page <input type="number" id="browserEnd" min="1" value="1" disabled></label>
+            <button type="button" id="browserExtract" disabled>Extract selected pages</button>
+        </div>
+        <div id="browserResult" class="result" hidden></div>
+        <pre id="browserText" hidden></pre>
+    </div>
 </main>
+<script type="module">
+    import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.mjs';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.worker.mjs';
+
+    const fileInput = document.getElementById('browserPdf');
+    const startInput = document.getElementById('browserStart');
+    const endInput = document.getElementById('browserEnd');
+    const extractButton = document.getElementById('browserExtract');
+    const resultBox = document.getElementById('browserResult');
+    const textBox = document.getElementById('browserText');
+    let loadedPdf = null;
+
+    function showBrowserResult(message, ok) {
+        resultBox.hidden = false;
+        resultBox.className = 'result ' + (ok ? 'ok' : 'bad');
+        resultBox.textContent = message;
+    }
+
+    fileInput.addEventListener('change', async () => {
+        loadedPdf = null;
+        extractButton.disabled = true;
+        startInput.disabled = true;
+        endInput.disabled = true;
+        textBox.hidden = true;
+        textBox.textContent = '';
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+
+        showBrowserResult('Loading PDF in the browser...', true);
+        try {
+            const data = new Uint8Array(await file.arrayBuffer());
+            loadedPdf = await pdfjsLib.getDocument({ data }).promise;
+            startInput.max = loadedPdf.numPages;
+            endInput.max = loadedPdf.numPages;
+            startInput.value = '1';
+            endInput.value = String(Math.min(3, loadedPdf.numPages));
+            startInput.disabled = false;
+            endInput.disabled = false;
+            extractButton.disabled = false;
+            showBrowserResult(
+                'Browser PDF.js loaded the PDF successfully. Page count: ' + loadedPdf.numPages + '.',
+                true
+            );
+        } catch (error) {
+            showBrowserResult('Browser PDF.js could not load this PDF: ' + error.message, false);
+        }
+    });
+
+    extractButton.addEventListener('click', async () => {
+        if (!loadedPdf) return;
+        const start = Number.parseInt(startInput.value, 10);
+        const end = Number.parseInt(endInput.value, 10);
+        if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end > loadedPdf.numPages) {
+            showBrowserResult('Enter a valid page range.', false);
+            return;
+        }
+
+        extractButton.disabled = true;
+        textBox.hidden = true;
+        textBox.textContent = '';
+        let extracted = '';
+        try {
+            for (let pageNumber = start; pageNumber <= end; pageNumber++) {
+                showBrowserResult('Extracting page ' + pageNumber + ' of ' + end + '...', true);
+                const page = await loadedPdf.getPage(pageNumber);
+                const content = await page.getTextContent();
+                const pageText = content.items
+                    .map(item => typeof item.str === 'string' ? item.str : '')
+                    .join(' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                extracted += '\n\n--- Page ' + pageNumber + ' ---\n' + pageText;
+            }
+
+            const cleanText = extracted.trim();
+            textBox.textContent = cleanText || '[No selectable text found. This may be a scanned/image-only PDF.]';
+            textBox.hidden = false;
+            showBrowserResult(
+                cleanText
+                    ? 'Browser extraction succeeded. Extracted ' + cleanText.length.toLocaleString() + ' characters from pages ' + start + '-' + end + '.'
+                    : 'PDF pages loaded, but no selectable text was found.',
+                Boolean(cleanText)
+            );
+        } catch (error) {
+            showBrowserResult('Browser text extraction failed: ' + error.message, false);
+        } finally {
+            extractButton.disabled = false;
+        }
+    });
+</script>
 </body>
 </html>
