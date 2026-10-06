@@ -375,6 +375,246 @@ include_once __DIR__ . '/../header.php';
     color: #64748b;
 }
 
+/* Section 04: focused generation control room. */
+.generator-container .generation-panel {
+    position: relative;
+    overflow: hidden;
+    border-color: #b7e4d0;
+    background: #fbfffd;
+    box-shadow: 0 16px 34px rgba(15, 118, 110, 0.1);
+}
+
+.generator-container .generation-panel::after {
+    content: "";
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    right: -100px;
+    top: -120px;
+    border: 1px solid rgba(15, 118, 110, 0.13);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.generator-container .generation-panel .card-header {
+    position: relative;
+    z-index: 1;
+    padding: 1.25rem 1.35rem 1rem;
+    border-bottom: 0;
+    background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+    color: #ffffff;
+}
+
+.generation-panel-header,
+.generation-heading,
+.generation-source-badge {
+    display: flex;
+    align-items: center;
+}
+
+.generation-panel-header {
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.generation-heading {
+    gap: 0.75rem;
+}
+
+.generation-step-marker {
+    flex: 0 0 auto;
+    margin-right: 0;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    color: #ffffff;
+}
+
+.generation-panel .card-kicker {
+    color: #a7f3d0;
+}
+
+.generation-panel h2 {
+    margin: 0.12rem 0 0;
+    color: #ffffff;
+    font-size: clamp(1.1rem, 2vw, 1.35rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+}
+
+.generation-panel .generation-subtitle {
+    max-width: 580px;
+    margin: 0.32rem 0 0;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.generation-source-badge {
+    flex: 0 0 auto;
+    gap: 0.4rem;
+    min-height: 34px;
+    padding: 0.42rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ecfdf5;
+    font-size: 0.7rem;
+    font-weight: 750;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.generation-source-badge.is-ready {
+    background: #d1fae5;
+    border-color: #a7f3d0;
+    color: #065f46;
+}
+
+.generation-source-badge.is-warning {
+    background: #fef3c7;
+    border-color: #fde68a;
+    color: #92400e;
+}
+
+.generator-container .generation-panel .card-body {
+    position: relative;
+    z-index: 1;
+    padding: 1.2rem 1.35rem 1.35rem;
+}
+
+.generation-controls {
+    display: grid;
+    grid-template-columns: minmax(250px, 1.35fr) minmax(280px, 1fr) minmax(190px, 0.7fr);
+    gap: 1rem;
+    align-items: end;
+}
+
+.generation-field,
+.generation-targets,
+.generation-action {
+    min-width: 0;
+}
+
+.generation-label {
+    display: block;
+    margin-bottom: 0.45rem;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.generation-field .form-select {
+    min-height: 48px;
+    border-color: #b7e4d0;
+    background-color: #ffffff;
+    font-weight: 650;
+}
+
+.generation-field-note,
+.generation-action-note {
+    display: block;
+    margin-top: 0.42rem;
+    color: #64748b;
+    font-size: 0.72rem;
+    line-height: 1.4;
+}
+
+.target-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.target-input-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    padding: 0.6rem 0.65rem 0.55rem;
+    border: 1px solid #dbe7e1;
+    border-radius: 11px;
+    background: #ffffff;
+    cursor: text;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.target-input-card:hover,
+.target-input-card:focus-within {
+    border-color: #34d399;
+    box-shadow: 0 5px 14px rgba(15, 118, 110, 0.1);
+    transform: translateY(-1px);
+}
+
+.target-input-card > span {
+    color: #0f766e;
+    font-size: 0.7rem;
+    font-weight: 850;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.target-input-card > small {
+    min-height: 1.8em;
+    color: #64748b;
+    font-size: 0.65rem;
+    line-height: 1.25;
+}
+
+.target-input-card input {
+    width: 100%;
+    min-height: 34px;
+    margin-top: 0.22rem;
+    border: 0;
+    border-top: 1px solid #e2e8f0;
+    border-radius: 0;
+    color: #172033;
+    font-size: 1.05rem;
+    font-weight: 800;
+    outline: 0;
+}
+
+.generation-action .btn {
+    min-height: 48px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+.generation-action-note i {
+    color: #0f766e;
+}
+
+@media (max-width: 991.98px) {
+    .generation-controls {
+        grid-template-columns: 1fr 1fr;
+    }
+    .generation-field {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .generator-container .generation-panel .card-header,
+    .generator-container .generation-panel .card-body {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    .generation-panel-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .generation-source-badge {
+        margin-left: 3rem;
+    }
+    .generation-controls {
+        grid-template-columns: 1fr;
+    }
+    .generation-field {
+        grid-column: auto;
+    }
+}
+
 /* Touch targets and form controls */
 .form-control, .form-select, .btn {
     min-height: 42px;
@@ -619,51 +859,56 @@ include_once __DIR__ . '/../header.php';
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <span class="step-marker">04</span>
-                    <div><span class="card-kicker d-block">AI draft</span><strong><i class="fa-solid fa-wand-magic-sparkles me-2 text-primary"></i>Generate for review</strong></div>
+            <div class="card generation-panel">
+                <div class="card-header generation-panel-header">
+                    <div class="generation-heading">
+                        <span class="step-marker generation-step-marker">04</span>
+                        <div>
+                            <span class="card-kicker d-block">AI draft</span>
+                            <h2><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate for review</h2>
+                            <p class="generation-subtitle">Choose one mapped chapter, set the question mix, and create an editable draft for approval.</p>
+                        </div>
+                    </div>
+                    <span class="generation-source-badge" id="generationSourceBadge" aria-live="polite">
+                        <i class="fa-solid fa-circle-question"></i> Select a stored book
+                    </span>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
-                        <!-- Chapter Selector -->
-                        <div class="col-12 col-lg-5">
-                            <label class="form-label fw-semibold small text-secondary" for="generateChapter">Chapter to Generate</label>
+                    <div class="generation-controls">
+                        <div class="generation-field">
+                            <label class="generation-label" for="generateChapter">Chapter to generate</label>
                             <select class="form-select" id="generateChapter">
                                 <option value="">Save chapter ranges first</option>
                             </select>
+                            <span class="generation-field-note"><i class="fa-solid fa-circle-info me-1"></i>Only chapters with saved PDF ranges appear here.</span>
                         </div>
 
-                        <!-- Target Counts: MCQs, Short, Long in 3 neat columns on all screens -->
-                        <div class="col-12 col-lg-4">
-                            <label class="form-label fw-semibold small text-secondary d-block">Question Targets</label>
-                            <div class="row g-2">
-                                <div class="col-4">
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text px-1 px-sm-2 small" title="Multiple Choice Questions">MCQ</span>
-                                        <input type="number" class="form-control text-center px-1" id="mcqCount" min="0" max="200" value="10">
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text px-1 px-sm-2 small" title="Short Questions">Short</span>
-                                        <input type="number" class="form-control text-center px-1" id="shortCount" min="0" max="100" value="5">
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text px-1 px-sm-2 small" title="Long Questions">Long</span>
-                                        <input type="number" class="form-control text-center px-1" id="longCount" min="0" max="50" value="3">
-                                    </div>
-                                </div>
+                        <div class="generation-targets">
+                            <span class="generation-label">Question targets</span>
+                            <div class="target-grid">
+                                <label class="target-input-card" for="mcqCount">
+                                    <span>MCQ</span>
+                                    <small>Multiple choice</small>
+                                    <input type="number" id="mcqCount" min="0" max="200" value="10" aria-label="MCQ target count">
+                                </label>
+                                <label class="target-input-card" for="shortCount">
+                                    <span>Short</span>
+                                    <small>Short questions</small>
+                                    <input type="number" id="shortCount" min="0" max="100" value="5" aria-label="Short question target count">
+                                </label>
+                                <label class="target-input-card" for="longCount">
+                                    <span>Long</span>
+                                    <small>Long questions</small>
+                                    <input type="number" id="longCount" min="0" max="50" value="3" aria-label="Long question target count">
+                                </label>
                             </div>
                         </div>
 
-                        <!-- Action Button -->
-                        <div class="col-12 col-lg-3 d-flex align-items-end">
-                            <button type="button" class="btn btn-primary w-100" id="startGenerateBtn" <?= $apiKeyConfigured ? '' : 'disabled' ?>>
-                                <i class="fa-solid fa-play me-1"></i>Start Generation
+                        <div class="generation-action">
+                            <button type="button" class="btn btn-primary w-100" id="startGenerateBtn" disabled>
+                                <i class="fa-solid fa-play me-1"></i>Generate draft
                             </button>
+                            <span class="generation-action-note"><i class="fa-solid fa-shield-halved me-1"></i>Drafts stay pending until you approve them.</span>
                         </div>
                     </div>
 
@@ -723,12 +968,44 @@ const apiUrl = 'api.php';
 const driveSyncUrl = '../google_drive_sync.php';
 const bookData = <?= json_encode($books, JSON_UNESCAPED_UNICODE) ?>;
 const maxUploadBytes = <?= (int) $uploadLimitBytes ?>;
+const aiKeyConfigured = <?= $apiKeyConfigured ? 'true' : 'false' ?>;
 let uploads = [];
 let currentUpload = null;
 let currentChapters = [];
 let currentRanges = {};
 let currentJobId = '';
 let generationRunning = false;
+
+function updateGenerationControls() {
+    const button = document.getElementById('startGenerateBtn');
+    const chapterSelect = document.getElementById('generateChapter');
+    const badge = document.getElementById('generationSourceBadge');
+    if (!button || !chapterSelect || !badge) return;
+
+    const sourceAvailable = !!currentUpload && currentUpload.source_available !== false;
+    const chapterSelected = chapterSelect.value !== '';
+    button.disabled = !aiKeyConfigured || !sourceAvailable || !chapterSelected || generationRunning;
+
+    badge.classList.remove('is-ready', 'is-warning');
+    if (!currentUpload) {
+        badge.innerHTML = '<i class="fa-solid fa-circle-question"></i> Select a stored book';
+        return;
+    }
+    if (!sourceAvailable) {
+        badge.classList.add('is-warning');
+        badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Source unavailable';
+        return;
+    }
+    if (!aiKeyConfigured) {
+        badge.classList.add('is-warning');
+        badge.innerHTML = '<i class="fa-solid fa-key"></i> AI key required';
+        return;
+    }
+
+    badge.classList.add('is-ready');
+    const sourceLabel = currentUpload.source_type === 'local' ? 'Local copy ready' : 'Stored book ready';
+    badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${sourceLabel}`;
+}
 
 function showAlert(message, type = 'danger') {
     const box = document.getElementById('alertBox');
@@ -752,16 +1029,33 @@ function hideAlert() {
 }
 
 async function postForm(fd) {
-    fd.append('csrf_token', csrfToken);
+    if (!fd.has('csrf_token')) {
+        fd.append('csrf_token', csrfToken);
+    }
     try {
         const res = await fetch(apiUrl, { method: 'POST', body: fd });
         const text = await res.text();
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+        const trimmedText = text.trimStart();
+        if (res.redirected || contentType.includes('text/html')) {
+            showAlert('Your admin session may have expired. Reload the page and sign in again.', 'warning');
+            return null;
+        }
+        if (contentType.includes('application/pdf') || trimmedText.startsWith('%PDF-')) {
+            showAlert('The server returned a PDF instead of a JSON result. The textbook was not processed; reload the page and try again.', 'danger');
+            return null;
+        }
         let data;
         try {
             data = JSON.parse(text);
         } catch (e) {
-            showAlert('Invalid JSON response: ' + text.slice(0, 500), 'danger');
+            const detail = text.replace(/\s+/g, ' ').trim().slice(0, 240);
+            showAlert(`The server returned an invalid response${detail ? `: ${detail}` : '.'}`, 'danger');
             return null;
+        }
+        if (!res.ok && data?.ok !== false) {
+            data.ok = false;
+            data.error = data.error || `Request failed with HTTP ${res.status}.`;
         }
         if (!data.ok && !data.success) {
             showAlert(data.error || 'Request failed.', 'danger');
@@ -812,8 +1106,15 @@ function renderUploads() {
     uploads.forEach(upload => {
         const opt = document.createElement('option');
         opt.value = upload.id;
-        const driveState = upload.drive_status === 'missing' ? ' — DELETED FROM DRIVE' : '';
-        opt.textContent = upload.class_name + ' - ' + upload.book_name + ' (' + (upload.mapped_chapters || 0) + ' mapped, ' + upload.pdf_page_count + ' pages)' + driveState;
+        const sourceState = upload.source_type === 'local'
+            ? ' · local copy'
+            : upload.source_available === false
+                ? ' · source unavailable'
+                : ' · Drive ready';
+        const pageState = Number(upload.pdf_page_count || 0) > 0
+            ? `${upload.pdf_page_count} pages`
+            : 'PDF pages pending';
+        opt.textContent = `${upload.class_name} - ${upload.book_name} (${upload.mapped_chapters || 0} mapped, ${pageState}${sourceState})`;
         select.appendChild(opt);
     });
     if (selected) select.value = selected;
@@ -869,6 +1170,7 @@ async function loadUploadDetails(uploadId) {
     currentUpload = null;
     currentChapters = [];
     currentRanges = {};
+    updateGenerationControls();
     document.getElementById('rangeRows').innerHTML = '<tr><td colspan="4" class="text-muted text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading chapters...</td></tr>';
     document.getElementById('chapterCountBadge').textContent = '0 chapters';
     
@@ -889,18 +1191,22 @@ async function loadUploadDetails(uploadId) {
     const driveLink = document.getElementById('driveLink');
     driveLink.href = currentUpload.drive_url || '#';
     driveLink.classList.toggle('disabled', !currentUpload.drive_url || currentUpload.drive_status === 'missing');
-    document.getElementById('replaceBookWrap').classList.toggle('d-none', currentUpload.drive_status !== 'missing');
+    document.getElementById('replaceBookWrap').classList.toggle('d-none', currentUpload.drive_status !== 'missing' || currentUpload.source_type === 'local');
     
     const metaContainer = document.getElementById('storedBookMeta');
     metaContainer.innerHTML = `
         <div class="d-flex flex-wrap gap-2 align-items-center small text-muted">
             <span class="badge bg-light text-dark border"><i class="fa-solid fa-file-pdf text-danger me-1"></i>${escapeHtml(currentUpload.original_filename)}</span>
-            <span class="badge bg-light text-dark border"><i class="fa-solid fa-file-lines me-1"></i>${currentUpload.pdf_page_count} PDF Pages</span>
+            <span class="badge bg-light text-dark border"><i class="fa-solid fa-file-lines me-1"></i>${Number(currentUpload.pdf_page_count || 0) > 0 ? currentUpload.pdf_page_count + ' PDF Pages' : 'PDF pages pending'}</span>
             ${currentUpload.page_offset ? `<span class="badge bg-light text-dark border">Offset: ${currentUpload.page_offset}</span>` : ''}
         </div>`;
-    metaContainer.insertAdjacentHTML('beforeend', currentUpload.drive_status === 'missing'
-        ? '<span class="badge bg-danger ms-1"><i class="fa-solid fa-cloud-slash me-1"></i>Deleted from Drive</span>'
-        : '<span class="badge bg-success ms-1"><i class="fa-solid fa-cloud-check me-1"></i>Drive file available</span>');
+    const sourceBadge = currentUpload.source_type === 'local'
+        ? '<span class="badge bg-info-subtle text-info-emphasis border ms-1"><i class="fa-solid fa-hard-drive me-1"></i>Local copy ready</span>'
+        : currentUpload.source_available === false
+            ? '<span class="badge bg-danger-subtle text-danger-emphasis border ms-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>Source unavailable</span>'
+            : '<span class="badge bg-success-subtle text-success-emphasis border ms-1"><i class="fa-brands fa-google-drive me-1"></i>Stored book ready</span>';
+    metaContainer.insertAdjacentHTML('beforeend', sourceBadge);
+    updateGenerationControls();
 }
 
 async function replaceBookFile() {
@@ -1051,9 +1357,11 @@ function filterChapters(keyword) {
 }
 
 document.getElementById('chapterFilterInput').addEventListener('input', e => filterChapters(e.target.value));
+document.getElementById('generateChapter').addEventListener('change', updateGenerationControls);
 
 function renderGenerateChapters() {
     const select = document.getElementById('generateChapter');
+    const previousChapterId = select.value;
     select.innerHTML = '<option value="">Select mapped chapter</option>';
     let mappedCount = 0;
     currentChapters.forEach(ch => {
@@ -1067,7 +1375,12 @@ function renderGenerateChapters() {
     });
     if (mappedCount === 0) {
         select.innerHTML = '<option value="">No mapped chapters yet. Save ranges above.</option>';
+    } else if (previousChapterId && [...select.options].some(option => option.value === previousChapterId)) {
+        select.value = previousChapterId;
+    } else {
+        select.selectedIndex = 1;
     }
+    updateGenerationControls();
 }
 
 function collectRanges() {
@@ -1131,12 +1444,14 @@ async function processBatchLoop() {
     if (!data || !data.ok) {
         generationRunning = false;
         document.getElementById('stopGenerateBtn').classList.add('d-none');
+        updateGenerationControls();
         return;
     }
     if (data.done) {
         generationRunning = false;
         showAlert('Draft generation finished! Click "Review generated questions" to inspect and approve them.', 'success');
         document.getElementById('stopGenerateBtn').classList.add('d-none');
+        updateGenerationControls();
         loadReviewJobs();
         return;
     }
@@ -1175,7 +1490,18 @@ document.getElementById('uploadBookForm').addEventListener('submit', async event
 document.getElementById('storedBookSelect').addEventListener('change', event => {
     if (event.target.value) {
         loadUploadDetails(event.target.value);
+        return;
     }
+    currentUpload = null;
+    currentChapters = [];
+    currentRanges = {};
+    document.getElementById('rangeRows').innerHTML = '<tr><td colspan="4" class="text-muted text-center py-4">Select an uploaded book to view and configure chapters.</td></tr>';
+    document.getElementById('chapterCountBadge').textContent = '0 chapters';
+    document.getElementById('storedBookMeta').innerHTML = '';
+    document.getElementById('replaceBookWrap').classList.add('d-none');
+    document.getElementById('driveLink').href = '#';
+    document.getElementById('driveLink').classList.add('disabled');
+    renderGenerateChapters();
 });
 document.getElementById('replaceBookBtn').addEventListener('click', replaceBookFile);
 document.getElementById('deleteMissingBookBtn').addEventListener('click', deleteMissingBookRecord);
@@ -1186,8 +1512,8 @@ document.getElementById('saveRangesBtn').addEventListener('click', async () => {
         showAlert('Select an uploaded book first.', 'warning');
         return;
     }
-    if (currentUpload.drive_status === 'missing') {
-        showAlert('This textbook was deleted from Google Drive. Re-upload it before saving chapter ranges.', 'warning');
+    if (currentUpload.source_available === false) {
+        showAlert('This stored book has no usable source. Upload or restore the book first.', 'warning');
         return;
     }
     const fd = new FormData();
@@ -1207,8 +1533,8 @@ document.getElementById('startGenerateBtn').addEventListener('click', async () =
         showAlert('Select an uploaded book first.', 'warning');
         return;
     }
-    if (currentUpload.drive_status === 'missing') {
-        showAlert('This textbook was deleted from Google Drive. Re-upload it before generating questions.', 'warning');
+    if (currentUpload.source_available === false) {
+        showAlert('This stored book has no usable source. Upload or restore the book first.', 'warning');
         return;
     }
     const chapterId = document.getElementById('generateChapter').value;
@@ -1238,12 +1564,14 @@ document.getElementById('startGenerateBtn').addEventListener('click', async () =
     document.getElementById('stopGenerateBtn').classList.remove('d-none');
     renderProgress(data.progress);
     generationRunning = true;
+    updateGenerationControls();
     processBatchLoop();
 });
 
 document.getElementById('stopGenerateBtn').addEventListener('click', () => {
     generationRunning = false;
     document.getElementById('stopGenerateBtn').classList.add('d-none');
+    updateGenerationControls();
     showAlert('Generation paused. You can review and approve drafts generated so far.', 'warning');
     loadReviewJobs();
 });
@@ -1276,7 +1604,20 @@ document.getElementById('syncDriveBtn').addEventListener('click', async () => {
     fd.append('csrf_token', csrfToken);
     try {
         const response = await fetch(driveSyncUrl, { method: 'POST', body: fd });
-        const data = await response.json();
+        const text = await response.text();
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (response.redirected || contentType.includes('text/html')) {
+            throw new Error('Your admin session may have expired. Reload the page and sign in again.');
+        }
+        if (contentType.includes('application/pdf') || text.trimStart().startsWith('%PDF-')) {
+            throw new Error('The Drive sync endpoint returned a PDF instead of JSON.');
+        }
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (parseError) {
+            throw new Error('The Drive sync endpoint returned an invalid response.');
+        }
         if (!data.ok) {
             showAlert(data.error || 'Google Drive sync failed.', 'danger');
         } else {

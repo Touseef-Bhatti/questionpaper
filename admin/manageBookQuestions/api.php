@@ -1,4 +1,31 @@
 <?php
+// This endpoint is consumed exclusively as JSON. Buffer every accidental
+// warning/output byte so a PDF download or PHP notice can never corrupt the
+// response body expected by fetch().
+ob_start();
+$bookQuestionJsonResponseSent = false;
+
+register_shutdown_function(static function () use (&$bookQuestionJsonResponseSent): void {
+    if ($bookQuestionJsonResponseSent) {
+        return;
+    }
+
+    $lastError = error_get_last();
+    if (!$lastError || !in_array((int) $lastError['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        return;
+    }
+
+    error_log('Book question API fatal error: ' . ($lastError['message'] ?? 'Unknown error') . ' in ' . ($lastError['file'] ?? '') . ':' . ($lastError['line'] ?? 0));
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    http_response_code(500);
+    header('Content-Type: application/json; charset=UTF-8', true);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'The book question service could not complete this request. Check the server log and try again.',
+    ], JSON_UNESCAPED_UNICODE);
+});
 session_start([
     'cookie_httponly' => true,
     'cookie_secure' => isset($_SERVER['HTTPS']),
@@ -16,8 +43,27 @@ requireAdminAuth();
 
 function jsonResponse(array $payload, int $code = 200): void
 {
+    global $bookQuestionJsonResponseSent;
+    $bookQuestionJsonResponseSent = true;
     http_response_code($code);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE);
+    if ($encoded === false) {
+        $encoded = json_encode([
+            'ok' => false,
+            'error' => 'The server could not encode the book question response.',
+        ], JSON_UNESCAPED_UNICODE);
+        http_response_code(500);
+    }
+
+    while (ob_get_level() > 0) {
+        $bufferedOutput = ob_get_clean();
+        if (is_string($bufferedOutput) && trim($bufferedOutput) !== '') {
+            error_log('Discarded unexpected output from book question API: ' . substr($bufferedOutput, 0, 500));
+        }
+    }
+    header('Content-Type: application/json; charset=UTF-8', true);
+    header('X-Content-Type-Options: nosniff');
+    echo $encoded;
     exit;
 }
 
@@ -180,7 +226,155 @@ function fetchUpload(mysqli $conn, int $uploadId): ?array
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
-    return $row ?: null;
+    return $row ? normalizeBookUploadRecord($row) : null;
+}
+
+function extractDriveFileId(string $value): string
+{
+    $value = trim($value);
+    if (preg_match('/^[A-Za-z0-9_-]+$/', $value)) {
+        return $value;
+    }
+    if (preg_match('#/file/d/([A-Za-z0-9_-]+)#', $value, $matches)) {
+        return $matches[1];
+    }
+    if (preg_match('/(?:[?&])id=([A-Za-z0-9_-]+)/', $value, $matches)) {
+        return $matches[1];
+    }
+    return '';
+}
+
+function normalizeBookUploadRecord(array $upload): array
+{
+    $status = strtolower(trim((string) ($upload['drive_status'] ?? 'available')));
+    $upload['drive_status'] = $status === 'missing' ? 'missing' : 'available';
+
+    $driveId = extractDriveFileId((string) ($upload['drive_file_id'] ?? ''));
+    if ($driveId === '') {
+        $driveId = extractDriveFileId((string) ($upload['drive_url'] ?? ''));
+    }
+    $upload['drive_file_id'] = $driveId;
+    return $upload;
+}
+
+function bookQuestionPathWithin(string $path, string $root): bool
+{
+    $resolvedPath = realpath($path);
+    $resolvedRoot = realpath($root);
+    if ($resolvedPath === false || $resolvedRoot === false) {
+        return false;
+    }
+
+    $resolvedPath = rtrim(strtolower(str_replace('\\', '/', $resolvedPath)), '/') . '/';
+    $resolvedRoot = rtrim(strtolower(str_replace('\\', '/', $resolvedRoot)), '/') . '/';
+    return str_starts_with($resolvedPath, $resolvedRoot);
+}
+
+/**
+ * Resolve a legacy local PDF without allowing arbitrary filesystem reads.
+ */
+function resolveLegacyBookPdfPath(array $upload): ?string
+{
+    $configuredPath = trim((string) ($upload['local_pdf_path'] ?? ''));
+    if ($configuredPath === '') {
+        return null;
+    }
+
+    $projectRoot = dirname(__DIR__, 2);
+    $candidate = $configuredPath;
+    if (!preg_match('/^(?:[A-Za-z]:[\\\\\/]|[\\\\\/])/', $candidate)) {
+        $candidate = $projectRoot . DIRECTORY_SEPARATOR . ltrim($candidate, "\\/");
+    }
+
+    $allowedRoots = [
+        $projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'book_uploads',
+    ];
+    foreach ($allowedRoots as $allowedRoot) {
+        if (is_file($candidate) && is_readable($candidate) && bookQuestionPathWithin($candidate, $allowedRoot)) {
+            return realpath($candidate) ?: null;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Return source metadata without exposing local filesystem paths to the UI.
+ * @return array{available:bool,type:string}
+ */
+function bookUploadSourceInfo(array $upload): array
+{
+    if (resolveLegacyBookPdfPath($upload) !== null) {
+        return ['available' => true, 'type' => 'local'];
+    }
+    if (($upload['drive_status'] ?? 'available') === 'available'
+        && preg_match('/^[A-Za-z0-9_-]+$/', (string) ($upload['drive_file_id'] ?? ''))) {
+        return ['available' => true, 'type' => 'drive'];
+    }
+    return ['available' => false, 'type' => 'none'];
+}
+
+function publicBookUploadPayload(array $upload): array
+{
+    $source = bookUploadSourceInfo($upload);
+    unset($upload['local_pdf_path'], $upload['drive_file_id']);
+    $upload['source_available'] = $source['available'];
+    $upload['source_type'] = $source['type'];
+    return $upload;
+}
+
+/**
+ * Prepare a PDF in the job temp directory from either a legacy local row or
+ * the canonical Google Drive file. This keeps both storage generations valid.
+ *
+ * @return array{path:string,page_count:int}
+ */
+function prepareBookPdfForJob(array $upload, BookQuestionGenerator $generator, string $jobKey): array
+{
+    $destination = $generator->getTemporaryPdfPath($jobKey);
+    $sourcePath = resolveLegacyBookPdfPath($upload);
+
+    if ($sourcePath !== null) {
+        if (!@copy($sourcePath, $destination)) {
+            @unlink($destination);
+            throw new RuntimeException('The stored local textbook could not be copied for processing.');
+        }
+    } else {
+        $driveFileId = trim((string) ($upload['drive_file_id'] ?? ''));
+        if ($driveFileId === '') {
+            throw new RuntimeException('This stored textbook has no local copy or Google Drive file ID. Re-upload it before generating questions.');
+        }
+
+        $drive = new GoogleDriveService();
+        $drive->downloadFileToTemp($driveFileId, $destination);
+    }
+
+    $isPdf = false;
+    $handle = @fopen($destination, 'rb');
+    if ($handle !== false) {
+        $isPdf = fread($handle, 5) === '%PDF-';
+        fclose($handle);
+    }
+    if (!$isPdf) {
+        @unlink($destination);
+        throw new RuntimeException('The stored textbook download was not a valid PDF.');
+    }
+
+    $pageCount = (int) ($upload['pdf_page_count'] ?? 0);
+    if ($pageCount <= 0) {
+        $extractor = new BookChapterExtractor();
+        $pageInfo = $extractor->getPdfPageCount($destination);
+        if (!$pageInfo['ok']) {
+            @unlink($destination);
+            throw new RuntimeException($pageInfo['error'] ?? 'Could not read the stored textbook page count.');
+        }
+        $pageCount = (int) ($pageInfo['page_count'] ?? 0);
+    }
+
+    return [
+        'path' => $destination,
+        'page_count' => max(1, $pageCount),
+    ];
 }
 
 function listBookPayload(mysqli $conn): array
@@ -207,7 +401,7 @@ function listBookPayload(mysqli $conn): array
             ORDER BY u.created_at DESC";
     $res = $conn->query($sql);
     while ($res && ($row = $res->fetch_assoc())) {
-        $uploads[] = $row;
+        $uploads[] = publicBookUploadPayload(normalizeBookUploadRecord($row));
     }
 
     return ['classes' => $classes, 'books' => $books, 'uploads' => $uploads];
@@ -305,7 +499,7 @@ if ($action === 'get_upload_details') {
     }
     $stmt->close();
 
-    jsonResponse(['ok' => true, 'upload' => $upload, 'chapters' => $chapters, 'ranges' => $ranges]);
+    jsonResponse(['ok' => true, 'upload' => publicBookUploadPayload($upload), 'chapters' => $chapters, 'ranges' => $ranges]);
 }
 
 if ($action === 'upload_book') {
@@ -550,8 +744,8 @@ if ($action === 'save_chapter_ranges') {
     if (!$upload) {
         jsonResponse(['ok' => false, 'error' => 'Uploaded book not found.']);
     }
-    if (($upload['drive_status'] ?? 'available') !== 'available') {
-        jsonResponse(['ok' => false, 'error' => 'This textbook was deleted from Google Drive. Re-upload it before editing chapter ranges.']);
+    if (!bookUploadSourceInfo($upload)['available']) {
+        jsonResponse(['ok' => false, 'error' => 'This textbook has no usable local copy or Drive file. Upload it again before editing chapter ranges.']);
     }
     $pageOffset = 0;
     $rows = json_decode((string) ($_POST['ranges'] ?? '[]'), true);
@@ -625,15 +819,8 @@ if ($action === 'init_chapter_job') {
     if (!$upload) {
         jsonResponse(['ok' => false, 'error' => 'Uploaded book not found.']);
     }
-    if (($upload['drive_status'] ?? 'available') !== 'available') {
-        jsonResponse(['ok' => false, 'error' => 'This textbook was deleted from Google Drive. Re-upload it before generating questions.']);
-    }
-    $temporaryPdfPath = $generator->getTemporaryPdfPath('upload_' . $uploadId . '_' . bin2hex(random_bytes(8)));
-    try {
-        $drive = new GoogleDriveService();
-        $drive->downloadFileToTemp((string) $upload['drive_file_id'], $temporaryPdfPath);
-    } catch (Throwable $e) {
-        jsonResponse(['ok' => false, 'error' => 'The textbook could not be downloaded from Google Drive for processing.']);
+    if (!bookUploadSourceInfo($upload)['available']) {
+        jsonResponse(['ok' => false, 'error' => 'This textbook has no usable local copy or Drive file. Upload it again before generating questions.']);
     }
 
     $stmt = $conn->prepare('SELECT r.*, ch.chapter_name FROM book_chapter_page_ranges r INNER JOIN chapter ch ON ch.chapter_id = r.chapter_id WHERE r.upload_id = ? AND r.chapter_id = ? LIMIT 1');
@@ -658,8 +845,39 @@ if ($action === 'init_chapter_job') {
         jsonResponse(['ok' => false, 'error' => $chapterCheck['error'] ?? 'Invalid question counts.']);
     }
 
-    $job = $generator->createJob((int) $upload['class_id'], (int) $upload['book_id'], 0, $temporaryPdfPath, (string) $upload['original_filename'], (int) $upload['pdf_page_count'], $chapterCheck['chapters'], 'one', $uploadId, true);
+    $temporaryPdfPath = '';
+    try {
+        $preparedPdf = prepareBookPdfForJob(
+            $upload,
+            $generator,
+            'upload_' . $uploadId . '_' . bin2hex(random_bytes(8))
+        );
+        $temporaryPdfPath = $preparedPdf['path'];
+        $pdfPageCount = (int) $preparedPdf['page_count'];
+
+        // Drive sync creates metadata rows before the page count is known.
+        // Backfill it now so later range validation and the UI show accurate data.
+        if ((int) ($upload['pdf_page_count'] ?? 0) !== $pdfPageCount) {
+            $pageStmt = $conn->prepare('UPDATE book_uploads SET pdf_page_count = ? WHERE id = ?');
+            if ($pageStmt) {
+                $pageStmt->bind_param('ii', $pdfPageCount, $uploadId);
+                $pageStmt->execute();
+                $pageStmt->close();
+            }
+        }
+    } catch (Throwable $e) {
+        if ($temporaryPdfPath !== '' && is_file($temporaryPdfPath)) {
+            @unlink($temporaryPdfPath);
+        }
+        error_log('Book question PDF preparation failed: ' . $e->getMessage());
+        jsonResponse(['ok' => false, 'error' => $e->getMessage() ?: 'The textbook could not be prepared for processing.']);
+    }
+
+    $job = $generator->createJob((int) $upload['class_id'], (int) $upload['book_id'], 0, $temporaryPdfPath, (string) $upload['original_filename'], $pdfPageCount, $chapterCheck['chapters'], 'one', $uploadId, true);
     if (!$job['ok']) {
+        if (is_file($temporaryPdfPath)) {
+            @unlink($temporaryPdfPath);
+        }
         jsonResponse(['ok' => false, 'error' => $job['error'] ?? 'Could not create generation job.']);
     }
     logAdminAction('book_question_draft_job_created', 'Job ' . ($job['job_id'] ?? ''));

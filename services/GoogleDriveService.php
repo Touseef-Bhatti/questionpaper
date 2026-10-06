@@ -481,19 +481,33 @@ class GoogleDriveService
             throw new Exception('Could not open the temporary Drive download file.');
         }
 
+        $bytesWritten = 0;
         $ch = curl_init('https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?alt=media&supportsAllDrives=true');
         curl_setopt_array($ch, [
-            CURLOPT_FILE => $handle,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_CONNECTTIMEOUT => 15,
             CURLOPT_TIMEOUT => 300,
             CURLOPT_HTTPHEADER => ["Authorization: Bearer {$token}"],
+            CURLOPT_WRITEFUNCTION => static function ($curlHandle, string $chunk) use ($handle, &$bytesWritten): int {
+                $chunkLength = strlen($chunk);
+                $offset = 0;
+                while ($offset < $chunkLength) {
+                    $written = fwrite($handle, substr($chunk, $offset));
+                    if ($written === false || $written === 0) {
+                        return 0;
+                    }
+                    $offset += $written;
+                }
+                $bytesWritten += $chunkLength;
+                return $chunkLength;
+            },
         ]);
         $ok = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
         curl_close($ch);
+        fflush($handle);
         fclose($handle);
 
         if ($ok === false || $httpCode !== 200) {
@@ -501,13 +515,12 @@ class GoogleDriveService
             throw new Exception('Google Drive download failed' . ($curlError !== '' ? ': ' . $curlError : " (HTTP {$httpCode})"));
         }
 
-        $size = (int) filesize($destination);
-        if ($size <= 0) {
+        if ($bytesWritten <= 0) {
             @unlink($destination);
             throw new Exception('Google Drive returned an empty file.');
         }
 
-        return $size;
+        return $bytesWritten;
     }
 
     public function isFileAvailable(string $fileId): bool

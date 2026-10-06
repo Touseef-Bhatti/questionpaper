@@ -1,4 +1,23 @@
 <?php
+ob_start();
+$driveSyncJsonResponseSent = false;
+
+register_shutdown_function(static function () use (&$driveSyncJsonResponseSent): void {
+    if ($driveSyncJsonResponseSent) {
+        return;
+    }
+    $lastError = error_get_last();
+    if (!$lastError || !in_array((int) $lastError['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        return;
+    }
+    error_log('Google Drive sync fatal error: ' . ($lastError['message'] ?? 'Unknown error'));
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    http_response_code(500);
+    header('Content-Type: application/json; charset=UTF-8', true);
+    echo json_encode(['ok' => false, 'error' => 'Google Drive sync could not complete.'], JSON_UNESCAPED_UNICODE);
+});
 session_start([
     'cookie_httponly' => true,
     'cookie_secure' => isset($_SERVER['HTTPS']),
@@ -15,7 +34,17 @@ requireAdminAuth();
 
 function driveSyncJson(array $payload, int $status = 200): void
 {
+    global $driveSyncJsonResponseSent;
+    $driveSyncJsonResponseSent = true;
     http_response_code($status);
+    while (ob_get_level() > 0) {
+        $bufferedOutput = ob_get_clean();
+        if (is_string($bufferedOutput) && trim($bufferedOutput) !== '') {
+            error_log('Discarded unexpected output from Google Drive sync: ' . substr($bufferedOutput, 0, 500));
+        }
+    }
+    header('Content-Type: application/json; charset=UTF-8', true);
+    header('X-Content-Type-Options: nosniff');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
     exit;
 }
