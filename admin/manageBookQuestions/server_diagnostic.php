@@ -313,6 +313,7 @@ $effectiveMax = min(diagnosticIniBytes($uploadMax), diagnosticIniBytes($postMax)
         textBox.hidden = true;
         textBox.textContent = '';
         let extracted = '';
+        let extractedCharacters = 0;
         try {
             for (let pageNumber = start; pageNumber <= end; pageNumber++) {
                 showBrowserResult('Extracting page ' + pageNumber + ' of ' + end + '...', true);
@@ -323,6 +324,7 @@ $effectiveMax = min(diagnosticIniBytes($uploadMax), diagnosticIniBytes($postMax)
                     .join(' ')
                     .replace(/\s+/g, ' ')
                     .trim();
+                extractedCharacters += pageText.length;
                 extracted += '\n\n--- Page ' + pageNumber + ' ---\n' + pageText;
             }
 
@@ -330,10 +332,10 @@ $effectiveMax = min(diagnosticIniBytes($uploadMax), diagnosticIniBytes($postMax)
             textBox.textContent = cleanText || '[No selectable text found. This may be a scanned/image-only PDF.]';
             textBox.hidden = false;
             showBrowserResult(
-                cleanText
-                    ? 'Browser extraction succeeded. Extracted ' + cleanText.length.toLocaleString() + ' characters from pages ' + start + '-' + end + '.'
-                    : 'PDF pages loaded, but no selectable text was found.',
-                Boolean(cleanText)
+                extractedCharacters >= 80
+                    ? 'Browser extraction succeeded. Extracted ' + extractedCharacters.toLocaleString() + ' text characters from pages ' + start + '-' + end + '.'
+                    : 'PDF pages loaded, but no selectable text was found. The displayed count excludes page labels.',
+                extractedCharacters >= 80
             );
         } catch (error) {
             showBrowserResult('Browser text extraction failed: ' + error.message, false);

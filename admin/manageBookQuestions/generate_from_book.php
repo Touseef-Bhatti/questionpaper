@@ -883,6 +883,12 @@ include_once __DIR__ . '/../header.php';
                             <span class="generation-field-note"><i class="fa-solid fa-circle-info me-1"></i>Only chapters with saved PDF ranges appear here.</span>
                         </div>
 
+                        <div class="generation-field">
+                            <label class="generation-label" for="generationSourceFile">Source PDF for this generation</label>
+                            <input type="file" class="form-control" id="generationSourceFile" accept=".pdf,application/pdf">
+                            <span class="generation-field-note"><i class="fa-solid fa-circle-info me-1"></i>Select the same PDF used for the stored book. The browser reads only the selected chapter pages; scanned pages are sent as images.</span>
+                        </div>
+
                         <div class="generation-targets">
                             <span class="generation-label">Question targets</span>
                             <div class="target-grid">
@@ -962,6 +968,12 @@ include_once __DIR__ . '/../header.php';
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+</script>
 <script>
 const csrfToken = <?= json_encode($csrfToken) ?>;
 const apiUrl = 'api.php';
@@ -975,6 +987,8 @@ let currentChapters = [];
 let currentRanges = {};
 let currentJobId = '';
 let generationRunning = false;
+let browserSourceFile = null;
+let browserSourceUploadId = 0;
 
 function updateGenerationControls() {
     const button = document.getElementById('startGenerateBtn');
@@ -1220,17 +1234,20 @@ async function replaceBookFile() {
         return;
     }
     const btn = document.getElementById('replaceBookBtn');
+    const replacementFile = input.files[0];
     btn.disabled = true;
     const oldText = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Uploading...';
     const fd = new FormData();
     fd.append('action', 'replace_book');
     fd.append('upload_id', currentUpload.id);
-    fd.append('book_file', input.files[0]);
+    fd.append('book_file', replacementFile);
     fd.append('csrf_token', csrfToken);
     try {
         const data = await postForm(fd);
         if (data?.ok) {
+            browserSourceFile = replacementFile;
+            browserSourceUploadId = Number(currentUpload.id);
             uploads = data.uploads || uploads;
             renderUploads();
             document.getElementById('storedBookSelect').value = currentUpload.id;
@@ -1403,6 +1420,78 @@ function validatePdfSize() {
     return false;
 }
 
+function getBrowserSourceFile() {
+    const selectedFile = document.getElementById('generationSourceFile')?.files?.[0];
+    if (selectedFile) return selectedFile;
+    if (browserSourceFile && browserSourceUploadId === Number(currentUpload?.id)) {
+        return browserSourceFile;
+    }
+    return null;
+}
+
+function renderPdfPageToJpeg(page, pageNumber) {
+    const scale = 1.35;
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const context = canvas.getContext('2d', { alpha: false });
+    return page.render({ canvasContext: context, viewport }).promise
+        .then(() => new Promise((resolve, reject) => {
+            canvas.toBlob(blob => {
+                canvas.width = 1;
+                canvas.height = 1;
+                if (!blob) {
+                    reject(new Error('Could not render PDF page ' + pageNumber + ' as an image.'));
+                    return;
+                }
+                resolve(new File([blob], 'chapter-page-' + pageNumber + '.jpg', { type: 'image/jpeg' }));
+            }, 'image/jpeg', 0.72);
+        }));
+}
+
+async function prepareBrowserChapterSource(file, pdfStart, pdfEnd) {
+    if (!window.pdfjsLib) {
+        throw new Error('PDF.js could not be loaded. Check the browser network/CSP settings.');
+    }
+    if (pdfEnd < pdfStart || pdfStart < 1) {
+        throw new Error('The saved PDF page range is invalid.');
+    }
+    if (pdfEnd - pdfStart + 1 > 40) {
+        throw new Error('Select a chapter range of 40 PDF pages or fewer for browser processing.');
+    }
+
+    const data = new Uint8Array(await file.arrayBuffer());
+    const pdf = await window.pdfjsLib.getDocument({ data }).promise;
+    if (pdfEnd > pdf.numPages) {
+        throw new Error('The selected PDF has only ' + pdf.numPages + ' page(s), but the saved range ends at page ' + pdfEnd + '.');
+    }
+
+    const pageTexts = [];
+    for (let pageNumber = pdfStart; pageNumber <= pdfEnd; pageNumber++) {
+        const page = await pdf.getPage(pageNumber);
+        const content = await page.getTextContent();
+        const pageText = content.items
+            .map(item => typeof item.str === 'string' ? item.str : '')
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (pageText !== '') pageTexts.push(pageText);
+    }
+
+    const selectableText = pageTexts.join('\n\n').trim();
+    if (selectableText.length >= 80) {
+        return { mode: 'text', text: selectableText, pageCount: pdf.numPages };
+    }
+
+    const images = [];
+    for (let pageNumber = pdfStart; pageNumber <= pdfEnd; pageNumber++) {
+        const page = await pdf.getPage(pageNumber);
+        images.push(await renderPdfPageToJpeg(page, pageNumber));
+    }
+    return { mode: 'images', images, pageCount: pdf.numPages };
+}
+
 function renderProgress(progress) {
     if (!progress) return;
     document.getElementById('progressWrap').classList.remove('d-none');
@@ -1469,6 +1558,7 @@ document.getElementById('uploadBookForm').addEventListener('submit', async event
     event.preventDefault();
     hideAlert();
     if (!validatePdfSize() || !event.currentTarget.reportValidity()) return;
+    const sourceFile = document.getElementById('bookFile').files?.[0] || null;
     const submit = document.getElementById('uploadSubmitBtn');
     submit.disabled = true;
     submit.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Uploading to Drive...';
@@ -1479,6 +1569,8 @@ document.getElementById('uploadBookForm').addEventListener('submit', async event
     submit.innerHTML = '<i class="fa-solid fa-upload me-1"></i>Upload &amp; Store Book';
     
     if (data?.ok) {
+        browserSourceFile = sourceFile;
+        browserSourceUploadId = Number(data.upload_id || 0);
         uploads = data.uploads || [];
         renderUploads();
         document.getElementById('storedBookSelect').value = data.upload_id;
@@ -1489,6 +1581,9 @@ document.getElementById('uploadBookForm').addEventListener('submit', async event
 
 document.getElementById('storedBookSelect').addEventListener('change', event => {
     if (event.target.value) {
+        if (browserSourceUploadId !== Number(event.target.value)) {
+            browserSourceFile = null;
+        }
         loadUploadDetails(event.target.value);
         return;
     }
@@ -1545,7 +1640,34 @@ document.getElementById('startGenerateBtn').addEventListener('click', async () =
     hideAlert();
     document.getElementById('reviewLinkWrap').classList.add('d-none');
     document.getElementById('stopGenerateBtn').classList.add('d-none');
-    
+
+    const selectedRange = currentRanges[chapterId] || {};
+    const pdfStartPage = Number(selectedRange.pdf_start_page || 0);
+    const pdfEndPage = Number(selectedRange.pdf_end_page || 0);
+    const sourceFile = getBrowserSourceFile();
+    if (!sourceFile) {
+        showAlert('Select the same textbook PDF in "Source PDF for this generation".', 'warning');
+        return;
+    }
+    if (!pdfStartPage || !pdfEndPage) {
+        showAlert('The selected chapter does not have a valid saved PDF page range.', 'warning');
+        return;
+    }
+
+    const startButton = document.getElementById('startGenerateBtn');
+    const originalButtonText = startButton.innerHTML;
+    startButton.disabled = true;
+    startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Preparing chapter pages...';
+    let browserSource;
+    try {
+        browserSource = await prepareBrowserChapterSource(sourceFile, pdfStartPage, pdfEndPage);
+    } catch (error) {
+        startButton.disabled = false;
+        startButton.innerHTML = originalButtonText;
+        showAlert(error.message || 'Could not prepare the selected chapter in the browser.', 'danger');
+        return;
+    }
+
     const fd = new FormData();
     fd.append('action', 'init_chapter_job');
     fd.append('upload_id', currentUpload.id);
@@ -1553,8 +1675,17 @@ document.getElementById('startGenerateBtn').addEventListener('click', async () =
     fd.append('mcq_count', document.getElementById('mcqCount').value);
     fd.append('short_count', document.getElementById('shortCount').value);
     fd.append('long_count', document.getElementById('longCount').value);
-    
+    fd.append('chapter_source_mode', browserSource.mode);
+    fd.append('browser_pdf_page_count', String(browserSource.pageCount));
+    if (browserSource.mode === 'text') {
+        fd.append('chapter_text', browserSource.text);
+    } else {
+        browserSource.images.forEach(image => fd.append('chapter_pages[]', image, image.name));
+    }
+
     const data = await postForm(fd);
+    startButton.disabled = false;
+    startButton.innerHTML = originalButtonText;
     if (!data?.ok) return;
     
     currentJobId = data.job_id;

@@ -131,7 +131,19 @@ class BookQuestionGenerator
     /**
      * @return array{ok:bool,error?:string,job_id?:string,state?:array<string,mixed>}
      */
-    public function createJob(int $classId, int $bookId, int $pageOffset, string $storedPdfPath, string $originalName, int $pdfPageCount, array $chapters, string $mode, ?int $uploadId = null, bool $reviewMode = false): array
+    public function createJob(
+        int $classId,
+        int $bookId,
+        int $pageOffset,
+        string $storedPdfPath,
+        string $originalName,
+        int $pdfPageCount,
+        array $chapters,
+        string $mode,
+        ?int $uploadId = null,
+        bool $reviewMode = false,
+        array $chapterSource = []
+    ): array
     {
         $validation = $this->validateClassBook($classId, $bookId);
         if (!$validation['ok']) {
@@ -149,6 +161,18 @@ class BookQuestionGenerator
             if (!$range['ok']) {
                 return $range;
             }
+
+            $sourceMode = strtolower(trim((string) ($chapterSource['mode'] ?? 'pdf')));
+            if (!in_array($sourceMode, ['text', 'images', 'pdf'], true)) {
+                $sourceMode = 'pdf';
+            }
+
+            $sourceText = $sourceMode === 'text'
+                ? mb_substr(trim((string) ($chapterSource['text'] ?? '')), 0, DocumentContentExtractor::MAX_TEXT_FOR_PROMPT)
+                : '';
+            $sourceFiles = $sourceMode === 'images' && is_array($chapterSource['files'] ?? null)
+                ? array_values(array_filter($chapterSource['files'], static fn ($path): bool => is_string($path) && $path !== ''))
+                : [];
 
             $preparedChapters[] = [
                 'chapter_no' => (int) $chapter['chapter_no'],
@@ -168,6 +192,9 @@ class BookQuestionGenerator
                 'status' => 'pending',
                 'current_type' => 'mcq',
                 'current_batch' => 0,
+                'source_mode' => $sourceMode,
+                'source_text' => $sourceText,
+                'source_files' => $sourceFiles,
             ];
         }
 
@@ -193,7 +220,9 @@ class BookQuestionGenerator
             'chapters' => $preparedChapters,
             'logs' => [],
         ];
-        $this->addLog($state, 'Drive PDF prepared in a temporary system location for this job.');
+        $this->addLog($state, $chapterSource !== []
+            ? 'Selected chapter source prepared in the browser and attached to this job.'
+            : 'Drive PDF prepared in a temporary system location for this job.');
         $this->addLog($state, 'Generation job prepared for ' . count($preparedChapters) . ' chapter row(s).');
 
         if (!$this->saveState($jobId, $state)) {
@@ -203,6 +232,30 @@ class BookQuestionGenerator
         $_SESSION['book_question_job_id'] = $jobId;
 
         return ['ok' => true, 'job_id' => $jobId, 'state' => $state];
+    }
+
+    public function getJobAssetDirectory(string $assetKey): string
+    {
+        $safeKey = preg_replace('/[^A-Za-z0-9_-]/', '_', $assetKey);
+        $directory = $this->stateDir . '/assets/' . $safeKey;
+        if (!is_dir($directory) && !@mkdir($directory, 0750, true)) {
+            throw new RuntimeException('Could not create the chapter source directory.');
+        }
+        if (!is_writable($directory)) {
+            throw new RuntimeException('The chapter source directory is not writable.');
+        }
+        return $directory;
+    }
+
+    public function cleanupJobAssets(array $state): void
+    {
+        foreach (($state['chapters'] ?? []) as $chapter) {
+            foreach (($chapter['source_files'] ?? []) as $path) {
+                if (is_string($path) && is_file($path)) {
+                    @unlink($path);
+                }
+            }
+        }
     }
 
     /**
@@ -377,25 +430,57 @@ class BookQuestionGenerator
             $chapter['chapter_id'] = (int) $chapterResolved['chapter_id'];
             $this->addLog($state, 'Chapter database record ready. ID: ' . (int) $chapter['chapter_id'] . '.');
 
-            $workDir = $this->textDir . '/' . preg_replace('/[^a-f0-9]/', '', $jobId) . '_ch' . (int) $chapter['chapter_no'];
-            $this->addLog($state, 'Extracting chapter text from PDF pages ' . (int) $chapter['pdf_start'] . '-' . (int) $chapter['pdf_end'] . '.');
-            $extract = $this->extractor->extractChapterMarkdown(
-                $this->pdfPathFromState($state),
-                (int) $chapter['pdf_start'],
-                (int) $chapter['pdf_end'],
-                $workDir
-            );
-            if (!$extract['ok']) {
-                $chapter['status'] = 'failed';
-                $chapter['error'] = $extract['error'] ?? 'Extraction failed';
-                $this->addLog($state, $chapter['error'], 'error');
-                $this->saveState($jobId, $state);
-                return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
+            $sourceMode = (string) ($chapter['source_mode'] ?? 'pdf');
+            $chapterText = '';
+            if ($sourceMode === 'text') {
+                $chapterText = trim((string) ($chapter['source_text'] ?? ''));
+                if (mb_strlen($chapterText) < 80) {
+                    $chapter['status'] = 'failed';
+                    $chapter['error'] = 'The browser did not extract enough selectable text from this chapter.';
+                    $this->addLog($state, $chapter['error'], 'error');
+                    $this->saveState($jobId, $state);
+                    return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
+                }
+                $workDir = $this->textDir . '/' . preg_replace('/[^a-f0-9]/', '', $jobId) . '_ch' . (int) $chapter['chapter_no'];
+                if (!is_dir($workDir)) {
+                    @mkdir($workDir, 0750, true);
+                }
+                $textFile = $workDir . '/extracted.md';
+                @file_put_contents($textFile, $chapterText);
+                $chapter['extracted_text_file'] = $textFile;
+                $this->addLog($state, 'Browser extracted ' . mb_strlen($chapterText) . ' characters for the selected chapter.');
+            } elseif ($sourceMode === 'images') {
+                if (empty($chapter['source_files'])) {
+                    $chapter['status'] = 'failed';
+                    $chapter['error'] = 'No rendered chapter pages were attached to this job.';
+                    $this->addLog($state, $chapter['error'], 'error');
+                    $this->saveState($jobId, $state);
+                    return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
+                }
+                $this->addLog($state, 'Using ' . count($chapter['source_files']) . ' browser-rendered chapter page image(s) for Gemini.');
+            } else {
+                $workDir = $this->textDir . '/' . preg_replace('/[^a-f0-9]/', '', $jobId) . '_ch' . (int) $chapter['chapter_no'];
+                $this->addLog($state, 'Extracting chapter text from PDF pages ' . (int) $chapter['pdf_start'] . '-' . (int) $chapter['pdf_end'] . '.');
+                $extract = $this->extractor->extractChapterMarkdown(
+                    $this->pdfPathFromState($state),
+                    (int) $chapter['pdf_start'],
+                    (int) $chapter['pdf_end'],
+                    $workDir
+                );
+                if (!$extract['ok']) {
+                    $chapter['status'] = 'failed';
+                    $chapter['error'] = $extract['error'] ?? 'Extraction failed';
+                    $this->addLog($state, $chapter['error'], 'error');
+                    $this->saveState($jobId, $state);
+                    return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
+                }
+
+                $textFile = $workDir . '/extracted.md';
+                @file_put_contents($textFile, (string) $extract['text']);
+                $chapter['extracted_text_file'] = $textFile;
+                $chapterText = (string) $extract['text'];
             }
 
-            $textFile = $workDir . '/extracted.md';
-            @file_put_contents($textFile, (string) $extract['text']);
-            $chapter['extracted_text_file'] = $textFile;
             $chapter['status'] = 'generating';
             $chapter['current_type'] = $this->nextPendingType($chapter);
             $chapter['current_batch'] = 0;
@@ -435,7 +520,11 @@ class BookQuestionGenerator
             return ['ok' => true, 'done' => false, 'progress' => $this->buildProgress($state), 'state' => $state];
         }
 
-        $batchSize = $this->batchSizeForType($type, (string) @file_get_contents((string) ($chapter['extracted_text_file'] ?? '')));
+        $chapterText = (string) ($chapter['source_text'] ?? '');
+        if ($chapterText === '' && !empty($chapter['extracted_text_file'])) {
+            $chapterText = (string) @file_get_contents((string) $chapter['extracted_text_file']);
+        }
+        $batchSize = $this->batchSizeForType($type, $chapterText);
         $batchSize = min($batchSize, $remaining);
         $batchNum = (int) ($chapter['current_batch'] ?? 0);
         $batchKey = $type . ':' . $batchNum;
@@ -468,7 +557,6 @@ class BookQuestionGenerator
             return ['ok' => true, 'done' => false, 'progress' => $this->buildProgress($state), 'state' => $state, 'skipped_duplicate_batch' => true];
         }
 
-        $chapterText = (string) @file_get_contents((string) ($chapter['extracted_text_file'] ?? ''));
         $existingTexts = BookQuestionDuplicateChecker::loadExistingQuestionTexts($this->conn, (int) $chapter['chapter_id']);
         $sessionTexts = $chapter['generated_texts'] ?? [];
         if (is_array($sessionTexts)) {
@@ -484,7 +572,8 @@ class BookQuestionGenerator
             $type,
             $batchSize,
             $chapterText,
-            $existingTexts
+            $existingTexts,
+            (string) ($chapter['source_mode'] ?? 'text') === 'images' ? ($chapter['source_files'] ?? []) : []
         );
 
         if (!$batchResult['ok']) {
@@ -601,6 +690,7 @@ class BookQuestionGenerator
      * @param array<string,mixed> $state
      * @param array<string,mixed> $chapter
      * @param string[] $existingTexts
+     * @param string[] $sourceFiles
      * @return array{ok:bool,error?:string,items?:array<int,array<string,mixed>>}
      */
     private function generateBatch(
@@ -611,10 +701,35 @@ class BookQuestionGenerator
         string $type,
         int $batchSize,
         string $chapterText,
-        array $existingTexts
+        array $existingTexts,
+        array $sourceFiles = []
     ): array {
-        $prompt = $this->buildPrompt($state, $chapter, $type, $batchSize, $chapterText, $existingTexts);
+        $prompt = $this->buildPrompt($state, $chapter, $type, $batchSize, $chapterText, $existingTexts, $sourceFiles !== []);
         $parts = [['text' => $prompt]];
+        foreach ($sourceFiles as $sourceFile) {
+            if (!is_string($sourceFile) || !is_readable($sourceFile)) {
+                continue;
+            }
+            $imageData = @file_get_contents($sourceFile);
+            if ($imageData === false || $imageData === '') {
+                continue;
+            }
+            $mimeType = function_exists('mime_content_type')
+                ? (string) @mime_content_type($sourceFile)
+                : 'image/jpeg';
+            if (!in_array($mimeType, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+                $mimeType = 'image/jpeg';
+            }
+            $parts[] = [
+                'inline_data' => [
+                    'mime_type' => $mimeType,
+                    'data' => base64_encode($imageData),
+                ],
+            ];
+        }
+        if (count($parts) === 1 && $sourceFiles !== []) {
+            return ['ok' => false, 'error' => 'The rendered chapter page images could not be read.'];
+        }
 
         $maxTokens = $type === 'long' ? 8192 : ($type === 'short' ? 4096 : 6144);
         $attempt = 0;
@@ -657,8 +772,9 @@ class BookQuestionGenerator
      * @param array<string,mixed> $state
      * @param array<string,mixed> $chapter
      * @param string[] $existingTexts
+     * @param bool $hasAttachedPages
      */
-    private function buildPrompt(array $state, array $chapter, string $type, int $batchSize, string $chapterText, array $existingTexts): string
+    private function buildPrompt(array $state, array $chapter, string $type, int $batchSize, string $chapterText, array $existingTexts, bool $hasAttachedPages = false): string
     {
         $typeLabel = $type === 'mcq' ? 'MCQ' : ($type === 'short' ? 'short question' : 'long question');
         $topicName = json_encode((string) ($chapter['chapter_name'] ?? ''), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -683,7 +799,11 @@ class BookQuestionGenerator
         $lines[] = '9. Return valid JSON only - no markdown code fences.';
         $lines[] = '';
         $lines[] = '=== CHAPTER CONTENT START ===';
-        $lines[] = $chapterText;
+        if ($hasAttachedPages) {
+            $lines[] = 'The chapter source is supplied as attached page images. Read only those attached pages.';
+        } else {
+            $lines[] = $chapterText;
+        }
         $lines[] = '=== CHAPTER CONTENT END ===';
 
         if (!empty($existingTexts)) {

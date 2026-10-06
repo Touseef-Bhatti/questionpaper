@@ -534,12 +534,6 @@ if ($action === 'upload_book') {
         jsonResponse(['ok' => false, 'error' => 'Uploaded textbook temporary file is not available.']);
     }
 
-    $extractor = new BookChapterExtractor();
-    $pageInfo = $extractor->getPdfPageCount($localPath);
-    if (!$pageInfo['ok']) {
-        jsonResponse(['ok' => false, 'error' => $pageInfo['error'] ?? 'Could not read PDF page count.']);
-    }
-
     try {
         $drive = new GoogleDriveService();
         $classLabel = $book['class_name'] ?: ('Class ' . $classId);
@@ -550,7 +544,10 @@ if ($action === 'upload_book') {
 
     $adminId = (int) ($_SESSION['admin_id'] ?? ($_SESSION['user_id'] ?? 0));
     $fileSize = (int) ($file['size'] ?? filesize($localPath));
-    $pdfPages = (int) $pageInfo['page_count'];
+    // Page count is determined in the browser with PDF.js during generation.
+    // Production hosting may disable shell_exec()/Poppler, so the upload
+    // itself must not depend on a server-side PDF command.
+    $pdfPages = 0;
     $folderId = (string) ($driveResult['folder_id'] ?? '');
     $driveFileId = (string) $driveResult['file_id'];
     $driveUrl = (string) $driveResult['url'];
@@ -603,12 +600,6 @@ if ($action === 'replace_book') {
         jsonResponse(['ok' => false, 'error' => 'Replacement file is not a valid PDF.']);
     }
 
-    $extractor = new BookChapterExtractor();
-    $pageInfo = $extractor->getPdfPageCount($replacementPath);
-    if (!$pageInfo['ok']) {
-        jsonResponse(['ok' => false, 'error' => $pageInfo['error'] ?? 'Could not read replacement PDF page count.']);
-    }
-
     try {
         $drive = new GoogleDriveService();
         $driveResult = $drive->uploadBookFile(
@@ -632,7 +623,7 @@ if ($action === 'replace_book') {
             $origName,
             $mimeType,
             $fileSize,
-            $pageInfo['page_count'],
+            0,
             $uploadId
         );
         $success = $stmt->execute();
@@ -845,38 +836,86 @@ if ($action === 'init_chapter_job') {
         jsonResponse(['ok' => false, 'error' => $chapterCheck['error'] ?? 'Invalid question counts.']);
     }
 
-    $temporaryPdfPath = '';
-    try {
-        $preparedPdf = prepareBookPdfForJob(
-            $upload,
-            $generator,
-            'upload_' . $uploadId . '_' . bin2hex(random_bytes(8))
-        );
-        $temporaryPdfPath = $preparedPdf['path'];
-        $pdfPageCount = (int) $preparedPdf['page_count'];
+    $sourceMode = strtolower(trim((string) ($_POST['chapter_source_mode'] ?? '')));
+    $chapterText = trim((string) ($_POST['chapter_text'] ?? ''));
+    $sourceFiles = [];
+    $assetDirectory = '';
 
-        // Drive sync creates metadata rows before the page count is known.
-        // Backfill it now so later range validation and the UI show accurate data.
-        if ((int) ($upload['pdf_page_count'] ?? 0) !== $pdfPageCount) {
-            $pageStmt = $conn->prepare('UPDATE book_uploads SET pdf_page_count = ? WHERE id = ?');
-            if ($pageStmt) {
-                $pageStmt->bind_param('ii', $pdfPageCount, $uploadId);
-                $pageStmt->execute();
-                $pageStmt->close();
+    if ($sourceMode === 'text') {
+        if (mb_strlen($chapterText) < 80) {
+            jsonResponse(['ok' => false, 'error' => 'The browser did not extract enough selectable text from this chapter.']);
+        }
+        $chapterText = mb_substr($chapterText, 0, DocumentContentExtractor::MAX_TEXT_FOR_PROMPT);
+    } elseif ($sourceMode === 'images') {
+        $incoming = $_FILES['chapter_pages'] ?? null;
+        $fileNames = is_array($incoming['name'] ?? null) ? $incoming['name'] : [];
+        $fileCount = count($fileNames);
+        if ($fileCount < 1 || $fileCount > 40) {
+            jsonResponse(['ok' => false, 'error' => 'Attach between 1 and 40 rendered chapter pages.']);
+        }
+
+        try {
+            $assetDirectory = $generator->getJobAssetDirectory(
+                'chapter_' . $uploadId . '_' . bin2hex(random_bytes(8))
+            );
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $allowedImageMimes = ['image/jpeg', 'image/png', 'image/webp'];
+            $totalBytes = 0;
+
+            for ($index = 0; $index < $fileCount; $index++) {
+                $tmpPath = (string) ($incoming['tmp_name'][$index] ?? '');
+                $errorCode = (int) ($incoming['error'][$index] ?? UPLOAD_ERR_NO_FILE);
+                if ($errorCode !== UPLOAD_ERR_OK || $tmpPath === '' || !is_uploaded_file($tmpPath)) {
+                    throw new RuntimeException('One of the rendered chapter pages could not be uploaded.');
+                }
+
+                $mime = (string) $finfo->file($tmpPath);
+                if (!in_array($mime, $allowedImageMimes, true)) {
+                    throw new RuntimeException('Rendered chapter pages must be JPEG, PNG, or WebP images.');
+                }
+
+                $size = (int) ($incoming['size'][$index] ?? filesize($tmpPath));
+                $totalBytes += $size;
+                if ($size <= 0 || $size > 10 * 1024 * 1024 || $totalBytes > 80 * 1024 * 1024) {
+                    throw new RuntimeException('The rendered chapter pages are too large. Select a smaller page range.');
+                }
+
+                $destination = $assetDirectory . DIRECTORY_SEPARATOR . 'page_' . ($index + 1) . '.jpg';
+                if (!@move_uploaded_file($tmpPath, $destination)) {
+                    throw new RuntimeException('Could not store the rendered chapter page.');
+                }
+                $sourceFiles[] = $destination;
             }
+        } catch (Throwable $e) {
+            foreach ($sourceFiles as $sourceFile) {
+                @unlink($sourceFile);
+            }
+            if ($assetDirectory !== '' && is_dir($assetDirectory)) {
+                @rmdir($assetDirectory);
+            }
+            jsonResponse(['ok' => false, 'error' => $e->getMessage()]);
         }
-    } catch (Throwable $e) {
-        if ($temporaryPdfPath !== '' && is_file($temporaryPdfPath)) {
-            @unlink($temporaryPdfPath);
-        }
-        error_log('Book question PDF preparation failed: ' . $e->getMessage());
-        jsonResponse(['ok' => false, 'error' => $e->getMessage() ?: 'The textbook could not be prepared for processing.']);
+    } else {
+        jsonResponse(['ok' => false, 'error' => 'Select the source PDF and prepare the chapter pages in the browser before generating questions.']);
     }
 
-    $job = $generator->createJob((int) $upload['class_id'], (int) $upload['book_id'], 0, $temporaryPdfPath, (string) $upload['original_filename'], $pdfPageCount, $chapterCheck['chapters'], 'one', $uploadId, true);
+    $pdfPageCount = max(0, intval($_POST['browser_pdf_page_count'] ?? 0));
+    if ($pdfPageCount > 0 && (int) ($upload['pdf_page_count'] ?? 0) !== $pdfPageCount) {
+        $pageStmt = $conn->prepare('UPDATE book_uploads SET pdf_page_count = ? WHERE id = ?');
+        if ($pageStmt) {
+            $pageStmt->bind_param('ii', $pdfPageCount, $uploadId);
+            $pageStmt->execute();
+            $pageStmt->close();
+        }
+    }
+
+    $chapterSource = $sourceMode === 'text'
+        ? ['mode' => 'text', 'text' => $chapterText]
+        : ['mode' => 'images', 'files' => $sourceFiles];
+    $job = $generator->createJob((int) $upload['class_id'], (int) $upload['book_id'], 0, '', (string) $upload['original_filename'], $pdfPageCount, $chapterCheck['chapters'], 'one', $uploadId, true, $chapterSource);
     if (!$job['ok']) {
-        if (is_file($temporaryPdfPath)) {
-            @unlink($temporaryPdfPath);
+        foreach ($sourceFiles as $sourceFile) {
+            @unlink($sourceFile);
         }
         jsonResponse(['ok' => false, 'error' => $job['error'] ?? 'Could not create generation job.']);
     }
@@ -893,6 +932,7 @@ if ($action === 'process_batch') {
     $result = $generator->processNextBatch($jobId);
     if (!empty($result['done']) && isset($result['state']) && is_array($result['state'])) {
         $generator->cleanupTemporaryPdf($result['state']);
+        $generator->cleanupJobAssets($result['state']);
     }
     if (!$result['ok']) {
         jsonResponse(['ok' => false, 'error' => $result['error'] ?? 'Batch failed.', 'progress' => isset($result['state']) ? $generator->buildProgress($result['state']) : null]);
