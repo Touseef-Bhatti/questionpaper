@@ -911,7 +911,7 @@ include_once __DIR__ . '/../header.php';
                                 <label class="target-input-card" for="mcqCount">
                                     <span>MCQ</span>
                                     <small>Multiple choice</small>
-                                    <input type="number" id="mcqCount" min="0" max="200" value="10" aria-label="MCQ target count">
+                                    <input type="number" id="mcqCount" min="0" max="100" value="10" aria-label="MCQ target count">
                                 </label>
                                 <label class="target-input-card" for="shortCount">
                                     <span>Short</span>
@@ -921,7 +921,7 @@ include_once __DIR__ . '/../header.php';
                                 <label class="target-input-card" for="longCount">
                                     <span>Long</span>
                                     <small>Long questions</small>
-                                    <input type="number" id="longCount" min="0" max="50" value="3" aria-label="Long question target count">
+                                    <input type="number" id="longCount" min="0" max="100" value="3" aria-label="Long question target count">
                                 </label>
                             </div>
                         </div>
@@ -930,7 +930,7 @@ include_once __DIR__ . '/../header.php';
                             <button type="button" class="btn btn-primary w-100" id="startGenerateBtn" disabled>
                                 <i class="fa-solid fa-play me-1"></i>Generate draft
                             </button>
-                            <span class="generation-action-note"><i class="fa-solid fa-shield-halved me-1"></i>Drafts stay pending until you approve them.</span>
+                            <span class="generation-action-note"><i class="fa-solid fa-shield-halved me-1"></i>Drafts stay pending until approval. MCQ batches contain 20; MCQ, short, and long requests run concurrently.</span>
                         </div>
                     </div>
 
@@ -969,6 +969,20 @@ include_once __DIR__ . '/../header.php';
 
                     <pre class="bg-light p-3 rounded small mt-3 mb-0 d-none" id="progressDetails" style="white-space: pre-wrap; max-height: 180px; overflow-y: auto;"></pre>
 
+                    <div class="mt-3 d-none" id="duplicateReviewWrap">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border rounded p-2 bg-warning-subtle">
+                            <div class="small text-dark">
+                                <i class="fa-solid fa-copy me-1"></i>
+                                <strong id="duplicateReviewTitle">Skipped duplicate questions</strong>
+                                <span class="text-muted">Review the AI candidates that matched stored or generated questions.</span>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-dark" id="viewDuplicatesBtn">
+                                <i class="fa-solid fa-eye me-1"></i>View duplicates (<span id="duplicateReviewCount">0</span>)
+                            </button>
+                        </div>
+                        <div class="d-none mt-2" id="duplicateReviewList"></div>
+                    </div>
+
                     <!-- Review Actions -->
                     <div class="mt-3 d-none d-flex gap-2 flex-wrap align-items-center" id="reviewLinkWrap">
                         <a href="#" class="btn btn-success" id="reviewLink">
@@ -997,11 +1011,12 @@ const driveSyncUrl = '../google_drive_sync.php';
 const bookData = <?= json_encode($books, JSON_UNESCAPED_UNICODE) ?>;
 const maxUploadBytes = <?= (int) $uploadLimitBytes ?>;
 const aiKeyConfigured = <?= $apiKeyConfigured ? 'true' : 'false' ?>;
+const resumeJobId = <?= json_encode((string) (preg_match('/^[a-f0-9]{32}$/', (string) ($_GET['job_id'] ?? '')) ? $_GET['job_id'] : '')) ?>;
 let uploads = [];
 let currentUpload = null;
 let currentChapters = [];
 let currentRanges = {};
-let currentJobId = '';
+let currentJobId = resumeJobId;
 let generationRunning = false;
 let browserSourceFile = null;
 let browserSourceUploadId = 0;
@@ -1577,25 +1592,108 @@ function renderProgress(progress) {
         `Job ID: ${currentJobId}\nStatus: ${progress.job_status}\nChapter: ${ch.chapter_no || ''} ${ch.chapter_name || ''}\n` +
         `MCQs: ${ch.saved?.mcq || 0}/${ch.targets?.mcq || 0} | Short: ${ch.saved?.short || 0}/${ch.targets?.short || 0} | Long: ${ch.saved?.long || 0}/${ch.targets?.long || 0}\n` +
         `Duplicates skipped: ${ch.skipped?.duplicates || 0} | Invalid skipped: ${ch.skipped?.invalid || 0}\n${ch.error ? 'Error: ' + ch.error : ''}`;
+    renderDuplicateCandidates(progress.duplicate_candidates || ch.duplicate_candidates || []);
+}
+
+function renderDuplicateCandidates(candidates) {
+    const wrap = document.getElementById('duplicateReviewWrap');
+    const list = document.getElementById('duplicateReviewList');
+    const count = document.getElementById('duplicateReviewCount');
+    if (!wrap || !list || !count) return;
+
+    const items = Array.isArray(candidates) ? candidates : [];
+    count.textContent = String(items.length);
+    wrap.classList.toggle('d-none', items.length === 0);
+    if (!items.length) {
+        list.classList.add('d-none');
+        list.innerHTML = '';
+        return;
+    }
+
+    list.innerHTML = items.map(item => {
+        const isMcq = item.question_kind === 'mcq';
+        const options = isMcq
+            ? `<div class="small text-muted mt-2">A: ${escapeHtml(item.option_a)} &nbsp; B: ${escapeHtml(item.option_b)} &nbsp; C: ${escapeHtml(item.option_c)} &nbsp; D: ${escapeHtml(item.option_d)}</div>`
+            : '';
+        return `
+            <div class="border rounded p-3 mb-2 bg-white" data-duplicate-id="${escapeHtml(item.id)}">
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                    <span class="badge ${isMcq ? 'bg-primary' : 'bg-secondary'} text-uppercase">${escapeHtml(item.question_kind)}</span>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-success" onclick="manageDuplicate('${escapeHtml(item.id)}', 'add')">
+                            <i class="fa-solid fa-plus me-1"></i>Add to drafts
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="manageDuplicate('${escapeHtml(item.id)}', 'discard')">
+                            <i class="fa-solid fa-trash me-1"></i>Discard
+                        </button>
+                    </div>
+                </div>
+                <div class="fw-semibold mt-2" dir="auto">${escapeHtml(item.question_text)}</div>
+                ${options}
+                <div class="small text-danger mt-2" dir="auto"><strong>Matched stored/generated question:</strong> ${escapeHtml(item.matched_question)}</div>
+            </div>`;
+    }).join('');
+}
+
+async function manageDuplicate(candidateId, decision) {
+    if (!currentJobId || !candidateId) return;
+    const card = Array.from(document.querySelectorAll('[data-duplicate-id]'))
+        .find(element => element.dataset.duplicateId === candidateId);
+    card?.querySelectorAll('button').forEach(button => { button.disabled = true; });
+    const fd = new FormData();
+    fd.append('action', 'manage_duplicate');
+    fd.append('job_id', currentJobId);
+    fd.append('candidate_id', candidateId);
+    fd.append('decision', decision);
+    const data = await postForm(fd);
+    if (data?.ok) {
+        if (data.progress) renderProgress(data.progress);
+        showAlert(decision === 'add' ? 'Duplicate candidate added to the pending drafts.' : 'Duplicate candidate discarded.', 'success');
+    } else {
+        card?.querySelectorAll('button').forEach(button => { button.disabled = false; });
+    }
 }
 
 async function processBatchLoop() {
     if (!generationRunning || !currentJobId) return;
-    const fd = new FormData();
-    fd.append('action', 'process_batch');
-    fd.append('job_id', currentJobId);
-    const data = await postForm(fd);
-    if (data?.progress) renderProgress(data.progress);
+    const questionTypes = ['mcq', 'short', 'long'];
+    const results = await Promise.all(questionTypes.map(async questionType => {
+        const fd = new FormData();
+        fd.append('action', 'process_type_batch');
+        fd.append('job_id', currentJobId);
+        fd.append('question_type', questionType);
+        try {
+            const data = await postForm(fd);
+            if (data?.progress) renderProgress(data.progress);
+            return { questionType, data };
+        } catch (error) {
+            return { questionType, data: null, error };
+        }
+    }));
+
+    // Responses can finish in a different order than their state commits.
+    // Read the merged job state once so the progress panel always shows the
+    // latest saved counts and duplicate-review queue.
+    const progressForm = new FormData();
+    progressForm.append('action', 'get_job_progress');
+    progressForm.append('job_id', currentJobId);
+    const latest = await postForm(progressForm);
+    if (latest?.progress) renderProgress(latest.progress);
+
     if (!generationRunning) {
         return;
     }
-    if (!data || !data.ok) {
+
+    const failed = results.find(result => !result.data || !result.data.ok);
+    if (failed) {
         generationRunning = false;
         document.getElementById('stopGenerateBtn').classList.add('d-none');
         updateGenerationControls();
+        showAlert(failed.data?.error || 'One of the concurrent generation requests failed.', 'danger');
         return;
     }
-    if (data.done) {
+
+    if (results.some(result => result.data.done)) {
         generationRunning = false;
         showAlert('Draft generation finished! Click "Review generated questions" to inspect and approve them.', 'success');
         document.getElementById('stopGenerateBtn').classList.add('d-none');
@@ -1604,6 +1702,21 @@ async function processBatchLoop() {
         return;
     }
     setTimeout(processBatchLoop, 300);
+}
+
+async function loadResumeJob() {
+    if (!currentJobId) return;
+    const fd = new FormData();
+    fd.append('action', 'get_job_progress');
+    fd.append('job_id', currentJobId);
+    const data = await postForm(fd);
+    if (!data?.ok || !data.progress) return;
+
+    renderProgress(data.progress);
+    const link = document.getElementById('reviewLink');
+    link.href = 'review.php?job_id=' + encodeURIComponent(currentJobId);
+    document.getElementById('reviewLinkWrap').classList.remove('d-none');
+    document.getElementById('stopGenerateBtn').classList.add('d-none');
 }
 
 function escapeHtml(value) {
@@ -1745,6 +1858,9 @@ document.getElementById('startGenerateBtn').addEventListener('click', async () =
     if (!data?.ok) return;
     
     currentJobId = data.job_id;
+    const jobUrl = new URL(window.location.href);
+    jobUrl.searchParams.set('job_id', currentJobId);
+    window.history.replaceState({}, '', jobUrl.toString());
     const link = document.getElementById('reviewLink');
     link.href = 'review.php?job_id=' + encodeURIComponent(currentJobId);
     document.getElementById('reviewLinkWrap').classList.remove('d-none');
@@ -1761,6 +1877,15 @@ document.getElementById('stopGenerateBtn').addEventListener('click', () => {
     updateGenerationControls();
     showAlert('Generation paused. You can review and approve drafts generated so far.', 'warning');
     loadReviewJobs();
+});
+
+document.getElementById('viewDuplicatesBtn')?.addEventListener('click', event => {
+    const list = document.getElementById('duplicateReviewList');
+    if (!list) return;
+    const isHidden = list.classList.toggle('d-none');
+    event.currentTarget.innerHTML = isHidden
+        ? '<i class="fa-solid fa-eye me-1"></i>View duplicates (' + document.getElementById('duplicateReviewCount').textContent + ')'
+        : '<i class="fa-solid fa-eye-slash me-1"></i>Hide duplicates';
 });
 
 document.getElementById('testDriveBtn').addEventListener('click', async () => {
@@ -1819,7 +1944,10 @@ document.getElementById('syncDriveBtn').addEventListener('click', async () => {
     }
 });
 
-document.addEventListener('DOMContentLoaded', refreshData);
+document.addEventListener('DOMContentLoaded', async () => {
+    await refreshData();
+    await loadResumeJob();
+});
 </script>
 
 <?php include_once __DIR__ . '/../footer.php'; ?>

@@ -424,6 +424,12 @@ if (!verifyCSRFToken($csrf)) {
     jsonResponse(['ok' => false, 'error' => 'Security token invalid. Reload the page and try again.'], 403);
 }
 
+// Release PHP's session file lock before long-running Gemini requests. Without
+// this, three concurrent generation requests are serialized by PHP itself.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 $action = trim((string) ($_POST['action'] ?? ''));
 
 if ($action === 'download_book_source') {
@@ -960,6 +966,34 @@ if ($action === 'init_chapter_job') {
 
 $jobId = trim((string) ($_POST['job_id'] ?? ($_SESSION['book_question_job_id'] ?? '')));
 
+if ($action === 'get_job_progress') {
+    if ($jobId === '') {
+        jsonResponse(['ok' => false, 'error' => 'Missing generation job ID.']);
+    }
+    $state = $generator->loadState($jobId);
+    if (!$state) {
+        jsonResponse(['ok' => false, 'error' => 'Generation job not found.']);
+    }
+    jsonResponse(['ok' => true, 'progress' => $generator->buildProgress($state)]);
+}
+
+if ($action === 'manage_duplicate') {
+    if ($jobId === '') {
+        jsonResponse(['ok' => false, 'error' => 'Missing generation job ID.']);
+    }
+    $candidateId = trim((string) ($_POST['candidate_id'] ?? ''));
+    $decision = trim((string) ($_POST['decision'] ?? ''));
+    if (!preg_match('/^[a-f0-9]{24}$/', $candidateId)) {
+        jsonResponse(['ok' => false, 'error' => 'Invalid duplicate candidate.']);
+    }
+    $result = $generator->manageDuplicateCandidate($jobId, $candidateId, $decision);
+    if (!$result['ok']) {
+        jsonResponse(['ok' => false, 'error' => $result['error'] ?? 'Could not manage duplicate candidate.']);
+    }
+    logAdminAction('book_question_duplicate_candidate_' . ($result['action'] ?? $decision), 'Job ' . $jobId);
+    jsonResponse(['ok' => true, 'action' => $result['action'] ?? $decision, 'progress' => $generator->buildProgress($result['state'] ?? [])]);
+}
+
 if ($action === 'process_batch') {
     if ($jobId === '') {
         jsonResponse(['ok' => false, 'error' => 'Missing generation job ID.']);
@@ -973,6 +1007,36 @@ if ($action === 'process_batch') {
         jsonResponse(['ok' => false, 'error' => $result['error'] ?? 'Batch failed.', 'progress' => isset($result['state']) ? $generator->buildProgress($result['state']) : null]);
     }
     jsonResponse(['ok' => true, 'done' => !empty($result['done']), 'progress' => $result['progress'] ?? null, 'batch' => $result['batch'] ?? null]);
+}
+
+if ($action === 'process_type_batch') {
+    if ($jobId === '') {
+        jsonResponse(['ok' => false, 'error' => 'Missing generation job ID.']);
+    }
+    $type = trim((string) ($_POST['question_type'] ?? ''));
+    if (!in_array($type, ['mcq', 'short', 'long'], true)) {
+        jsonResponse(['ok' => false, 'error' => 'Invalid question type.']);
+    }
+    $result = $generator->processTypeBatch($jobId, $type);
+    if (!empty($result['done']) && isset($result['state']) && is_array($result['state'])) {
+        $generator->cleanupTemporaryPdf($result['state']);
+        $generator->cleanupJobAssets($result['state']);
+    }
+    if (!$result['ok']) {
+        jsonResponse([
+            'ok' => false,
+            'error' => $result['error'] ?? 'Batch failed.',
+            'progress' => isset($result['state']) ? $generator->buildProgress($result['state']) : null,
+        ]);
+    }
+    jsonResponse([
+        'ok' => true,
+        'done' => !empty($result['done']),
+        'type_done' => !empty($result['type_done']),
+        'busy' => !empty($result['busy']),
+        'progress' => $result['progress'] ?? null,
+        'batch' => $result['batch'] ?? null,
+    ]);
 }
 
 if ($action === 'get_extracted_text') {

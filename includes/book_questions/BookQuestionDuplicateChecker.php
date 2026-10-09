@@ -4,7 +4,28 @@
  */
 class BookQuestionDuplicateChecker
 {
-    public const SIMILARITY_THRESHOLD = 82.0;
+    /**
+     * A question is considered a near duplicate only when at least 75% of its
+     * meaningful words are shared. Character-level similarity is deliberately
+     * not used: question templates such as "What is the function of..." can
+     * make different topics look similar even when their key terms differ.
+     */
+    public const SIMILARITY_THRESHOLD = 0.75;
+    private const MIN_SHARED_CONTENT_TOKENS = 2;
+
+    /**
+     * Words that carry question grammar rather than the topic being tested.
+     * Keep domain words such as "cause", "effect", "function", and "process"
+     * so questions about different concepts are not collapsed together.
+     *
+     * @var string[]
+     */
+    private const QUESTION_STOP_WORDS = [
+        'a', 'an', 'and', 'are', 'at', 'be', 'been', 'being', 'by', 'do',
+        'does', 'for', 'from', 'how', 'in', 'is', 'it', 'of', 'on', 'or',
+        'the', 'to', 'was', 'were', 'what', 'when', 'where', 'which', 'who',
+        'why', 'with',
+    ];
 
     public static function normalize(string $text): string
     {
@@ -23,10 +44,31 @@ class BookQuestionDuplicateChecker
     public static function stripQuestionPrefix(string $normalized): string
     {
         return trim((string) preg_replace(
-            '/^(what is|what are|define|explain|describe|discuss|what do you mean by|how does|how do|name|list|state|give|write)\s+/u',
+            '/^(which of the following(?: is| are)?|what do you mean by|what is meant by|what is the definition of|differentiate between|what is|what are|what was|what were|how does|how do|how did|why does|why do|why did|define|explain|describe|discuss|name|list|state|give|write|identify|mention|outline|tell)\s+/u',
             '',
             $normalized
         ));
+    }
+
+    /**
+     * Return unique topic-bearing tokens in a normalized question.
+     *
+     * @return string[]
+     */
+    private static function contentTokens(string $normalized): array
+    {
+        $stripped = self::stripQuestionPrefix($normalized);
+        preg_match_all('/[\p{L}\p{N}]+/u', $stripped, $matches);
+        $stopWords = array_flip(self::QUESTION_STOP_WORDS);
+        $tokens = [];
+
+        foreach ($matches[0] ?? [] as $token) {
+            if (!isset($stopWords[$token])) {
+                $tokens[$token] = true;
+            }
+        }
+
+        return array_keys($tokens);
     }
 
     public static function areSimilar(string $a, string $b): bool
@@ -46,32 +88,47 @@ class BookQuestionDuplicateChecker
             return true;
         }
 
-        similar_text($na, $nb, $pct);
-        if ($pct >= self::SIMILARITY_THRESHOLD) {
-            return true;
+        $tokensA = self::contentTokens($na);
+        $tokensB = self::contentTokens($nb);
+        if (count($tokensA) < self::MIN_SHARED_CONTENT_TOKENS
+            || count($tokensB) < self::MIN_SHARED_CONTENT_TOKENS) {
+            return false;
         }
 
-        if ($sa !== '' && $sb !== '') {
-            similar_text($sa, $sb, $pct2);
-            if ($pct2 >= 85.0) {
-                return true;
-            }
+        $shared = count(array_intersect($tokensA, $tokensB));
+        if ($shared < self::MIN_SHARED_CONTENT_TOKENS) {
+            return false;
         }
 
-        return false;
+        $union = count(array_unique(array_merge($tokensA, $tokensB)));
+        if ($union === 0) {
+            return false;
+        }
+
+        return ($shared / $union) >= self::SIMILARITY_THRESHOLD;
     }
 
     public static function isDuplicate(string $candidate, array $existingTexts): bool
+    {
+        return self::findDuplicateMatch($candidate, $existingTexts) !== null;
+    }
+
+    /**
+     * Return the stored question that caused a candidate to be rejected.
+     *
+     * @param string[] $existingTexts
+     */
+    public static function findDuplicateMatch(string $candidate, array $existingTexts): ?string
     {
         foreach ($existingTexts as $existing) {
             if (!is_string($existing) || $existing === '') {
                 continue;
             }
             if (self::areSimilar($candidate, $existing)) {
-                return true;
+                return $existing;
             }
         }
-        return false;
+        return null;
     }
 
     /**
@@ -115,6 +172,31 @@ class BookQuestionDuplicateChecker
         }
 
         $stmt = $conn->prepare("SELECT question_text FROM questions WHERE chapter_id = ? AND question_type IN ('short','long')");
+        if ($stmt) {
+            $stmt->bind_param('i', $chapterId);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $texts[] = (string) ($row['question_text'] ?? '');
+            }
+            $stmt->close();
+        }
+
+        // Pending drafts belong to the same question bank even before an
+        // administrator approves them. Include them so repeated generation
+        // jobs cannot recreate questions that are already awaiting review.
+        $stmt = $conn->prepare("SELECT question_text FROM book_mcq_drafts WHERE chapter_id = ? AND status IN ('pending','approved')");
+        if ($stmt) {
+            $stmt->bind_param('i', $chapterId);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $texts[] = (string) ($row['question_text'] ?? '');
+            }
+            $stmt->close();
+        }
+
+        $stmt = $conn->prepare("SELECT question_text FROM book_question_drafts WHERE chapter_id = ? AND status IN ('pending','approved')");
         if ($stmt) {
             $stmt->bind_param('i', $chapterId);
             $stmt->execute();

@@ -6,16 +6,18 @@ require_once __DIR__ . '/../../questionPaperFromTopic/GeminiJsonExtractor.php';
 
 class BookQuestionGenerator
 {
-    public const MAX_MCQ_BATCH = 10;
+    public const MAX_MCQ_BATCH = 20;
     public const MAX_SHORT_BATCH = 5;
     public const MAX_LONG_BATCH = 3;
     public const MAX_LONG_BATCH_SMALL = 2;
     public const LARGE_TEXT_THRESHOLD = 40000;
     public const MAX_REPLACEMENT_ATTEMPTS = 8;
     public const MAX_GEMINI_RETRIES = 3;
-    public const MAX_MCQ_TOTAL = 200;
+    public const MAX_MCQ_TOTAL = 100;
     public const MAX_SHORT_TOTAL = 100;
-    public const MAX_LONG_TOTAL = 50;
+    public const MAX_LONG_TOTAL = 100;
+    public const MAX_REQUESTS_PER_TYPE = 120;
+    public const MAX_EXCLUSION_PROMPT_CHARS = 200000;
 
     private mysqli $conn;
     private string $projectRoot;
@@ -187,6 +189,28 @@ class BookQuestionGenerator
                 'replacement_attempts' => 0,
                 'completed_batches' => [],
                 'failed_batches' => [],
+                'excluded_texts' => [],
+                'duplicate_candidates' => [],
+                'parallel_types' => [
+                    'mcq' => [
+                        'current_batch' => 0,
+                        'completed_batches' => [],
+                        'replacement_attempts' => 0,
+                        'in_flight' => null,
+                    ],
+                    'short' => [
+                        'current_batch' => 0,
+                        'completed_batches' => [],
+                        'replacement_attempts' => 0,
+                        'in_flight' => null,
+                    ],
+                    'long' => [
+                        'current_batch' => 0,
+                        'completed_batches' => [],
+                        'replacement_attempts' => 0,
+                        'in_flight' => null,
+                    ],
+                ],
                 'chapter_id' => 0,
                 'extracted_text_file' => '',
                 'status' => 'pending',
@@ -281,7 +305,7 @@ class BookQuestionGenerator
     public function saveState(string $jobId, array $state): bool
     {
         $path = $this->statePath($jobId);
-        $tmp = $path . '.tmp';
+        $tmp = $path . '.tmp.' . bin2hex(random_bytes(6));
         $encoded = json_encode($state, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         if ($encoded === false) {
             return false;
@@ -301,7 +325,142 @@ class BookQuestionGenerator
         flock($fp, LOCK_UN);
         fclose($fp);
 
-        return @rename($tmp, $path);
+        if (!@rename($tmp, $path)) {
+            @unlink($tmp);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Acquire a short-lived per-job lock for state reservation/commit.
+     * The lock must never be held while waiting for Gemini.
+     *
+     * @return resource|null
+     */
+    private function acquireJobLock(string $jobId)
+    {
+        $lockPath = $this->statePath($jobId) . '.lock';
+        $lock = @fopen($lockPath, 'c');
+        if (!$lock || !flock($lock, LOCK_EX)) {
+            if (is_resource($lock)) {
+                fclose($lock);
+            }
+            return null;
+        }
+        return $lock;
+    }
+
+    /**
+     * @param resource|null $lock
+     */
+    private function releaseJobLock($lock): void
+    {
+        if (!is_resource($lock)) {
+            return;
+        }
+        flock($lock, LOCK_UN);
+        fclose($lock);
+    }
+
+    /**
+     * Prepare one chapter exactly once before parallel type requests start.
+     *
+     * @param array<string,mixed> $state
+     * @return array{ok:bool,error?:string}
+     */
+    private function prepareChapter(array &$state, int $chapterIndex, string $jobId): array
+    {
+        if (!isset($state['chapters'][$chapterIndex]) || !is_array($state['chapters'][$chapterIndex])) {
+            return ['ok' => false, 'error' => 'Generation chapter not found.'];
+        }
+
+        $chapter =& $state['chapters'][$chapterIndex];
+        if (($chapter['status'] ?? 'pending') !== 'pending') {
+            return ['ok' => true];
+        }
+
+        $this->addLog($state, 'Preparing chapter ' . (int) $chapter['chapter_no'] . ': ' . (string) $chapter['chapter_name'] . '.');
+        $chapterResolved = $this->resolveOrCreateChapter(
+            (int) $state['class_id'],
+            (int) $state['book_id'],
+            (string) $state['book_name'],
+            (int) $chapter['chapter_no'],
+            (string) $chapter['chapter_name']
+        );
+        if (!$chapterResolved['ok']) {
+            $chapter['status'] = 'failed';
+            $chapter['error'] = $chapterResolved['error'] ?? 'Chapter error';
+            $this->addLog($state, $chapter['error'], 'error');
+            $this->saveState($jobId, $state);
+            return ['ok' => false, 'error' => $chapter['error']];
+        }
+
+        $chapter['chapter_id'] = (int) $chapterResolved['chapter_id'];
+        $this->addLog($state, 'Chapter database record ready. ID: ' . (int) $chapter['chapter_id'] . '.');
+
+        $sourceMode = (string) ($chapter['source_mode'] ?? 'pdf');
+        $chapterText = '';
+        if ($sourceMode === 'text') {
+            $chapterText = trim((string) ($chapter['source_text'] ?? ''));
+            if (mb_strlen($chapterText) < 80) {
+                $chapter['status'] = 'failed';
+                $chapter['error'] = 'The browser did not extract enough selectable text from this chapter.';
+                $this->addLog($state, $chapter['error'], 'error');
+                $this->saveState($jobId, $state);
+                return ['ok' => false, 'error' => $chapter['error']];
+            }
+            $workDir = $this->textDir . '/' . preg_replace('/[^a-f0-9]/', '', $jobId) . '_ch' . (int) $chapter['chapter_no'];
+            if (!is_dir($workDir)) {
+                @mkdir($workDir, 0750, true);
+            }
+            $textFile = $workDir . '/extracted.md';
+            @file_put_contents($textFile, $chapterText);
+            $chapter['extracted_text_file'] = $textFile;
+            $this->addLog($state, 'Browser extracted ' . mb_strlen($chapterText) . ' characters for the selected chapter.');
+        } elseif ($sourceMode === 'images') {
+            if (empty($chapter['source_files'])) {
+                $chapter['status'] = 'failed';
+                $chapter['error'] = 'No rendered chapter pages were attached to this job.';
+                $this->addLog($state, $chapter['error'], 'error');
+                $this->saveState($jobId, $state);
+                return ['ok' => false, 'error' => $chapter['error']];
+            }
+            $this->addLog($state, 'Using ' . count($chapter['source_files']) . ' browser-rendered chapter page image(s) for Gemini.');
+        } else {
+            $workDir = $this->textDir . '/' . preg_replace('/[^a-f0-9]/', '', $jobId) . '_ch' . (int) $chapter['chapter_no'];
+            $this->addLog($state, 'Extracting chapter text from PDF pages ' . (int) $chapter['pdf_start'] . '-' . (int) $chapter['pdf_end'] . '.');
+            $extract = $this->extractor->extractChapterMarkdown(
+                $this->pdfPathFromState($state),
+                (int) $chapter['pdf_start'],
+                (int) $chapter['pdf_end'],
+                $workDir
+            );
+            if (!$extract['ok']) {
+                $chapter['status'] = 'failed';
+                $chapter['error'] = $extract['error'] ?? 'Extraction failed';
+                $this->addLog($state, $chapter['error'], 'error');
+                $this->saveState($jobId, $state);
+                return ['ok' => false, 'error' => $chapter['error']];
+            }
+
+            $textFile = $workDir . '/extracted.md';
+            @file_put_contents($textFile, (string) $extract['text']);
+            $chapter['extracted_text_file'] = $textFile;
+            $chapterText = (string) $extract['text'];
+        }
+
+        $chapter['status'] = 'generating';
+        $state['status'] = 'generating';
+        $chapter['current_type'] = $this->nextPendingType($chapter);
+        $chapter['current_batch'] = 0;
+        if ($sourceMode === 'images') {
+            $this->addLog($state, 'Chapter source is ready from ' . count($chapter['source_files'] ?? []) . ' attached page image(s).');
+        } else {
+            $this->addLog($state, 'Extracted ' . mb_strlen($chapterText) . ' characters for chapter ' . (int) $chapter['chapter_no'] . '.');
+        }
+        $this->saveState($jobId, $state);
+        return ['ok' => true];
     }
 
     /**
@@ -412,80 +571,10 @@ class BookQuestionGenerator
         }
 
         if (($chapter['status'] ?? 'pending') === 'pending') {
-            $this->addLog($state, 'Preparing chapter ' . (int) $chapter['chapter_no'] . ': ' . (string) $chapter['chapter_name'] . '.');
-            $chapterResolved = $this->resolveOrCreateChapter(
-                (int) $state['class_id'],
-                (int) $state['book_id'],
-                (string) $state['book_name'],
-                (int) $chapter['chapter_no'],
-                (string) $chapter['chapter_name']
-            );
-            if (!$chapterResolved['ok']) {
-                $chapter['status'] = 'failed';
-                $chapter['error'] = $chapterResolved['error'] ?? 'Chapter error';
-                $this->addLog($state, $chapter['error'], 'error');
-                $this->saveState($jobId, $state);
-                return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
+            $prepared = $this->prepareChapter($state, $chapterIndex, $jobId);
+            if (!$prepared['ok']) {
+                return ['ok' => false, 'error' => $prepared['error'] ?? 'Chapter preparation failed.', 'state' => $state];
             }
-            $chapter['chapter_id'] = (int) $chapterResolved['chapter_id'];
-            $this->addLog($state, 'Chapter database record ready. ID: ' . (int) $chapter['chapter_id'] . '.');
-
-            $sourceMode = (string) ($chapter['source_mode'] ?? 'pdf');
-            $chapterText = '';
-            if ($sourceMode === 'text') {
-                $chapterText = trim((string) ($chapter['source_text'] ?? ''));
-                if (mb_strlen($chapterText) < 80) {
-                    $chapter['status'] = 'failed';
-                    $chapter['error'] = 'The browser did not extract enough selectable text from this chapter.';
-                    $this->addLog($state, $chapter['error'], 'error');
-                    $this->saveState($jobId, $state);
-                    return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
-                }
-                $workDir = $this->textDir . '/' . preg_replace('/[^a-f0-9]/', '', $jobId) . '_ch' . (int) $chapter['chapter_no'];
-                if (!is_dir($workDir)) {
-                    @mkdir($workDir, 0750, true);
-                }
-                $textFile = $workDir . '/extracted.md';
-                @file_put_contents($textFile, $chapterText);
-                $chapter['extracted_text_file'] = $textFile;
-                $this->addLog($state, 'Browser extracted ' . mb_strlen($chapterText) . ' characters for the selected chapter.');
-            } elseif ($sourceMode === 'images') {
-                if (empty($chapter['source_files'])) {
-                    $chapter['status'] = 'failed';
-                    $chapter['error'] = 'No rendered chapter pages were attached to this job.';
-                    $this->addLog($state, $chapter['error'], 'error');
-                    $this->saveState($jobId, $state);
-                    return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
-                }
-                $this->addLog($state, 'Using ' . count($chapter['source_files']) . ' browser-rendered chapter page image(s) for Gemini.');
-            } else {
-                $workDir = $this->textDir . '/' . preg_replace('/[^a-f0-9]/', '', $jobId) . '_ch' . (int) $chapter['chapter_no'];
-                $this->addLog($state, 'Extracting chapter text from PDF pages ' . (int) $chapter['pdf_start'] . '-' . (int) $chapter['pdf_end'] . '.');
-                $extract = $this->extractor->extractChapterMarkdown(
-                    $this->pdfPathFromState($state),
-                    (int) $chapter['pdf_start'],
-                    (int) $chapter['pdf_end'],
-                    $workDir
-                );
-                if (!$extract['ok']) {
-                    $chapter['status'] = 'failed';
-                    $chapter['error'] = $extract['error'] ?? 'Extraction failed';
-                    $this->addLog($state, $chapter['error'], 'error');
-                    $this->saveState($jobId, $state);
-                    return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
-                }
-
-                $textFile = $workDir . '/extracted.md';
-                @file_put_contents($textFile, (string) $extract['text']);
-                $chapter['extracted_text_file'] = $textFile;
-                $chapterText = (string) $extract['text'];
-            }
-
-            $chapter['status'] = 'generating';
-            $chapter['current_type'] = $this->nextPendingType($chapter);
-            $chapter['current_batch'] = 0;
-            $this->addLog($state, 'Extracted ' . mb_strlen((string) $extract['text']) . ' characters for chapter ' . (int) $chapter['chapter_no'] . '.');
-            $this->saveState($jobId, $state);
         }
 
         $type = (string) ($chapter['current_type'] ?? 'mcq');
@@ -524,27 +613,32 @@ class BookQuestionGenerator
         if ($chapterText === '' && !empty($chapter['extracted_text_file'])) {
             $chapterText = (string) @file_get_contents((string) $chapter['extracted_text_file']);
         }
-        $batchSize = $this->batchSizeForType($type, $chapterText);
-        $batchSize = min($batchSize, $remaining);
+        $baseBatchSize = $this->batchSizeForType($type, $chapterText);
+        $batchSize = min($baseBatchSize, $remaining);
         $batchNum = (int) ($chapter['current_batch'] ?? 0);
         $batchKey = $type . ':' . $batchNum;
-        
-        // Stop after 5 batches per type to prevent infinite loops
-        if ($batchNum >= 5) {
+
+        // Each AI call is an independent HTTP request. The old fixed limit of
+        // five batches capped MCQ generation at about 50 questions, even when
+        // the requested target was larger. Allow enough requests for the
+        // requested target plus replacement attempts, with an absolute guard
+        // against a pathological source or AI response.
+        $maxBatchRequests = $this->maxBatchRequestsForType($chapter, $type, $baseBatchSize);
+        if ($batchNum >= $maxBatchRequests) {
             $nextType = $this->nextPendingType($chapter);
             if ($nextType === '') {
                 $chapter['status'] = 'done';
                 if (($state['mode'] ?? 'one') === 'one') {
                     $state['status'] = 'completed';
-                    $this->addLog($state, 'Generation completed after reaching batch safety limit.', 'warn');
+                    $this->addLog($state, 'Generation completed after reaching the request safety limit for ' . $type . '.', 'warn');
                 } else {
                     $state['current_chapter_index'] = $chapterIndex + 1;
-                    $this->addLog($state, 'Chapter ' . (int) $chapter['chapter_no'] . ' moved on after reaching batch safety limit.', 'warn');
+                    $this->addLog($state, 'Chapter ' . (int) $chapter['chapter_no'] . ' moved on after reaching the request safety limit for ' . $type . '.', 'warn');
                 }
             } else {
                 $chapter['current_type'] = $nextType;
                 $chapter['current_batch'] = 0;
-                $this->addLog($state, 'Moving to ' . $nextType . ' questions after batch safety limit.', 'warn');
+                $this->addLog($state, 'Moving to ' . $nextType . ' questions after reaching the request safety limit for ' . $type . '.', 'warn');
             }
             $this->saveState($jobId, $state);
             return ['ok' => true, 'done' => false, 'progress' => $this->buildProgress($state), 'state' => $state];
@@ -557,11 +651,14 @@ class BookQuestionGenerator
             return ['ok' => true, 'done' => false, 'progress' => $this->buildProgress($state), 'state' => $state, 'skipped_duplicate_batch' => true];
         }
 
-        $existingTexts = BookQuestionDuplicateChecker::loadExistingQuestionTexts($this->conn, (int) $chapter['chapter_id']);
+        $storedTexts = BookQuestionDuplicateChecker::loadExistingQuestionTexts($this->conn, (int) $chapter['chapter_id']);
         $sessionTexts = $chapter['generated_texts'] ?? [];
-        if (is_array($sessionTexts)) {
-            $existingTexts = array_merge($existingTexts, $sessionTexts);
-        }
+        $excludedTexts = $chapter['excluded_texts'] ?? [];
+        $existingTexts = array_merge(
+            is_array($sessionTexts) ? $sessionTexts : [],
+            is_array($excludedTexts) ? $excludedTexts : [],
+            $storedTexts
+        );
 
         $this->addLog($state, 'Requesting ' . $batchSize . ' ' . $type . ' question(s), batch ' . ($batchNum + 1) . '.');
         $batchResult = $this->generateBatch(
@@ -650,6 +747,293 @@ class BookQuestionGenerator
     }
 
     /**
+     * Process one question type for the current chapter.
+     *
+     * MCQ, short, and long requests reserve their own batch before calling
+     * Gemini. The job lock is held only while reserving or committing state,
+     * so the three expensive AI requests can run concurrently safely.
+     *
+     * @return array<string,mixed>
+     */
+    public function processTypeBatch(string $jobId, string $type): array
+    {
+        if (!in_array($type, ['mcq', 'short', 'long'], true)) {
+            return ['ok' => false, 'error' => 'Invalid question type.'];
+        }
+
+        $apiKey = trim((string) EnvLoader::get('GEMINIAPIKEYFORBOOKQUESTIONS', ''));
+        if ($apiKey === '') {
+            return ['ok' => false, 'error' => 'Gemini API key is not configured. Contact the administrator.'];
+        }
+        $model = trim((string) EnvLoader::get('GEMINIMODELFORBOOKQUESTIONS', EnvLoader::get('GEMINIMODEL', 'gemini-2.5-flash')));
+
+        $lock = $this->acquireJobLock($jobId);
+        if (!$lock) {
+            return ['ok' => false, 'error' => 'Generation state is busy. Please retry this batch.'];
+        }
+
+        $reservation = null;
+        try {
+            $state = $this->loadState($jobId);
+            if (!$state) {
+                return ['ok' => false, 'error' => 'Generation job not found.'];
+            }
+            if (!empty($state['cancelled'])) {
+                return ['ok' => false, 'error' => 'Generation was cancelled.', 'state' => $state];
+            }
+
+            $chapterIndex = (int) ($state['current_chapter_index'] ?? 0);
+            if (!isset($state['chapters'][$chapterIndex])) {
+                $state['status'] = 'completed';
+                $this->saveState($jobId, $state);
+                return ['ok' => true, 'done' => true, 'progress' => $this->buildProgress($state), 'state' => $state];
+            }
+
+            if (($state['chapters'][$chapterIndex]['status'] ?? 'pending') === 'pending') {
+                $prepared = $this->prepareChapter($state, $chapterIndex, $jobId);
+                if (!$prepared['ok']) {
+                    return ['ok' => false, 'error' => $prepared['error'] ?? 'Chapter preparation failed.', 'state' => $state];
+                }
+            }
+
+            $chapter =& $state['chapters'][$chapterIndex];
+            if (($chapter['status'] ?? '') === 'failed') {
+                return ['ok' => false, 'error' => $chapter['error'] ?? 'Chapter preparation failed.', 'state' => $state];
+            }
+
+            $this->ensureParallelTypeState($chapter, $type);
+            $typeState =& $chapter['parallel_types'][$type];
+            if (!empty($typeState['in_flight'])) {
+                $reservedAt = (int) ($typeState['in_flight']['reserved_at'] ?? 0);
+                if ($reservedAt > 0 && (time() - $reservedAt) > 900) {
+                    $this->addLog($state, 'Cleared a stale ' . $type . ' generation reservation.', 'warn');
+                    $typeState['in_flight'] = null;
+                } else {
+                    return ['ok' => true, 'done' => false, 'busy' => true, 'progress' => $this->buildProgress($state), 'state' => $state];
+                }
+            }
+
+            $remaining = $this->remainingForType($chapter, $type);
+            if ($remaining <= 0) {
+                $typeState['status'] = 'done';
+                $done = $this->finishParallelChapterIfReady($state, $chapterIndex);
+                $this->saveState($jobId, $state);
+                return ['ok' => true, 'done' => $done, 'type_done' => true, 'progress' => $this->buildProgress($state), 'state' => $state];
+            }
+
+            $chapterText = (string) ($chapter['source_text'] ?? '');
+            if ($chapterText === '' && !empty($chapter['extracted_text_file'])) {
+                $chapterText = (string) @file_get_contents((string) $chapter['extracted_text_file']);
+            }
+            $baseBatchSize = $this->batchSizeForType($type, $chapterText);
+            $batchSize = min($baseBatchSize, $remaining);
+            $batchNum = (int) ($typeState['current_batch'] ?? 0);
+            $maxBatchRequests = $this->maxBatchRequestsForType($chapter, $type, $baseBatchSize);
+            if ($batchNum >= $maxBatchRequests) {
+                $typeState['status'] = 'done';
+                $chapter['warning'] = 'Stopped ' . $type . ' generation after reaching the request safety limit. Saved ' . $this->savedSummary($chapter) . '.';
+                $this->addLog($state, $chapter['warning'], 'warn');
+                $done = $this->finishParallelChapterIfReady($state, $chapterIndex);
+                $this->saveState($jobId, $state);
+                return ['ok' => true, 'done' => $done, 'type_done' => true, 'progress' => $this->buildProgress($state), 'state' => $state];
+            }
+
+            $storedTexts = BookQuestionDuplicateChecker::loadExistingQuestionTexts($this->conn, (int) $chapter['chapter_id']);
+            $existingTexts = array_merge(
+                is_array($chapter['generated_texts'] ?? null) ? $chapter['generated_texts'] : [],
+                is_array($chapter['excluded_texts'] ?? null) ? $chapter['excluded_texts'] : [],
+                $storedTexts
+            );
+            $token = bin2hex(random_bytes(12));
+            $batchKey = $type . ':' . $batchNum;
+            $typeState['in_flight'] = [
+                'token' => $token,
+                'batch_key' => $batchKey,
+                'batch_num' => $batchNum,
+                'batch_size' => $batchSize,
+                'reserved_at' => time(),
+            ];
+            $typeState['current_batch'] = $batchNum + 1;
+            $this->addLog($state, 'Reserved ' . $batchSize . ' ' . $type . ' question(s), batch ' . ($batchNum + 1) . ' for concurrent generation.');
+            if (!$this->saveState($jobId, $state)) {
+                return ['ok' => false, 'error' => 'Could not reserve the generation batch.', 'state' => $state];
+            }
+
+            $reservation = [
+                'token' => $token,
+                'chapter_index' => $chapterIndex,
+                'batch_key' => $batchKey,
+                'batch_size' => $batchSize,
+                'state' => $state,
+                'chapter' => $chapter,
+                'chapter_text' => $chapterText,
+                'existing_texts' => $existingTexts,
+                'source_files' => (string) ($chapter['source_mode'] ?? 'text') === 'images'
+                    ? ($chapter['source_files'] ?? [])
+                    : [],
+            ];
+            unset($chapter, $typeState);
+        } finally {
+            $this->releaseJobLock($lock);
+        }
+
+        if (!is_array($reservation)) {
+            return ['ok' => false, 'error' => 'Could not reserve the generation batch.'];
+        }
+
+        $batchResult = $this->generateBatch(
+            $apiKey,
+            $model,
+            $reservation['state'],
+            $reservation['chapter'],
+            $type,
+            (int) $reservation['batch_size'],
+            (string) $reservation['chapter_text'],
+            $reservation['existing_texts'],
+            $reservation['source_files']
+        );
+
+        $commitLock = $this->acquireJobLock($jobId);
+        if (!$commitLock) {
+            return ['ok' => false, 'error' => 'Could not commit the generation result. Please retry.'];
+        }
+
+        try {
+            $state = $this->loadState($jobId);
+            if (!$state || !isset($state['chapters'][$reservation['chapter_index']])) {
+                return ['ok' => false, 'error' => 'Generation state disappeared before commit.'];
+            }
+            $chapterIndex = (int) $reservation['chapter_index'];
+            $chapter =& $state['chapters'][$chapterIndex];
+            $this->ensureParallelTypeState($chapter, $type);
+            $typeState =& $chapter['parallel_types'][$type];
+            $inFlight = $typeState['in_flight'] ?? null;
+            if (!is_array($inFlight) || (string) ($inFlight['token'] ?? '') !== (string) $reservation['token']) {
+                return ['ok' => false, 'error' => 'This generation batch is no longer active.'];
+            }
+
+            if (!$batchResult['ok']) {
+                $typeState['in_flight'] = null;
+                $typeState['status'] = 'failed';
+                $chapter['status'] = 'failed';
+                $chapter['error'] = $batchResult['error'] ?? 'Batch generation failed.';
+                $this->addLog($state, $type . ' generation failed: ' . $chapter['error'], 'error');
+                $this->saveState($jobId, $state);
+                return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
+            }
+
+            $storedTexts = BookQuestionDuplicateChecker::loadExistingQuestionTexts($this->conn, (int) $chapter['chapter_id']);
+            $existingTexts = array_merge(
+                is_array($chapter['generated_texts'] ?? null) ? $chapter['generated_texts'] : [],
+                is_array($chapter['excluded_texts'] ?? null) ? $chapter['excluded_texts'] : [],
+                $storedTexts
+            );
+            $savedCount = $this->saveBatchItems($state, $chapter, $type, $batchResult['items'], $existingTexts);
+            $typeState['in_flight'] = null;
+            $typeState['completed_batches'][] = $reservation['batch_key'];
+            if (!empty($savedCount['error'])) {
+                $typeState['status'] = 'failed';
+                $chapter['status'] = 'failed';
+                $chapter['error'] = $savedCount['error'];
+                $this->addLog($state, $type . ' save failed: ' . $chapter['error'], 'error');
+                $this->saveState($jobId, $state);
+                return ['ok' => false, 'error' => $chapter['error'], 'state' => $state];
+            }
+
+            $this->addLog($state, 'Saved ' . $savedCount['saved'] . ' ' . $type . ' question(s). Duplicates skipped: ' . $savedCount['duplicates'] . ', invalid skipped: ' . $savedCount['invalid'] . '.');
+            if ($savedCount['saved'] > 0) {
+                $typeState['replacement_attempts'] = 0;
+            } elseif ($this->remainingForType($chapter, $type) > 0) {
+                $typeState['replacement_attempts'] = (int) ($typeState['replacement_attempts'] ?? 0) + 1;
+            }
+
+            if ($this->remainingForType($chapter, $type) <= 0) {
+                $typeState['status'] = 'done';
+            } elseif ((int) ($typeState['replacement_attempts'] ?? 0) >= self::MAX_REPLACEMENT_ATTEMPTS) {
+                $typeState['status'] = 'done';
+                $chapter['warning'] = 'Stopped ' . $type . ' generation after replacement attempts. Saved ' . $this->savedSummary($chapter) . '.';
+                $this->addLog($state, $chapter['warning'], 'warn');
+            }
+
+            $done = $this->finishParallelChapterIfReady($state, $chapterIndex);
+            $typeDone = ($typeState['status'] ?? '') === 'done';
+            $this->saveState($jobId, $state);
+            unset($chapter, $typeState);
+            return [
+                'ok' => true,
+                'done' => $done,
+                'type_done' => $typeDone,
+                'progress' => $this->buildProgress($state),
+                'state' => $state,
+                'batch' => [
+                    'type' => $type,
+                    'requested' => (int) $reservation['batch_size'],
+                    'saved' => $savedCount['saved'],
+                    'duplicates' => $savedCount['duplicates'],
+                    'invalid' => $savedCount['invalid'],
+                ],
+            ];
+        } finally {
+            $this->releaseJobLock($commitLock);
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $chapter
+     */
+    private function ensureParallelTypeState(array &$chapter, string $type): void
+    {
+        if (!isset($chapter['parallel_types']) || !is_array($chapter['parallel_types'])) {
+            $chapter['parallel_types'] = [];
+        }
+        foreach (['mcq', 'short', 'long'] as $parallelType) {
+            if (!isset($chapter['parallel_types'][$parallelType]) || !is_array($chapter['parallel_types'][$parallelType])) {
+                $chapter['parallel_types'][$parallelType] = [
+                    'current_batch' => 0,
+                    'completed_batches' => [],
+                    'replacement_attempts' => 0,
+                    'in_flight' => null,
+                ];
+            }
+        }
+        $chapter['parallel_types'][$type]['completed_batches'] = is_array($chapter['parallel_types'][$type]['completed_batches'] ?? null)
+            ? $chapter['parallel_types'][$type]['completed_batches']
+            : [];
+    }
+
+    /**
+     * @param array<string,mixed> $state
+     */
+    private function finishParallelChapterIfReady(array &$state, int $chapterIndex): bool
+    {
+        if (!isset($state['chapters'][$chapterIndex]) || !is_array($state['chapters'][$chapterIndex])) {
+            return ($state['status'] ?? '') === 'completed';
+        }
+        $chapter =& $state['chapters'][$chapterIndex];
+        $this->ensureParallelTypeState($chapter, 'mcq');
+        foreach (['mcq', 'short', 'long'] as $type) {
+            $typeState = $chapter['parallel_types'][$type];
+            if (!empty($typeState['in_flight'])) {
+                return false;
+            }
+            if ($this->remainingForType($chapter, $type) > 0 && ($typeState['status'] ?? '') !== 'done') {
+                return false;
+            }
+        }
+
+        $chapter['status'] = 'done';
+        if (($state['mode'] ?? 'one') === 'one') {
+            $state['status'] = 'completed';
+            $this->addLog($state, 'All concurrent question-type batches completed.');
+            return true;
+        }
+
+        $state['current_chapter_index'] = $chapterIndex + 1;
+        $this->addLog($state, 'Chapter ' . (int) $chapter['chapter_no'] . ' completed; moving to the next chapter.');
+        return false;
+    }
+
+    /**
      * @param array<string,mixed> $chapter
      */
     private function remainingForType(array $chapter, string $type): int
@@ -684,6 +1068,30 @@ class BookQuestionGenerator
         }
         $large = mb_strlen($chapterText) >= self::LARGE_TEXT_THRESHOLD;
         return $large ? self::MAX_LONG_BATCH_SMALL : self::MAX_LONG_BATCH;
+    }
+
+    /**
+     * Calculate a safe request budget for one question type.
+     *
+     * Normal generation receives enough requests to reach the target. Extra
+     * attempts are reserved for batches where every AI result is a duplicate
+     * or invalid, while the absolute cap prevents an infinite loop.
+     *
+     * @param array<string,mixed> $chapter
+     */
+    private function maxBatchRequestsForType(array $chapter, string $type, int $batchSize): int
+    {
+        $target = max(0, (int) (($chapter['targets'] ?? [])[$type] ?? 0));
+        $batchSize = max(1, $batchSize);
+        $plannedRequests = max(1, (int) ceil($target / $batchSize));
+        // A partially successful response may save only one item, so the
+        // budget must not assume every request returns a full batch.
+        $worstCaseRequests = max($plannedRequests, $target);
+
+        return min(
+            self::MAX_REQUESTS_PER_TYPE,
+            $worstCaseRequests + self::MAX_REPLACEMENT_ATTEMPTS
+        );
     }
 
     /**
@@ -788,12 +1196,12 @@ class BookQuestionGenerator
         $lines[] = 'Number of questions required in this batch: ' . $batchSize;
         $lines[] = '';
         $lines[] = 'IMPORTANT RULES:';
-        $lines[] = '1. FIRST, extract ALL existing labeled questions (MCQs, short questions, long questions) from the chapter that are labeled as such, even if there are more than requested.';
-        $lines[] = '2. THEN, generate NEW original questions from the chapter content until you reach at least the total requested number.';
-        $lines[] = '3. Use only the supplied chapter content - NO outside knowledge.';
-        $lines[] = '4. Do not invent facts, definitions, examples, names, figures, or terminology.';
-        $lines[] = '5. Every answer must be directly supported by the supplied text.';
-        $lines[] = '6. Do not repeat or closely rephrase any previously generated question.';
+        $lines[] = '1. Generate NEW original questions from the supplied chapter content until you reach the requested batch size.';
+        $lines[] = '2. Do not return any question that is identical or substantially equivalent to ANY question in the exclusion list below.';
+        $lines[] = '3. If a topic appears in the exclusion list, choose a different uncovered topic or learning point from the chapter.';
+        $lines[] = '4. Use only the supplied chapter content - NO outside knowledge.';
+        $lines[] = '5. Do not invent facts, definitions, examples, names, figures, or terminology.';
+        $lines[] = '6. Every answer must be directly supported by the supplied text.';
         $lines[] = '7. Do not generate questions from another chapter, table of contents, preface, glossary, index, or answer key.';
         $lines[] = '8. Use clear and student-friendly wording suitable for the selected class.';
         $lines[] = '9. Return valid JSON only - no markdown code fences.';
@@ -807,12 +1215,27 @@ class BookQuestionGenerator
         $lines[] = '=== CHAPTER CONTENT END ===';
 
         if (!empty($existingTexts)) {
-            $sample = array_slice(array_values(array_unique($existingTexts)), 0, 80);
+            $uniqueExistingTexts = array_values(array_unique(array_filter($existingTexts, static function ($question): bool {
+                return is_string($question) && trim($question) !== '';
+            })));
+            $exclusionChars = 0;
+            $included = 0;
             $lines[] = '';
-            $lines[] = 'Previously generated questions that must NOT be repeated or closely rephrased:';
-            foreach ($sample as $q) {
-                $lines[] = '- ' . $q;
+            $lines[] = '=== QUESTIONS ALREADY STORED OR GENERATED - DO NOT REPEAT ===';
+            foreach ($uniqueExistingTexts as $q) {
+                $line = '- ' . trim($q);
+                $lineLength = mb_strlen($line) + 1;
+                if ($exclusionChars + $lineLength > self::MAX_EXCLUSION_PROMPT_CHARS) {
+                    break;
+                }
+                $lines[] = $line;
+                $exclusionChars += $lineLength;
+                $included++;
             }
+            if ($included < count($uniqueExistingTexts)) {
+                $lines[] = '- [Additional older questions omitted only because the prompt context limit was reached.]';
+            }
+            $lines[] = '=== END EXCLUSION LIST ===';
         }
 
         if ($type === 'mcq') {
@@ -879,12 +1302,7 @@ class BookQuestionGenerator
                     continue;
                 }
 
-                if (BookQuestionDuplicateChecker::isDuplicate($questionText, $existingTexts)) {
-                    $duplicates++;
-                    $chapter['skipped']['duplicates'] = (int) ($chapter['skipped']['duplicates'] ?? 0) + 1;
-                    continue;
-                }
-
+                $validatedItem = null;
                 if ($type === 'mcq') {
                     $valid = $this->validateMcqItem($item);
                     if (!$valid['ok']) {
@@ -892,7 +1310,24 @@ class BookQuestionGenerator
                         $chapter['skipped']['invalid'] = (int) ($chapter['skipped']['invalid'] ?? 0) + 1;
                         continue;
                     }
-                    if (!$this->insertMcq($state, $chapter, $valid['item'])) {
+                    $validatedItem = $valid['item'];
+                }
+
+                $duplicateMatch = BookQuestionDuplicateChecker::findDuplicateMatch($questionText, $existingTexts);
+                if ($duplicateMatch !== null) {
+                    $duplicates++;
+                    $chapter['skipped']['duplicates'] = (int) ($chapter['skipped']['duplicates'] ?? 0) + 1;
+                    $this->recordDuplicateCandidate($chapter, $type, $questionText, $validatedItem ?? $item, $duplicateMatch);
+                    $existingTexts[] = $questionText;
+                    if (!isset($chapter['excluded_texts']) || !is_array($chapter['excluded_texts'])) {
+                        $chapter['excluded_texts'] = [];
+                    }
+                    $chapter['excluded_texts'][] = $questionText;
+                    continue;
+                }
+
+                if ($type === 'mcq') {
+                    if (!$this->insertMcq($state, $chapter, $validatedItem)) {
                         throw new RuntimeException('MCQ insert failed');
                     }
                 } else {
@@ -917,6 +1352,45 @@ class BookQuestionGenerator
         }
 
         return ['saved' => $saved, 'duplicates' => $duplicates, 'invalid' => $invalid];
+    }
+
+    /**
+     * Keep skipped candidates reviewable instead of losing them after a batch.
+     *
+     * @param array<string,mixed> $chapter
+     * @param array<string,mixed> $item
+     */
+    private function recordDuplicateCandidate(
+        array &$chapter,
+        string $type,
+        string $questionText,
+        array $item,
+        string $matchedQuestion
+    ): void {
+        if (!isset($chapter['duplicate_candidates']) || !is_array($chapter['duplicate_candidates'])) {
+            $chapter['duplicate_candidates'] = [];
+        }
+
+        foreach ($chapter['duplicate_candidates'] as $candidate) {
+            if (is_array($candidate)
+                && BookQuestionDuplicateChecker::areSimilar($questionText, (string) ($candidate['question_text'] ?? ''))) {
+                return;
+            }
+        }
+
+        $chapter['duplicate_candidates'][] = [
+            'id' => bin2hex(random_bytes(12)),
+            'question_kind' => $type,
+            'question_text' => $questionText,
+            'option_a' => (string) ($item['option_a'] ?? ''),
+            'option_b' => (string) ($item['option_b'] ?? ''),
+            'option_c' => (string) ($item['option_c'] ?? ''),
+            'option_d' => (string) ($item['option_d'] ?? ''),
+            'correct_option' => (string) ($item['correct_option'] ?? ''),
+            'difficulty_level' => (string) ($item['difficulty_level'] ?? 'Medium'),
+            'matched_question' => $matchedQuestion,
+            'created_at' => date('c'),
+        ];
     }
 
     /**
@@ -1419,6 +1893,106 @@ class BookQuestionGenerator
     }
 
     /**
+     * Add or discard one candidate that was skipped as a duplicate.
+     *
+     * @return array{ok:bool,error?:string,state?:array<string,mixed>,action?:string}
+     */
+    public function manageDuplicateCandidate(string $jobId, string $candidateId, string $decision): array
+    {
+        if (!in_array($decision, ['add', 'discard'], true)) {
+            return ['ok' => false, 'error' => 'Invalid duplicate action.'];
+        }
+
+        $state = $this->loadState($jobId);
+        if (!$state) {
+            return ['ok' => false, 'error' => 'Generation job not found.'];
+        }
+
+        $chapterIndexes = is_array($state['chapters'] ?? null)
+            ? array_keys($state['chapters'])
+            : [];
+
+        foreach ($chapterIndexes as $chapterIndex) {
+            $chapter =& $state['chapters'][$chapterIndex];
+            $candidates = $chapter['duplicate_candidates'] ?? [];
+            if (!is_array($candidates)) {
+                unset($chapter);
+                continue;
+            }
+
+            foreach ($candidates as $candidateIndex => $candidate) {
+                if (!is_array($candidate) || (string) ($candidate['id'] ?? '') !== $candidateId) {
+                    continue;
+                }
+
+                if ($decision === 'discard') {
+                    array_splice($chapter['duplicate_candidates'], $candidateIndex, 1);
+                    $this->addLog($state, 'Discarded a skipped duplicate candidate from chapter ' . (int) ($chapter['chapter_no'] ?? 0) . '.');
+                    if (!$this->saveState($jobId, $state)) {
+                        unset($chapter);
+                        return ['ok' => false, 'error' => 'Could not save the duplicate decision.'];
+                    }
+                    unset($chapter);
+                    return ['ok' => true, 'action' => 'discarded', 'state' => $state];
+                }
+
+                $type = (string) ($candidate['question_kind'] ?? '');
+                $questionText = trim((string) ($candidate['question_text'] ?? ''));
+                if ($questionText === '' || !in_array($type, ['mcq', 'short', 'long'], true)) {
+                    return ['ok' => false, 'error' => 'The duplicate candidate is incomplete.'];
+                }
+
+                $item = [
+                    'question' => $questionText,
+                    'option_a' => (string) ($candidate['option_a'] ?? ''),
+                    'option_b' => (string) ($candidate['option_b'] ?? ''),
+                    'option_c' => (string) ($candidate['option_c'] ?? ''),
+                    'option_d' => (string) ($candidate['option_d'] ?? ''),
+                    'correct_option' => (string) ($candidate['correct_option'] ?? ''),
+                    'difficulty_level' => (string) ($candidate['difficulty_level'] ?? 'Medium'),
+                ];
+                if ($type === 'mcq') {
+                    $valid = $this->validateMcqItem($item);
+                    if (!$valid['ok']) {
+                        return ['ok' => false, 'error' => 'The MCQ candidate no longer has valid options.'];
+                    }
+                    $item = $valid['item'];
+                }
+
+                $this->conn->begin_transaction();
+                try {
+                    $inserted = $type === 'mcq'
+                        ? $this->insertMcq($state, $chapter, $item)
+                        : $this->insertQuestion($state, $chapter, $type, $questionText);
+                    if (!$inserted) {
+                        throw new RuntimeException('Could not add the duplicate candidate.');
+                    }
+                    $this->conn->commit();
+                } catch (Throwable $e) {
+                    $this->conn->rollback();
+                    error_log('BookQuestionGenerator duplicate candidate action failed: ' . $e->getMessage());
+                    return ['ok' => false, 'error' => 'Could not add the duplicate candidate.'];
+                }
+
+                $chapter['saved'][$type] = (int) ($chapter['saved'][$type] ?? 0) + 1;
+                if (!isset($chapter['generated_texts']) || !is_array($chapter['generated_texts'])) {
+                    $chapter['generated_texts'] = [];
+                }
+                $chapter['generated_texts'][] = $questionText;
+                array_splice($chapter['duplicate_candidates'], $candidateIndex, 1);
+                $this->addLog($state, 'Added a previously skipped duplicate candidate to the ' . $type . ' drafts.');
+                    if (!$this->saveState($jobId, $state)) {
+                        unset($chapter);
+                        return ['ok' => false, 'error' => 'The question was added, but the generation state could not be updated.'];
+                    }
+                    unset($chapter);
+                    return ['ok' => true, 'action' => 'added', 'state' => $state];
+            }
+        }
+        return ['ok' => false, 'error' => 'Duplicate candidate not found. It may already have been managed.'];
+    }
+
+    /**
      * @param array<string,mixed> $state
      * @return array<string,mixed>
      */
@@ -1430,6 +2004,21 @@ class BookQuestionGenerator
             $chapter = $state['chapters'][count($state['chapters']) - 1];
         }
 
+        $duplicateCandidates = [];
+        foreach (is_array($state['chapters'] ?? null) ? $state['chapters'] : [] as $candidateChapter) {
+            if (!is_array($candidateChapter) || !is_array($candidateChapter['duplicate_candidates'] ?? null)) {
+                continue;
+            }
+            foreach ($candidateChapter['duplicate_candidates'] as $candidate) {
+                if (!is_array($candidate) || trim((string) ($candidate['question_text'] ?? '')) === '') {
+                    continue;
+                }
+                $candidate['chapter_no'] = $candidateChapter['chapter_no'] ?? 0;
+                $candidate['chapter_name'] = $candidateChapter['chapter_name'] ?? '';
+                $duplicateCandidates[] = $candidate;
+            }
+        }
+
         return [
             'job_status' => $state['status'] ?? 'ready',
             'cancelled' => !empty($state['cancelled']),
@@ -1437,6 +2026,7 @@ class BookQuestionGenerator
             'total_chapters' => count($state['chapters'] ?? []),
             'stored_pdf' => $state['stored_pdf'] ?? '',
             'logs' => array_slice(is_array($state['logs'] ?? null) ? $state['logs'] : [], -80),
+            'duplicate_candidates' => $duplicateCandidates,
             'chapter' => $chapter ? [
                 'chapter_no' => $chapter['chapter_no'] ?? 0,
                 'chapter_name' => $chapter['chapter_name'] ?? '',
