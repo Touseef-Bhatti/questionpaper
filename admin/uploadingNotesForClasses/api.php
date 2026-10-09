@@ -239,6 +239,7 @@ switch ($action) {
         $class = trim((string) ($_POST['class'] ?? ''));
         $subject = trim((string) ($_POST['subject'] ?? ''));
         $chapter = trim((string) ($_POST['chapter'] ?? ''));
+        $keywords = trim((string) ($_POST['keywords'] ?? ''));
         if ($subject === 'Other') {
             $subject = trim((string) ($_POST['custom_subject'] ?? ''));
         }
@@ -251,7 +252,7 @@ switch ($action) {
             echo json_encode(['success' => false, 'error' => 'Select a valid class and book/subject first.']);
             exit;
         }
-        if (strlen($title) > 255 || strlen($subject) > 100 || strlen($chapter) > 255) {
+        if (strlen($title) > 255 || strlen($subject) > 100 || strlen($chapter) > 255 || strlen($keywords) > 500) {
             http_response_code(422);
             echo json_encode(['success' => false, 'error' => 'One or more note fields are too long.']);
             exit;
@@ -263,6 +264,7 @@ switch ($action) {
             'class' => 'Class ' . $class,
             'subject' => $subject,
             'chapter' => $chapter,
+            'keywords' => $keywords,
         ]);
 
         if (!($generated['ok'] ?? false)) {

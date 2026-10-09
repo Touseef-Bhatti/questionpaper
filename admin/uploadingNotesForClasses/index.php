@@ -279,7 +279,7 @@ function adminNotePublicUrl($assetBase, $note) {
     $title = trim(preg_replace('/[^a-z0-9]+/i', '-', $title), '-');
     if ($subject === '') $subject = 'general';
     if ($title === '') $title = 'notes';
-    return $assetBase . 'class-notes/class-' . rawurlencode((string)$note['class']) . '-' . $subject . '-' . $title . '-' . (int)$note['id'];
+    return $assetBase . 'class-' . rawurlencode((string)$note['class']) . '-' . $subject . '-' . $title . '-' . (int)$note['id'];
 }
 ?>
 <?php include '../header.php'; ?>
@@ -786,13 +786,19 @@ function adminNotePublicUrl($assetBase, $note) {
                     </div>
 
                     <div class="mb-3">
+                        <label for="modalKeywords" class="form-label fw-bold">SEO Keywords (optional)</label>
+                        <input type="text" name="keywords" id="modalKeywords" class="form-control" maxlength="500" placeholder="e.g. class 9 math, exercise 6.4, solved questions">
+                        <small class="text-muted">Add comma-separated keywords to guide the note-specific SEO and GEO description.</small>
+                    </div>
+
+                    <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
                             <label for="modalDescription" class="form-label fw-bold mb-0">Description</label>
                             <button type="button" class="btn btn-sm btn-outline-primary" id="generateNoteDescriptionBtn">
                                 <i class="fas fa-wand-magic-sparkles me-1"></i> Generate SEO + GEO Description
                             </button>
                         </div>
-                        <textarea name="description" id="modalDescription" class="form-control" rows="6" maxlength="2500" placeholder="Write manually or generate a 5-6 line description for this note page..."></textarea>
+                        <textarea name="description" id="modalDescription" class="form-control" rows="6" maxlength="2500" placeholder="Write manually or generate a unique description for this note page..."></textarea>
                         <small class="text-muted" id="generateNoteDescriptionStatus" aria-live="polite">The generated text is editable and will be used on the public note page.</small>
                     </div>
 
@@ -1142,6 +1148,7 @@ async function generateNoteDescription() {
     formData.append('custom_subject', customSubject);
     formData.append('chapter', chapterValue);
     formData.append('custom_chapter', document.getElementById('modalCustomChapter')?.value || '');
+    formData.append('keywords', document.getElementById('modalKeywords')?.value || '');
 
     const originalHtml = button.innerHTML;
     button.disabled = true;

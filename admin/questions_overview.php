@@ -52,12 +52,68 @@ if ($selectedChapterId > 0) { $where[] = 'c.chapter_id = ?'; $types .= 'i'; $par
 $overviewSql = "SELECT
         c.chapter_id, c.chapter_no, c.chapter_name, c.class_id, c.book_id,
         cl.class_name, b.book_name,
-        ((SELECT COUNT(*) FROM mcqs_from_book m WHERE m.class_id = c.class_id AND m.book_id = c.book_id AND m.chapter_id = c.chapter_id)
-          + (SELECT COUNT(*) FROM mcqs m WHERE m.class_id = c.class_id AND m.book_id = c.book_id AND m.chapter_id = c.chapter_id)) AS mcq_count,
-        ((SELECT COUNT(*) FROM questions_from_book q WHERE q.class_id = c.class_id AND q.book_id = c.book_id AND q.chapter_id = c.chapter_id AND q.question_type = 'short')
-          + (SELECT COUNT(*) FROM questions q WHERE q.class_id = c.class_id AND q.book_id = c.book_id AND q.chapter_id = c.chapter_id AND q.question_type = 'short')) AS short_count,
-        ((SELECT COUNT(*) FROM questions_from_book q WHERE q.class_id = c.class_id AND q.book_id = c.book_id AND q.chapter_id = c.chapter_id AND q.question_type = 'long')
-          + (SELECT COUNT(*) FROM questions q WHERE q.class_id = c.class_id AND q.book_id = c.book_id AND q.chapter_id = c.chapter_id AND q.question_type = 'long')) AS long_count
+        /* Book-generated rows are synchronized into the legacy tables after approval.
+           Count the book row, or a legacy row only when no matching book row exists. */
+        ((SELECT COUNT(*)
+            FROM mcqs_from_book m
+           WHERE m.class_id = c.class_id
+             AND m.book_id = c.book_id
+             AND m.chapter_id = c.chapter_id)
+          + (SELECT COUNT(*)
+               FROM mcqs m
+              WHERE m.class_id = c.class_id
+                AND m.book_id = c.book_id
+                AND m.chapter_id = c.chapter_id
+                AND NOT EXISTS (
+                    SELECT 1
+                      FROM mcqs_from_book mb
+                     WHERE mb.class_id = m.class_id
+                       AND mb.book_id = m.book_id
+                       AND mb.chapter_id = m.chapter_id
+                       AND BINARY mb.question = BINARY m.question
+                ))) AS mcq_count,
+        ((SELECT COUNT(*)
+            FROM questions_from_book q
+           WHERE q.class_id = c.class_id
+             AND q.book_id = c.book_id
+             AND q.chapter_id = c.chapter_id
+             AND BINARY q.question_type = BINARY 'short')
+          + (SELECT COUNT(*)
+               FROM questions q
+              WHERE q.class_id = c.class_id
+                AND q.book_id = c.book_id
+                AND q.chapter_id = c.chapter_id
+                AND BINARY q.question_type = BINARY 'short'
+                AND NOT EXISTS (
+                    SELECT 1
+                      FROM questions_from_book qb
+                     WHERE qb.class_id = q.class_id
+                       AND qb.book_id = q.book_id
+                       AND qb.chapter_id = q.chapter_id
+                       AND BINARY qb.question_type = BINARY q.question_type
+                       AND BINARY qb.question_text = BINARY q.question_text
+                ))) AS short_count,
+        ((SELECT COUNT(*)
+            FROM questions_from_book q
+           WHERE q.class_id = c.class_id
+             AND q.book_id = c.book_id
+             AND q.chapter_id = c.chapter_id
+             AND BINARY q.question_type = BINARY 'long')
+          + (SELECT COUNT(*)
+               FROM questions q
+              WHERE q.class_id = c.class_id
+                AND q.book_id = c.book_id
+                AND q.chapter_id = c.chapter_id
+                AND BINARY q.question_type = BINARY 'long'
+                AND NOT EXISTS (
+                    SELECT 1
+                      FROM questions_from_book qb
+                     WHERE qb.class_id = q.class_id
+                       AND qb.book_id = q.book_id
+                       AND qb.chapter_id = q.chapter_id
+                       AND BINARY qb.question_type = BINARY q.question_type
+                       AND BINARY qb.question_text = BINARY q.question_text
+                ))) AS long_count
     FROM chapter c
     INNER JOIN class cl ON cl.class_id = c.class_id
     INNER JOIN book b ON b.book_id = c.book_id AND b.class_id = c.class_id

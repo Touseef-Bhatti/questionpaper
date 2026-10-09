@@ -46,13 +46,38 @@ function xmlEscape(string $value): string
 
 function resolveLastmod(string $relativePath, string $today): string
 {
-    if ($relativePath === '' || $relativePath === '/') {
-        $indexFile = __DIR__ . DIRECTORY_SEPARATOR . 'index.php';
-        return is_file($indexFile) ? date('Y-m-d', (int) filemtime($indexFile)) : $today;
+    $routeSources = [
+        '' => 'index.php',
+        '/' => 'index.php',
+        '/about' => 'about.php',
+        '/contact' => 'contact.php',
+        '/reviews' => 'reviews.php',
+        '/privacy-policy' => 'privacy-policy.php',
+        '/terms-and-conditions' => 'terms-and-conditions.php',
+        '/class-9th-and-10th-online-question-paper-generator' => 'select_class.php',
+        '/class-11-and-12-online-question-paper-generator' => 'select_class_11-12.php',
+        '/online-question-paper-generator' => 'questionPaperFromTopic/home.php',
+        '/class-9-and-10-online-mcqs-prepation-test' => 'quiz/quiz_setup.php',
+        '/class-11-and-12-online-mcqs-prepation-test' => 'quiz/quiz_setup_inter.php',
+        '/study-material-for-board-exam-preparations' => 'notes/note.php',
+        '/class-notes' => 'uploadingNotesForClasses/index.php',
+        '/textbooks' => 'notes/textbooks.php',
+        '/topic-wise-mcqs-test' => 'quiz/mcqs_topic.php',
+        '/online-quiz-hosting' => 'quiz/quiz-host-index.php',
+        '/class-9-10-11-12-mcqs-for-board-exams' => 'notes/Mcqs/index.php',
+        '/class-9-10-pastpaper-and-test-papers' => 'examPreparation/select_class_for_test.php',
+        '/class-11-12-pastpaper-and-test-papers' => 'examPreparation/select_class_for_test.php',
+        '/university-pastpaper-and-test-papers' => 'examPreparation/select_class_for_test.php',
+        '/class-9-10-11-12-test-series-for-board-exams' => 'examPreparation/select_class_for_test.php',
+    ];
+
+    $sourcePath = $routeSources[$relativePath] ?? null;
+    if ($sourcePath === null) {
+        $normalizedPath = str_replace('/', DIRECTORY_SEPARATOR, ltrim($relativePath, '/'));
+        $sourcePath = $normalizedPath;
     }
 
-    $normalizedPath = str_replace('/', DIRECTORY_SEPARATOR, ltrim($relativePath, '/'));
-    $fullPath = __DIR__ . DIRECTORY_SEPARATOR . $normalizedPath;
+    $fullPath = __DIR__ . DIRECTORY_SEPARATOR . $sourcePath;
     return is_file($fullPath) ? date('Y-m-d', (int) filemtime($fullPath)) : $today;
 }
 
@@ -93,9 +118,37 @@ foreach ($staticPages as [$path, $changefreq, $priority]) {
 addUrl($urls, $baseUrl, '/class-9th-and-10th-online-question-paper-generator', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/class-11-and-12-online-question-paper-generator', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/online-question-paper-generator', 'weekly', '0.8', $today);
-addUrl($urls, $baseUrl, '/online-mcqs-test-for-9th-and-10th-board-exams', 'weekly', '0.8', $today);
+addUrl($urls, $baseUrl, '/class-9-and-10-online-mcqs-prepation-test', 'weekly', '0.8', $today);
+addUrl($urls, $baseUrl, '/class-11-and-12-online-mcqs-prepation-test', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/study-material-for-board-exam-preparations', 'weekly', '0.9', $today);
 addUrl($urls, $baseUrl, '/class-notes', 'weekly', '0.9', $today);
+
+// Publish clean, indexable landing URLs for every available class/subject and
+// chapter combination. Search and file-type filters stay out of the sitemap.
+$classNotesQuery = $conn->query("SELECT DISTINCT n.class, n.subject, n.chapter, ch.chapter_no
+    FROM class_notes n
+    LEFT JOIN chapter ch
+      ON ch.class_id = n.class AND ch.book_name = n.subject AND ch.chapter_name = n.chapter
+    WHERE n.status = 'approved' AND n.class IS NOT NULL AND n.class <> ''
+      AND n.subject IS NOT NULL AND n.subject <> ''
+    ORDER BY n.class ASC, n.subject ASC, ch.chapter_no ASC, n.chapter ASC");
+if ($classNotesQuery) {
+    while ($classNoteRoute = $classNotesQuery->fetch_assoc()) {
+        $noteClass = trim((string) ($classNoteRoute['class'] ?? ''));
+        $noteSubject = toSlug((string) ($classNoteRoute['subject'] ?? ''));
+        $noteChapter = toSlug((string) ($classNoteRoute['chapter'] ?? ''));
+        $noteChapterNumber = (int) ($classNoteRoute['chapter_no'] ?? 0);
+        if ($noteClass === '' || $noteSubject === '') {
+            continue;
+        }
+        $subjectPath = '/class-' . rawurlencode($noteClass) . '-' . $noteSubject . '-notes';
+        addUrl($urls, $baseUrl, $subjectPath, 'weekly', '0.8', $today);
+        if ($noteChapter !== '' || $noteChapterNumber > 0) {
+            $chapterPath = $noteChapterNumber > 0 ? 'chapter-' . $noteChapterNumber : $noteChapter;
+            addUrl($urls, $baseUrl, $subjectPath . '/' . $chapterPath, 'weekly', '0.7', $today);
+        }
+    }
+}
 addUrl($urls, $baseUrl, '/textbooks', 'monthly', '0.7', $today);
 addUrl($urls, $baseUrl, '/topic-wise-mcqs-test', 'weekly', '0.8', $today);
 addUrl($urls, $baseUrl, '/online-quiz-hosting', 'monthly', '0.8', $today);

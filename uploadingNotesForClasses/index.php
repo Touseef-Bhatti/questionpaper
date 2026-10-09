@@ -14,14 +14,50 @@ function cnSlugify($text) {
     return $text !== '' ? $text : 'notes';
 }
 
-function cnListingUrl($assetBase, $class = '', $subject = '') {
+function cnResolveChapter(mysqli $conn, string $class, string $subject, string $value): array {
+    $requestedValue = trim($value);
+    $requestedSlug = cnSlugify($requestedValue);
+    $requestedNumber = 0;
+    if (preg_match('/^chapter-(\d+)$/', $requestedSlug, $matches) || ctype_digit($requestedValue)) {
+        $requestedNumber = (int) ($matches[1] ?? $requestedValue);
+    }
+
+    $classId = (int) $class;
+    $stmt = $conn->prepare("SELECT DISTINCT chapter_no, chapter_name
+                            FROM chapter
+                            WHERE class_id = ? AND book_name = ?
+                              AND chapter_name IS NOT NULL AND chapter_name != ''
+                            ORDER BY chapter_no ASC, chapter_name ASC");
+    if ($stmt) {
+        $stmt->bind_param('is', $classId, $subject);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $chapterNumber = (int) ($row['chapter_no'] ?? 0);
+            $chapterName = trim((string) ($row['chapter_name'] ?? ''));
+            if (($requestedNumber > 0 && $chapterNumber === $requestedNumber)
+                || cnSlugify($chapterName) === $requestedSlug
+                || strcasecmp($chapterName, $requestedValue) === 0) {
+                $stmt->close();
+                return ['name' => $chapterName, 'number' => $chapterNumber];
+            }
+        }
+        $stmt->close();
+    }
+
+    return ['name' => '', 'number' => 0];
+}
+
+function cnListingUrl($assetBase, $class = '', $subject = '', $chapter = '') {
+    $base = ($assetBase ?? '');
     if ($class !== '' && $subject !== '') {
-        return ($assetBase ?? '') . 'class-notes/class-' . rawurlencode((string)$class) . '-' . cnSlugify($subject) . '-notes';
+        $url = $base . 'class-' . rawurlencode((string)$class) . '-' . cnSlugify($subject) . '-notes';
+        return $chapter !== '' ? $url . '/' . cnSlugify($chapter) : $url;
     }
     if ($class !== '') {
-        return ($assetBase ?? '') . 'class-notes/class-' . rawurlencode((string)$class) . '-notes';
+        return $base . 'class-' . rawurlencode((string)$class) . '-notes';
     }
-    return ($assetBase ?? '') . 'class-notes';
+    return $base . 'class-notes';
 }
 
 // Get filter parameters
@@ -29,15 +65,14 @@ $classFilter = isset($_GET['class']) ? trim($_GET['class']) : '';
 $subjectFilter = isset($_GET['subject']) ? trim($_GET['subject']) : '';
 $subjectSlugFilter = isset($_GET['subject_slug']) ? trim($_GET['subject_slug']) : '';
 $chapterFilter = isset($_GET['chapter']) ? trim($_GET['chapter']) : '';
+$chapterSlugFilter = isset($_GET['chapter_slug']) ? trim($_GET['chapter_slug']) : '';
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $fileType = isset($_GET['file_type']) ? trim($_GET['file_type']) : '';
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-$perPage = 12;
-$offset = ($page - 1) * $perPage;
 
 if ($subjectFilter === '' && $subjectSlugFilter !== '') {
     if (!empty($classFilter) && in_array($classFilter, ['9','10','11','12'])) {
-        $subjectResolveStmt = $conn->prepare("SELECT DISTINCT subject FROM class_notes WHERE class = ? AND subject IS NOT NULL AND subject != ''");
+        $subjectResolveStmt = $conn->prepare("SELECT DISTINCT subject FROM class_notes WHERE status = 'approved' AND class = ? AND subject IS NOT NULL AND subject != ''");
         $subjectResolveStmt->bind_param('s', $classFilter);
     } else {
         $subjectResolveStmt = $conn->prepare("SELECT DISTINCT subject FROM class_notes WHERE subject IS NOT NULL AND subject != ''");
@@ -51,6 +86,18 @@ if ($subjectFilter === '' && $subjectSlugFilter !== '') {
         }
     }
     $subjectResolveStmt->close();
+}
+
+$chapterNumber = 0;
+if ($classFilter !== '' && $subjectFilter !== '' && in_array($classFilter, ['9', '10', '11', '12'], true)) {
+    $chapterValue = $chapterFilter !== '' ? $chapterFilter : $chapterSlugFilter;
+    if ($chapterValue !== '') {
+        $resolvedChapter = cnResolveChapter($conn, $classFilter, $subjectFilter, $chapterValue);
+        if ($resolvedChapter['name'] !== '') {
+            $chapterFilter = $resolvedChapter['name'];
+            $chapterNumber = $resolvedChapter['number'];
+        }
+    }
 }
 
 // Build query for approved notes only
@@ -108,9 +155,8 @@ if (!empty($params)) {
 $stmt->execute();
 $totalNotes = $stmt->get_result()->fetch_assoc()['total'];
 $stmt->close();
-$totalPages = max(1, ceil($totalNotes / $perPage));
 
-// Fetch notes with pagination
+// Fetch every matching note. Public notes pages intentionally do not paginate.
 $query = "SELECT n.*,
                  COALESCE(l.like_count, 0) AS like_count,
                  COALESCE(c.comment_count, 0) AS comment_count
@@ -127,10 +173,7 @@ $query = "SELECT n.*,
               GROUP BY note_id
           ) c ON c.note_id = n.id
           $whereClause
-          ORDER BY n.created_at DESC LIMIT ? OFFSET ?";
-$params[] = $perPage;
-$params[] = $offset;
-$types .= 'ii';
+          ORDER BY n.created_at DESC";
 
 $stmt = $conn->prepare($query);
 if (!empty($params)) {
@@ -183,25 +226,49 @@ $pageDescription = "Download free study notes, PDF materials, and presentations 
 $metaKeywords = "class notes, free study notes, class 9 notes, class 10 notes, class 11 notes, class 12 notes, matric notes, intermediate notes, board exam preparation, Punjab board notes, BISE exam notes, free PDF notes, study materials Pakistan, SSC notes, HSSC notes";
 
 if (!empty($classLabel)) {
-    $pageTitle = "{$classLabel} Notes - Free Study Materials & Board Exam Notes | Ahmad Learning Hub";
-    $pageDescription = "Download free {$classLabel} study notes, PDF materials, and presentations. Community-uploaded and admin-curated resources for Punjab Board exam preparation 2026.";
+    $subjectTitle = $subjectFilter !== '' ? " {$subjectFilter}" : '';
+    $chapterTitle = $chapterFilter !== '' ? " - {$chapterFilter}" : '';
+    $pageTitle = "{$classLabel}{$subjectTitle}{$chapterTitle} Notes - Free Study Materials | Ahmad Learning Hub";
+    $pageDescription = "Download free {$classLabel}{$subjectTitle}{$chapterTitle} study notes, PDF materials, and presentations for Punjab Board exam preparation 2026.";
     $metaKeywords = "{$classShort} notes, {$classLabel} study material, free {$classShort} PDF notes, {$classShort} board exam preparation, Punjab board {$classShort}, BISE notes {$classShort}, {$metaKeywords}";
 }
 
 $siteUrl = alh_seo_site_url();
 $currentUrl = $siteUrl . (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
-$canonicalPath = '/' . ltrim(cnListingUrl('', $classFilter, $subjectFilter), '/');
-if ($page > 1) {
-    $canonicalPath .= '?page=' . $page;
+$chapterRouteSlug = $chapterNumber > 0 ? 'chapter-' . $chapterNumber : $chapterFilter;
+$canonicalPath = '/' . ltrim(cnListingUrl('', $classFilter, $subjectFilter, $chapterRouteSlug), '/');
+$requestTarget = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+$requestPath = '/' . ltrim((string) (parse_url($requestTarget, PHP_URL_PATH) ?: '/'), '/');
+$requestPath = rtrim($requestPath, '/') ?: '/';
+$originalQuery = (string) (parse_url($requestTarget, PHP_URL_QUERY) ?? '');
+$originalQueryParams = [];
+if ($originalQuery !== '') {
+    parse_str($originalQuery, $originalQueryParams);
 }
-$canonicalUrl = $siteUrl . $canonicalPath;
-$currentPathWithQuery = ltrim($_SERVER['REQUEST_URI'] ?? '', '/');
-$targetPath = ltrim($canonicalPath, '/');
-$hasNonSeoFilters = $chapterFilter !== '' || $search !== '' || $fileType !== '';
-if (!$hasNonSeoFilters && $page === 1 && ($classFilter !== '' || $subjectFilter !== '') && $currentPathWithQuery !== $targetPath) {
-    header('Location: ' . $canonicalPath, true, 301);
+$hasLegacyFilterQuery = false;
+foreach (['class', 'subject', 'chapter', 'subject_slug', 'chapter_slug', 'page'] as $queryKey) {
+    if (array_key_exists($queryKey, $originalQueryParams)) {
+        $hasLegacyFilterQuery = true;
+        break;
+    }
+}
+if (array_key_exists('search', $originalQueryParams) && trim((string) $originalQueryParams['search']) === '') {
+    $hasLegacyFilterQuery = true;
+}
+$redirectQuery = [];
+if ($search !== '') {
+    $redirectQuery['search'] = $search;
+}
+if ($fileType !== '') {
+    $redirectQuery['file_type'] = $fileType;
+}
+$canonicalRedirectUrl = $canonicalPath . (!empty($redirectQuery) ? '?' . http_build_query($redirectQuery) : '');
+$shouldCanonicalRedirect = $requestPath !== rtrim($canonicalPath, '/') || $hasLegacyFilterQuery || $page > 1;
+if ($shouldCanonicalRedirect) {
+    header('Location: ' . $canonicalRedirectUrl, true, 301);
     exit;
 }
+$canonicalUrl = $siteUrl . $canonicalPath;
 
 $isLoggedIn = isset($_SESSION['user_id']);
 
@@ -237,7 +304,7 @@ function cnFormatSize($bytes) {
 }
 
 function cnNoteUrl($assetBase, $note) {
-    return ($assetBase ?? '') . 'class-notes/class-' . rawurlencode((string)$note['class']) . '-' . cnSlugify($note['subject'] ?? 'general') . '-' . cnSlugify($note['title'] ?? 'study-notes') . '-' . (int)$note['id'];
+    return ($assetBase ?? '') . 'class-' . rawurlencode((string)$note['class']) . '-' . cnSlugify($note['subject'] ?? 'general') . '-' . cnSlugify($note['title'] ?? 'study-notes') . '-' . (int)$note['id'];
 }
 
 // File type color mapping
@@ -1400,8 +1467,8 @@ function cnGetTypeColor($mime) {
                     <?php endforeach; ?>
                 </div>
 
-                <!-- Pagination -->
-                <?php if ($totalPages > 1): ?>
+                <!-- All matching notes are rendered above; no pagination controls are shown. -->
+                <?php if (false): // Pagination intentionally disabled: all matching notes are rendered above. ?>
                 <nav class="cn-pagination" aria-label="Notes pagination">
                     <?php
                     $queryParams = $_GET;

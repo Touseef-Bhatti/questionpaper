@@ -204,6 +204,14 @@ Options -Indexes
     RewriteCond %{THE_REQUEST} \s/+uploadingNotesForClasses/download_note\.php(?:[\s?/]|\s) [NC]
     RewriteRule ^uploadingNotesForClasses/download_note\.php$ /download-note [R=301,L]
 
+    # Clean root-level Class Notes URLs. Chapter slugs are resolved to their
+    # stored names by the notes controller so spaces and punctuation stay out
+    # of the public URL.
+    RewriteRule ^class-([0-9]+)-([a-zA-Z0-9-]+)-notes/([a-zA-Z0-9-]+)/?$ uploadingNotesForClasses/index.php?class=$1&subject_slug=$2&chapter_slug=$3 [QSA,NC,L]
+    RewriteRule ^class-([0-9]+)-([a-zA-Z0-9-]+)-notes/?$ uploadingNotesForClasses/index.php?class=$1&subject_slug=$2 [QSA,NC,L]
+    RewriteRule ^class-([0-9]+)-notes/?$ uploadingNotesForClasses/index.php?class=$1 [QSA,NC,L]
+    RewriteRule ^class-([0-9]+)-([^/]+)-(.+)-([0-9]+)/?$ uploadingNotesForClasses/view_note.php?id=$4&seo=1 [QSA,NC,L]
+
     RewriteRule ^class-notes/view/([0-9]+)/?$ uploadingNotesForClasses/view_note.php?id=$1 [QSA,NC,L]
     RewriteRule ^class-notes/class-([0-9]+)-([^/]+)-(.+)-([0-9]+)/?$ uploadingNotesForClasses/view_note.php?id=$4&seo=1 [QSA,NC,L]
     RewriteRule ^class-notes/class-([0-9]+)-notes/?$ uploadingNotesForClasses/index.php?class=$1 [QSA,NC,L]

@@ -241,7 +241,7 @@ function homeSearchContentResults(mysqli $conn, string $query, int $limit = 8): 
                 $classLabel = homeSearchClassLabel($book);
                 $classQuery = http_build_query(['class' => $classId]);
                 $paperQuery = http_build_query(['class_id' => $classId, 'book_name' => $bookName]);
-                $subjectQuery = http_build_query(['class' => $classId, 'subject' => $bookName]);
+                $notesPath = 'class-' . $classId . '-' . $bookSlug . '-notes';
                 $results[] = [
                     'id' => 'book-' . (int) $book['book_id'],
                     'type' => 'book',
@@ -252,7 +252,7 @@ function homeSearchContentResults(mysqli $conn, string $query, int $limit = 8): 
                     'actions' => [
                         homeSearchAction('Generate Question Paper', 'select_chapters.php?' . $paperQuery, 'fas fa-file-alt'),
                         homeSearchAction('MCQs Test', 'class-' . $classId . '-' . $bookSlug . '-mcqs-test-2026', 'fas fa-check-circle'),
-                        homeSearchAction('Notes', 'class-notes?' . $subjectQuery, 'fas fa-sticky-note'),
+                        homeSearchAction('Notes', $notesPath, 'fas fa-sticky-note'),
                         homeSearchAction('TextBook', 'notes/textbooks.php?' . $classQuery, 'fas fa-book-open'),
                     ],
                 ];
@@ -292,11 +292,8 @@ function homeSearchContentResults(mysqli $conn, string $query, int $limit = 8): 
                     'book_name' => $bookName,
                     'chapters_from_url' => $chapterNo > 0 ? (string) $chapterNo : $chapterName,
                 ];
-                $notesQuery = http_build_query([
-                    'class' => $classId,
-                    'subject' => $bookName,
-                    'chapter' => $chapterName,
-                ]);
+                $notesChapterSlug = $chapterNo > 0 ? 'chapter-' . $chapterNo : $chapterSlug;
+                $notesPath = 'class-' . $classId . '-' . $bookSlug . '-notes/' . $notesChapterSlug;
                 $testQuery = http_build_query(['chapter_ids' => (int) $chapter['chapter_id']]);
                 $results[] = [
                     'id' => 'chapter-' . (int) $chapter['chapter_id'],
@@ -309,7 +306,7 @@ function homeSearchContentResults(mysqli $conn, string $query, int $limit = 8): 
                         homeSearchAction('Generate Question Paper', 'select_question.php?' . http_build_query($paperQuery), 'fas fa-file-alt'),
                         homeSearchAction('MCQs Test', 'class-' . $classId . '-' . $bookSlug . '-mcqs-test-2026?' . $testQuery, 'fas fa-check-circle'),
                         homeSearchAction('MCQs Practice', $chapterMcqsPath, 'fas fa-brain'),
-                        homeSearchAction('Notes', 'class-notes?' . $notesQuery, 'fas fa-sticky-note'),
+                        homeSearchAction('Notes', $notesPath, 'fas fa-sticky-note'),
                     ],
                 ];
             }
@@ -364,7 +361,7 @@ function homeSearchNoteResults(mysqli $conn, string $query, int $limit = 8): arr
             if ($titleSlug === '') {
                 $titleSlug = 'study-notes';
             }
-            $noteUrl = 'class-notes/class-' . rawurlencode($class)
+            $noteUrl = 'class-' . rawurlencode($class)
                 . '-' . $subjectSlug
                 . '-' . $titleSlug
                 . '-' . $noteId;

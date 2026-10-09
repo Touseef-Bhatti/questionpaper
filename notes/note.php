@@ -101,7 +101,7 @@ require_once dirname(__DIR__) . '/includes/seo.php';
         <!-- Class Notes Section -->
         <h2 class="materials-section-title"><i class="fas fa-book-reader"></i> Class Notes</h2>
         <div class="class-notes-grid">
-            <a href="<?= $assetBase ?>class-notes?class=9" class="class-note-card class-9">
+            <a href="<?= $assetBase ?>class-9-notes" class="class-note-card class-9">
                 <div class="class-note-glow"></div>
                 <div class="class-note-icon"><i class="fas fa-book-open"></i></div>
                 <div class="class-note-content">
@@ -110,7 +110,7 @@ require_once dirname(__DIR__) . '/includes/seo.php';
                 </div>
                 <div class="class-note-arrow"><i class="fas fa-arrow-right"></i></div>
             </a>
-            <a href="<?= $assetBase ?>class-notes?class=10" class="class-note-card class-10">
+            <a href="<?= $assetBase ?>class-10-notes" class="class-note-card class-10">
                 <div class="class-note-glow"></div>
                 <div class="class-note-icon"><i class="fas fa-book-open"></i></div>
                 <div class="class-note-content">
@@ -119,7 +119,7 @@ require_once dirname(__DIR__) . '/includes/seo.php';
                 </div>
                 <div class="class-note-arrow"><i class="fas fa-arrow-right"></i></div>
             </a>
-            <a href="<?= $assetBase ?>class-notes?class=11" class="class-note-card class-11">
+            <a href="<?= $assetBase ?>class-11-notes" class="class-note-card class-11">
                 <div class="class-note-glow"></div>
                 <div class="class-note-icon"><i class="fas fa-graduation-cap"></i></div>
                 <div class="class-note-content">
@@ -128,7 +128,7 @@ require_once dirname(__DIR__) . '/includes/seo.php';
                 </div>
                 <div class="class-note-arrow"><i class="fas fa-arrow-right"></i></div>
             </a>
-            <a href="<?= $assetBase ?>class-notes?class=12" class="class-note-card class-12">
+            <a href="<?= $assetBase ?>class-12-notes" class="class-note-card class-12">
                 <div class="class-note-glow"></div>
                 <div class="class-note-icon"><i class="fas fa-graduation-cap"></i></div>
                 <div class="class-note-content">

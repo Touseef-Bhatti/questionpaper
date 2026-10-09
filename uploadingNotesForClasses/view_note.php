@@ -25,7 +25,7 @@ function vnSlugify($text) {
 function vnNoteUrl($assetBase, $note) {
     $subjectSlug = vnSlugify($note['subject'] ?? 'general');
     $titleSlug = vnSlugify($note['title'] ?? 'study-notes');
-    return ($assetBase ?? '') . 'class-notes/class-' . rawurlencode((string)$note['class']) . '-' . $subjectSlug . '-' . $titleSlug . '-' . (int)$note['id'];
+    return ($assetBase ?? '') . 'class-' . rawurlencode((string)$note['class']) . '-' . $subjectSlug . '-' . $titleSlug . '-' . (int)$note['id'];
 }
 
 function vnEnsureEngagementTables($conn) {
@@ -124,6 +124,14 @@ $stmt->close();
 if (!$note) {
     http_response_code(404);
     header('Location: ' . ($assetBase ?? '/') . 'class-notes');
+    exit;
+}
+
+$publicNotePath = '/' . ltrim(vnNoteUrl('', $note), '/');
+$requestedNotePath = '/' . ltrim((string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'), '/');
+$requestedNotePath = rtrim($requestedNotePath, '/') ?: '/';
+if ($requestedNotePath !== rtrim($publicNotePath, '/')) {
+    header('Location: ' . $publicNotePath, true, 301);
     exit;
 }
 
@@ -258,10 +266,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch related notes (same class & subject, excluding current)
+// Fetch related notes from the same class, book/subject, and chapter.
 $relatedNotes = [];
-$relStmt = $conn->prepare("SELECT id, title, subject, class, chapter, mime_type FROM class_notes WHERE status = 'approved' AND drive_status = 'available' AND class = ? AND subject = ? AND id != ? ORDER BY created_at DESC LIMIT 4");
-$relStmt->bind_param('ssi', $note['class'], $note['subject'], $noteId);
+$noteChapter = trim((string) ($note['chapter'] ?? ''));
+if ($noteChapter !== '') {
+    $relStmt = $conn->prepare("SELECT id, title, subject, class, chapter, mime_type FROM class_notes WHERE status = 'approved' AND drive_status = 'available' AND class = ? AND subject = ? AND chapter = ? AND id != ? ORDER BY created_at DESC LIMIT 4");
+    $relStmt->bind_param('sssi', $note['class'], $note['subject'], $noteChapter, $noteId);
+} else {
+    $relStmt = $conn->prepare("SELECT id, title, subject, class, chapter, mime_type FROM class_notes WHERE status = 'approved' AND drive_status = 'available' AND class = ? AND subject = ? AND (chapter IS NULL OR chapter = '') AND id != ? ORDER BY created_at DESC LIMIT 4");
+    $relStmt->bind_param('ssi', $note['class'], $note['subject'], $noteId);
+}
 $relStmt->execute();
 $relResult = $relStmt->get_result();
 while ($row = $relResult->fetch_assoc()) {
@@ -313,19 +327,66 @@ $fileTypeLabel = vnGetFileTypeLabel($note['mime_type']);
 $fileTypeBadge = vnGetFileTypeBadge($note['mime_type']);
 $fileSize = vnFormatSize($note['file_size']);
 $uploadDate = date('F j, Y', strtotime($note['created_at']));
-$subjectName = !empty($note['subject']) ? htmlspecialchars($note['subject']) : 'General';
-$chapterName = !empty($note['chapter']) ? htmlspecialchars($note['chapter']) : '';
-$noteTitle = htmlspecialchars($note['title']);
+$subjectText = trim((string) ($note['subject'] ?? '')) ?: 'General';
+$chapterText = trim((string) ($note['chapter'] ?? ''));
+$noteTitleText = trim((string) ($note['title'] ?? 'Study notes'));
+$subjectName = $subjectText !== '' ? htmlspecialchars($subjectText, ENT_QUOTES, 'UTF-8') : 'General';
+$chapterName = $chapterText !== '' ? htmlspecialchars($chapterText, ENT_QUOTES, 'UTF-8') : '';
+$noteTitle = htmlspecialchars($noteTitleText, ENT_QUOTES, 'UTF-8');
 $noteDescriptionText = trim((string) ($note['description'] ?? ''));
 $noteDesc = $noteDescriptionText !== ''
     ? $noteDescriptionText
-    : "Free {$classShort} {$subjectName} study notes for board exam preparation.";
+    : "Free {$classShort} {$subjectText} study notes for board exam preparation.";
 
 // SEO
-$pageTitle = "{$noteTitle} - {$classShort} {$subjectName} Notes | Ahmad Learning Hub";
-$fallbackPageDescription = "View and study {$noteTitle} for {$classLabel}. Free {$subjectName}" . ($chapterName ? " {$chapterName}" : "") . " {$fileTypeLabel} notes for Punjab board exam preparation 2026. Download free study materials.";
+$pageTitle = "{$noteTitleText} - {$classShort} {$subjectText} Notes | Ahmad Learning Hub";
+$fallbackPageDescription = "View and study {$noteTitleText} for {$classLabel}. Free {$subjectText}" . ($chapterText ? " {$chapterText}" : "") . " {$fileTypeLabel} notes for Punjab board exam preparation. Download free study materials.";
 $pageDescription = $noteDescriptionText !== '' ? $noteDescriptionText : $fallbackPageDescription;
-$metaKeywords = "{$classShort} notes, {$subjectName} notes, {$classLabel} study material, " . ($chapterName ? "{$chapterName} notes, " : "") . "board exam preparation, Punjab board notes, free study material, {$classShort} {$subjectName} {$fileTypeBadge}, matric notes, intermediate notes, online notes Pakistan";
+$metaKeywords = "{$classShort} notes, {$subjectText} notes, {$classLabel} study material, " . ($chapterText ? "{$chapterText} notes, " : '') . "board exam preparation, Punjab board notes, free study material, {$classShort} {$subjectText} {$fileTypeBadge}, matric notes, intermediate notes, online notes Pakistan";
+
+$documentLd = [
+    '@context' => 'https://schema.org',
+    '@type' => ['DigitalDocument', 'LearningResource'],
+    'name' => $noteTitleText,
+    'headline' => $noteTitleText,
+    'description' => $noteDesc,
+    'url' => $canonicalUrl,
+    'encodingFormat' => (string) $note['mime_type'],
+    'datePublished' => date('Y-m-d', strtotime($note['created_at'])),
+    'inLanguage' => 'en',
+    'isAccessibleForFree' => true,
+    'learningResourceType' => 'Study notes',
+    'educationalLevel' => $classLabel,
+    'keywords' => $metaKeywords,
+    'audience' => [
+        '@type' => 'EducationalAudience',
+        'educationalRole' => 'student',
+        'audienceType' => 'students preparing for board examinations',
+    ],
+    'provider' => [
+        '@type' => 'Organization',
+        'name' => 'Ahmad Learning Hub',
+        'url' => $siteUrl,
+    ],
+    'about' => [
+        '@type' => 'Course',
+        'name' => trim($classShort . ' ' . $subjectText),
+    ],
+    'mainEntityOfPage' => [
+        '@type' => 'WebPage',
+        '@id' => $canonicalUrl,
+    ],
+];
+$breadcrumbLd = [
+    '@context' => 'https://schema.org',
+    '@type' => 'BreadcrumbList',
+    'itemListElement' => [
+        ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => $siteUrl],
+        ['@type' => 'ListItem', 'position' => 2, 'name' => 'Class Notes', 'item' => $siteUrl . '/class-notes'],
+        ['@type' => 'ListItem', 'position' => 3, 'name' => $classShort, 'item' => $siteUrl . '/class-' . rawurlencode((string) $note['class']) . '-notes'],
+        ['@type' => 'ListItem', 'position' => 4, 'name' => $noteTitleText, 'item' => $canonicalUrl],
+    ],
+];
 
 // Google Drive embed URL
 $embedUrl = "https://drive.google.com/file/d/" . urlencode($note['drive_file_id']) . "/preview";
@@ -375,55 +436,30 @@ $commentStmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title><?= $pageTitle ?></title>
-    <meta name="description" content="<?= htmlspecialchars($pageDescription) ?>">
-    <meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
+    <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></title>
+    <meta name="description" content="<?= htmlspecialchars($pageDescription, ENT_QUOTES, 'UTF-8') ?>">
+    <meta name="keywords" content="<?= htmlspecialchars($metaKeywords, ENT_QUOTES, 'UTF-8') ?>">
+    <meta name="author" content="Ahmad Learning Hub">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="<?= htmlspecialchars($canonicalUrl) ?>">
+    <link rel="canonical" href="<?= htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') ?>">
 
-    <meta property="og:title" content="<?= htmlspecialchars($pageTitle) ?>">
-    <meta property="og:description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <meta property="og:site_name" content="Ahmad Learning Hub">
+    <meta property="og:title" content="<?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:description" content="<?= htmlspecialchars($pageDescription, ENT_QUOTES, 'UTF-8') ?>">
     <meta property="og:type" content="article">
-    <meta property="og:url" content="<?= htmlspecialchars($canonicalUrl) ?>">
+    <meta property="og:url" content="<?= htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8') ?>">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="<?= htmlspecialchars($pageTitle) ?>">
-    <meta name="twitter:description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <meta name="twitter:title" content="<?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?>">
+    <meta name="twitter:description" content="<?= htmlspecialchars($pageDescription, ENT_QUOTES, 'UTF-8') ?>">
 
     <link rel="stylesheet" href="<?= $assetBase ?>css/main.css">
     <link rel="stylesheet" href="<?= $assetBase ?>css/notes.css">
 <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "DigitalDocument",
-        "name": "<?= addslashes($noteTitle) ?>",
-        "description": <?= json_encode($noteDesc, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
-        "encodingFormat": "<?= htmlspecialchars($note['mime_type']) ?>",
-        "datePublished": "<?= date('Y-m-d', strtotime($note['created_at'])) ?>",
-        "inLanguage": "en",
-        "isAccessibleForFree": true,
-        "provider": {
-            "@type": "Organization",
-            "name": "Ahmad Learning Hub",
-            "url": "<?= $siteUrl ?>"
-        },
-        "about": {
-            "@type": "Course",
-            "name": "<?= addslashes($classLabel) ?> <?= addslashes($subjectName) ?>"
-        }
-    }
+    <?= json_encode($documentLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
     </script>
     <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-            { "@type": "ListItem", "position": 1, "name": "Home", "item": "<?= $siteUrl ?>" },
-            { "@type": "ListItem", "position": 2, "name": "Class Notes", "item": "<?= $siteUrl ?>/class-notes" },
-            { "@type": "ListItem", "position": 3, "name": "<?= addslashes($classShort) ?>", "item": "<?= $siteUrl ?>/class-notes?class=<?= $note['class'] ?>" },
-            { "@type": "ListItem", "position": 4, "name": "<?= addslashes($noteTitle) ?>" }
-        ]
-    }
+    <?= json_encode($breadcrumbLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
     </script>
 
     <style>
@@ -521,6 +557,27 @@ $commentStmt->close();
             height: 20px;
             color: var(--vn-primary);
             flex-shrink: 0;
+        }
+        .vn-note-intro {
+            margin-bottom: 1.5rem;
+            padding: 1.75rem 2rem;
+            background: var(--vn-bg-card-solid);
+            border: 1px solid var(--vn-border);
+            border-radius: var(--vn-radius);
+        }
+        .vn-note-intro h1 {
+            margin: 0 0 0.75rem;
+            color: var(--vn-text-heading);
+            font-size: clamp(1.65rem, 3vw, 2.35rem);
+            line-height: 1.2;
+            font-weight: 800;
+        }
+        .vn-note-description {
+            margin: 0;
+            color: var(--vn-text-muted);
+            font-size: 1rem;
+            line-height: 1.8;
+            white-space: pre-line;
         }
         .vn-file-badge {
             display: inline-flex;
@@ -675,6 +732,24 @@ $commentStmt->close();
         .vn-related-item:hover {
             background: rgba(99, 102, 241, 0.06);
             border-color: rgba(99, 102, 241, 0.15);
+        }
+        .vn-related-section {
+            margin-top: 2rem;
+            padding: 2rem;
+            background: var(--vn-bg-card-solid);
+            border: 1px solid var(--vn-border);
+            border-radius: var(--vn-radius);
+        }
+        .vn-related-section h2 {
+            margin: 0 0 0.55rem;
+            color: var(--vn-text-heading);
+            font-size: 1.35rem;
+            font-weight: 800;
+        }
+        .vn-related-section > p {
+            margin: 0 0 1rem;
+            color: var(--vn-text-muted);
+            line-height: 1.7;
         }
         .vn-related-icon {
             width: 36px;
@@ -958,6 +1033,7 @@ $commentStmt->close();
             .vn-container { padding: 0 1rem; }
             .vn-layout { gap: 1rem; }
             .vn-iframe-wrap { padding-bottom: 135%; min-height: 520px; }
+            .vn-note-intro, .vn-related-section { padding: 1.25rem; }
             .vn-seo-section { padding: 1.5rem; }
             .vn-viewer-header { padding: 0.85rem 1rem; align-items: flex-start; gap: 0.75rem; }
             .vn-viewer-title { font-size: 0.9rem; line-height: 1.35; }
@@ -993,7 +1069,7 @@ $commentStmt->close();
                 <span class="vn-bc-sep"><svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></span>
                 <a href="<?= $assetBase ?>class-notes">Class Notes</a>
                 <span class="vn-bc-sep"><svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></span>
-                <a href="<?= $assetBase ?>class-notes?class=<?= $note['class'] ?>"><?= $classShort ?></a>
+                <a href="<?= $assetBase ?>class-<?= rawurlencode((string) $note['class']) ?>-notes"><?= $classShort ?></a>
                 <span class="vn-bc-sep"><svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></span>
                 <span class="vn-bc-current"><?= $noteTitle ?></span>
             </nav>
@@ -1002,6 +1078,11 @@ $commentStmt->close();
             <div class="vn-layout">
                 <!-- Viewer Column -->
                 <div class="vn-fade-in" style="animation-delay: 0.1s">
+                    <section class="vn-note-intro" aria-labelledby="note-title">
+                        <h1 id="note-title"><?= $noteTitle ?></h1>
+                        <p class="vn-note-description"><?= nl2br(htmlspecialchars($noteDesc, ENT_QUOTES, 'UTF-8')) ?></p>
+                    </section>
+
                     <div class="vn-viewer">
                         <div class="vn-viewer-header">
                             <div class="vn-viewer-title">
@@ -1117,25 +1198,45 @@ $commentStmt->close();
                         </div>
                     </section>
 
+                    <?php if (!empty($relatedNotes)): ?>
+                    <section class="vn-related-section vn-fade-in" aria-labelledby="related-notes-title">
+                        <h2 id="related-notes-title">More <?= $subjectName ?> Notes<?= $chapterName ? ' from ' . $chapterName : ' from This Chapter' ?></h2>
+                        <p>Explore other <?= $classShort ?> <?= $subjectName ?> notes from the same chapter for additional revision and practice.</p>
+                        <div class="vn-related-list">
+                            <?php foreach ($relatedNotes as $rel): ?>
+                            <a href="<?= htmlspecialchars(vnNoteUrl($assetBase, $rel), ENT_QUOTES, 'UTF-8') ?>" class="vn-related-item">
+                                <div class="vn-related-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                </div>
+                                <div>
+                                    <div class="vn-related-title"><?= htmlspecialchars($rel['title'], ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="vn-related-sub"><?= htmlspecialchars($rel['subject'] ?? '', ENT_QUOTES, 'UTF-8') ?><?= !empty($rel['chapter']) ? ' &middot; ' . htmlspecialchars($rel['chapter'], ENT_QUOTES, 'UTF-8') : '' ?></div>
+                                </div>
+                            </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
+                    <?php endif; ?>
+
                     <!-- SEO Content Section -->
                     <section class="vn-seo-section vn-fade-in" style="animation-delay: 0.3s">
                         <h2>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-                            <?= $classShort ?> <?= $subjectName ?> Study Notes for Board Exam Preparation
+                            About <?= $noteTitle ?> for <?= $classShort ?> <?= $subjectName ?>
                         </h2>
                         <p>
-                            These comprehensive <?= $classShort ?> <?= $subjectName ?> study notes are designed to help students prepare effectively for Punjab Board examinations. 
-                            Whether you are studying for your matric or intermediate exams, these free <?= strtolower($fileTypeLabel) ?> resources provide detailed explanations, 
-                            key concepts, and important topics covered in the <?= $classLabel ?> curriculum.
+                            <?= nl2br(htmlspecialchars($noteDesc, ENT_QUOTES, 'UTF-8')) ?>
+                        </p>
+                        <p>
+                            This free <?= strtolower($fileTypeLabel) ?> is intended for <?= $classLabel ?> students studying <?= $subjectName ?><?= $chapterName ? ' and reviewing ' . $chapterName : '' ?>. Use the note to revise the topic named in the title, follow the material in the document, and open the related notes below when you need more practice from the same chapter.
                         </p>
 
                         <h3>Key Features of This Study Material</h3>
                         <ul>
-                            <li>Comprehensive coverage of <?= $classShort ?> <?= $subjectName ?> syllabus topics<?= $chapterName ? " including {$chapterName}" : "" ?></li>
-                            <li>Aligned with Punjab Board (BISE) examination pattern and marking scheme</li>
-                            <li>Free to access study material in <?= $fileTypeLabel ?> format for easy reading</li>
-                            <li>Suitable for <?= str_contains($note['class'], '9') || str_contains($note['class'], '10') ? 'Matric (SSC)' : 'Intermediate (HSSC)' ?> board exam preparation 2026</li>
-                            <li>Uploaded by verified community members and reviewed for quality</li>
+                            <li>Topic-focused <?= $classShort ?> <?= $subjectName ?> material<?= $chapterName ? " for {$chapterName}" : "" ?></li>
+                            <li>The exact note title and description are shown above for quick answer-engine context</li>
+                            <li>Free to access in <?= $fileTypeLabel ?> format for reading and revision</li>
+                            <li>Related notes from the same chapter are listed below when available</li>
                         </ul>
 
                         <h3>How to Use These <?= $subjectName ?> Notes Effectively</h3>
@@ -1156,7 +1257,7 @@ $commentStmt->close();
                         <?php endif; ?>
                     </section>
 
-                    <a href="<?= $assetBase ?>class-notes<?= !empty($note['class']) ? '?class=' . $note['class'] : '' ?>" class="vn-back-link">
+                    <a href="<?= $assetBase ?>class-<?= rawurlencode((string) $note['class']) ?>-notes" class="vn-back-link">
                         <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
                         Back to <?= $classShort ?> Notes
                     </a>
@@ -1262,37 +1363,11 @@ $commentStmt->close();
                         </div>
                         <div class="vn-info-card-body">
                             <p style="margin:0;color:#475569;line-height:1.75;font-size:.92rem;">
-                                <?= !empty($note['description']) ? nl2br(htmlspecialchars($note['description'])) : "Free {$classShort} {$subjectName} study material for board exam preparation. Use this preview to revise important concepts, chapter notes, and classroom learning points." ?>
+                                <?= nl2br(htmlspecialchars($noteDesc, ENT_QUOTES, 'UTF-8')) ?>
                             </p>
                         </div>
                     </div>
 
-                    <!-- Related Notes -->
-                    <?php if (count($relatedNotes) > 0): ?>
-                    <div class="vn-info-card">
-                        <div class="vn-info-card-header">
-                            <h2>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-                                Related Study Notes
-                            </h2>
-                        </div>
-                        <div class="vn-info-card-body" style="padding: 0.75rem;">
-                            <div class="vn-related-list">
-                                <?php foreach ($relatedNotes as $rel): ?>
-                                <a href="<?= htmlspecialchars(vnNoteUrl($assetBase, $rel)) ?>" class="vn-related-item">
-                                    <div class="vn-related-icon">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                    </div>
-                                    <div>
-                                        <div class="vn-related-title"><?= htmlspecialchars($rel['title']) ?></div>
-                                        <div class="vn-related-sub"><?= htmlspecialchars($rel['subject'] ?? '') ?><?= !empty($rel['chapter']) ? ' &middot; ' . htmlspecialchars($rel['chapter']) : '' ?></div>
-                                    </div>
-                                </a>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
                 </aside>
             </div>
         </div>
