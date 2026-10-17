@@ -122,6 +122,12 @@ if ($requestedPart !== null && $requestedPart !== false) {
     alhNotesSitemapSendUrlset($conn, $baseUrl, (int) $requestedPart, $parts);
 }
 
+// Show the URLs directly when they fit in one sitemap. Use an index only when
+// the note collection needs multiple files to stay within the protocol limit.
+if ($parts === 1) {
+    alhNotesSitemapSendUrlset($conn, $baseUrl, 1, 1);
+}
+
 header('Content-Type: application/xml; charset=UTF-8');
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 echo '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
