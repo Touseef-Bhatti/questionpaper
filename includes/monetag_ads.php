@@ -32,6 +32,7 @@ function inPagePushAds1() {
         // 'select_class_for_test.php',
         // 'books.php',
         // 'chapters.php',
+        'download_note_landing.php',
     ];
     
     if (!shouldShowAdsOnCurrentPage($allowedPages)) {
@@ -64,6 +65,7 @@ function vignetteBanner1() {
         // 'select_chapters_for_test.php',
         // 'books.php',
         // 'chapters.php',
+        'download_note_landing.php',
     ];
     
     if (!shouldShowAdsOnCurrentPage($allowedPages)) {

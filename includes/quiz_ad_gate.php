@@ -249,7 +249,7 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
         </div>
 
         <p class="quiz-ad-msg" id="quizAdMsg">
-            Unlock <strong>1 Hour</strong> of free quiz practice!
+            Watch 1 ad to unlock all features for free!
         </p>
 
         <!-- Trust Tags block -->
@@ -281,13 +281,18 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
 
     const modal = document.getElementById('quizAdModal');
     const watchButton = document.getElementById('watchQuizAdBtn');
+    const messageNode = document.getElementById('quizAdMsg');
+    const trustTags = modal?.querySelector('.quiz-ad-trust-tags');
     const ttlMs = 60 * 60 * 1000;
-    const adUrl = 'https://omg10.com/4/10866850';
+    const adUrl = 'https://uplcm.com/4/10866850';
+    const defaultMessage = messageNode?.innerHTML || '';
 
     const btnDefault = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Watch Ad`;
     const btnContinue = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg> Continue`;
 
     let pendingContinue = null;
+    let pendingWatch = null;
+    let currentAdUrl = adUrl;
     let currentStorageKey = 'alh_quiz_ad_seen_until';
     let adOpened = false;
     let adOpenedTime = 0;
@@ -302,7 +307,7 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
     }
 
     function openAdPage() {
-        window.open(adUrl, '_blank', 'noopener,noreferrer');
+        window.open(currentAdUrl, '_blank', 'noopener,noreferrer');
     }
 
     function resetModal() {
@@ -322,6 +327,7 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
     function triggerContinue() {
         const onContinue = pendingContinue;
         pendingContinue = null;
+        pendingWatch = null;
         modal.classList.remove('is-open');
         resetModal();
 
@@ -340,7 +346,7 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
     window.ALHQuizAdGate = {
         gate(options) {
             const baseStorageKey = options.storageKey || currentStorageKey;
-            const storageKey = getPageStorageKey(baseStorageKey);
+            const storageKey = options.globalStorageKey ? baseStorageKey : getPageStorageKey(baseStorageKey);
             const onContinue = options.onContinue;
 
             if (hasActivePass(storageKey)) {
@@ -350,6 +356,13 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
 
             currentStorageKey = storageKey;
             pendingContinue = onContinue;
+            pendingWatch = typeof options.onWatch === 'function' ? options.onWatch : null;
+            currentAdUrl = options.adUrl || adUrl;
+            if (messageNode) {
+                if (typeof options.message === 'string') messageNode.textContent = options.message;
+                else messageNode.innerHTML = defaultMessage;
+            }
+            if (trustTags) trustTags.style.display = options.hideTrustTags === true ? 'none' : '';
             resetModal();
             modal.classList.add('is-open');
         }
@@ -360,7 +373,8 @@ define('ALH_QUIZ_AD_GATE_RENDERED', true);
             setPass(currentStorageKey);
             adOpened = true;
             adOpenedTime = Date.now();
-            openAdPage();
+            if (pendingWatch) pendingWatch();
+            else openAdPage();
             watchButton.innerHTML = btnContinue;
             watchButton.classList.add('btn-continue-state');
             return;

@@ -34,6 +34,7 @@ $stats = [
             <a href="manageSchool/manage_books.php">Manage Books</a>
             <a href="manageSchool/manage_chapters.php">Manage Chapters</a>
             <a href="manageSchool/manage_questions.php">Manage Questions</a>
+            <a href="urdu_translations.php">Urdu Question Conversion</a>
             <a href="manageSchool/manage_notes.php">📚 Manage Notes</a>
             <a href="manageExam/index.php">🎓 Exam Preparation</a>
             <a href="manage_admins.php">Manage Admins</a>

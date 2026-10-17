@@ -55,3 +55,4 @@ Disallow: /quiz/show_mcqs_table.php
 
 # Sitemap location
 Sitemap: https://ahmadlearninghub.com.pk/sitemap.xml
+Sitemap: https://ahmadlearninghub.com.pk/sitemap-notes.xml

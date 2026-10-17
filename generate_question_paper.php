@@ -187,6 +187,14 @@ function toRoman($num) {
     }
     return $return;
 }
+function urduQuestionAttrs(array $row, string $kind, string $field): string {
+    $source = (string)($row['source'] ?? ($kind === 'mcq' ? 'mcqs' : 'questions'));
+    $rawId = (string)($kind === 'mcq' ? ($row['mcq_id'] ?? '') : ($row['id'] ?? ''));
+    if (str_starts_with($rawId, 'book_')) { $source = 'mcqs_from_book'; $rawId = substr($rawId, 5); }
+    if (str_starts_with($rawId, 'bookq_')) { $source = 'questions_from_book'; $rawId = substr($rawId, 6); }
+    if (!ctype_digit($rawId) || (int)$rawId < 1) return '';
+    return ' data-urdu-kind="' . $kind . '" data-urdu-source="' . htmlspecialchars($source, ENT_QUOTES) . '" data-urdu-id="' . (int)$rawId . '" data-urdu-field="' . $field . '"';
+}
 function displayShortSection($questions, &$idx, $marksPerSq = 2) {
     if (!empty($questions)) {
         echo '<ol type="i">';
@@ -195,7 +203,7 @@ function displayShortSection($questions, &$idx, $marksPerSq = 2) {
             echo '<div class="question-row">';
             echo '<div class="question-content">';
             echo '<strong>' . strtolower(toRoman($idx)) . '.</strong> ';
-            echo '<span class="q-text">' . htmlspecialchars($q['question_text']) . '</span>';
+            echo '<span class="q-text"' . urduQuestionAttrs($q, 'question', 'question_text') . '>' . htmlspecialchars($q['question_text']) . '</span>';
             echo '</div>';
             echo '<div class="marks-container">';
             echo '<input type="number" value="' . $marksPerSq . '" class="marks-input" />';
@@ -661,7 +669,6 @@ include 'header.php';
 <head>
     <!-- Google tag (gtag.js) -->
     <?php include_once __DIR__ . '/includes/google_analytics.php'; ?>
-<?php // AdSense review: third-party ads disabled. include_once __DIR__ . '/includes/monetag_ads.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/QPaper.css">
@@ -1343,6 +1350,23 @@ include 'header.php';
                     width: 100%;
                 }
             }
+            #paper.urdu-medium, .paper-container.urdu-medium { direction: rtl; text-align: right; }
+            #paper.urdu-medium .question-row, .paper-container.urdu-medium .question-row { direction: rtl; flex-direction: row-reverse; text-align: right; }
+            #paper.urdu-medium .question-content, .paper-container.urdu-medium .question-content { direction: rtl; text-align: right; padding-left: 10px; padding-right: 0; }
+            #paper.urdu-medium .q-text, #paper.urdu-medium .option-text, .paper-container.urdu-medium .q-text, .paper-container.urdu-medium .option-text { font-family: 'Noto Nastaliq Urdu', 'Noto Naskh Arabic', Arial, serif; line-height: 1.9; direction: rtl; unicode-bidi: plaintext; text-align: right; word-break: keep-all; overflow-wrap: normal; line-break: strict; }
+            #paper.urdu-medium h3, #paper.urdu-medium h4, .paper-container.urdu-medium h3, .paper-container.urdu-medium h4 { font-family: 'Noto Nastaliq Urdu', 'Noto Naskh Arabic', Arial, serif; direction: rtl; text-align: right; }
+            #paper.urdu-medium ol, .paper-container.urdu-medium ol { direction: rtl; text-align: right; padding-left: 0; padding-right: 0; margin-left: 0; margin-right: 0; list-style: none; }
+            #paper.urdu-medium li, .paper-container.urdu-medium li { direction: rtl; text-align: right; }
+            #paper.urdu-medium .mcq-grid, .paper-container.urdu-medium .mcq-grid, #paper.urdu-medium .mcq-item, .paper-container.urdu-medium .mcq-item { direction: rtl; text-align: right; }
+            .urdu-loading { position: fixed; inset: 0; z-index: 99999; display: none; place-items: center; background: rgba(15,23,42,.28); }
+            .urdu-loading.active { display: grid; }
+            .urdu-loading-card { width:min(360px,calc(100vw - 40px)); box-sizing:border-box; padding:20px; border-radius:14px; background:#fff; color:#172554; box-shadow:0 8px 28px rgba(15,23,42,.16); }
+            .urdu-loading-title { display:flex; justify-content:space-between; align-items:center; gap:12px; font-weight:700; }
+            .urdu-loading-track { height:6px; overflow:hidden; margin:16px 0 9px; border-radius:99px; background:#e2e8f0; }
+            .urdu-loading-track span { display:block; width:34%; height:100%; border-radius:inherit; background:linear-gradient(90deg,#4f46e5,#38bdf8); animation:urdu-progress 1.1s ease-in-out infinite alternate; }
+            .urdu-loading-detail { color:#64748b; font-size:12px; }
+            @keyframes urdu-progress { to { transform:translateX(190%); } }
+            @media(max-width:480px) { .urdu-loading-card { padding:17px; } }
 
         </style>
 
@@ -1430,12 +1454,9 @@ include 'header.php';
             $i = 1; 
             foreach ($allMcqs as $m) { 
                 echo '<div class="mcq-item">'; 
-                echo '<div class="mcq-question"><strong>Q' . ($i++) . '.</strong> <span class="q-text">' . htmlspecialchars($m['question']) . '</span></div>'; 
+                echo '<div class="mcq-question"><strong>Q' . ($i++) . '.</strong> <span class="q-text"' . urduQuestionAttrs($m, 'mcq', 'question') . '>' . htmlspecialchars($m['question']) . '</span></div>';
                 echo '<div class="mcq-options">'; 
-                echo '<div class="option-row"><strong>A)</strong> <span class="option-text">' . htmlspecialchars($m['option_a']) . '</span></div>'; 
-                echo '<div class="option-row"><strong>B)</strong> <span class="option-text">' . htmlspecialchars($m['option_b']) . '</span></div>'; 
-                echo '<div class="option-row"><strong>C)</strong> <span class="option-text">' . htmlspecialchars($m['option_c']) . '</span></div>'; 
-                echo '<div class="option-row"><strong>D)</strong> <span class="option-text">' . htmlspecialchars($m['option_d']) . '</span></div>'; 
+                foreach (['a'=>'A','b'=>'B','c'=>'C','d'=>'D'] as $letter=>$label) { $field='option_'.$letter; echo '<div class="option-row"><strong>' . $label . ')</strong> <span class="option-text"' . urduQuestionAttrs($m, 'mcq', $field) . '>' . htmlspecialchars($m[$field]) . '</span></div>'; }
                 echo '</div>'; 
                 echo '<div class="action-buttons"><button class="btn edit" onclick="makeEditableMcq(this)">Edit</button></div>'; 
                 echo '</div>'; 
@@ -1463,7 +1484,7 @@ include 'header.php';
                     <li>
                         <div class="question-row">
                             <div class="question-content">
-                                <strong><?= strtolower(toRoman($idx)) ?>.</strong> <span class="q-text"><?= htmlspecialchars($q['question_text']) ?></span>
+                                <strong><?= strtolower(toRoman($idx)) ?>.</strong> <span class="q-text"<?= urduQuestionAttrs($q, 'question', 'question_text') ?>><?= htmlspecialchars($q['question_text']) ?></span>
                             </div>
                             <div class="marks-container">
                                 <input type="number" value="<?= $q['marks'] ?>" class="marks-input" />
@@ -1488,7 +1509,7 @@ include 'header.php';
                     <li>
                         <strong>Q<?= $qNum ?>.</strong>
                         <div class="question-row">
-                            <div class="question-content"><span class="q-text"><?= htmlspecialchars($q['question_text']) ?></span></div>
+                            <div class="question-content"><span class="q-text"<?= urduQuestionAttrs($q, 'question', 'question_text') ?>><?= htmlspecialchars($q['question_text']) ?></span></div>
                             <div class="marks-container"><input type="number" value="<?= $q['marks'] ?>" class="marks-input" /></div>
                         </div>
                         <div class="action-buttons"><button class="btn edit" onclick="makeEditable(this)">Edit</button></div>
@@ -1562,9 +1583,9 @@ include 'header.php';
                             $qa = $placements[$aKey]; 
                             echo '<div class="question-row">'; 
                             if ($bookNameLower === 'computer') {
-                                echo '<div class="question-content"><span class="q-text">' . htmlspecialchars($qa['question_text']) . '</span></div>'; 
+                                echo '<div class="question-content"><span class="q-text"' . urduQuestionAttrs($qa, 'question', 'question_text') . '>' . htmlspecialchars($qa['question_text']) . '</span></div>';
                             } else {
-                                echo '<div class="question-content">a. <span class="q-text">' . htmlspecialchars($qa['question_text']) . '</span></div>'; 
+                                echo '<div class="question-content">a. <span class="q-text"' . urduQuestionAttrs($qa, 'question', 'question_text') . '>' . htmlspecialchars($qa['question_text']) . '</span></div>';
                             }
                             echo '<div class="marks-container"><input type="number" value="' . $marksPerLongPartA . '" class="marks-input" /></div>'; 
                             echo '</div>'; 
@@ -1573,7 +1594,7 @@ include 'header.php';
                         if ($hasB) { 
                             $qb = $placements[$bKey]; 
                             echo '<div class="question-row">'; 
-                            echo '<div class="question-content">b. <span class="q-text">' . htmlspecialchars($qb['question_text']) . '</span></div>'; 
+                            echo '<div class="question-content">b. <span class="q-text"' . urduQuestionAttrs($qb, 'question', 'question_text') . '>' . htmlspecialchars($qb['question_text']) . '</span></div>';
                             echo '<div class="marks-container"><input type="number" value="' . $marksPerLongPartB . '" class="marks-input" /></div>'; 
                             echo '</div>'; 
                         } 
@@ -1598,6 +1619,7 @@ include 'header.php';
         <?php endif; ?>
 
         <div class="print-buttons">
+                <button type="button" class="cssbuttons-io-button" id="urduMediumBtn" onclick="requestUrduMedium()"><span>اردو میڈیم</span></button>
                 <a href="select_chapters.php" class="go-back-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M7.828 11H20v2H7.828l5.364 5.364-1.414 1.414L4 12l7.778-7.778 1.414 1.414z"/></svg>
                     <span>Go Back</span>
@@ -1623,7 +1645,7 @@ include 'header.php';
                         <span>Download</span>
                 </button>
         </div>
-
+        <div class="urdu-loading" id="urduLoading" role="status" aria-live="polite"><div class="urdu-loading-card"><div class="urdu-loading-title"><span>Preparing Urdu medium paper</span><span id="urduLoadingPercent">Preparing</span></div><div class="urdu-loading-track" role="progressbar" aria-label="Urdu paper translation progress"><span></span></div><div class="urdu-loading-detail" id="urduLoadingDetail">Checking saved translations</div></div></div>
         <div class="review-modal" id="reviewModal">
             <div class="review-modal-card">
                 <div class="review-modal-header">
@@ -1660,6 +1682,90 @@ include 'header.php';
 const hasAlreadyReviewedServer = <?= json_encode($hasAlreadyReviewed) ?>;
 const isLoggedIn = <?= json_encode($isLoggedIn) ?>;
 let selectedReviewRating = 0;
+let isUrduMedium = false;
+let urduHeaderOriginals = [];
+const urduTranslationCsrf = <?= json_encode($_SESSION['urdu_translation_csrf'] ??= bin2hex(random_bytes(32))) ?>;
+
+function requestUrduMedium() {
+    if (isUrduMedium) {
+        toggleUrduMedium();
+        return;
+    }
+    if (!window.ALHQuizAdGate) {
+        alert('The ad unlock is unavailable right now. Please refresh and try again.');
+        return;
+    }
+    window.ALHQuizAdGate.gate({
+        storageKey: 'alh_sitewide_ad_seen_until',
+        globalStorageKey: true,
+        message: 'Watch 1 ad to unlock all features for free!',
+        onContinue: () => toggleUrduMedium()
+    });
+}
+
+async function toggleUrduMedium() {
+    const paper = document.getElementById('paper');
+    const button = document.getElementById('urduMediumBtn');
+    if (!paper || !button) return;
+    const contentNodes = Array.from(paper.querySelectorAll('.q-text, .option-text'));
+    const nodes = contentNodes.filter(node => node.dataset.urduKind && node.dataset.urduSource && Number(node.dataset.urduId) > 0 && node.dataset.urduField);
+    const unlinkedCount = contentNodes.length - nodes.length;
+    if (unlinkedCount) {
+        alert(`${unlinkedCount} question field(s) have no valid database source ID, so they cannot be translated safely. Please refresh and contact the administrator.`);
+        return;
+    }
+    if (isUrduMedium) {
+        nodes.forEach(node => { if (node.dataset.urduOriginal !== undefined) node.textContent = node.dataset.urduOriginal; });
+        paper.querySelectorAll('h3,h4').forEach(node => { if (node.dataset.urduLabelOriginal !== undefined) node.textContent=node.dataset.urduLabelOriginal; });
+        urduHeaderOriginals.forEach(([node, text]) => { node.textContent=text; }); urduHeaderOriginals=[];
+        paper.classList.remove('urdu-medium'); paper.removeAttribute('dir'); isUrduMedium = false; button.textContent = 'اردو میڈیم'; return;
+    }
+    const unique = new Map();
+    nodes.forEach(node => {
+        if (node.dataset.urduOriginal === undefined) node.dataset.urduOriginal = node.textContent;
+        const item = { kind: node.dataset.urduKind, source: node.dataset.urduSource, id: Number(node.dataset.urduId) };
+        unique.set(`${item.kind}:${item.source}:${item.id}`, item);
+    });
+    const loader = document.getElementById('urduLoading'); loader?.classList.add('active'); button.disabled = true;
+    const progressDetail=document.getElementById('urduLoadingDetail'), progressPercent=document.getElementById('urduLoadingPercent');
+    try {
+        if(progressDetail)progressDetail.textContent='Translating missing questions';
+        if(progressPercent)progressPercent.textContent='Working';
+        const response = await fetch('api/urdu_translate.php', { method:'POST', headers:{'Content-Type':'application/json','X-Urdu-CSRF':urduTranslationCsrf}, body:JSON.stringify({items:Array.from(unique.values())}) });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error || 'Urdu translation failed.');
+        const failedCount=Object.keys(payload.failed||{}).length;
+        const missingNodes=nodes.filter(node=>{
+            const key=`${node.dataset.urduKind}:${node.dataset.urduSource}:${node.dataset.urduId}`;
+            const translated=payload.translations[key]?.[node.dataset.urduField];
+            return typeof translated!=='string'||translated.trim()==='';
+        });
+        if(failedCount||missingNodes.length){
+            const itemCount=new Set(missingNodes.map(node=>`${node.dataset.urduKind}:${node.dataset.urduSource}:${node.dataset.urduId}`)).size;
+            throw new Error(`${itemCount||failedCount} question(s) still need translation. Saved translations are kept; select Urdu Medium again to retry.`);
+        }
+        nodes.forEach(node => {
+            const key = `${node.dataset.urduKind}:${node.dataset.urduSource}:${node.dataset.urduId}`;
+            node.textContent = payload.translations[key][node.dataset.urduField];
+        });
+        paper.querySelectorAll('h3,h4').forEach(node => {
+            if (node.dataset.urduLabelOriginal === undefined) node.dataset.urduLabelOriginal=node.textContent;
+            const text=node.dataset.urduLabelOriginal.trim();
+            if (/Multiple Choice Questions/i.test(text)) node.textContent='۱۔ کثیر الانتخابی سوالات (MCQs)';
+            else if (/^Short Questions$/i.test(text)) node.textContent='مختصر سوالات';
+            else if (/^Long Questions$/i.test(text)) node.textContent='تفصیلی سوالات';
+            else if (/Write Short answers/i.test(text)) node.textContent='مختصر سوالات کے جوابات تحریر کریں (کسی بھی مطلوبہ تعداد کے):';
+            else if (/Long Questions:/i.test(text)) node.textContent='تفصیلی سوالات (کسی بھی مطلوبہ تعداد کے سوالات حل کریں)';
+        });
+        const headerLabels={'Subject':'مضمون','Subject:':'مضمون:','Examination':'امتحان','Session':'تعلیمی سال','Session:':'تعلیمی سال:','Class':'جماعت','Total Marks':'کل نمبر','Total Marks:':'کل نمبر:','Time Allowed':'وقت','Time Allowed:':'وقت:','Student\'s Name':'طالب علم کا نام','Roll No.':'رول نمبر','Roll No:':'رول نمبر:','Roll No.':'رول نمبر','First Term Examination':'پہلے ٹرم کا امتحان','First Term':'پہلا ٹرم','Official Examination':'سرکاری امتحان','1 Hour':'۱ گھنٹہ'};
+        const header=document.getElementById('dynamic-header');
+        if(header){const walker=document.createTreeWalker(header,NodeFilter.SHOW_TEXT);let textNode;while((textNode=walker.nextNode())){const original=textNode.textContent,trimmed=original.trim();let localized=original;if(headerLabels[trimmed])localized=original.replace(trimmed,headerLabels[trimmed]);else localized=original.replace('First Term Examination',headerLabels['First Term Examination']);if(localized!==original){urduHeaderOriginals.push([textNode,original]);textNode.textContent=localized;}}}
+        paper.classList.add('urdu-medium'); paper.setAttribute('dir','rtl'); isUrduMedium = true; button.textContent = 'English';
+        if(progressDetail)progressDetail.textContent=failedCount?`${failedCount} item(s) need retry. Select Urdu Medium again to retry pending translations.`:'Urdu medium paper is ready';
+        if(progressPercent)progressPercent.textContent=failedCount?'Partial':'Complete';
+    } catch (error) { alert(error.message || 'Unable to prepare the Urdu paper. Please try again.'); }
+    finally { loader?.classList.remove('active'); button.disabled = false; }
+}
 
 function openReviewModal() {
     const modal = document.getElementById('reviewModal');
@@ -1947,7 +2053,8 @@ function createPaperHTML(paperContainer, contentSection, title) {
     const headerElement = paperContainer.querySelector('.header');
     const noteElement = paperContainer.querySelector('#note');
     
-    let paperHTML = '<div class="paper-container">';
+    const exportUrdu = paperContainer.classList.contains('urdu-medium');
+    let paperHTML = '<div class="paper-container' + (exportUrdu ? ' urdu-medium" dir="rtl"' : '"') + '>';
     
     // Add header if exists
     if (headerElement) {
@@ -2014,6 +2121,58 @@ function inlineHeaderStyles() {
 
 function buildCleanPaperHTML(sourceEl) {
     const clone = sourceEl.cloneNode(true);
+    const exportUrdu = clone.classList.contains('urdu-medium') || !!clone.querySelector('.paper-container.urdu-medium');
+    if (exportUrdu) {
+        clone.setAttribute('dir','rtl');
+        clone.style.direction='rtl';
+        clone.style.textAlign='right';
+        clone.querySelectorAll('.question-row').forEach(row=>{row.setAttribute('dir','rtl');row.style.direction='rtl';row.style.flexDirection='row-reverse';row.style.textAlign='right';});
+        clone.querySelectorAll('.question-content, .q-text, .option-text, li').forEach(node=>{node.setAttribute('dir','rtl');node.style.direction='rtl';node.style.textAlign='right';});
+        clone.querySelectorAll('ol').forEach(list=>{list.style.listStyle='none';list.style.padding='0';list.style.margin='0';});
+
+        // Word's HTML importer does not reliably support unicode-bidi: plaintext.
+        // Isolate Latin terms and labels into explicit LTR runs inside Urdu text.
+        const wrapLatinRuns = (textNode) => {
+            const text = textNode.nodeValue || '';
+            const pattern = /\(?[A-Za-z][A-Za-z0-9]*(?:[ -][A-Za-z0-9]+)*\)?|\d+(?:[.,:/-]\d+)*/g;
+            let match, last = 0;
+            const fragment = document.createDocumentFragment();
+            while ((match = pattern.exec(text)) !== null) {
+                if (match.index > last) fragment.appendChild(document.createTextNode(text.slice(last, match.index)));
+                const run = document.createElement('span');
+                run.setAttribute('dir','ltr');
+                run.className = 'urdu-ltr-run';
+                run.style.direction = 'ltr';
+                run.style.unicodeBidi = 'embed';
+                run.style.display = 'inline';
+                run.textContent = match[0];
+                fragment.appendChild(run);
+                last = match.index + match[0].length;
+            }
+            if (last === 0) return;
+            if (last < text.length) fragment.appendChild(document.createTextNode(text.slice(last)));
+            textNode.replaceWith(fragment);
+        };
+        clone.querySelectorAll('.q-text, .option-text').forEach(node=>{
+            const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);
+            const textNodes=[];let current;
+            while((current=walker.nextNode()))if(/[A-Za-z0-9]/.test(current.nodeValue||''))textNodes.push(current);
+            textNodes.forEach(wrapLatinRuns);
+        });
+        clone.querySelectorAll('.mcq-question > strong, .option-row > strong, .question-item > strong, .question-row strong').forEach(label=>{
+            label.setAttribute('dir','ltr');
+            label.style.direction='ltr';
+            label.style.unicodeBidi='embed';
+            label.style.display='inline-block';
+        });
+        clone.querySelectorAll('.mcq-item, .question-item, .option-row').forEach(item=>{
+            item.setAttribute('dir','rtl');
+            item.style.direction='rtl';
+            item.style.textAlign='right';
+            item.style.pageBreakInside='avoid';
+            item.style.breakInside='avoid';
+        });
+    }
     
     // Remove hidden elements (like unselected headers)
     clone.querySelectorAll('[style*="display:none"], [style*="display: none"]').forEach(el => el.remove());
@@ -2064,6 +2223,13 @@ function buildCleanPaperHTML(sourceEl) {
             const questionDiv = document.createElement('div');
             questionDiv.className = 'question-item';
             questionDiv.style.marginBottom = '10px';
+            if (exportUrdu) {
+                questionDiv.setAttribute('dir','rtl');
+                questionDiv.style.direction='rtl';
+                questionDiv.style.textAlign='right';
+                questionDiv.style.pageBreakInside='avoid';
+                questionDiv.style.breakInside='avoid';
+            }
             questionDiv.innerHTML = li.innerHTML;
             div.appendChild(questionDiv);
         });
@@ -2095,6 +2261,11 @@ function buildCleanPaperHTML(sourceEl) {
         // Create a table for grid layout in DOCX
         const table = document.createElement('table');
         table.setAttribute('border', '0');
+        if (exportUrdu) {
+            table.setAttribute('dir','rtl');
+            table.style.direction='rtl';
+            table.style.textAlign='right';
+        }
         table.style.width = '100%';
         table.style.borderCollapse = 'collapse';
         table.style.border = 'none';
@@ -2115,9 +2286,21 @@ function buildCleanPaperHTML(sourceEl) {
                     cell.style.padding = '8px';
                     cell.style.border = 'none';
                     cell.style.verticalAlign = 'top';
+                    if (exportUrdu) {
+                        cell.setAttribute('dir','rtl');
+                        cell.style.direction='rtl';
+                        cell.style.textAlign='right';
+                        cell.style.pageBreakInside='avoid';
+                        cell.style.breakInside='avoid';
+                    }
                     
                     // Ensure proper formatting of MCQ content
                     const mcqContent = mcqItems[i + j].cloneNode(true);
+                    if (exportUrdu) {
+                        mcqContent.setAttribute('dir','rtl');
+                        mcqContent.style.direction='rtl';
+                        mcqContent.style.textAlign='right';
+                    }
                     
                     // Make sure question is bold
                     const questionEl = mcqContent.querySelector('.mcq-question');
@@ -2230,16 +2413,18 @@ function buildCleanPaperHTML(sourceEl) {
             
             const tdContent = document.createElement('td');
             tdContent.style.verticalAlign = 'top';
-            tdContent.style.textAlign = 'left';
+            tdContent.style.textAlign = exportUrdu ? 'right' : 'left';
             tdContent.style.border = 'none';
             tdContent.innerHTML = content.innerHTML;
             
             const tdMarks = document.createElement('td');
             tdMarks.style.verticalAlign = 'top';
-            tdMarks.style.textAlign = 'right';
+            tdMarks.style.textAlign = exportUrdu ? 'left' : 'right';
             tdMarks.style.border = 'none';
             tdMarks.style.width = '100px'; // Give enough space for marks
             tdMarks.innerHTML = marks.innerHTML;
+
+            if(exportUrdu){table.setAttribute('dir','rtl');table.style.direction='rtl';tdContent.setAttribute('dir','rtl');tdMarks.setAttribute('dir','ltr');}
             
             tr.appendChild(tdContent);
             tr.appendChild(tdMarks);

@@ -80,6 +80,8 @@ $adminUrl = $baseUrl . 'admin/';
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_books.php">📖 Books</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_chapters.php">📝 Chapters</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_questions.php">❓ Questions</a></li>
+                        <li><a href="<?= $adminUrl ?>urdu_translations.php">Urdu Question Conversion</a></li>
+                        <li><a href="<?= $adminUrl ?>urdu_translation_test.php">Test Urdu Gemini</a></li>
                         <li><a href="<?= $adminUrl ?>manageBookQuestions/generate_from_book.php">📘 Book Questions</a></li>
                         <li><a href="<?= $adminUrl ?>manageSchool/manage_notes.php">📚 Notes</a></li>
                         <li><a href="<?= $adminUrl ?>uploadingNotesForClasses/index.php">📑 Class Notes (Uploads)</a></li>

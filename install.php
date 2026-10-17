@@ -388,6 +388,67 @@ runQuery($conn, "CREATE TABLE IF NOT EXISTS questions_from_book (
     FOREIGN KEY (chapter_id) REFERENCES chapter(chapter_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;", "Table: questions_from_book");
 
+// Consolidate earlier source-specific translation tables into exactly two tables.
+foreach ([['urduMCQs','UrduMCQsLegacy','mcq_from_book_id'],['UrduQuestions','UrduQuestionsLegacy','question_from_book_id']] as [$current,$legacy,$combinedColumn]) {
+    $currentExists=$conn->query("SHOW TABLES LIKE '".$conn->real_escape_string($current)."'");
+    $legacyExists=$conn->query("SHOW TABLES LIKE '".$conn->real_escape_string($legacy)."'");
+    if ($currentExists && $currentExists->num_rows && $legacyExists && !$legacyExists->num_rows) {
+        $column=$conn->query("SHOW COLUMNS FROM `$current` LIKE '".$conn->real_escape_string($combinedColumn)."'");
+        if ($column && !$column->num_rows) $conn->query("RENAME TABLE `$current` TO `$legacy`");
+    }
+}
+runQuery($conn, "CREATE TABLE IF NOT EXISTS urduMCQs (
+    id INT AUTO_INCREMENT PRIMARY KEY, mcq_id INT NULL UNIQUE, mcq_from_book_id INT NULL UNIQUE,
+    source_id INT NULL, source_table VARCHAR(32) NULL,
+    question TEXT NOT NULL, option_a TEXT NOT NULL, option_b TEXT NOT NULL, option_c TEXT NOT NULL, option_d TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_urdu_mcq_primary_combined FOREIGN KEY (mcq_id) REFERENCES mcqs(mcq_id) ON DELETE CASCADE,
+    CONSTRAINT fk_urdu_mcq_book_combined FOREIGN KEY (mcq_from_book_id) REFERENCES mcqs_from_book(mcq_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", "Table: urduMCQs");
+runQuery($conn, "CREATE TABLE IF NOT EXISTS UrduQuestion (
+    id INT AUTO_INCREMENT PRIMARY KEY, question_id INT NULL UNIQUE, question_from_book_id INT NULL UNIQUE,
+    source_id INT NULL, source_table VARCHAR(32) NULL,
+    question_text TEXT NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_urdu_question_primary_combined FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+    CONSTRAINT fk_urdu_question_book_combined FOREIGN KEY (question_from_book_id) REFERENCES questions_from_book(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", "Table: UrduQuestion");
+
+// Add the unified source reference to installations that already have the combined tables.
+foreach ([['urduMCQs','source_id','INT NULL'],['urduMCQs','source_table','VARCHAR(32) NULL'],['UrduQuestion','source_id','INT NULL'],['UrduQuestion','source_table','VARCHAR(32) NULL']] as [$table,$column,$definition]) {
+    $columnCheck=$conn->query("SHOW COLUMNS FROM `$table` LIKE '".$conn->real_escape_string($column)."'");
+    if ($columnCheck && !$columnCheck->num_rows) $conn->query("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
+}
+
+// Preserve already-created translations before removing the obsolete tables.
+if ($conn->query("SHOW TABLES LIKE 'UrduMCQsLegacy'")->num_rows) $conn->query("INSERT IGNORE INTO urduMCQs (mcq_id,source_id,source_table,question,option_a,option_b,option_c,option_d) SELECT mcq_id,mcq_id,'mcqs',question,option_a,option_b,option_c,option_d FROM UrduMCQsLegacy");
+if ($conn->query("SHOW TABLES LIKE 'UrduBookMCQs'")->num_rows) $conn->query("INSERT IGNORE INTO urduMCQs (mcq_from_book_id,source_id,source_table,question,option_a,option_b,option_c,option_d) SELECT mcq_id,mcq_id,'mcqs_from_book',question,option_a,option_b,option_c,option_d FROM UrduBookMCQs");
+if ($conn->query("SHOW TABLES LIKE 'UrduQuestionsLegacy'")->num_rows) $conn->query("INSERT IGNORE INTO UrduQuestion (question_id,source_id,source_table,question_text) SELECT question_id,question_id,'questions',question_text FROM UrduQuestionsLegacy");
+if ($conn->query("SHOW TABLES LIKE 'UrduBookQuestions'")->num_rows) $conn->query("INSERT IGNORE INTO UrduQuestion (question_from_book_id,source_id,source_table,question_text) SELECT question_id,question_id,'questions_from_book',question_text FROM UrduBookQuestions");
+$conn->query("DROP TABLE IF EXISTS UrduBookMCQs, UrduBookQuestions, UrduMCQsLegacy, UrduQuestionsLegacy");
+
+// Backfill older rows from their real foreign key, then make the unified link mandatory.
+// A translation must reference exactly one of the two source tables; IDs alone are not globally unique.
+$conn->query("UPDATE urduMCQs SET source_id=COALESCE(mcq_id,mcq_from_book_id), source_table=CASE WHEN mcq_id IS NOT NULL THEN 'mcqs' ELSE 'mcqs_from_book' END");
+$conn->query("UPDATE UrduQuestion SET source_id=COALESCE(question_id,question_from_book_id), source_table=CASE WHEN question_id IS NOT NULL THEN 'questions' ELSE 'questions_from_book' END");
+$invalidMcqLinks=$conn->query("SELECT COUNT(*) c FROM urduMCQs WHERE source_id IS NULL OR source_table IS NULL OR ((mcq_id IS NULL)=(mcq_from_book_id IS NULL))");
+$invalidQuestionLinks=$conn->query("SELECT COUNT(*) c FROM UrduQuestion WHERE source_id IS NULL OR source_table IS NULL OR ((question_id IS NULL)=(question_from_book_id IS NULL))");
+$invalidMcqCount=(int)($invalidMcqLinks?$invalidMcqLinks->fetch_assoc()['c']:0);
+$invalidQuestionCount=(int)($invalidQuestionLinks?$invalidQuestionLinks->fetch_assoc()['c']:0);
+if ($invalidMcqCount===0) {
+    $conn->query("ALTER TABLE urduMCQs MODIFY source_id INT NOT NULL, MODIFY source_table VARCHAR(32) NOT NULL");
+    $sourceIndex=$conn->query("SHOW INDEX FROM urduMCQs WHERE Key_name='uq_urdu_mcq_source'");
+    if ($sourceIndex && !$sourceIndex->num_rows) $conn->query("ALTER TABLE urduMCQs ADD UNIQUE KEY uq_urdu_mcq_source (source_table,source_id)");
+} else echo "Urdu translation schema: $invalidMcqCount MCQ rows lack one valid source reference; resolve these rows before retrying installation.\n";
+if ($invalidQuestionCount===0) {
+    $conn->query("ALTER TABLE UrduQuestion MODIFY source_id INT NOT NULL, MODIFY source_table VARCHAR(32) NOT NULL");
+    $sourceIndex=$conn->query("SHOW INDEX FROM UrduQuestion WHERE Key_name='uq_urdu_question_source'");
+    if ($sourceIndex && !$sourceIndex->num_rows) $conn->query("ALTER TABLE UrduQuestion ADD UNIQUE KEY uq_urdu_question_source (source_table,source_id)");
+} else echo "Urdu translation schema: $invalidQuestionCount question rows lack one valid source reference; resolve these rows before retrying installation.\n";
+$remainingUrduTables=[];
+foreach(['UrduBookMCQs','UrduBookQuestions','UrduQuestions','UrduMCQsLegacy','UrduQuestionsLegacy'] as $obsoleteTable){$check=$conn->query("SHOW TABLES LIKE '".$conn->real_escape_string($obsoleteTable)."'");if($check&&$check->num_rows)$remainingUrduTables[]=$obsoleteTable;}
+$translationSchemaReady=$invalidMcqCount===0&&$invalidQuestionCount===0&&!$remainingUrduTables;
+echo 'Urdu translation schema: ' . ($translationSchemaReady ? 'two combined tables ready; every translation has a source reference' : 'translation schema needs attention' . ($remainingUrduTables ? '; obsolete tables remain: ' . htmlspecialchars(implode(', ',$remainingUrduTables)) : '')) . "\n";
+
 alignQuestionTableColumns($conn, 'mcqs', 'mcqs_from_book');
 alignQuestionTableColumns($conn, 'questions', 'questions_from_book');
 

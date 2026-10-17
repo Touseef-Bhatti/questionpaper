@@ -47,6 +47,13 @@ $docHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office"'
          . '.mcq-options div { margin: 2px 0; }'
          . '.option-row { margin-bottom: 2px; }'
 
+         // Word's HTML importer needs explicit bidi runs for Urdu mixed with Latin text.
+         . '.urdu-medium, [dir="rtl"] { direction: rtl; text-align: right; }'
+         . '.urdu-medium, .urdu-medium * { mso-bidi-language: AR-SA; }'
+         . '.urdu-medium .q-text, .urdu-medium .option-text, .urdu-medium .question-item, .urdu-medium .mcq-item { font-family: "Noto Nastaliq Urdu", "Noto Naskh Arabic", serif; mso-bidi-font-family: "Noto Nastaliq Urdu"; line-height: 1.9; }'
+         . '.urdu-medium .urdu-ltr-run, .urdu-medium [dir="ltr"] { direction: ltr; unicode-bidi: embed; mso-bidi-language: en-US; }'
+         . '.urdu-medium .mcq-item, .urdu-medium .question-item, .urdu-medium .option-row, .urdu-medium td { page-break-inside: avoid; }'
+
          // ── All tables default: no border (headers add their own) ────────
          . 'table { border-collapse: collapse; width: 100%; }'
          . 'td, th { padding: 4px 6px; vertical-align: top; }'

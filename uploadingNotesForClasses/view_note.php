@@ -28,6 +28,13 @@ function vnNoteUrl($assetBase, $note) {
     return ($assetBase ?? '') . 'class-' . rawurlencode((string)$note['class']) . '-' . $subjectSlug . '-' . $titleSlug . '-' . (int)$note['id'];
 }
 
+function vnDownloadNoteUrl($assetBase, $note) {
+    $parts = ['class-' . (string)($note['class'] ?? '9'), vnSlugify($note['subject'] ?? 'general')];
+    if (trim((string)($note['chapter'] ?? '')) !== '') $parts[] = vnSlugify($note['chapter']);
+    $parts[] = vnSlugify($note['title'] ?? 'study-notes');
+    return ($assetBase ?? '') . 'download-notes/' . implode('-', $parts) . '-' . (int)$note['id'];
+}
+
 function vnEnsureEngagementTables($conn) {
     $viewsColumnCheck = $conn->query("SHOW COLUMNS FROM class_notes LIKE 'views'");
     if (!$viewsColumnCheck || $viewsColumnCheck->num_rows === 0) {
@@ -270,10 +277,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $relatedNotes = [];
 $noteChapter = trim((string) ($note['chapter'] ?? ''));
 if ($noteChapter !== '') {
-    $relStmt = $conn->prepare("SELECT id, title, subject, class, chapter, mime_type FROM class_notes WHERE status = 'approved' AND drive_status = 'available' AND class = ? AND subject = ? AND chapter = ? AND id != ? ORDER BY created_at DESC LIMIT 4");
+    $relStmt = $conn->prepare("SELECT n.id, n.title, n.description, n.subject, n.class, n.chapter, n.mime_type, n.views,
+                                      COALESCE(l.like_count, 0) AS like_count,
+                                      COALESCE(c.comment_count, 0) AS comment_count
+                               FROM class_notes n
+                               LEFT JOIN (SELECT note_id, COUNT(*) AS like_count FROM class_note_likes GROUP BY note_id) l ON l.note_id = n.id
+                               LEFT JOIN (SELECT note_id, COUNT(*) AS comment_count FROM class_note_comments WHERE is_deleted = 0 GROUP BY note_id) c ON c.note_id = n.id
+                               WHERE n.status = 'approved' AND n.drive_status = 'available' AND n.class = ? AND n.subject = ? AND n.chapter = ? AND n.id != ?
+                               ORDER BY n.created_at DESC LIMIT 8");
     $relStmt->bind_param('sssi', $note['class'], $note['subject'], $noteChapter, $noteId);
 } else {
-    $relStmt = $conn->prepare("SELECT id, title, subject, class, chapter, mime_type FROM class_notes WHERE status = 'approved' AND drive_status = 'available' AND class = ? AND subject = ? AND (chapter IS NULL OR chapter = '') AND id != ? ORDER BY created_at DESC LIMIT 4");
+    $relStmt = $conn->prepare("SELECT n.id, n.title, n.description, n.subject, n.class, n.chapter, n.mime_type, n.views,
+                                      COALESCE(l.like_count, 0) AS like_count,
+                                      COALESCE(c.comment_count, 0) AS comment_count
+                               FROM class_notes n
+                               LEFT JOIN (SELECT note_id, COUNT(*) AS like_count FROM class_note_likes GROUP BY note_id) l ON l.note_id = n.id
+                               LEFT JOIN (SELECT note_id, COUNT(*) AS comment_count FROM class_note_comments WHERE is_deleted = 0 GROUP BY note_id) c ON c.note_id = n.id
+                               WHERE n.status = 'approved' AND n.drive_status = 'available' AND n.class = ? AND n.subject = ? AND (n.chapter IS NULL OR n.chapter = '') AND n.id != ?
+                               ORDER BY n.created_at DESC LIMIT 8");
     $relStmt->bind_param('ssi', $note['class'], $note['subject'], $noteId);
 }
 $relStmt->execute();
@@ -579,6 +600,28 @@ $commentStmt->close();
             line-height: 1.8;
             white-space: pre-line;
         }
+        .vn-download-cta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.85rem;
+            width: 100%;
+            min-height: 76px;
+            margin: -0.35rem 0 1.5rem;
+            padding: 1rem 1.5rem;
+            border: 0;
+            border-radius: 16px;
+            background: linear-gradient(115deg, #4338ca, #2563eb 58%, #0284c7);
+            color: #fff;
+            box-shadow: 0 12px 28px rgba(37, 99, 235, .2);
+            text-decoration: none;
+            font-size: clamp(1.05rem, 2.3vw, 1.3rem);
+            font-weight: 800;
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+        .vn-download-cta:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(37, 99, 235, .26); }
+        .vn-download-cta:focus-visible { outline: 3px solid #0ea5e9; outline-offset: 3px; }
+        .vn-download-cta svg { width: 26px; height: 26px; flex-shrink: 0; }
         .vn-file-badge {
             display: inline-flex;
             align-items: center;
@@ -715,24 +758,26 @@ $commentStmt->close();
             border: 1px solid rgba(99, 102, 241, 0.15);
         }
 
-        /* Related Notes */
-        .vn-related-list { display: flex; flex-direction: column; gap: 0.5rem; }
-        .vn-related-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.85rem 1rem;
-            background: #f9fafc;
-            border-radius: var(--vn-radius-sm);
-            text-decoration: none;
-            color: var(--vn-text);
-            transition: all 0.25s;
-            border: 1px solid transparent;
+        /* Related notes use square, scan-friendly cards like the class notes listing. */
+        .vn-related-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(205px,1fr)); gap:1rem; }
+        .vn-related-card {
+            display:flex; flex-direction:column; min-width:0; aspect-ratio:1/1; box-sizing:border-box;
+            padding:1.1rem; border:1px solid var(--vn-border); border-radius:14px;
+            background:linear-gradient(160deg,#fff,#f8faff); color:var(--vn-text);
+            text-decoration:none; transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
         }
-        .vn-related-item:hover {
-            background: rgba(99, 102, 241, 0.06);
-            border-color: rgba(99, 102, 241, 0.15);
-        }
+        .vn-related-card:hover { transform:translateY(-3px); border-color:rgba(99,102,241,.38); box-shadow:0 12px 24px rgba(30,41,59,.09); }
+        .vn-related-card:focus-visible { outline:3px solid #6366f1; outline-offset:3px; }
+        .vn-related-card-top { display:flex; align-items:center; justify-content:space-between; gap:.6rem; }
+        .vn-related-icon { width:42px; height:42px; display:grid; place-items:center; flex-shrink:0; border-radius:12px; background:linear-gradient(135deg,var(--vn-primary),#8b5cf6); color:#fff; }
+        .vn-related-icon svg { width:20px; height:20px; }
+        .vn-related-badge { padding:.28rem .55rem; border-radius:999px; background:var(--vn-primary-glow); color:var(--vn-primary-dark); font-size:.66rem; font-weight:800; text-transform:uppercase; }
+        .vn-related-title { margin:.95rem 0 .4rem; color:var(--vn-text-heading); font-size:.98rem; font-weight:800; line-height:1.35; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+        .vn-related-sub { color:var(--vn-text-muted); font-size:.75rem; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .vn-related-stats { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-top:auto; padding-top:.75rem; border-top:1px solid var(--vn-border); color:var(--vn-text-muted); font-size:.72rem; }
+        .vn-related-stats span { display:inline-flex; align-items:center; gap:.25rem; }
+        .vn-related-stats svg { width:14px; height:14px; }
+        .vn-related-stats .likes { color:#e11d48; }
         .vn-related-section {
             margin-top: 2rem;
             padding: 2rem;
@@ -751,32 +796,6 @@ $commentStmt->close();
             color: var(--vn-text-muted);
             line-height: 1.7;
         }
-        .vn-related-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, var(--vn-primary), #8b5cf6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .vn-related-icon svg { width: 16px; height: 16px; color: #fff; }
-        .vn-related-title {
-            font-size: 0.85rem;
-            font-weight: 600;
-            line-height: 1.3;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .vn-related-sub {
-            font-size: 0.72rem;
-            color: var(--vn-text-muted);
-            margin-top: 0.15rem;
-        }
-
         /* SEO Content Section */
         .vn-seo-section {
             margin-top: 2rem;
@@ -1034,6 +1053,9 @@ $commentStmt->close();
             .vn-layout { gap: 1rem; }
             .vn-iframe-wrap { padding-bottom: 135%; min-height: 520px; }
             .vn-note-intro, .vn-related-section { padding: 1.25rem; }
+            .vn-related-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.7rem; }
+            .vn-related-card { padding:.8rem; }
+            .vn-download-cta { min-height:66px; padding:.9rem 1rem; text-align:center; }
             .vn-seo-section { padding: 1.5rem; }
             .vn-viewer-header { padding: 0.85rem 1rem; align-items: flex-start; gap: 0.75rem; }
             .vn-viewer-title { font-size: 0.9rem; line-height: 1.35; }
@@ -1082,6 +1104,10 @@ $commentStmt->close();
                         <h1 id="note-title"><?= $noteTitle ?></h1>
                         <p class="vn-note-description"><?= nl2br(htmlspecialchars($noteDesc, ENT_QUOTES, 'UTF-8')) ?></p>
                     </section>
+                    <a class="vn-download-cta" href="<?= htmlspecialchars(vnDownloadNoteUrl($assetBase, $note), ENT_QUOTES, 'UTF-8') ?>" aria-label="Download <?= $noteTitle ?> for <?= htmlspecialchars($classShort . ' ' . $subjectText, ENT_QUOTES, 'UTF-8') ?>">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+                        <span>Download These Notes — Free</span>
+                    </a>
 
                     <div class="vn-viewer">
                         <div class="vn-viewer-header">
@@ -1202,16 +1228,20 @@ $commentStmt->close();
                     <section class="vn-related-section vn-fade-in" aria-labelledby="related-notes-title">
                         <h2 id="related-notes-title">More <?= $subjectName ?> Notes<?= $chapterName ? ' from ' . $chapterName : ' from This Chapter' ?></h2>
                         <p>Explore other <?= $classShort ?> <?= $subjectName ?> notes from the same chapter for additional revision and practice.</p>
-                        <div class="vn-related-list">
+                        <div class="vn-related-grid">
                             <?php foreach ($relatedNotes as $rel): ?>
-                            <a href="<?= htmlspecialchars(vnNoteUrl($assetBase, $rel), ENT_QUOTES, 'UTF-8') ?>" class="vn-related-item">
-                                <div class="vn-related-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <a href="<?= htmlspecialchars(vnNoteUrl($assetBase, $rel), ENT_QUOTES, 'UTF-8') ?>" class="vn-related-card">
+                                <div class="vn-related-card-top">
+                                    <span class="vn-related-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h8"/></svg></span>
+                                    <span class="vn-related-badge"><?= htmlspecialchars(vnGetFileTypeBadge($rel['mime_type']), ENT_QUOTES, 'UTF-8') ?></span>
                                 </div>
-                                <div>
-                                    <div class="vn-related-title"><?= htmlspecialchars($rel['title'], ENT_QUOTES, 'UTF-8') ?></div>
-                                    <div class="vn-related-sub"><?= htmlspecialchars($rel['subject'] ?? '', ENT_QUOTES, 'UTF-8') ?><?= !empty($rel['chapter']) ? ' &middot; ' . htmlspecialchars($rel['chapter'], ENT_QUOTES, 'UTF-8') : '' ?></div>
-                                </div>
+                                <span class="vn-related-title"><?= htmlspecialchars($rel['title'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <span class="vn-related-sub"><?= htmlspecialchars($rel['subject'] ?? '', ENT_QUOTES, 'UTF-8') ?><?= !empty($rel['chapter']) ? ' · ' . htmlspecialchars($rel['chapter'], ENT_QUOTES, 'UTF-8') : '' ?></span>
+                                <span class="vn-related-stats" aria-label="<?= number_format((int)$rel['views']) ?> views, <?= number_format((int)$rel['like_count']) ?> likes, <?= number_format((int)$rel['comment_count']) ?> comments">
+                                    <span title="Views"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><?= number_format((int)$rel['views']) ?></span>
+                                    <span class="likes" title="Likes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 8.6c0 5.5-8.8 10.4-8.8 10.4S3.2 14.1 3.2 8.6A4.6 4.6 0 0 1 7.8 4c1.4 0 2.8.7 4.2 2 1.4-1.3 2.8-2 4.2-2a4.6 4.6 0 0 1 4.6 4.6z"/></svg><?= number_format((int)$rel['like_count']) ?></span>
+                                    <span title="Comments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 9.8 9.8 0 0 1-4-.8L3 21l1.8-4.5A8.2 8.2 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/></svg><?= number_format((int)$rel['comment_count']) ?></span>
+                                </span>
                             </a>
                             <?php endforeach; ?>
                         </div>

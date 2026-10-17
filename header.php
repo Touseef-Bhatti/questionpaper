@@ -1222,3 +1222,23 @@ syncMode();
 
 })();
 </script>
+<?php if (empty($only_navbar) && empty($only_head) && strpos(str_replace('\\', '/', (string)$current_page), '/admin/') === false): ?>
+<?php include_once __DIR__ . '/includes/quiz_ad_gate.php'; ?>
+<script>
+(function () {
+    const showSiteAdGate = function () {
+        if (!window.ALHQuizAdGate) return;
+        window.ALHQuizAdGate.gate({
+            storageKey: 'alh_sitewide_ad_seen_until',
+            globalStorageKey: true,
+            onContinue: function () {}
+        });
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', showSiteAdGate, { once: true });
+    } else {
+        showSiteAdGate();
+    }
+})();
+</script>
+<?php endif; ?>
