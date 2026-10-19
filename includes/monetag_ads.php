@@ -88,15 +88,24 @@ function shouldShowAdsOnCurrentPage($allowedPages) {
         return false;
     }
 
-    // --- LOCALHOST AD TOGGLE ---
-    // $hostPart = strtolower(explode(':', $_SERVER['HTTP_HOST'] ?? '')[0]);
-    // if (in_array($hostPart, ['', 'localhost', '127.0.0.1', '::1'], true)) {
-    //     return false;
-    // }
-    
     // --- PAGE SPECIFIC ADS ---
     $currentPage = basename($_SERVER['SCRIPT_NAME'] ?? '');
-    if (!in_array($currentPage, $allowedPages, true)) {
+    $requestPath = parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+    $isDownloadNoteRoute = is_string($requestPath)
+        && preg_match('~(?:^|/)download-notes/[^/]+-\d+/?$~i', $requestPath) === 1;
+    $isDownloadNotePage = $currentPage === 'download_note_landing.php' || $isDownloadNoteRoute;
+    $isAllowedPage = in_array($currentPage, $allowedPages, true);
+    if (!$isAllowedPage && $isDownloadNotePage && in_array('download_note_landing.php', $allowedPages, true)) {
+        $isAllowedPage = true;
+    }
+
+    if (!$isAllowedPage) {
+        return false;
+    }
+
+    // Keep localhost ads disabled elsewhere, while honoring the requested note page allowlist.
+    $hostPart = strtolower(explode(':', $_SERVER['HTTP_HOST'] ?? '')[0]);
+    if (in_array($hostPart, ['', 'localhost', '127.0.0.1', '::1'], true) && !$isDownloadNotePage) {
         return false;
     }
     

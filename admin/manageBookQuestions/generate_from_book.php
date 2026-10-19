@@ -1073,12 +1073,14 @@ function hideAlert() {
     box.innerHTML = '';
 }
 
-async function postForm(fd) {
+async function postForm(fd, timeoutMs = 0) {
     if (!fd.has('csrf_token')) {
         fd.append('csrf_token', csrfToken);
     }
+    const controller = timeoutMs > 0 ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
     try {
-        const res = await fetch(apiUrl, { method: 'POST', body: fd });
+        const res = await fetch(apiUrl, { method: 'POST', body: fd, ...(controller ? { signal: controller.signal } : {}) });
         const text = await res.text();
         const contentType = (res.headers.get('content-type') || '').toLowerCase();
         const trimmedText = text.trimStart();
@@ -1107,8 +1109,14 @@ async function postForm(fd) {
         }
         return data;
     } catch (err) {
+        if (err.name === 'AbortError') {
+            showAlert('The request timed out. Check your connection and try again.', 'danger');
+            return null;
+        }
         showAlert('Network error: ' + err.message, 'danger');
         return null;
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
     }
 }
 
@@ -1824,51 +1832,50 @@ document.getElementById('startGenerateBtn').addEventListener('click', async () =
     const startButton = document.getElementById('startGenerateBtn');
     const originalButtonText = startButton.innerHTML;
     startButton.disabled = true;
-    startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading stored book...';
-    let browserSource;
     try {
+        startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading stored book...';
         const sourceFile = await resolveBrowserSourceFile();
         startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Preparing chapter pages...';
-        browserSource = await prepareBrowserChapterSource(sourceFile, pdfStartPage, pdfEndPage);
+        const browserSource = await prepareBrowserChapterSource(sourceFile, pdfStartPage, pdfEndPage);
+
+        startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Uploading chapter...';
+        const fd = new FormData();
+        fd.append('action', 'init_chapter_job');
+        fd.append('upload_id', currentUpload.id);
+        fd.append('chapter_id', chapterId);
+        fd.append('mcq_count', document.getElementById('mcqCount').value);
+        fd.append('short_count', document.getElementById('shortCount').value);
+        fd.append('long_count', document.getElementById('longCount').value);
+        fd.append('chapter_source_mode', browserSource.mode);
+        fd.append('browser_pdf_page_count', String(browserSource.pageCount));
+        if (browserSource.mode === 'text') {
+            fd.append('chapter_text', browserSource.text);
+        } else {
+            browserSource.images.forEach(image => fd.append('chapter_pages[]', image, image.name));
+        }
+
+        const data = await postForm(fd, 180000);
+        if (!data?.ok) return;
+
+        currentJobId = data.job_id;
+        const jobUrl = new URL(window.location.href);
+        jobUrl.searchParams.set('job_id', currentJobId);
+        window.history.replaceState({}, '', jobUrl.toString());
+        const link = document.getElementById('reviewLink');
+        link.href = 'review.php?job_id=' + encodeURIComponent(currentJobId);
+        document.getElementById('reviewLinkWrap').classList.remove('d-none');
+        document.getElementById('stopGenerateBtn').classList.remove('d-none');
+        renderProgress(data.progress);
+        generationRunning = true;
+        updateGenerationControls();
+        processBatchLoop();
     } catch (error) {
+        showAlert(error.message || 'Could not start question generation. Please try again.', 'danger');
+    } finally {
         startButton.disabled = false;
         startButton.innerHTML = originalButtonText;
-        showAlert(error.message || 'Could not prepare the selected chapter in the browser.', 'danger');
-        return;
+        updateGenerationControls();
     }
-
-    const fd = new FormData();
-    fd.append('action', 'init_chapter_job');
-    fd.append('upload_id', currentUpload.id);
-    fd.append('chapter_id', chapterId);
-    fd.append('mcq_count', document.getElementById('mcqCount').value);
-    fd.append('short_count', document.getElementById('shortCount').value);
-    fd.append('long_count', document.getElementById('longCount').value);
-    fd.append('chapter_source_mode', browserSource.mode);
-    fd.append('browser_pdf_page_count', String(browserSource.pageCount));
-    if (browserSource.mode === 'text') {
-        fd.append('chapter_text', browserSource.text);
-    } else {
-        browserSource.images.forEach(image => fd.append('chapter_pages[]', image, image.name));
-    }
-
-    const data = await postForm(fd);
-    startButton.disabled = false;
-    startButton.innerHTML = originalButtonText;
-    if (!data?.ok) return;
-    
-    currentJobId = data.job_id;
-    const jobUrl = new URL(window.location.href);
-    jobUrl.searchParams.set('job_id', currentJobId);
-    window.history.replaceState({}, '', jobUrl.toString());
-    const link = document.getElementById('reviewLink');
-    link.href = 'review.php?job_id=' + encodeURIComponent(currentJobId);
-    document.getElementById('reviewLinkWrap').classList.remove('d-none');
-    document.getElementById('stopGenerateBtn').classList.remove('d-none');
-    renderProgress(data.progress);
-    generationRunning = true;
-    updateGenerationControls();
-    processBatchLoop();
 });
 
 document.getElementById('stopGenerateBtn').addEventListener('click', () => {

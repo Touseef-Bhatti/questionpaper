@@ -1696,7 +1696,7 @@ function requestUrduMedium() {
         return;
     }
     window.ALHQuizAdGate.gate({
-        storageKey: 'alh_sitewide_ad_seen_until',
+        storageKey: 'alh_urdu_medium_ad_seen_until',
         globalStorageKey: true,
         message: 'Watch 1 ad to unlock all features for free!',
         onContinue: () => toggleUrduMedium()

@@ -185,5 +185,6 @@ $faviconBaseUrl = $assetBase;
         });
     })();
     </script>
+    <?php include_once dirname(__DIR__) . '/includes/monetag_ads.php'; ?>
 </body>
 </html>

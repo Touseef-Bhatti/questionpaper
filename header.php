@@ -1224,6 +1224,7 @@ syncMode();
 </script>
 <?php if (empty($only_navbar) && empty($only_head) && strpos(str_replace('\\', '/', (string)$current_page), '/admin/') === false): ?>
 <?php include_once __DIR__ . '/includes/quiz_ad_gate.php'; ?>
+<?php if (basename($current_page) !== 'generate_question_paper.php'): ?>
 <script>
 (function () {
     const showSiteAdGate = function () {
@@ -1235,10 +1236,13 @@ syncMode();
         });
     };
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', showSiteAdGate, { once: true });
+        document.addEventListener('DOMContentLoaded', function () {
+            window.setTimeout(showSiteAdGate, 5000);
+        }, { once: true });
     } else {
-        showSiteAdGate();
+        window.setTimeout(showSiteAdGate, 5000);
     }
 })();
 </script>
+<?php endif; ?>
 <?php endif; ?>
